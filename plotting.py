@@ -13,3 +13,5 @@ def plot_potential_and_gradient(X, V, dV):
     plt.show()
 
 #TODO plot potential and gradient in 1D.
+
+#TODO plot tilted potential and basis functions
