@@ -1,0 +1,13 @@
+# ignore virtual environment
+
+# ignore state files
+*.swp
+
+# ignore python compilation files
+*.pyc
+
+# ignore pycharm idea
+.idea/
+
+# ignore mathlab files
+*.m
