@@ -38,8 +38,8 @@ parser.add_argument(
     nargs=2,
     dest='well_set',
     type=float,
-    default=[-1.9, -0.9],
-    help='Set the target set interval. Default: [0.9, 1.1]',
+    default=[-1.9, -0.1],
+    help='Set the target set interval. Default: [-1.9, -0.1]',
 )
 args = parser.parse_args()
 
@@ -98,7 +98,7 @@ dB = np.sqrt(dt)*np.random.normal(0, 1, N)
 
 for n in np.arange(1, N+1): 
     # stop simulation if particle leave the well set T
-    if (Xtemp < well_set_min and Xtemp > well_set_max):
+    if (Xtemp < well_set_min or Xtemp > well_set_max):
         Xem[n:N+1] = np.nan
         break
 
@@ -119,6 +119,7 @@ for n in np.arange(1, N+1):
     
     # compute dVbias
     if i == 0:
+        Vbias = 0
         dVbias = 0
     else:
         Vbias = bias_potential(
@@ -135,8 +136,8 @@ for n in np.arange(1, N+1):
         )
 
     # compute drift and diffusion coefficients
-    #drift = Vbias - gradient_double_well_1d_potential(Xtemp))*dt
-    drift = (dVbias - gradient_double_well_1d_potential(Xtemp))*dt
+    drift = (Vbias - gradient_double_well_1d_potential(Xtemp))*dt
+    #drift = (dVbias - gradient_double_well_1d_potential(Xtemp))*dt
     diffusion = np.sqrt(2 / beta) * dB[n-1]
 
     # compute Xtemp
@@ -157,15 +158,3 @@ else:
 plot_trajectory(t, Xem)
         
 print('Bias functions used: {:d}\n'.format(i))
-print(mus)
-print(sigmas)
-
-
-# plot bias potential
-Vbias = bias_potential2(
-    X=X,
-    mus=mus,
-    sigmas=sigmas,
-    omegas=omegas,
-)
-plot_bias_potential(X, Vbias)
