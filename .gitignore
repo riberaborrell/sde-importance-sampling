@@ -11,3 +11,6 @@
 
 # ignore mathlab files
 *.m
+
+# ignore figures directory
+mds/figures/
