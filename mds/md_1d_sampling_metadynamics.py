@@ -4,13 +4,15 @@ import matplotlib.pyplot as plt
 
 from plotting import plot_potential_and_gradient, \
                      plot_tilted_potential, \
+                     plot_gradient_tilted_potential, \
                      plot_trajectory
 from tools import double_well_1d_potential, \
                   gradient_double_well_1d_potential, \
                   bias_functions, \
                   bias_potential, \
+                  bias_potential2, \
                   gradient_bias_potential, \
-                  bias_potential2
+                  gradient_bias_potential2
 
 parser = argparse.ArgumentParser(description='Brownian path simulation')
 parser.add_argument(
@@ -108,7 +110,8 @@ for n in np.arange(1, N+1):
         sigmas[i] = np.max(np.abs(Xhelp - mus[i])) / 5
         Xhelp = np.zeros(k+1)
         i += 1
-        # plot bias potential
+
+        # plot tilted potential
         Vbias = bias_potential2(
             X=X,
             mus=mus[:i],
@@ -116,6 +119,15 @@ for n in np.arange(1, N+1):
             omegas=omegas[:i],
         )
         plot_tilted_potential(X, V, Vbias)
+        
+        # plot gradient of the tilted potential
+        dVbias = gradient_bias_potential2(
+            X=X,
+            mus=mus[:i],
+            sigmas=sigmas[:i],
+            omegas=omegas[:i],
+        )
+        plot_gradient_tilted_potential(X, dV, dVbias)
     
     # compute dVbias
     if i == 0:
@@ -136,8 +148,8 @@ for n in np.arange(1, N+1):
         )
 
     # compute drift and diffusion coefficients
-    drift = (Vbias - gradient_double_well_1d_potential(Xtemp))*dt
-    #drift = (dVbias - gradient_double_well_1d_potential(Xtemp))*dt
+    #drift = (- gradient_double_well_1d_potential(Xtemp) + Vbias)*dt
+    drift = (- gradient_double_well_1d_potential(Xtemp) - dVbias)*dt
     diffusion = np.sqrt(2 / beta) * dB[n-1]
 
     # compute Xtemp

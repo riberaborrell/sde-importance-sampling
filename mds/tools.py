@@ -99,7 +99,7 @@ def gradient_bias_potential(x, omegas, mus, sigmas):
         sigmas=sigmas,
     )
 
-    dVbias = np.sum(-omegas * ((x - mus)/sigmas) * b)
+    dVbias = np.sum(-omegas * ((x - mus)/sigmas**2) * b)
     return dVbias
 
 def bias_potential2(X, mus, sigmas, omegas):
@@ -128,3 +128,30 @@ def bias_potential2(X, mus, sigmas, omegas):
         )
         Vbias[i] = np.sum(omegas*b)
     return Vbias
+
+def gradient_bias_potential2(X, omegas, mus, sigmas):
+    '''This method computes the gradient of the bias potential
+    
+    Args:
+        X (array) : posisions
+        omegas (array) : weights
+        means (array): mean of each gaussian density
+        sigmas (array) : standard deviation of each gaussian density
+
+    Returns:
+        dVbiased (float) : gradient of the bias potential evaluated at the array X
+    '''
+    assert omegas.shape == mus.shape == sigmas.shape, "Error"
+
+    # preallocate gradient of bias potential
+    dVbias = np.zeros(len(X))
+
+    for i, x in enumerate(X):
+        # get bias functions evalutated at x
+        b = bias_functions(
+            x=x,
+            mus=mus,
+            sigmas=sigmas,
+        )
+        dVbias[i] = np.sum(-omegas * ((x - mus)/sigmas) * b)
+    return dVbias

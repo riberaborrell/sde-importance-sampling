@@ -21,6 +21,15 @@ def plot_tilted_potential(X, V, Vbias):
     plt.legend(loc='upper left', fontsize=8)
     plt.show()
 
+def plot_gradient_tilted_potential(X, dV, dVbias):
+    plt.plot(X, dV, 'b-', label=r'gradient $\nabla V(x)$')
+    plt.plot(X, dVbias, 'r-', label=r'bias gradient $\nabla V_{bias}(x)$')
+    plt.plot(X, dV + dVbias, c='purple', linestyle='-', label=r'tilted gradient $\nabla \tilde{V}(x)$')
+    plt.xlabel('x', fontsize=16)
+    plt.ylim(top=4, bottom=-4)
+    plt.legend(loc='upper left', fontsize=8)
+    plt.show()
+
 #TODO plot potential and gradient in 1D.
 
 #TODO plot tilted potential and basis functions
