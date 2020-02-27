@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+from scipy.stats import norm
 
 def double_well_1d_potential(x):
     '''This method returns a potential function evaluated at the point x
@@ -14,59 +15,116 @@ def gradient_double_well_1d_potential(x):
     '''
     return 2*x*(x**2 - 1)
 
+def normal_probability_density(x, mu, sigma):
+    '''This method evaluates the normal probability density with mean
+    mu and standard deviation sigma at the point x. Equivalent to
+    norm.pdf(x, mu, sigma) 
 
-def bias_functions(x, K, means, sigmas):
+    Args:
+        x (float) : posision
+        mu (float): mean
+        sigma (float) : standard deviation
+    '''
+    norm_factor = sigma * np.sqrt(2*np.pi)
+    return np.exp(-0.5*(x - mu)**2 / (sigma**2)) / norm_factor
+
+def bias_functions(x, mus, sigmas):
     '''This method computes Gaussian densities given a mean and a
     standard deviation
 
     Args:
         x (float) : posision
-        K (int) : number of bias functions  
-        means (array): mean of each gaussian
-        sigmas (array) : square root of the variance of each gaussian
+        means (array): mean of each gaussian density
+        sigmas (array) : standard deviation of each gaussian density
 
     Returns:
         b (array) : Gaussian densities with mean and variance given by
         means and sigmas**2 respectively evaluated at the point x 
 
     '''
-    b = np.empty(K)
+    assert mus.shape == sigmas.shape, "Error"
+
+    # number of bias functions
+    K = len(mus)
+
+    # preallocate basis functions
+    b = np.zeros(K)
     
     for i in np.arange(K):
-        norm_factor = sigmas[i]*np.sqrt(2*np.pi)
-        b[i] = np.exp(-0.5*(x - means[i])**2 / (sigmas[i]**2)) / norm_factor
+        b[i] = norm.pdf(x, mus[i], sigmas[i]) 
 
     return b
     
-def bias_potential(b, omegas):
+def bias_potential(x, mus, sigmas, omegas):
     '''This method computes the bias potential
     
     Args:
-        b (array) : bias functions evaluated at the point x
-        omegas (array) : weights
+        x (float) : posision
+        means (array): mean of each gaussian density
+        sigmas (array) : standard deviation of each gaussian density
 
     Returns:
         Vbiased (float) : Biased potential evaluated at the point x
     '''
-    assert b.shape == omegas.shape, "Error"
+    assert omegas.shape == mus.shape == sigmas.shape, "Error"
+    
+    # get bias functions evalutated at x
+    b = bias_functions(
+        x=x,
+        mus=mus,
+        sigmas=sigmas,
+    )
 
     Vbias = np.sum(omegas*b)
     return Vbias
 
-def gradient_bias_potential(x, b, omegas, means, sigmas):
+def gradient_bias_potential(x, omegas, mus, sigmas):
     '''This method computes the gradient of the bias potential
     
     Args:
         x (float) : posision
-        b (array) : bias functions evaluated at the point x
         omegas (array) : weights
-        means (array): mean of each gaussian
-        sigmas (array) : square root of the variance of each gaussian
+        means (array): mean of each gaussian density
+        sigmas (array) : standard deviation of each gaussian density
 
     Returns:
         dVbiased (float) : gradient of the bias potential evaluated at the point x
     '''
-    assert b.shape == omegas.shape == means.shape == sigmas.shape, "Error"
+    assert omegas.shape == mus.shape == sigmas.shape, "Error"
 
-    dVbias = np.sum(-omegas * ((x - means)/sigmas) * b)
+    # get bias functions evalutated at x
+    b = bias_functions(
+        x=x,
+        mus=mus,
+        sigmas=sigmas,
+    )
+
+    dVbias = np.sum(-omegas * ((x - mus)/sigmas) * b)
     return dVbias
+
+def bias_potential2(X, mus, sigmas, omegas):
+    '''This method computes the bias potential
+    
+    Args:
+        X (array) : posisions
+        means (array): mean of each gaussian density
+        sigmas (array) : standard deviation of each gaussian density
+        omegas (array) : weights
+
+    Returns:
+        Vbiased (array) : Biased potential evaluated at the array X
+    '''
+    assert omegas.shape == mus.shape == sigmas.shape, "Error"
+
+    # preallocate bias potential
+    Vbias = np.zeros(len(X))
+    
+    for i, x in enumerate(X):
+        # get bias functions evalutated at x
+        b = bias_functions(
+            x=x,
+            mus=mus,
+            sigmas=sigmas,
+        )
+        Vbias[i] = np.sum(omegas*b)
+    return Vbias

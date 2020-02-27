@@ -56,7 +56,8 @@ X = np.linspace(-2, 2, 100)
 # potential and gradient
 V = double_well_1d_potential(X)
 dV = gradient_double_well_1d_potential(X)
-#plot_potential_and_gradient(X, V, dV)
+plot_potential_and_gradient(X, V, dV)
+exit()
 
 # time interval, time steps and number of time steps
 tzero = 0
