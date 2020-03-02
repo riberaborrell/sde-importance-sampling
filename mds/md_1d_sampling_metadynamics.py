@@ -2,10 +2,10 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 
-from plotting import plot_potential_and_gradient, \
-                     plot_tilted_potential, \
-                     plot_gradient_tilted_potential, \
-                     plot_trajectory
+import os
+
+from plotting import Plot
+
 from tools import double_well_1d_potential, \
                   gradient_double_well_1d_potential, \
                   bias_functions, \
@@ -56,6 +56,7 @@ if well_set_min >= well_set_max:
     #TODO raise error
     print("The well set interval is not valid")
     exit() 
+
     
 # grid x coordinate
 X = np.linspace(-2, 2, 100)
@@ -63,7 +64,8 @@ X = np.linspace(-2, 2, 100)
 # potential and gradient
 V = double_well_1d_potential(X)
 dV = gradient_double_well_1d_potential(X)
-#plot_potential_and_gradient(X, V, dV)
+pl = Plot(file_name='potential_and_gradient', file_type='png')
+pl.potential_and_gradient(X, V, dV)
 
 # time interval, time steps and number of time steps
 tzero = 0
@@ -112,13 +114,15 @@ for n in np.arange(1, N+1):
         i += 1
 
         # plot tilted potential
+
         Vbias = bias_potential2(
             X=X,
             mus=mus[:i],
             sigmas=sigmas[:i],
             omegas=omegas[:i],
         )
-        plot_tilted_potential(X, V, Vbias)
+        pl = Plot(file_name='tilted_pot_i_' + str(i), file_type='png')
+        pl.tilted_potential(X, V, Vbias)
         
         # plot gradient of the tilted potential
         dVbias = gradient_bias_potential2(
@@ -127,7 +131,8 @@ for n in np.arange(1, N+1):
             sigmas=sigmas[:i],
             omegas=omegas[:i],
         )
-        plot_gradient_tilted_potential(X, dV, dVbias)
+        pl = Plot(file_name='tilted_grad_i_' + str(i), file_type='png')
+        pl.gradient_tilted_potential(X, dV, dVbias)
     
     # compute dVbias
     if i == 0:
@@ -167,6 +172,7 @@ else:
     print('Steps needed: {:8.2f} \n'.format(n))
 
 # plot trajectory
-plot_trajectory(t, Xem)
+pl = Plot(file_name='trajectory', file_type='png')
+pl.trajectory(t, Xem)
         
 print('Bias functions used: {:d}\n'.format(i))
