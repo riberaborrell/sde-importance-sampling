@@ -1,4 +1,5 @@
 # ignore virtual environment
+venv-mds/
 
 # ignore state files
 *.swp
