@@ -51,7 +51,7 @@ class Plot:
         plt.plot(x, y, 'r', label='EM solution path')
         plt.xlabel('t', fontsize=16)
         plt.ylabel('X', fontsize=16)
-        plt.xlim(right=60)
+        plt.xlim(right=600)
         plt.ylim(bottom=-1.8)
         plt.ylim(top=1.8)
         plt.legend(loc='upper left', fontsize=8)
