@@ -13,5 +13,6 @@ venv-mds/
 # ignore mathlab files
 *.m
 
-# ignore figures directory
+# ignore figures and data directories
 mds/figures/
+mds/data/
