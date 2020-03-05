@@ -38,6 +38,7 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
+
 # set random seed
 if args.seed:
     np.random.seed(args.seed)
