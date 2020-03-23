@@ -155,7 +155,7 @@ def main():
         re_I = np.nan
     
     # save output in a file
-    file_path = os.path.join(DATA_PATH, 'langevin_1d_2wel.txt')
+    file_path = os.path.join(DATA_PATH, 'langevin_1d_2well.txt')
     f = open(file_path, "w")
     f.write('beta: {:2.1f}\n'.format(beta))
     f.write('dt: {:2.4f}\n'.format(dt))

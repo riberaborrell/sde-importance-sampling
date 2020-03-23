@@ -30,15 +30,15 @@ def get_parser():
         '--beta',
         dest='beta',
         type=float,
-        default=10,
-        help='Set the parameter beta for the 1D MD SDE. Default: 1',
+        default=5,
+        help='Set the parameter beta for the 1D MD SDE. Default: 5',
     )
     parser.add_argument(
         '--xzero',
         dest='xzero',
         type=float,
         default=-1.,
-        help='Set the value of the process at time t=0. Default: 1',
+        help='Set the value of the process at time t=0. Default: -1',
     )
     parser.add_argument(
         '--well-set',
@@ -78,15 +78,15 @@ def main():
 
     # time interval, time steps and number of time steps
     tzero = 0
-    T = 6*10**2 # 60 seconds
-    N = 6*10**4 # 6000 thousand time steps
-    dt = (T - tzero) / N # 0,01
+    T = 10**2
+    N = 10**6
+    dt = (T - tzero) / N
     t = np.linspace(tzero, T, N+1)
 
     # steps before adding a bias function
-    k = 500 
+    k = 1000 
     if np.mod(N, k) != 0:
-        print("N has to be a multipel of the number of steps k")
+        print("N has to be a multiple of the number of steps k")
         exit()
     # bias functions
     i = 0
@@ -99,8 +99,9 @@ def main():
     #omegas = 0.1 * np.ones(int(N/k))
     omegas = np.zeros(int(N/k))
     for j in range(int(N/k)):
-        omegas[j] = 0.1 / (j + 1)
-
+        #omegas[j] = 0.1 / (j + 1)
+        #omegas[j] = 0.05 / (j + 1)
+        omegas[j] = 0.02
 
     # 1D MD SDE: dX_t = -grad V(X_t)dt + sqrt(2 beta**-1)dB_t, X_0 = x
     beta = args.beta
@@ -167,7 +168,6 @@ def main():
             )
 
         # compute drift and diffusion coefficients
-        #drift = (- gradient_double_well_1d_potential(Xtemp) + Vbias)*dt
         drift = (- gradient_double_well_1d_potential(Xtemp) - dVbias)*dt
         diffusion = np.sqrt(2 / beta) * dB[n-1]
 
