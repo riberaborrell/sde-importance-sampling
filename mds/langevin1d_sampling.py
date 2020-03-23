@@ -146,11 +146,6 @@ def main():
     else:
         re_tau = np.nan
 
-    print('% trajectories which have arrived: {:2.4f}'.format(len(FHt) / M))
-    print('Expectation of tau: {:2.4f}'.format(mean_tau))
-    print('Variance of tau: {:2.4f}'.format(var_tau))
-    print('Relative error of tau: {:2.4f}'.format(re_tau))
-
     # compute mean and variance of I
     mean_I = np.mean(I)
     var_I = np.var(I)
@@ -158,10 +153,27 @@ def main():
         re_I = np.sqrt(var_I) / mean_I
     else:
         re_I = np.nan
+    
+    # save output in a file
+    file_path = os.path.join(DATA_PATH, 'langevin_1d_2wel.txt')
+    f = open(file_path, "w")
+    f.write('beta: {:2.1f}\n'.format(beta))
+    f.write('dt: {:2.4f}\n'.format(dt))
+    f.write('Y_0: {:2.1f}\n'.format(args.xzero))
+    f.write('target set: [{:2.1f}, {:2.1f}]\n\n'.format(target_set_min, target_set_max))
 
-    print('Expectation of exp(-beta * tau): {:2.4e}'.format(mean_I))
-    print('Variance of exp(-beta * tau): {:2.4e}'.format(var_I))
-    print('Relative error of exp(-beta * tau): {:2.4e}'.format(re_I))
+    f.write('sampled trajectories: {:d}\n\n'.format(M))
+    f.write('% trajectories which have arrived: {:2.2f}\n\n'.format(len(FHt) / M))
+
+    f.write('Expectation of tau: {:2.4f}\n'.format(mean_tau))
+    f.write('Variance of tau: {:2.4f}\n'.format(var_tau))
+    f.write('Relative error of tau: {:2.4f}\n\n'.format(re_tau))
+    
+    f.write('Expectation of exp(-beta * tau): {:2.4e}\n'.format(mean_I))
+    f.write('Variance of exp(-beta * tau): {:2.4e}\n'.format(var_I))
+    f.write('Relative error of exp(-beta * tau): {:2.4e}\n\n'.format(re_I))
+    
+    f.close()
 
 
 if __name__ == "__main__":
