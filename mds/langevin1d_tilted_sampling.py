@@ -5,6 +5,8 @@ from decorators import timer
 from plotting import Plot
 from tools import gradient_double_well_1d_potential, \
                   gradient_bias_potential
+
+from datetime import datetime
 import os
 
 MDS_PATH = os.path.abspath(os.path.dirname(__file__))
@@ -181,7 +183,8 @@ def main():
         re_I = np.nan
 
     # save output in a file
-    file_path = os.path.join(DATA_PATH, 'langevin_1d_2well_tilted.txt')
+    time_stamp = datetime.today().strftime('%Y%m%d_%H%M%S')
+    file_path = os.path.join(DATA_PATH, 'langevin_1d_2well_tilted_'+ time_stamp + '.txt')
     f = open(file_path, "w")
     f.write('beta: {:2.1f}\n'.format(beta))
     f.write('dt: {:2.4f}\n'.format(dt))
