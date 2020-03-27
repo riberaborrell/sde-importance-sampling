@@ -153,5 +153,5 @@ def gradient_bias_potential2(X, omegas, mus, sigmas):
             mus=mus,
             sigmas=sigmas,
         )
-        dVbias[i] = np.sum(-omegas * ((x - mus)/sigmas) * b)
+        dVbias[i] = np.sum(-omegas * ((x - mus)/sigmas**2) * b)
     return dVbias
