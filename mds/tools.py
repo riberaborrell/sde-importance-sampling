@@ -8,7 +8,6 @@ def double_well_1d_potential(x):
     '''
     return 0.5*(x**2 - 1)**2
 
-
 def gradient_double_well_1d_potential(x):
     '''This method returns the gradient of a potential function evaluated
     at the point x
@@ -17,16 +16,27 @@ def gradient_double_well_1d_potential(x):
 
 def normal_probability_density(x, mu, sigma):
     '''This method evaluates the normal probability density with mean
-    mu and standard deviation sigma at the point x. Equivalent to
-    norm.pdf(x, mu, sigma) 
+    mu and standard deviation sigma at the point x.
 
     Args:
         x (float) : posision
         mu (float): mean
         sigma (float) : standard deviation
     '''
-    norm_factor = sigma * np.sqrt(2*np.pi)
-    return np.exp(-0.5*(x - mu)**2 / (sigma**2)) / norm_factor
+    # norm_factor = np.sqrt(2 * np.pi) * sigma
+    # return np.exp(-0.5 * ((x - mu) / sigma) **2 ) / norm_factor
+    return norm.pdf(x, mu, sigma)
+
+def derivative_normal_probability_density(x, mu, sigma):
+    '''This method evaluates the derivative of the normal probability
+       density with mean mu and standard deviation sigma at the point x.
+
+    Args:
+        x (float) : posision
+        mu (float): mean
+        sigma (float) : standard deviation
+    '''
+    return - ((x - mu) / sigma**2) * norm.pdf(x, mu, sigma) 
 
 def bias_functions(x, mus, sigmas):
     '''This method computes Gaussian densities given a mean and a
