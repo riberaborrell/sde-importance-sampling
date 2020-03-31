@@ -2,7 +2,9 @@ import numpy as np
 
 from tools import double_well_1d_potential, \
                   gradient_double_well_1d_potential, \
-                  derivative_normal_probability_density
+                  normal_probability_density, \
+                  derivative_normal_probability_density, \
+                  bias_potential
 from datetime import datetime
 import os
 
@@ -37,20 +39,15 @@ class langevin_1d:
         self._T = 10**2
         self._N = 10**6
         self._dt = (self._T - self._tzero) / self._N
-        
-        # metadynamics bias potential
-        self._omegas = None
-        self._mus = None 
-        self._sigmas = None
-
+       
+        # ansatz functions (gaussians) and coefficients
         self._a = None
-        self._v = None
-        self._b = None
+        self._mus = None
+        self._sigmas = None 
         
         # variables
         self._first_hitting_times = None
         self._I = None
-        self._control = None
        
         # mean, variance and re
         self._mean_fht = None
@@ -76,36 +73,151 @@ class langevin_1d:
 
         # sum partial of g
     
-    def load_metadynamics_coefficients(self, m=None, omegas=None, sigmas=None):
+    def get_a_coefficients_metadynamcs(self, m, J_min, J_max):
         '''
         '''
-
-        # load metadynamics parameters
-        #bias_potential = np.load(os.path.join(DATA_PATH, 'langevin1d_metadynamic.npz'))
-        bias_potential = np.load(os.path.join(DATA_PATH, 'langevin1d_tilted_potential.npz'))
-
-        meta_omegas = bias_potential['omegas']
-        meta_mus = bias_potential['mus']
-        meta_sigmas = bias_potential['sigmas']
-
-        #TODO express given lin combination of gaussian function as a linear combination of
-        # given ansatz functions.
+        # validate input 
+        if J_min >= J_max:
+            #TODO raise error
+            print("The interval J_h is not valid")
+       
+        # sampling parameters
+        beta = self._beta
         
-        self._a = meta_omegas
-        self._mus = meta_mus
-        self._sigmas = meta_sigmas 
+        # load metadynamics parameters
+        #bias_pot_coeff = np.load(os.path.join(DATA_PATH, 'langevin1d_metadynamic.npz'))
+        bias_pot_coeff = np.load(os.path.join(DATA_PATH, 'langevin1d_tilted_potential.npz'))
+        meta_omegas = bias_pot_coeff['omegas']
+        meta_mus = bias_pot_coeff['mus']
+        meta_sigmas = bias_pot_coeff['sigmas']
 
+        # define a coefficients 
+        a = np.zeros(m)
+        
+        # grid on the interval J_h = [J_min, J_max].
+        X = np.linspace(J_min, J_max, m)
+        # step size
+        h = (J_max - J_min) / m
+
+        # the ansatz functions are gaussians with standard deviation sigma
+        # and means uniformly spaced in J_h
+        mus = X
+        sigmas = 0.1 * np.ones(m)
+        
+        # ansatz functions evaluated at the grid
+        ansatz_functions = np.zeros((m, m))
+        for i in np.arange(m):
+            for j in np.arange(m):
+                ansatz_functions[i, j] = normal_probability_density(X[j], mus[i], sigmas[i])
+
+        # value function evaluated at the grid
+        phi = np.zeros(m)
+        for i in np.arange(m):
+            V_bias = bias_potential(X[i], meta_mus, meta_sigmas, meta_omegas)
+            phi[i] = V_bias * beta / 2
+
+        # solve a V = \Phi
+        a = np.linalg.solve(ansatz_functions, phi)
+        
+        self._a = a
+        self._mus = mus 
+        self._sigmas = sigmas 
+
+    def ansatz_functions(self, x):
+        '''This method computes the ansatz functions evaluated at x
+
+        Args:
+            x (float) : position
+        '''
+        mus = self._mus
+        sigmas = self._sigmas
+
+        # preallocate ansatz functions
+        m = len(mus)
+        v = np.zeros(m)
+        
+        # evaluates ansatz function at x
+        for j in np.arange(m):
+            v[j] = normal_probability_density(x, mus[j], sigmas[j]) 
+
+        return v
+
+    def value_function(self, x):
+        '''This method computes the value function evaluated at x
+
+        Args:
+            x (float) : position
+        '''
+        # a coefficients
+        a = self._a
+
+        # ansatz functions
+        v = self.ansatz_functions(x)
+        
+        return np.dot(a, v)
+
+
+    def control_basis_functions(self, x):
+        '''This method computes the control basis functions evaluated at x
+
+        Args:
+            x (float) : position
+        '''
+        # sampling parameters
+        beta = self._beta
+
+        # ansatz functions
+        mus = self._mus
+        sigmas = self._sigmas
+
+        # preallocate basis functions
+        m = len(mus)
+        b = np.zeros(m)
+        
+        for i in np.arange(m):
+            b[i] = - np.sqrt(2 / beta) * derivative_normal_probability_density(x, mus[i], sigmas[i]) 
+
+        return b
+
+    def control(self, x):
+        '''This method computes the control evaluated at x
+
+        Args:
+            x (float) : position
+        '''
+        # a coefficients
+        a = self._a
+
+        # control basis functions
+        b = self.control_basis_functions(x)
+
+        return np.dot(a, b)
+
+    def tilted_potential(self, x):
+        '''This method computes the tilted potential at x
+
+        Args:
+            x (float) : position
+        '''
+        # sampling parameters
+        beta = self._beta
+
+        Vbias_at_x = (2 / beta) * self.value_function(x)
+        
+        return double_well_1d_potential(x) + Vbias_at_x
 
     def tilted_gradient(self, x):
-        dVbias_at_x = gradient_bias_potential(
-            x=Xtemp,
-            omegas=self._a,
-            mus=self._mus,
-            sigmas=self._sigmas,
-        )
+        '''This method computes the tilted gradient at x
+
+        Args:
+            x (float) : position
+        '''
+        # sampling parameters
+        beta = self._beta
+
+        dVbias_at_x = - np.sqrt(2 / beta) * self.control(x)
         
         return gradient_double_well_1d_potential(x) + dVbias_at_x
-
 
     def sample(self):
         M = self._M
