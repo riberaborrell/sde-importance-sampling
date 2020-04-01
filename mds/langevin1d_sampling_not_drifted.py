@@ -1,11 +1,11 @@
 import argparse
-import numpy as np
 
 from decorators import timer
 from plotting import Plot
-from tools import gradient_double_well_1d_potential, \
-                  gradient_bias_potential
+from tools import double_well_1d_potential, \
+                  gradient_double_well_1d_potential
 
+import numpy as np
 from datetime import datetime
 import os
 
@@ -52,14 +52,15 @@ def get_parser():
     )
     return parser
 
+
 @timer
 def main():
     args = get_parser().parse_args()
-    
+
     # set random seed
     if args.seed:
         np.random.seed(args.seed)
-    
+
     # check target set
     target_set_min = args.target_set[0]
     target_set_max = args.target_set[1]
@@ -67,26 +68,18 @@ def main():
         #TODO raise error
         print("The target set interval is not valid")
         exit() 
-    # 
     beta = args.beta
-    
-    # load bias potential parameters
-    #bias_potential = np.load(os.path.join(DATA_PATH, 'langevin1d_metadynamic.npz'))
-    bias_potential = np.load(os.path.join(DATA_PATH, 'langevin1d_tilted_potential.npz'))
-    omegas = bias_potential['omegas']
-    mus = bias_potential['mus']
-    sigmas = bias_potential['sigmas']
-    
+
     # number of trajectories to sample
     M = args.M
     
     # time interval, time steps and number of time steps
     tzero = 0
-    T = 10**2
+    T = 10**3
     N = 10**6
     dt = (T - tzero) / N
     t = np.linspace(tzero, T, N+1)
-    
+
     # 1D MD SDE is dX_t = -grad V(X_t)dt + sqrt(2 beta**-1)dB_t, X_0 = x,
     # preallocate EM solution
     Xem = np.zeros((M, N+1))
@@ -95,52 +88,32 @@ def main():
     # preallocate first hitting step/time array
     FHs = np.zeros(M)
     FHt = np.zeros(M)
-
-    # preallocate Girsanov Martingale
-    M_FHt = np.zeros(M)
-    M_T = np.zeros(M)
-
+    
     # preallocate observable of interest I
-    # for f=1, g=0, and therefore W = tau t
+    # for f=1, g=0, and therefore W = sigma t
     I = np.ones(M)
 
-    # sample of M trajectories 
+    # potential and gradient
+    X = np.linspace(-2, 2, 100)
+    V = double_well_1d_potential(X)
+    dV = gradient_double_well_1d_potential(X)
+    pl = Plot(file_name='potential_and_gradient', file_type='png')
+    pl.potential_and_gradient(X, V, dV)
+
     for i in np.arange(M):
         # Brownian increments
         dB = np.sqrt(dt)*np.random.normal(0, 1, N)
-        
+    
         # initialize Xtemp
         Xtemp = Xem[i, 0]
-
-        # preallocate martingale terms, M_t = e^(M1_t + M2_t)
-        M1em = np.zeros(N+1)
-        M2em = np.zeros(N+1)
-
+        
         for n in np.arange(1, N+1):
-            # compute gradient of the bias potential evaluated at x
-            dVbias = gradient_bias_potential(
-                x=Xtemp,
-                omegas=omegas,
-                mus=mus,
-                sigmas=sigmas,
-            )
-
-            # compute Xem
-            drift = (- gradient_double_well_1d_potential(Xtemp) - dVbias)*dt
-            diffusion = np.sqrt(2 / beta) * dB[n-1]
+            # compute Xem 
+            drift = - gradient_double_well_1d_potential(Xtemp)*dt
+            diffusion = np.sqrt(2/beta) * dB[n-1]
             Xtemp = Xtemp + drift + diffusion
             Xem[i, n] = Xtemp
             
-            # evaluate the control drift
-            #Ut = - dVbias / np.sqrt(2 / beta)
-
-            # compute martingale terms
-            #M1em[n] = M1em[n-1] - Ut * dB[n-1]
-            M1em[n] = M1em[n-1] + np.sqrt(beta / 2) * dVbias * dB[n-1]             
-
-            #M2em[n] = M2em[n-1] - (1/2)* (Ut**2) * dt 
-            M2em[n] = M2em[n-1] - (beta / 4) * (dVbias**2) * dt 
-
             # check if we have arrived to the target set
             if (Xtemp >= target_set_min and Xtemp <= target_set_max):
                 
@@ -148,24 +121,20 @@ def main():
                 FHs[i] = n 
                 FHt[i] = n * dt
 
-                # compute martingale at the fht
-                #M_FHt[i] = np.exp(M1em[n] + M2em[n])
-                
                 # compute quantity of interest at the fht
-                #I[i] = np.exp(FHt[i]) * M_FHt[i] 
-                I[i] = np.exp(-beta * FHt[i] + M1em[n] + M2em[n]) 
+                I[i] = np.exp(-beta * FHt[i])
                 
                 Xem[i, n:N+1] = np.nan
                 break
 
     # plot last trajectory
-    pl = Plot(file_name='last_tilted_trajectory', file_type='png')
+    pl = Plot(file_name='last_trajectory', file_type='png')
     pl.trajectory(t, Xem[0])
-
+    
     # sort out trajectories which have not arrived
     FHt = np.array([t for t in FHt if t > 0])
     I = np.array([x for x in I if x != 1])
-
+    
     # compute mean and variance of tau
     mean_tau = np.mean(FHt)
     var_tau = np.var(FHt)
@@ -181,17 +150,17 @@ def main():
         re_I = np.sqrt(var_I) / mean_I
     else:
         re_I = np.nan
-
+    
     # save output in a file
     time_stamp = datetime.today().strftime('%Y%m%d_%H%M%S')
-    file_path = os.path.join(DATA_PATH, 'langevin_1d_2well_tilted_'+ time_stamp + '.txt')
+    file_path = os.path.join(DATA_PATH, 'langevin_1d_2well_' + time_stamp + '.txt')
     f = open(file_path, "w")
     f.write('beta: {:2.1f}\n'.format(beta))
     f.write('dt: {:2.4f}\n'.format(dt))
     f.write('Y_0: {:2.1f}\n'.format(args.xzero))
     f.write('target set: [{:2.1f}, {:2.1f}]\n\n'.format(target_set_min, target_set_max))
 
-    f.write('sampled trajectories: {:d}\n'.format(M))
+    f.write('sampled trajectories: {:d}\n\n'.format(M))
     f.write('% trajectories which have arrived: {:2.2f}\n\n'.format(len(FHt) / M))
 
     f.write('Expectation of tau: {:2.4f}\n'.format(mean_tau))
@@ -203,7 +172,7 @@ def main():
     f.write('Relative error of exp(-beta * tau): {:2.4e}\n\n'.format(re_I))
     
     f.close()
-    
+
 
 if __name__ == "__main__":
     main()
