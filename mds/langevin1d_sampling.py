@@ -47,8 +47,8 @@ def get_parser():
         '--num-trajectories',
         dest='M',
         type=int,
-        default=10**4,
-        help='Set number of trajectories to sample. Default: 10.000',
+        default=10**3,
+        help='Set number of trajectories to sample. Default: 1.000',
     )
     return parser
 
