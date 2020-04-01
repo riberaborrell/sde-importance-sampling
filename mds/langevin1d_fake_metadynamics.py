@@ -27,9 +27,9 @@ def main():
     dV = gradient_double_well_1d_potential(X)
 
     # preallocate mean and standard deviation for the bias funcitons
-    mus = np.array([-1, -1.1])
-    sigmas = np.array([0.4, 0.4])
-    omegas = np.array([0.4, 0.3])
+    mus = np.array([-1, -1.3, -0.6])
+    sigmas = np.array([0.3, 0.2, 0.3])
+    omegas = np.array([0.5, 0.1, 0.15])
 
     # plot tilted potential
     Vbias = bias_potential2(
@@ -38,8 +38,6 @@ def main():
         sigmas=sigmas,
         omegas=omegas,
     )
-    pl = Plot(file_name='tilted_pot', file_type='png')
-    pl.tilted_potential(X, V, Vbias)
     
     # plot gradient of the tilted potential
     dVbias = gradient_bias_potential2(
@@ -48,8 +46,9 @@ def main():
         sigmas=sigmas,
         omegas=omegas,
     )
-    pl = Plot(file_name='tilted_grad', file_type='png')
-    pl.gradient_tilted_potential(X, dV, dVbias)
+    pl = Plot(file_name='artificial_tilted_potential_and_gradient', file_type='png')
+    pl.tilted_potential_and_gradient2(X, V, dV, Vbias, dVbias)
+    
         
     # save bias
     np.savez(

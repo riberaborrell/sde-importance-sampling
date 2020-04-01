@@ -74,17 +74,17 @@ def main():
     V = double_well_1d_potential(X)
     dV = gradient_double_well_1d_potential(X)
     pl = Plot(file_name='potential_and_gradient', file_type='png')
-    pl.potential_and_gradient(X, V, dV)
+    #pl.potential_and_gradient(X, V, dV)
 
     # time interval, time steps and number of time steps
     tzero = 0
-    T = 10**2
+    T = 10**3
     N = 10**6
     dt = (T - tzero) / N
     t = np.linspace(tzero, T, N+1)
 
     # steps before adding a bias function
-    k = 1000 
+    k = 100 
     if np.mod(N, k) != 0:
         print("N has to be a multiple of the number of steps k")
         exit()
@@ -99,9 +99,9 @@ def main():
     #omegas = 0.1 * np.ones(int(N/k))
     omegas = np.zeros(int(N/k))
     for j in range(int(N/k)):
-        #omegas[j] = 0.1 / (j + 1)
+        omegas[j] = 0.1 / (j + 1)
         #omegas[j] = 0.05 / (j + 1)
-        omegas[j] = 0.02
+        #omegas[j] = 0.02
 
     # 1D MD SDE: dX_t = -grad V(X_t)dt + sqrt(2 beta**-1)dB_t, X_0 = x
     beta = args.beta
