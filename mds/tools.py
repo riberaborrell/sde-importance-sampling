@@ -136,7 +136,7 @@ def bias_potential2(X, mus, sigmas, omegas):
             mus=mus,
             sigmas=sigmas,
         )
-        Vbias[i] = np.sum(omegas*b)
+        Vbias[i] = np.dot(omegas, b)
     return Vbias
 
 def gradient_bias_potential2(X, omegas, mus, sigmas):

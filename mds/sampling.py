@@ -16,7 +16,7 @@ class langevin_1d:
     '''
     '''
 
-    def __init__(self, seed, beta, xzero, target_set, num_trajectories):
+    def __init__(self, seed, beta, xzero, is_drifted, target_set, num_trajectories):
         '''
         '''
         
@@ -25,6 +25,7 @@ class langevin_1d:
         # sde parameters
         self._beta = beta
         self._xzero = xzero
+        self._is_drifted = is_drifted 
 
         # sampling
         self._M = num_trajectories
@@ -36,7 +37,7 @@ class langevin_1d:
 
         # Euler-Majurama
         self._tzero = 0
-        self._T = 10**2
+        self._T = 10**3
         self._N = 10**6
         self._dt = (self._T - self._tzero) / self._N
        
@@ -46,8 +47,10 @@ class langevin_1d:
         self._sigmas = None 
         
         # variables
-        self._first_hitting_times = None
+        self._fhs = None
+        self._fht = None
         self._I = None
+        self._M_fht = None
        
         # mean, variance and re
         self._mean_fht = None
@@ -56,16 +59,27 @@ class langevin_1d:
         self._mean_I = None
         self._var_I = None
         self._re_I = None
+        self._mean_M = None
        
-
     def preallocate_variables(self):
+        M = self._M
+
         # first hitting steps/times
-        self._first_hitting_steps = np.zeros(self._M)
-        self._first_hitting_times = np.zeros(self._M)
+        self._fhs = np.empty(M)
+        self._fht = np.empty(M)
+        self._fhs[:] = np.NaN
+        self._fht[:] = np.NaN
 
         # observable of interest (sampling)
-        self._I = np.ones(self._M)
+        self._I = np.empty(M)
+        self._I[:] = np.NaN
 
+        if self._is_drifted: 
+            # preallocate Girsanov Martingale at fht
+            self._M_fht = np.empty(M)
+            self._M_fht[:] = np.NaN
+       
+        #TODO variables for the SOC
         # cost control (soc)
         #cost = np.ones(M)
 
@@ -225,54 +239,83 @@ class langevin_1d:
         dt = self._dt
         xzero = self._xzero
         beta = self._beta
+        is_drifted = self._is_drifted
         target_set_min = self._target_set_min
         target_set_max = self._target_set_max
 
         for i in np.arange(M):
             # initialize Xtemp
             Xtemp = xzero
+
+            if is_drifted:
+                # initialize martingale terms, M_t = e^(M1_t + M2_t)
+                M1temp = 0
+                M2temp = 0
             
             # Brownian increments
             dB = np.sqrt(dt) * np.random.normal(0, 1, N)
             
             for n in np.arange(1, N+1):
+                # compute gradient
+                if not is_drifted:
+                    gradient_at_x = gradient_double_well_1d_potential(Xtemp)
+                else:
+                    gradient_at_x = self.tilted_gradient(Xtemp)
+
                 # SDE iteration
-                tilted_gradient_at_x = self.tilted_gradient(Xtemp)
-                drift = - tilted_gradient_at_x * dt
+                drift = - gradient_at_x * dt
                 diffusion = np.sqrt(2 / beta) * dB[n-1]
                 Xtemp = Xtemp + drift + diffusion
-            
+
+                if is_drifted:
+                    # evaluate control at Xtemp
+                    utemp = self.control(Xtemp)
+
+                    # compute martingale terms
+                    # M1temp = int_0^fht (-u_t dB_t)
+                    # M2temp = int_0^fht (- 1/2 (u_t)^2 dt)
+                    M1temp = M1temp - utemp * dB[n-1]
+                    M2temp = M2temp - 0.5 * (utemp ** 2) * dt 
+
                 # check if we have arrived to the target set
                 if (Xtemp >= target_set_min and Xtemp <= target_set_max):
+                    fht = n * dt
 
-                    self.save_variables(i, n, Xtemp)
+                    # save first hitting time/step
+                    self._fhs[i] = n 
+                    self._fht[i] = fht
+
+                    if not is_drifted:
+                        # save quantity of interest at the fht
+                        self._I[i] = np.exp(-beta * fht)
+                    else:
+                        # save quantity of interest at the fht
+                        self._I[i] = np.exp(-beta * fht + M1temp + M2temp) 
+
+                        # save Girsanov Martingale at fht
+                        self._M_fht[i] = np.exp(M1temp + M2temp)
                     break
 
 
     def save_variables(self, i, n, x):
+        # TODO: deprecated method!
         dt = self._dt
         beta = self._beta
-
-        fht = n * dt
-
-        # save first hitting time/step
-        self._first_hitting_steps[i] = n 
-        self._first_hitting_times[i] = fht
-
-        # compute quantity of interest at the fht
-        self._I[i] = np.exp(-beta * fht)
+        is_drifted = self._is_drifted
 
 
     def compute_statistics(self):
+        is_drifted = self._is_drifted
+
         # sort out trajectories which have not arrived
-        first_hitting_times = np.array(
-            [t for t in self._first_hitting_times if t > 0]
-        )
-        I = np.array([x for x in self._I if x != 1])
+        fht = np.array([t for t in self._fht if not np.isnan(t)])
+        I = np.array([x for x in self._I if not np.isnan(x)])
+        if is_drifted:
+            M_fht = np.array([x for x in self._M_fht if not np.isnan(x)])
     
         # compute mean and variance of tau
-        mean_fht = np.mean(first_hitting_times)
-        var_fht = np.var(first_hitting_times)
+        mean_fht = np.mean(fht)
+        var_fht = np.var(fht)
         if mean_fht != 0:
             re_fht = np.sqrt(var_fht) / mean_fht
         else:
@@ -292,13 +335,20 @@ class langevin_1d:
         self._var_I = var_I
         self._re_I = re_I
 
+        if is_drifted:
+            # compute mean of M_fht
+            self._mean_M = np.mean(M_fht)
+
 
     def save_statistics(self):
+        is_drifted = self._is_drifted
+
         # save output in a file
         time_stamp = datetime.today().strftime('%Y%m%d_%H%M%S')
         file_path = os.path.join(DATA_PATH, 'langevin_1d_2well_' + time_stamp + '.txt')
         f = open(file_path, "w")
 
+        f.write('drifted process: {}\n'.format(self._is_drifted))
         f.write('beta: {:2.1f}\n'.format(self._beta))
         f.write('dt: {:2.4f}\n'.format(self._dt))
         f.write('Y_0: {:2.1f}\n'.format(self._xzero))
@@ -307,14 +357,17 @@ class langevin_1d:
 
         f.write('sampled trajectories: {:d}\n\n'.format(self._M))
         f.write('% trajectories which have arrived: {:2.2f}\n\n'
-                ''.format(len(self._first_hitting_times) / self._M))
+                ''.format(len(self._fht) / self._M))
 
-        f.write('Expectation of tau: {:2.4f}\n'.format(self._mean_fht))
-        f.write('Variance of tau: {:2.4f}\n'.format(self._var_fht))
-        f.write('Relative error of tau: {:2.4f}\n\n'.format(self._re_fht))
+        f.write('Expectation of fht: {:2.4f}\n'.format(self._mean_fht))
+        f.write('Variance of fht: {:2.4f}\n'.format(self._var_fht))
+        f.write('Relative error of fht: {:2.4f}\n\n'.format(self._re_fht))
         
-        f.write('Expectation of exp(-beta * tau): {:2.4e}\n'.format(self._mean_I))
-        f.write('Variance of exp(-beta * tau): {:2.4e}\n'.format(self._var_I))
-        f.write('Relative error of exp(-beta * tau): {:2.4e}\n\n'.format(self._re_I))
+        f.write('Expectation of exp(-beta * fht): {:2.4e}\n'.format(self._mean_I))
+        f.write('Variance of exp(-beta * fht): {:2.4e}\n'.format(self._var_I))
+        f.write('Relative error of exp(-beta * fht): {:2.4e}\n\n'.format(self._re_I))
+
+        if is_drifted:
+            f.write('Expectation of M_fht: {:2.4e}\n'.format(self._mean_M))
     
         f.close()
