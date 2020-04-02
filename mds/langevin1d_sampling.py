@@ -15,11 +15,11 @@ def get_parser():
         help='Set the seed for RandomState',
     )
     parser.add_argument(
-        '--is-drifted',
+        '--not-drifted',
         dest='is_drifted',
-        type=bool,
+        action='store_false',
         default=True,
-        help='Set if the 1D MD SDE is drifted. Default: True',
+        help='Set if the 1D MD SDE is not drifted',
     )
     parser.add_argument(
         '--beta',

@@ -47,10 +47,12 @@ class langevin_1d:
         self._sigmas = None 
         
         # variables
-        self._fhs = None
         self._fht = None
         self._I = None
+
         self._M_fht = None
+        self._fht_rew = None
+        self._I_rew = None
        
         # mean, variance and re
         self._mean_fht = None
@@ -64,20 +66,26 @@ class langevin_1d:
     def preallocate_variables(self):
         M = self._M
 
-        # first hitting steps/times
-        self._fhs = np.empty(M)
+        # first hitting times
         self._fht = np.empty(M)
-        self._fhs[:] = np.NaN
         self._fht[:] = np.NaN
-
+        
         # observable of interest (sampling)
         self._I = np.empty(M)
         self._I[:] = np.NaN
-
+        
         if self._is_drifted: 
             # preallocate Girsanov Martingale at fht
             self._M_fht = np.empty(M)
             self._M_fht[:] = np.NaN
+
+            #re-weighted fht
+            self._fht_rew = np.empty(M)
+            self._fht_rew[:] = np.NaN
+             
+            # observable of interest (sampling)
+            self._I_rew = np.empty(M)
+            self._I_rew[:] = np.NaN
        
         #TODO variables for the SOC
         # cost control (soc)
@@ -281,19 +289,22 @@ class langevin_1d:
                 if (Xtemp >= target_set_min and Xtemp <= target_set_max):
                     fht = n * dt
 
-                    # save first hitting time/step
-                    self._fhs[i] = n 
+                    # save first hitting time
                     self._fht[i] = fht
 
-                    if not is_drifted:
-                        # save quantity of interest at the fht
-                        self._I[i] = np.exp(-beta * fht)
-                    else:
-                        # save quantity of interest at the fht
-                        self._I[i] = np.exp(-beta * fht + M1temp + M2temp) 
+                    # save quantity of interest at the fht
+                    self._I[i] = np.exp(-beta * fht)
 
+                    if is_drifted:
                         # save Girsanov Martingale at fht
                         self._M_fht[i] = np.exp(M1temp + M2temp)
+                        
+                        # save re-weighted first hitting time
+                        self._fht_rew[i] = fht * np.exp(M1temp + M2temp)
+
+                        # save re-weighted quantity of interest
+                        self._I_rew[i] = np.exp(-beta * fht + M1temp + M2temp) 
+
                     break
 
 
@@ -312,8 +323,10 @@ class langevin_1d:
         I = np.array([x for x in self._I if not np.isnan(x)])
         if is_drifted:
             M_fht = np.array([x for x in self._M_fht if not np.isnan(x)])
+            fht_rew = np.array([t for t in self._fht_rew if not np.isnan(t)])
+            I_rew = np.array([x for x in self._I_rew if not np.isnan(x)])
     
-        # compute mean and variance of tau
+        # compute mean and variance of fht
         mean_fht = np.mean(fht)
         var_fht = np.var(fht)
         if mean_fht != 0:
@@ -338,6 +351,28 @@ class langevin_1d:
         if is_drifted:
             # compute mean of M_fht
             self._mean_M = np.mean(M_fht)
+            
+            # compute mean and variance of fht re-weighted
+            mean_fht_rew = np.mean(fht_rew)
+            var_fht_rew = np.var(fht_rew)
+            if mean_fht_rew != 0:
+                re_fht_rew = np.sqrt(var_fht_rew) / mean_fht_rew
+            else:
+                re_fht_rew = np.nan
+            self._mean_fht_rew = mean_fht
+            self._var_fht_rew = var_fht
+            self._re_fht_rew = re_fht
+
+            # compute mean and variance of I re_weighted
+            mean_I_rew = np.mean(I_rew)
+            var_I_rew = np.var(I_rew)
+            if mean_I_rew != 0:
+                re_I_rew = np.sqrt(var_I_rew) / mean_I_rew
+            else:
+                re_I_rew = np.nan
+            self._mean_I_rew = mean_I_rew
+            self._var_I_rew = var_I_rew
+            self._re_I_rew = re_I_rew
 
 
     def save_statistics(self):
@@ -368,6 +403,14 @@ class langevin_1d:
         f.write('Relative error of exp(-beta * fht): {:2.4e}\n\n'.format(self._re_I))
 
         if is_drifted:
-            f.write('Expectation of M_fht: {:2.4e}\n'.format(self._mean_M))
+            f.write('Expectation of M_fht: {:2.4e}\n\n'.format(self._mean_M))
+            
+            f.write('Expectation of fht rew: {:2.4f}\n'.format(self._mean_fht_rew))
+            f.write('Variance of fht rew: {:2.4f}\n'.format(self._var_fht_rew))
+            f.write('Relative error of fht rew: {:2.4f}\n\n'.format(self._re_fht_rew))
+            
+            f.write('Expectation of exp(-beta * fht) rew: {:2.4e}\n'.format(self._mean_I_rew))
+            f.write('Variance of exp(-beta * fht) rew: {:2.4e}\n'.format(self._var_I_rew))
+            f.write('Relative error of exp(-beta * fht) rew: {:2.4e}\n\n'.format(self._re_I_rew))
     
         f.close()
