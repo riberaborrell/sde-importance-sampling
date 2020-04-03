@@ -1,5 +1,6 @@
 import numpy as np
 
+from decorators import timer
 from tools import double_well_1d_potential, \
                   gradient_double_well_1d_potential, \
                   normal_probability_density, \
@@ -38,7 +39,7 @@ class langevin_1d:
         # Euler-Majurama
         self._tzero = 0
         self._T = 10**3
-        self._N = 10**6
+        self._N = 10**7
         self._dt = (self._T - self._tzero) / self._N
        
         # ansatz functions (gaussians) and coefficients
@@ -241,6 +242,7 @@ class langevin_1d:
         
         return gradient_double_well_1d_potential(x) + dVbias_at_x
 
+    @timer
     def sample(self):
         M = self._M
         N = self._N
@@ -325,6 +327,7 @@ class langevin_1d:
             M_fht = np.array([x for x in self._M_fht if not np.isnan(x)])
             fht_rew = np.array([t for t in self._fht_rew if not np.isnan(t)])
             I_rew = np.array([x for x in self._I_rew if not np.isnan(x)])
+        self._fht = fht
     
         # compute mean and variance of fht
         mean_fht = np.mean(fht)
