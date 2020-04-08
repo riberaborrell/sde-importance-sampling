@@ -1,11 +1,13 @@
-import numpy as np
-
 from decorators import timer
 from tools import double_well_1d_potential, \
                   gradient_double_well_1d_potential, \
-                  normal_probability_density, \
-                  derivative_normal_probability_density, \
+                  one_well_1d_potential, \
+                  gradient_one_well_1d_potential, \
+                  derivative_normal_pdf, \
                   bias_potential
+
+import numpy as np
+from scipy import stats
 from datetime import datetime
 import os
 
@@ -17,11 +19,14 @@ class langevin_1d:
     '''
     '''
 
-    def __init__(self, seed, beta, xzero, is_drifted, target_set, num_trajectories):
+    def __init__(self, beta, xzero, target_set, num_trajectories, seed=None,
+                 is_drifted=True, do_reweighting=False, is_sampling_problem=True,
+                 is_soc_problem=False):
         '''
         '''
-        
-        self._seed = seed
+        # set random seed
+        if seed:
+            np.random.seed(seed)
 
         # sde parameters
         self._beta = beta
@@ -37,113 +42,95 @@ class langevin_1d:
         self._target_set_max = target_set[1]
 
         # Euler-Majurama
-        self._tzero = 0
-        self._T = 10**3
+        self._dt = 1e-3
         self._N = 10**7
-        self._dt = (self._T - self._tzero) / self._N
        
         # ansatz functions (gaussians) and coefficients
+        self._m = None
         self._a = None
         self._mus = None
         self._sigmas = None 
         
         # variables
         self._fht = None
-        self._I = None
 
+        self._is_sampling_problem = is_sampling_problem
+        self._Psi = None
+        self._F = None
+
+        self._is_soc_problem = is_soc_problem
+        self._cost = None
+        self._J = None
+        self._gradJ = None
+        self._gradSh = None
+
+        self._do_reweighting = do_reweighting 
         self._M_fht = None
         self._fht_rew = None
-        self._I_rew = None
+        
+        self._Psi_rew = None
+        self._F_rew = None
+
+        self._J_rew = None
        
         # mean, variance and re
         self._mean_fht = None
         self._var_fht = None
         self._re_fht = None
-        self._mean_I = None
-        self._var_I = None
-        self._re_I = None
+
+        self._mean_Psi = None
+        self._var_Psi = None
+        self._re_Psi = None
+
         self._mean_M = None
-       
+
+        self._mean_J = None
+
     def preallocate_variables(self):
+        '''
+        '''
         M = self._M
 
-        # first hitting times
         self._fht = np.empty(M)
         self._fht[:] = np.NaN
         
-        # observable of interest (sampling)
-        self._I = np.empty(M)
-        self._I[:] = np.NaN
+        if self._is_sampling_problem:
+            self._Psi = np.empty(M)
+            self._Psi[:] = np.NaN
+            #self._F = np.empty(M)
+            #self._F[:] = np.NaN
+
+        if self._is_soc_problem:
+            self._cost = np.empty(M)
+            self._cost[:] = np.NaN
+            self._J = np.empty(M)
+            self._J[:] = np.NaN
+            self._gradJ= np.empty(M)
+            self._gradJ[:] = np.NaN
+            self._gradSh = np.empty(M)
+            self._gradSh[:] = np.NaN
         
-        if self._is_drifted: 
-            # preallocate Girsanov Martingale at fht
+        if self._do_reweighting: 
             self._M_fht = np.empty(M)
             self._M_fht[:] = np.NaN
-
-            #re-weighted fht
             self._fht_rew = np.empty(M)
             self._fht_rew[:] = np.NaN
-             
-            # observable of interest (sampling)
-            self._I_rew = np.empty(M)
-            self._I_rew[:] = np.NaN
-       
-        #TODO variables for the SOC
-        # cost control (soc)
-        #cost = np.ones(M)
+            
+            if self._is_sampling_problem:
+                self._Psi_rew = np.empty(M)
+                self._Psi_rew[:] = np.NaN
+            
+            if self._is_soc_problem:
+                self._J_rew = np.empty(M)
+                self._J_rew[:] = np.NaN
 
-        # gradient of S_h
 
-        # sum partial of g
-    
-    def get_a_coefficients_metadynamcs(self, m, J_min, J_max):
-        '''
-        '''
-        # validate input 
-        if J_min >= J_max:
-            #TODO raise error
-            print("The interval J_h is not valid")
-       
-        # sampling parameters
-        beta = self._beta
-        
-        # load metadynamics parameters
-        #bias_pot_coeff = np.load(os.path.join(DATA_PATH, 'langevin1d_metadynamic.npz'))
-        bias_pot_coeff = np.load(os.path.join(DATA_PATH, 'langevin1d_tilted_potential.npz'))
-        meta_omegas = bias_pot_coeff['omegas']
-        meta_mus = bias_pot_coeff['mus']
-        meta_sigmas = bias_pot_coeff['sigmas']
-
-        # define a coefficients 
-        a = np.zeros(m)
-        
-        # grid on the interval J_h = [J_min, J_max].
-        X = np.linspace(J_min, J_max, m)
-        # step size
-        h = (J_max - J_min) / m
-
-        # the ansatz functions are gaussians with standard deviation sigma
-        # and means uniformly spaced in J_h
-        mus = X
-        sigmas = 0.1 * np.ones(m)
-        
-        # ansatz functions evaluated at the grid
-        ansatz_functions = np.zeros((m, m))
-        for i in np.arange(m):
-            for j in np.arange(m):
-                ansatz_functions[i, j] = normal_probability_density(X[j], mus[i], sigmas[i])
-
-        # value function evaluated at the grid
-        phi = np.zeros(m)
-        for i in np.arange(m):
-            V_bias = bias_potential(X[i], meta_mus, meta_sigmas, meta_omegas)
-            phi[i] = V_bias * beta / 2
-
-        # solve a V = \Phi
-        a = np.linalg.solve(ansatz_functions, phi)
-        
+    def get_a(self, a):
+        self._m = a.shape[0] 
         self._a = a
-        self._mus = mus 
+
+    def get_v(self, mus, sigmas):
+        self._mus = mus
         self._sigmas = sigmas 
 
     def ansatz_functions(self, x):
@@ -161,7 +148,7 @@ class langevin_1d:
         
         # evaluates ansatz function at x
         for j in np.arange(m):
-            v[j] = normal_probability_density(x, mus[j], sigmas[j]) 
+            v[j] = stats.norm.pdf(x, mus[j], sigmas[j]) 
 
         return v
 
@@ -198,7 +185,7 @@ class langevin_1d:
         b = np.zeros(m)
         
         for i in np.arange(m):
-            b[i] = - np.sqrt(2 / beta) * derivative_normal_probability_density(x, mus[i], sigmas[i]) 
+            b[i] = - np.sqrt(2 / beta) * derivative_normal_pdf(x, mus[i], sigmas[i]) 
 
         return b
 
@@ -252,40 +239,67 @@ class langevin_1d:
         is_drifted = self._is_drifted
         target_set_min = self._target_set_min
         target_set_max = self._target_set_max
+        do_reweighting = self._do_reweighting
+        is_sampling_problem = self._is_sampling_problem
+        is_soc_problem = self._is_soc_problem
 
         for i in np.arange(M):
             # initialize Xtemp
             Xtemp = xzero
 
-            if is_drifted:
+            if do_reweighting:
                 # initialize martingale terms, M_t = e^(M1_t + M2_t)
                 M1temp = 0
                 M2temp = 0
             
+            if is_soc_problem:
+                    m = self._m
+                    cost = 0
+                    sum_partial_tilde_gh = np.zeros(m)
+                    grad_Sh = np.zeros(m)
+                    
+                    norm_dist = np.random.normal(0, 1, N)
+            
             # Brownian increments
-            dB = np.sqrt(dt) * np.random.normal(0, 1, N)
+            #dB = np.sqrt(dt) * np.random.normal(0, 1, N)
+            dB = np.sqrt(dt) * np.random.normal(0, 1, 2 * N)
+            dB1 = dB[:N]
+            dB2 = dB[N:]
             
             for n in np.arange(1, N+1):
                 # compute gradient
                 if not is_drifted:
-                    gradient_at_x = gradient_double_well_1d_potential(Xtemp)
+                    gradient = gradient_double_well_1d_potential(Xtemp)
                 else:
-                    gradient_at_x = self.tilted_gradient(Xtemp)
+                    gradient = self.tilted_gradient(Xtemp)
 
                 # SDE iteration
-                drift = - gradient_at_x * dt
-                diffusion = np.sqrt(2 / beta) * dB[n-1]
+                drift = - gradient * dt
+                #diffusion = np.sqrt(2 / beta) * dB[n-1]
+                diffusion = np.sqrt(2 / beta) * dB1[n-1]
                 Xtemp = Xtemp + drift + diffusion
 
-                if is_drifted:
+                if do_reweighting:
                     # evaluate control at Xtemp
                     utemp = self.control(Xtemp)
 
                     # compute martingale terms
                     # M1temp = int_0^fht (-u_t dB_t)
                     # M2temp = int_0^fht (- 1/2 (u_t)^2 dt)
-                    M1temp = M1temp - utemp * dB[n-1]
+                    #M1temp = M1temp - utemp * dB[n-1]
+                    M1temp = M1temp - utemp * dB2[n-1]
                     M2temp = M2temp - 0.5 * (utemp ** 2) * dt 
+
+                if is_soc_problem:
+                    # evaluate control at Xtemp
+                    utemp = self.control(Xtemp)
+                    # evaluate the control basis functions at Xtmep
+                    btemp = self.control_basis_functions(Xtemp)
+                    
+                    # compute cost, ...
+                    cost = cost + 0.5 * (utemp ** 2) * dt
+                    sum_partial_tilde_gh = sum_partial_tilde_gh + utemp * btemp * dt  
+                    grad_Sh = grad_Sh + norm_dist[n] * btemp
 
                 # check if we have arrived to the target set
                 if (Xtemp >= target_set_min and Xtemp <= target_set_max):
@@ -294,10 +308,16 @@ class langevin_1d:
                     # save first hitting time
                     self._fht[i] = fht
 
-                    # save quantity of interest at the fht
-                    self._I[i] = np.exp(-beta * fht)
+                    if is_sampling_problem:
+                        # save quantity of interest at the fht
+                        self._Psi[i] = np.exp(-beta * fht)
 
-                    if is_drifted:
+                    if is_soc_problem:
+                        self._J[i] = cost + fht
+                        grad_Sh = grad_Sh * (-np.sqrt(dt * beta))
+                        self._gradJ[i] = sum_partial_tilde_gh - (cost + fht) * grad_Sh
+
+                    if do_reweighting:
                         # save Girsanov Martingale at fht
                         self._M_fht[i] = np.exp(M1temp + M2temp)
                         
@@ -305,7 +325,8 @@ class langevin_1d:
                         self._fht_rew[i] = fht * np.exp(M1temp + M2temp)
 
                         # save re-weighted quantity of interest
-                        self._I_rew[i] = np.exp(-beta * fht + M1temp + M2temp) 
+                        if is_sampling_problem:
+                            self._Psi_rew[i] = np.exp(-beta * fht + M1temp + M2temp) 
 
                     break
 
@@ -318,17 +339,14 @@ class langevin_1d:
 
 
     def compute_statistics(self):
-        is_drifted = self._is_drifted
+        is_sampling_problem = self._is_sampling_problem
+        is_soc_problem = self._is_soc_problem
+        do_reweighting = self._do_reweighting
 
         # sort out trajectories which have not arrived
         fht = np.array([t for t in self._fht if not np.isnan(t)])
-        I = np.array([x for x in self._I if not np.isnan(x)])
-        if is_drifted:
-            M_fht = np.array([x for x in self._M_fht if not np.isnan(x)])
-            fht_rew = np.array([t for t in self._fht_rew if not np.isnan(t)])
-            I_rew = np.array([x for x in self._I_rew if not np.isnan(x)])
         self._fht = fht
-    
+
         # compute mean and variance of fht
         mean_fht = np.mean(fht)
         var_fht = np.var(fht)
@@ -340,22 +358,36 @@ class langevin_1d:
         self._var_fht = var_fht
         self._re_fht = re_fht
 
-        # compute mean and variance of I
-        mean_I = np.mean(I)
-        var_I = np.var(I)
-        if mean_I != 0:
-            re_I = np.sqrt(var_I) / mean_I
-        else:
-            re_I = np.nan
-        self._mean_I = mean_I
-        self._var_I = var_I
-        self._re_I = re_I
+        if is_sampling_problem:
+            # compute mean and variance of I
+            Psi = np.array([x for x in self._Psi if not np.isnan(x)])
+            mean_Psi = np.mean(Psi)
+            var_Psi = np.var(Psi)
+            if mean_Psi != 0:
+                re_Psi = np.sqrt(var_Psi) / mean_Psi
+            else:
+                re_Psi = np.nan
+            self._mean_Psi = mean_Psi
+            self._var_Psi = var_Psi
+            self._re_Psi = re_Psi
+        
+        if is_soc_problem:
+            # compute mean of J
+            J = np.array([x for x in self._J if not np.isnan(x)])
+            self._mean_J = np.mean(J)
 
-        if is_drifted:
+            # compute mean of gradJ
+            gradJ = np.array([x for x in self._gradJ if not np.isnan(x)])
+            self._mean_gradJ = np.mean(grad_J)
+
+
+        if do_reweighting:
             # compute mean of M_fht
+            M_fht = np.array([x for x in self._M_fht if not np.isnan(x)])
             self._mean_M = np.mean(M_fht)
             
             # compute mean and variance of fht re-weighted
+            fht_rew = np.array([t for t in self._fht_rew if not np.isnan(t)])
             mean_fht_rew = np.mean(fht_rew)
             var_fht_rew = np.var(fht_rew)
             if mean_fht_rew != 0:
@@ -366,20 +398,22 @@ class langevin_1d:
             self._var_fht_rew = var_fht
             self._re_fht_rew = re_fht
 
-            # compute mean and variance of I re_weighted
-            mean_I_rew = np.mean(I_rew)
-            var_I_rew = np.var(I_rew)
-            if mean_I_rew != 0:
-                re_I_rew = np.sqrt(var_I_rew) / mean_I_rew
+            # compute mean and variance of Psi re_weighted
+            Psi_rew = np.array([x for x in self._Psi_rew if not np.isnan(x)])
+            mean_Psi_rew = np.mean(Psi_rew)
+            var_Psi_rew = np.var(Psi_rew)
+            if mean_Psi_rew != 0:
+                re_Psi_rew = np.sqrt(var_Psi_rew) / mean_Psi_rew
             else:
-                re_I_rew = np.nan
-            self._mean_I_rew = mean_I_rew
-            self._var_I_rew = var_I_rew
-            self._re_I_rew = re_I_rew
+                re_Psi_rew = np.nan
+            self._mean_Psi_rew = mean_Psi_rew
+            self._var_Psi_rew = var_Psi_rew
+            self._re_Psi_rew = re_Psi_rew
 
 
     def save_statistics(self):
         is_drifted = self._is_drifted
+        do_reweighting = self._do_reweighting
 
         # save output in a file
         time_stamp = datetime.today().strftime('%Y%m%d_%H%M%S')
@@ -395,25 +429,24 @@ class langevin_1d:
 
         f.write('sampled trajectories: {:d}\n\n'.format(self._M))
         f.write('% trajectories which have arrived: {:2.2f}\n\n'
-                ''.format(len(self._fht) / self._M))
+                ''.format(100 * len(self._fht) / self._M))
 
         f.write('Expectation of fht: {:2.4f}\n'.format(self._mean_fht))
         f.write('Variance of fht: {:2.4f}\n'.format(self._var_fht))
         f.write('Relative error of fht: {:2.4f}\n\n'.format(self._re_fht))
         
-        f.write('Expectation of exp(-beta * fht): {:2.4e}\n'.format(self._mean_I))
-        f.write('Variance of exp(-beta * fht): {:2.4e}\n'.format(self._var_I))
-        f.write('Relative error of exp(-beta * fht): {:2.4e}\n\n'.format(self._re_I))
-
-        if is_drifted:
+        f.write('Expectation of exp(-beta * fht): {:2.4e}\n'.format(self._mean_Psi))
+        f.write('Variance of exp(-beta * fht): {:2.4e}\n'.format(self._var_Psi))
+        f.write('Relative error of exp(-beta * fht): {:2.4e}\n\n'.format(self._re_Psi))
+        if is_drifted and do_reweighting:
             f.write('Expectation of M_fht: {:2.4e}\n\n'.format(self._mean_M))
             
             f.write('Expectation of fht rew: {:2.4f}\n'.format(self._mean_fht_rew))
             f.write('Variance of fht rew: {:2.4f}\n'.format(self._var_fht_rew))
             f.write('Relative error of fht rew: {:2.4f}\n\n'.format(self._re_fht_rew))
             
-            f.write('Expectation of exp(-beta * fht) rew: {:2.4e}\n'.format(self._mean_I_rew))
-            f.write('Variance of exp(-beta * fht) rew: {:2.4e}\n'.format(self._var_I_rew))
-            f.write('Relative error of exp(-beta * fht) rew: {:2.4e}\n\n'.format(self._re_I_rew))
+            f.write('Expectation of exp(-beta * fht) rew: {:2.4e}\n'.format(self._mean_Psi_rew))
+            f.write('Variance of exp(-beta * fht) rew: {:2.4e}\n'.format(self._var_Psi_rew))
+            f.write('Relative error of exp(-beta * fht) rew: {:2.4e}\n\n'.format(self._re_Psi_rew))
     
         f.close()

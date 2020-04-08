@@ -4,17 +4,28 @@ import matplotlib.pyplot as plt
 from scipy.stats import norm
 
 def double_well_1d_potential(x):
-    '''This method returns a potential function evaluated at the point x
+    '''This method returns a potential function evaluated at the point/s x
+    Args:
+        x (float or float array) : posicion/s
     '''
-    return 0.5*(x**2 - 1)**2
+    return 2 * (x**2 - 1)**2
 
 def gradient_double_well_1d_potential(x):
     '''This method returns the gradient of a potential function evaluated
-    at the point x
+    at the point/s x
+    Args:
+        x (float or float array) : posicion/s
     '''
-    return 2*x*(x**2 - 1)
+    return 8 * x * (x**2 - 1)
 
-def normal_probability_density(x, mu, sigma):
+def one_well_1d_potential(x):
+    return (x - 1)**2
+
+def gradient_one_well_1d_potential(x):
+    return 2 * (x - 1)
+
+#TODO deprecated. Use norm.pdf(x, mu, sigma)
+def normal_pdf(x, mu, sigma):
     '''This method evaluates the normal probability density with mean
     mu and standard deviation sigma at the point x.
 
@@ -23,21 +34,22 @@ def normal_probability_density(x, mu, sigma):
         mu (float): mean
         sigma (float) : standard deviation
     '''
-    # norm_factor = np.sqrt(2 * np.pi) * sigma
-    # return np.exp(-0.5 * ((x - mu) / sigma) **2 ) / norm_factor
-    return norm.pdf(x, mu, sigma)
+    norm_factor = np.sqrt(2 * np.pi) * sigma
+    return np.exp(-0.5 * ((x - mu) / sigma) **2 ) / norm_factor
 
-def derivative_normal_probability_density(x, mu, sigma):
+def derivative_normal_pdf(x, mu, sigma):
     '''This method evaluates the derivative of the normal probability
-       density with mean mu and standard deviation sigma at the point x.
+       density function with mean mu and standard deviation sigma at 
+       the point x.
 
     Args:
-        x (float) : posision
-        mu (float): mean
-        sigma (float) : standard deviation
+        x (float or float array) : posision
+        mu (float or float array): mean
+        sigma (float or float array) : standard deviation
     '''
-    return - ((x - mu) / sigma**2) * norm.pdf(x, mu, sigma) 
+    return norm.pdf(x, mu, sigma) * (mu - x) / sigma**2
 
+#TODO deprecated. Use norm.pdf(x, mus, sigmas)
 def bias_functions(x, mus, sigmas):
     '''This method computes Gaussian densities given a mean and a
     standard deviation
@@ -65,81 +77,67 @@ def bias_functions(x, mus, sigmas):
 
     return b
     
-def bias_potential(x, mus, sigmas, omegas):
-    '''This method computes the bias potential
+def bias_potential(x, omegas, mus, sigmas):
+    '''This method computes the bias potential evaluated at the point x
     
     Args:
         x (float) : posision
-        means (array): mean of each gaussian density
-        sigmas (array) : standard deviation of each gaussian density
-
-    Returns:
-        Vbiased (float) : Biased potential evaluated at the point x
+        omegas (array) : weights
+        means (array): mean of each gaussian
+        sigmas (array) : standard deviation of each gaussian
     '''
     assert omegas.shape == mus.shape == sigmas.shape, "Error"
     
-    # get bias functions evalutated at x
-    b = bias_functions(
-        x=x,
-        mus=mus,
-        sigmas=sigmas,
-    )
+    # get bias functions (gaussians) evalutated at x
+    b = norm.pdf(x, mus, sigmas)
 
-    Vbias = np.sum(omegas*b)
+    # scalar product
+    Vbias = np.sum(omegas * b)
+
     return Vbias
 
 def gradient_bias_potential(x, omegas, mus, sigmas):
-    '''This method computes the gradient of the bias potential
+    '''This method computes the gradient of the bias potential evaluated
+       the point x
     
     Args:
         x (float) : posision
         omegas (array) : weights
-        means (array): mean of each gaussian density
-        sigmas (array) : standard deviation of each gaussian density
-
-    Returns:
-        dVbiased (float) : gradient of the bias potential evaluated at the point x
+        means (array): mean of each gaussian
+        sigmas (array) : standard deviation of each gaussian
     '''
     assert omegas.shape == mus.shape == sigmas.shape, "Error"
 
-    # get bias functions evalutated at x
-    b = bias_functions(
-        x=x,
-        mus=mus,
-        sigmas=sigmas,
-    )
+    # get derivative of bias functions (gaussians) evalutated at x
+    db = derivative_normal_pdf(x, mus, sigmas)
 
-    dVbias = np.sum(-omegas * ((x - mus)/sigmas**2) * b)
+    # scalar product
+    dVbias = np.sum(omegas * db)
+
     return dVbias
 
-def bias_potential2(X, mus, sigmas, omegas):
-    '''This method computes the bias potential
+def bias_potential_grid(X, omegas, mus, sigmas):
+    '''This method computes the bias potential at the given grid points
     
     Args:
         X (array) : posisions
-        means (array): mean of each gaussian density
-        sigmas (array) : standard deviation of each gaussian density
         omegas (array) : weights
+        means (array): mean of each gaussian
+        sigmas (array) : standard deviation of each gaussian
 
     Returns:
         Vbiased (array) : Biased potential evaluated at the array X
     '''
-    assert omegas.shape == mus.shape == sigmas.shape, "Error"
-
     # preallocate bias potential
     Vbias = np.zeros(len(X))
     
     for i, x in enumerate(X):
-        # get bias functions evalutated at x
-        b = bias_functions(
-            x=x,
-            mus=mus,
-            sigmas=sigmas,
-        )
-        Vbias[i] = np.dot(omegas, b)
+        # evaluate bias potential at x
+        Vbias[i] = bias_potential(x, omegas, mus, sigmas)
+
     return Vbias
 
-def gradient_bias_potential2(X, omegas, mus, sigmas):
+def gradient_bias_potential_grid(X, omegas, mus, sigmas):
     '''This method computes the gradient of the bias potential
     
     Args:
@@ -157,11 +155,6 @@ def gradient_bias_potential2(X, omegas, mus, sigmas):
     dVbias = np.zeros(len(X))
 
     for i, x in enumerate(X):
-        # get bias functions evalutated at x
-        b = bias_functions(
-            x=x,
-            mus=mus,
-            sigmas=sigmas,
-        )
-        dVbias[i] = np.sum(-omegas * ((x - mus)/sigmas**2) * b)
+        # evaluate gradien of the bias potential at x
+        dVbias[i] = gradient_bias_potential(x, omegas, mus, sigmas)
     return dVbias
