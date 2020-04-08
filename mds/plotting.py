@@ -7,9 +7,18 @@ MDS_PATH = os.path.abspath(os.path.dirname(__file__))
 FIGURES_PATH = os.path.join(MDS_PATH, 'figures')
 
 class Plot:
-    def __init__(self, file_name, file_type):
+    #TODO update file_path when file_name, file_type or dir_path changes
+    def __init__(self, file_name, file_type=None, dir_path=None):
+        # check if the type of file is given
+        if not file_type:
+            file_type = 'png'
+
+        # check if the directory path is given
+        if not dir_path:
+            dir_path = FIGURES_PATH
+
         self.file_path = os.path.join(
-            FIGURES_PATH,
+            dir_path,
             file_name + '.' + file_type
         )
 
@@ -23,19 +32,6 @@ class Plot:
         plt.close()
     
     def tilted_potential_and_gradient(self, X, V, dV, Vbias, dVbias):
-        plt.plot(X, V, 'b-', label=r'Potential $V(x)$')
-        plt.plot(X, Vbias, 'r-', label=r'bias Potential $V_{bias}(x)$')
-        plt.plot(X, V + Vbias, 'm-', label=r'tilted Potential $\tilde{V}(x)$')
-        plt.plot(X, dV, 'b-.', label=r'gradient $\nabla V(x)$')
-        plt.plot(X, dVbias, 'r-.', label=r'bias gradient $\nabla V_{bias}(x)$')
-        plt.plot(X, dV + dVbias, 'm-.', label=r'tilted gradient $\nabla \tilde{V}(x)$')
-        plt.xlabel('x', fontsize=16)
-        plt.ylim(top=1, bottom=-1)
-        plt.legend(loc='lower right', fontsize=8)
-        plt.savefig(self.file_path)
-        plt.close()
-    
-    def tilted_potential_and_gradient2(self, X, V, dV, Vbias, dVbias):
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 8))
         ax1.plot(X, V, 'b-', label=r'$V(x)$')
         ax1.plot(X, Vbias, 'r-', label=r'$V_{bias}(x)$')
@@ -48,12 +44,13 @@ class Plot:
         ax2.plot(X, dVbias, 'r-.', label=r'$\nabla V_{bias}(x)$')
         ax2.plot(X, dV + dVbias, 'm-.', label=r'$\nabla \tilde{V}(x)$')
         ax2.set_xlabel('x', fontsize=16)
-        ax2.set_ylim(top=1, bottom=-1)
+        ax2.set_ylim(top=2, bottom=-2)
         ax2.legend(loc='upper right', fontsize=8)
         ax2.grid(True)
         fig.savefig(self.file_path)
-
-    def tilted_potential_and_gradient(self, X, V, dV, Vbias, dVbias):
+    
+    #TODO 
+    def tilted_potential_and_gradient_old(self, X, V, dV, Vbias, dVbias):
         plt.plot(X, V, 'b-', label=r'Potential $V(x)$')
         plt.plot(X, Vbias, 'r-', label=r'bias Potential $V_{bias}(x)$')
         plt.plot(X, V + Vbias, 'm-', label=r'tilted Potential $\tilde{V}(x)$')
