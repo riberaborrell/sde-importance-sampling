@@ -25,27 +25,27 @@ def gradient_one_well_1d_potential(x):
     return 2 * (x - 1)
 
 #TODO deprecated. Use norm.pdf(x, mu, sigma)
-def normal_pdf(x, mu, sigma):
+def normal_pdf(x, mu=0, sigma=1):
     '''This method evaluates the normal probability density with mean
     mu and standard deviation sigma at the point x.
 
     Args:
-        x (float) : posision
-        mu (float): mean
-        sigma (float) : standard deviation
+        x (float or ndarray) : posision
+        mu (float or ndarray): mean
+        sigma (float or ndarray) : standard deviation
     '''
     norm_factor = np.sqrt(2 * np.pi) * sigma
     return np.exp(-0.5 * ((x - mu) / sigma) **2 ) / norm_factor
 
-def derivative_normal_pdf(x, mu, sigma):
+def derivative_normal_pdf(x, mu=0, sigma=1):
     '''This method evaluates the derivative of the normal probability
        density function with mean mu and standard deviation sigma at 
        the point x.
 
     Args:
-        x (float or float array) : posision
-        mu (float or float array): mean
-        sigma (float or float array) : standard deviation
+        x (float or ndarray) : posision
+        mu (float or ndarray): mean
+        sigma (float or ndarray) : standard deviation
     '''
     return norm.pdf(x, mu, sigma) * (mu - x) / sigma**2
 

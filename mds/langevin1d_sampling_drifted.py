@@ -78,6 +78,7 @@ def main():
         is_drifted=True,
         do_reweighting=True,
     )
+    samp._m = len(a)
     samp._a = a
     samp._mus = mus
     samp._sigmas = sigmas 
@@ -85,18 +86,11 @@ def main():
 
     # plot tilted potential and gradient
     X = np.linspace(-2, 2, 100)
-
     V = double_well_1d_potential(X)
     dV = gradient_double_well_1d_potential(X)
-    
-    # preallocate gradient and bias potential
-    Vbias = np.zeros(len(X))
-    dVbias = np.zeros(len(X))
-    for i, x in enumerate(X):
-        # evaluate gradien and bias potential at x
-        Vbias[i] = samp.bias_potential(x)
-        u_at_x = samp.control(x)
-        dVbias[i] = samp.bias_gradient(u_at_x)
+    Vbias = samp.bias_potential(X)
+    U = samp.control(X)
+    dVbias = samp.bias_gradient(U)
 
     pl = Plot(
         file_name='tilted_potential_and_gradient',
