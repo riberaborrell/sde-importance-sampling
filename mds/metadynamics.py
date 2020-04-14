@@ -1,10 +1,10 @@
 from plotting import Plot
-from tools import double_well_1d_potential, \
-                  gradient_double_well_1d_potential, \
-                  bias_potential, \
-                  bias_potential_grid, \
-                  gradient_bias_potential, \
-                  gradient_bias_potential_grid
+from potentials_and_gradients import double_well_1d_potential, \
+                                     gradient_double_well_1d_potential, \
+                                     bias_potential, \
+                                     bias_potential_grid, \
+                                     gradient_bias_potential, \
+                                     gradient_bias_potential_grid
 
 import numpy as np
 from scipy import stats
@@ -152,6 +152,16 @@ def metadynamics_algorithm(beta, xzero, well_set, k, seed=None, do_plots=False):
 
     return omegas[:i], mus[:i], sigmas[:i]
 
+def get_a_from_fake_metadynamics(beta):
+    # load metadynamics parameters
+    bias_pot_coeff = np.load(os.path.join(METADYNAMICS_DATA_PATH, 'langevin1d_fake_bias_potential.npz'))
+    omegas = bias_pot_coeff['omegas']
+    meta_mus = bias_pot_coeff['mus']
+    meta_sigmas = bias_pot_coeff['sigmas']
+    
+    a = omegas * beta / 2
+
+    return a, meta_mus, meta_sigmas
 
 def get_a_from_metadynamics(beta, m, J_min, J_max):
     '''
@@ -162,9 +172,9 @@ def get_a_from_metadynamics(beta, m, J_min, J_max):
         print("The interval J_h is not valid")
    
     # load metadynamics parameters
-    #bias_pot_coeff = np.load(os.path.join(METADYNAMICS_DATA_PATH, 'langevin1d_metadynamic.npz'))
-    bias_pot_coeff = np.load(os.path.join(METADYNAMICS_DATA_PATH, 'langevin1d_tilted_potential.npz'))
-    meta_omegas = bias_pot_coeff['omegas']
+    #bias_pot_coeff = np.load(os.path.join(METADYNAMICS_DATA_PATH, 'langevin1d_meta_bias_potential.npz'))
+    bias_pot_coeff = np.load(os.path.join(METADYNAMICS_DATA_PATH, 'langevin1d_fake_bias_potential.npz'))
+    omegas = bias_pot_coeff['omegas']
     meta_mus = bias_pot_coeff['mus']
     meta_sigmas = bias_pot_coeff['sigmas']
 
@@ -179,21 +189,20 @@ def get_a_from_metadynamics(beta, m, J_min, J_max):
     # the ansatz functions are gaussians with standard deviation sigma
     # and means uniformly spaced in J_h
     mus = X
-    sigmas = 0.1 * np.ones(m)
+    sigmas = 0.3 * np.ones(m)
     
     # ansatz functions evaluated at the grid
     ansatz_functions = np.zeros((m, m))
     for i in np.arange(m):
-        for j in np.arange(m):
-            ansatz_functions[i, j] = stats.norm.pdf(X[j], mus[i], sigmas[i])
+        #for j in np.arange(m):
+        #    ansatz_functions[i, j] = stats.norm.pdf(X[j], mus[i], sigmas[i])
+        ansatz_functions[i, :] = stats.norm.pdf(X, mus[i], sigmas[i])
 
     # value function evaluated at the grid
-    phi = np.zeros(m)
-    for i in np.arange(m):
-        V_bias = bias_potential(X[i], meta_mus, meta_sigmas, meta_omegas)
-        phi[i] = V_bias * beta / 2
+    V_bias = bias_potential_grid(X, omegas, meta_mus, meta_sigmas)
+    phi = V_bias * beta / 2
 
     # solve a V = \Phi
     a = np.linalg.solve(ansatz_functions, phi)
-   
+
     return a, mus, sigmas

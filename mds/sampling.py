@@ -1,10 +1,10 @@
 from decorators import timer
-from tools import double_well_1d_potential, \
-                  gradient_double_well_1d_potential, \
-                  one_well_1d_potential, \
-                  gradient_one_well_1d_potential, \
-                  derivative_normal_pdf, \
-                  bias_potential
+from potentials_and_gradients import double_well_1d_potential, \
+                                     gradient_double_well_1d_potential, \
+                                     one_well_1d_potential, \
+                                     gradient_one_well_1d_potential, \
+                                     derivative_normal_pdf, \
+                                     bias_potential
 
 import numpy as np
 from scipy import stats
@@ -105,9 +105,9 @@ class langevin_1d:
             self._cost[:] = np.NaN
             self._J = np.empty(M)
             self._J[:] = np.NaN
-            self._gradJ= np.empty(M)
+            self._gradJ= np.empty((M, m))
             self._gradJ[:] = np.NaN
-            self._gradSh = np.empty(M)
+            self._gradSh = np.empty((M, m))
             self._gradSh[:] = np.NaN
         
         if self._do_reweighting: 
@@ -125,11 +125,11 @@ class langevin_1d:
                 self._J_rew[:] = np.NaN
 
 
-    def get_a(self, a):
+    def set_a(self, a):
         self._m = a.shape[0] 
         self._a = a
 
-    def get_v(self, mus, sigmas):
+    def set_v(self, mus, sigmas):
         self._mus = mus
         self._sigmas = sigmas 
 
@@ -142,13 +142,7 @@ class langevin_1d:
         mus = self._mus
         sigmas = self._sigmas
 
-        # preallocate ansatz functions
-        m = len(mus)
-        v = np.zeros(m)
-        
-        # evaluates ansatz function at x
-        for j in np.arange(m):
-            v[j] = stats.norm.pdf(x, mus[j], sigmas[j]) 
+        v = stats.norm.pdf(x, mus, sigmas) 
 
         return v
 
@@ -180,12 +174,7 @@ class langevin_1d:
         mus = self._mus
         sigmas = self._sigmas
 
-        # preallocate basis functions
-        m = len(mus)
-        b = np.zeros(m)
-        
-        for i in np.arange(m):
-            b[i] = - np.sqrt(2 / beta) * derivative_normal_pdf(x, mus[i], sigmas[i]) 
+        b = - np.sqrt(2 / beta) * derivative_normal_pdf(x, mus, sigmas) 
 
         return b
 
@@ -203,31 +192,38 @@ class langevin_1d:
 
         return np.dot(a, b)
 
+    def bias_potential(self, x):
+        '''This method computes the bias potential at x
+
+        Args:
+            x (float) : position
+        '''
+        return self.value_function(x) * 2 / self._beta
+
+    def bias_gradient(self, u):
+        '''This method computes the bias gradient at x
+
+        Args:
+            u (float) : control at x 
+        '''
+        return - np.sqrt(2 / self._beta) * u
+
     def tilted_potential(self, x):
         '''This method computes the tilted potential at x
 
         Args:
             x (float) : position
         '''
-        # sampling parameters
-        beta = self._beta
+        return double_well_1d_potential(x) + self.bias_potential(x)
 
-        Vbias_at_x = (2 / beta) * self.value_function(x)
-        
-        return double_well_1d_potential(x) + Vbias_at_x
-
-    def tilted_gradient(self, x):
+    def tilted_gradient(self, x, u):
         '''This method computes the tilted gradient at x
 
         Args:
             x (float) : position
+            u (float) : control at x 
         '''
-        # sampling parameters
-        beta = self._beta
-
-        dVbias_at_x = - np.sqrt(2 / beta) * self.control(x)
-        
-        return gradient_double_well_1d_potential(x) + dVbias_at_x
+        return gradient_double_well_1d_potential(x) + self.bias_gradient(u)
 
     @timer
     def sample(self):
@@ -246,6 +242,10 @@ class langevin_1d:
         for i in np.arange(M):
             # initialize Xtemp
             Xtemp = xzero
+            
+            if is_drifted:
+                # compute control at Xtemp
+                utemp = self.control(Xtemp)
 
             if do_reweighting:
                 # initialize martingale terms, M_t = e^(M1_t + M2_t)
@@ -258,48 +258,53 @@ class langevin_1d:
                     sum_partial_tilde_gh = np.zeros(m)
                     grad_Sh = np.zeros(m)
                     
-                    norm_dist = np.random.normal(0, 1, N)
+                    #norm_dist = np.random.normal(0, 1, N)
             
             # Brownian increments
             #dB = np.sqrt(dt) * np.random.normal(0, 1, N)
-            dB = np.sqrt(dt) * np.random.normal(0, 1, 2 * N)
-            dB1 = dB[:N]
-            dB2 = dB[N:]
+            #dB = np.sqrt(dt) * np.random.normal(0, 1, 2 * N)
+            #dB1 = dB[:N]
+            #dB2 = dB[N:]
             
             for n in np.arange(1, N+1):
+                # Brownian increment
+                dB = np.sqrt(dt) * np.random.normal(0, 1)
+
                 # compute gradient
                 if not is_drifted:
                     gradient = gradient_double_well_1d_potential(Xtemp)
                 else:
-                    gradient = self.tilted_gradient(Xtemp)
+                    gradient = self.tilted_gradient(Xtemp, utemp)
 
                 # SDE iteration
                 drift = - gradient * dt
                 #diffusion = np.sqrt(2 / beta) * dB[n-1]
-                diffusion = np.sqrt(2 / beta) * dB1[n-1]
+                #diffusion = np.sqrt(2 / beta) * dB1[n-1]
+                diffusion = np.sqrt(2 / beta) * dB
                 Xtemp = Xtemp + drift + diffusion
-
-                if do_reweighting:
-                    # evaluate control at Xtemp
+                
+                if is_drifted:
+                    # compute control at Xtemp
                     utemp = self.control(Xtemp)
 
+                if do_reweighting:
                     # compute martingale terms
                     # M1temp = int_0^fht (-u_t dB_t)
                     # M2temp = int_0^fht (- 1/2 (u_t)^2 dt)
                     #M1temp = M1temp - utemp * dB[n-1]
-                    M1temp = M1temp - utemp * dB2[n-1]
+                    #M1temp = M1temp - utemp * dB2[n-1]
+                    M1temp = M1temp - utemp * dB
                     M2temp = M2temp - 0.5 * (utemp ** 2) * dt 
 
                 if is_soc_problem:
-                    # evaluate control at Xtemp
-                    utemp = self.control(Xtemp)
                     # evaluate the control basis functions at Xtmep
                     btemp = self.control_basis_functions(Xtemp)
                     
                     # compute cost, ...
                     cost = cost + 0.5 * (utemp ** 2) * dt
                     sum_partial_tilde_gh = sum_partial_tilde_gh + utemp * btemp * dt  
-                    grad_Sh = grad_Sh + norm_dist[n] * btemp
+                    #grad_Sh = grad_Sh + norm_dist[n] * btemp
+                    grad_Sh = grad_Sh + np.random.normal(0, 1) * btemp
 
                 # check if we have arrived to the target set
                 if (Xtemp >= target_set_min and Xtemp <= target_set_max):
@@ -430,6 +435,8 @@ class langevin_1d:
         f.write('sampled trajectories: {:d}\n\n'.format(self._M))
         f.write('% trajectories which have arrived: {:2.2f}\n\n'
                 ''.format(100 * len(self._fht) / self._M))
+        
+        f.write('Expectation of fhs: {:.2f}\n\n'.format(self._mean_fht / self._dt))
 
         f.write('Expectation of fht: {:2.4f}\n'.format(self._mean_fht))
         f.write('Variance of fht: {:2.4f}\n'.format(self._var_fht))

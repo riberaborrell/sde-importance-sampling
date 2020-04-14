@@ -18,8 +18,8 @@ def get_parser():
         '--beta',
         dest='beta',
         type=float,
-        default=5,
-        help='Set the parameter beta for the 1D MD SDE. Default: 5',
+        default=2,
+        help='Set the parameter beta for the 1D MD SDE. Default: 2',
     )
     parser.add_argument(
         '--xzero',
@@ -40,8 +40,8 @@ def get_parser():
         '--num-trajectories',
         dest='M',
         type=int,
-        default=10**3,
-        help='Set number of trajectories to sample. Default: 1.000',
+        default=10**4,
+        help='Set number of trajectories to sample. Default: 10.000',
     )
     return parser
 

@@ -49,34 +49,6 @@ def derivative_normal_pdf(x, mu, sigma):
     '''
     return norm.pdf(x, mu, sigma) * (mu - x) / sigma**2
 
-#TODO deprecated. Use norm.pdf(x, mus, sigmas)
-def bias_functions(x, mus, sigmas):
-    '''This method computes Gaussian densities given a mean and a
-    standard deviation
-
-    Args:
-        x (float) : posision
-        means (array): mean of each gaussian density
-        sigmas (array) : standard deviation of each gaussian density
-
-    Returns:
-        b (array) : Gaussian densities with mean and variance given by
-        means and sigmas**2 respectively evaluated at the point x 
-
-    '''
-    assert mus.shape == sigmas.shape, "Error"
-
-    # number of bias functions
-    K = len(mus)
-
-    # preallocate basis functions
-    b = np.zeros(K)
-    
-    for i in np.arange(K):
-        b[i] = norm.pdf(x, mus[i], sigmas[i]) 
-
-    return b
-    
 def bias_potential(x, omegas, mus, sigmas):
     '''This method computes the bias potential evaluated at the point x
     

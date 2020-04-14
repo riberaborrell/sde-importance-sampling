@@ -7,10 +7,10 @@ import numpy as np
 from decorators import timer
 from plotting import Plot
 
-from tools import double_well_1d_potential, \
-                  gradient_double_well_1d_potential, \
-                  bias_potential_grid, \
-                  gradient_bias_potential_grid
+from potentials_and_gradients import double_well_1d_potential, \
+                                     gradient_double_well_1d_potential, \
+                                     bias_potential_grid, \
+                                     gradient_bias_potential_grid
 import os
 
 MDS_PATH = os.path.abspath(os.path.dirname(__file__))
@@ -26,14 +26,14 @@ def main():
     dV = gradient_double_well_1d_potential(X)
     
     # set bias functions and weights (left well)
-    mus = np.array([-1, -1.3, -0.6])
-    sigmas = np.array([0.3, 0.2, 0.3])
-    omegas = np.array([0.5, 0.1, 0.15])
+    omegas = np.array([4, 2, 2])
+    mus = np.array([-1, -1.4, -0.3])
+    sigmas = np.array([0.3, 0.3, 0.3])
     
     # set bias functions and weights (right well)
-    #mus = np.array([1, 1.3, 0.6])
-    #sigmas = np.array([0.3, 0.2, 0.3])
-    #omegas = np.array([0.5, 0.1, 0.15])
+    #omegas = np.array([4, 2, 2])
+    #mus = np.array([1, 1.4, 0.3])
+    #sigmas = np.array([0.3, 0.3, 0.3])
 
     # plot tilted potential and gradient
     Vbias = bias_potential_grid(X, omegas, mus, sigmas)
@@ -48,7 +48,7 @@ def main():
         
     # save bias
     np.savez(
-        os.path.join(METADYNAMICS_DATA_PATH, 'langevin1d_tilted_potential.npz'),
+        os.path.join(METADYNAMICS_DATA_PATH, 'langevin1d_fake_bias_potential.npz'),
         omegas=omegas,
         mus=mus,
         sigmas=sigmas,
