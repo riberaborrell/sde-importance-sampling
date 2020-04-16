@@ -9,19 +9,21 @@ def double_well_1d_potential(x):
         x (float or float array) : posicion/s
     '''
     return 2 * (x**2 - 1)**2
+    #return 0.5 * (x**2 - 1)**2
 
-def gradient_double_well_1d_potential(x):
+def double_well_1d_gradient(x):
     '''This method returns the gradient of a potential function evaluated
     at the point/s x
     Args:
         x (float or float array) : posicion/s
     '''
     return 8 * x * (x**2 - 1)
+    #return 2 * x * (x**2 - 1)
 
 def one_well_1d_potential(x):
     return (x - 1)**2
 
-def gradient_one_well_1d_potential(x):
+def one_well_1d_gradient(x):
     return 2 * (x - 1)
 
 #TODO deprecated. Use norm.pdf(x, mu, sigma)

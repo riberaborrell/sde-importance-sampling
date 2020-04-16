@@ -1,17 +1,15 @@
-import argparse
-
 import sampling
-from metadynamics import get_a_from_metadynamics, \
-                         get_a_from_fake_metadynamics
-
+#from metadynamics import get_a_from_metadynamics, \
+#                         get_a_from_fake_metadynamics
 from potentials_and_gradients import double_well_1d_potential, \
-                                     gradient_double_well_1d_potential
-
+                                     double_well_1d_gradient
 from plotting import Plot
 
+import argparse
+from datetime import datetime
 
 import numpy as np
-from datetime import datetime
+
 import os
 
 MDS_PATH = os.path.abspath(os.path.dirname(__file__))
@@ -48,46 +46,69 @@ def get_parser():
         help='Set the target set interval. Default: [0.9, 1.1]',
     )
     parser.add_argument(
-        '--num-trajectories',
+        '--M',
         dest='M',
         type=int,
         default=10**4,
         help='Set number of trajectories to sample. Default: 10.000',
+    )
+    parser.add_argument(
+        '--dt',
+        dest='dt',
+        type=float,
+        default=0.001,
+        help='Set dt. Default: 0.001',
+    )
+    parser.add_argument(
+        '--N',
+        dest='N',
+        type=int,
+        default=10**5,
+        help='Set number of time steps. Default: 100.000',
     )
     return parser
 
 
 def main():
     args = get_parser().parse_args()
+    
+    # initialize langevin_1d object
+    samp = sampling.langevin_1d(
+        beta=args.beta,
+        is_drifted=True,
+    )
 
-    #a, mus, sigmas = get_a_from_fake_metadynamics(args.beta)
-    a, mus, sigmas = get_a_from_metadynamics(
-         beta=args.beta,
+    # set bias potential
+    samp.set_bias_potential_from_metadynamics(
          m=10,
          J_min=-1.9,
          J_max=0.9,
          #J_min=-0.9,
          #J_max=1.9,
     )
-    samp = sampling.langevin_1d(
-        beta=args.beta,
+
+    # set sampling and Euler-Majurama parameters
+    samp.set_sampling_parameters(
+        seed=args.seed,
         xzero=args.xzero,
+        M=args.M, 
         target_set=args.target_set,
-        num_trajectories=args.M, 
-        seed=args.seed, 
-        is_drifted=True,
+        dt=args.dt,
+        N=args.N,
+    )
+    samp.preallocate_variables(
+        is_sampling_problem=True,
         do_reweighting=True,
     )
-    samp._m = len(a)
-    samp._a = a
-    samp._mus = mus
-    samp._sigmas = sigmas 
-
-
+    samp.sample()
+    samp.compute_statistics()
+    samp.save_statistics()
+    exit()
+    
     # plot tilted potential and gradient
     X = np.linspace(-2, 2, 100)
     V = double_well_1d_potential(X)
-    dV = gradient_double_well_1d_potential(X)
+    dV = double_well_1d_gradient(X)
     Vbias = samp.bias_potential(X)
     U = samp.control(X)
     dVbias = samp.bias_gradient(U)
@@ -98,12 +119,7 @@ def main():
         dir_path=FIGURES_PATH,
     )
     pl.tilted_potential_and_gradient(X, V, dV, Vbias, dVbias)
-
-    samp.preallocate_variables()
-    samp.sample()
-    samp.compute_statistics()
-    samp.save_statistics()
-
+    
 
 if __name__ == "__main__":
     main()

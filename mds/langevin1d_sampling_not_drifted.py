@@ -1,9 +1,10 @@
-import argparse
-
 import sampling
 
-import numpy as np
+import argparse
 from datetime import datetime
+
+import numpy as np
+
 import os
 
 def get_parser():
@@ -37,11 +38,25 @@ def get_parser():
         help='Set the target set interval. Default: [0.9, 1.1]',
     )
     parser.add_argument(
-        '--num-trajectories',
+        '--M',
         dest='M',
         type=int,
         default=10**4,
         help='Set number of trajectories to sample. Default: 10.000',
+    )
+    parser.add_argument(
+        '--dt',
+        dest='dt',
+        type=float,
+        default=0.001,
+        help='Set dt. Default: 0.001',
+    )
+    parser.add_argument(
+        '--N',
+        dest='N',
+        type=int,
+        default=10**5,
+        help='Set number of time steps. Default: 100.000',
     )
     return parser
 
@@ -49,15 +64,21 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
+    # initialize langevin_1d object
     samp = sampling.langevin_1d(
-        seed=args.seed, 
         beta=args.beta,
-        xzero=args.xzero,
         is_drifted=False,
-        target_set=args.target_set,
-        num_trajectories=args.M, 
     )
-    samp.preallocate_variables()
+    # set sampling and Euler-Majurama parameters
+    samp.set_sampling_parameters( 
+        seed=args.seed, 
+        xzero=args.xzero,
+        M=args.M, 
+        target_set=args.target_set,
+        dt=args.dt,
+        N=args.N,
+    )
+    samp.preallocate_variables(is_sampling_problem=True)
     samp.sample()
     samp.compute_statistics()
     samp.save_statistics()
