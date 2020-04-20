@@ -1,6 +1,6 @@
 from plotting import Plot
 from potentials_and_gradients import double_well_1d_potential, \
-                                     gradient_double_well_1d_potential, \
+                                     double_well_1d_gradient, \
                                      bias_potential, \
                                      bias_potential_grid, \
                                      gradient_bias_potential, \
@@ -17,7 +17,7 @@ METADYNAMICS_DATA_PATH = os.path.join(MDS_PATH, 'data/metadynamics')
 METADYNAMICS_FIGURES_PATH = os.path.join(MDS_PATH, 'figures/metadynamics')
 
 
-def metadynamics_algorithm(beta, xzero, well_set, k, seed=None, do_plots=False):
+def metadynamics_algorithm(beta, xzero, well_set, k, dt, N, seed=None, do_plots=False):
     '''
     '''
     # set random seed
@@ -37,14 +37,11 @@ def metadynamics_algorithm(beta, xzero, well_set, k, seed=None, do_plots=False):
 
     # potential and gradient at the grid
     V = double_well_1d_potential(X)
-    dV = gradient_double_well_1d_potential(X)
+    dV = double_well_1d_gradient(X)
 
     # time interval, time steps and number of time steps
-    tzero = 0
-    T = 10**3
-    N = 10**7
-    dt = (T - tzero) / N
-    t = np.linspace(tzero, T, N+1)
+    T = N * dt
+    t = np.linspace(0, T, N+1)
 
     # steps before adding a bias function
     if np.mod(N, k) != 0:
@@ -63,15 +60,19 @@ def metadynamics_algorithm(beta, xzero, well_set, k, seed=None, do_plots=False):
 
     # exp factor
     omegas = 0.95 * np.ones(int(N/k))
-    omegas = 0.03 * np.array([w**(i+1) for i, w in enumerate(omegas)])
+    omegas = 1 * np.array([w**(i+1) for i, w in enumerate(omegas)])
 
     # inv proportional 
     #omegas = 0.1 * np.ones(int(N/k))
     #omegas = np.array([w / (i+1) for i, w in enumerate(omegas)])
     
     # set the standard desviation of the bias functions
-    sigmas = 0.95 * np.ones(int(N/k))
-    sigmas = 0.2 * np.array([sigma**(i+1) for i, sigma in enumerate(sigmas)])
+    # constant
+    sigmas = 0.3 * np.ones(int(N/k))
+    
+    # exp factor
+    #sigmas = 0.3 * np.ones(int(N/k))
+    #sigmas = 0.2 * np.array([sigma**(i+1) for i, sigma in enumerate(sigmas)])
 
 
     # 1D MD SDE: dX_t = -grad V(X_t)dt + sqrt(2 beta**-1)dB_t, X_0 = x
@@ -115,10 +116,10 @@ def metadynamics_algorithm(beta, xzero, well_set, k, seed=None, do_plots=False):
         
         # compute gradient
         if i == 0:
-            gradient = gradient_double_well_1d_potential(Xtemp)
+            gradient = double_well_1d_gradient(Xtemp)
         else:
             dVbias = gradient_bias_potential(Xtemp, omegas[:i], mus[:i], sigmas[:i])
-            gradient = gradient_double_well_1d_potential(Xtemp) + dVbias
+            gradient = double_well_1d_gradient(Xtemp) + dVbias
 
         # compute drift and diffusion coefficients
         drift = - gradient * dt

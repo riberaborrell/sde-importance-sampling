@@ -8,7 +8,7 @@ from decorators import timer
 from plotting import Plot
 
 from potentials_and_gradients import double_well_1d_potential, \
-                                     gradient_double_well_1d_potential, \
+                                     double_well_1d_gradient, \
                                      bias_potential_grid, \
                                      gradient_bias_potential_grid
 import os
@@ -23,7 +23,7 @@ def main():
     # grid x coordinate
     X = np.linspace(-2, 2, 100)
     V = double_well_1d_potential(X)
-    dV = gradient_double_well_1d_potential(X)
+    dV = double_well_1d_gradient(X)
     
     # set bias functions and weights (left well)
     omegas = np.array([4, 2, 2])
@@ -39,7 +39,7 @@ def main():
     Vbias = bias_potential_grid(X, omegas, mus, sigmas)
     dVbias = gradient_bias_potential_grid(X, omegas, mus, sigmas)
     pl = Plot(
-        file_name='artificial_tilted_potential_and_gradient_left_well',
+        file_name='fake_tilted_potential_and_gradient_left_well',
         file_type='png',
         dir_path=METADYNAMICS_FIGURES_PATH,
     )
