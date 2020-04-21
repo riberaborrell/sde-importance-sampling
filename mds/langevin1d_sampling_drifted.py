@@ -96,11 +96,12 @@ def main():
         dt=args.dt,
         N=args.N,
     )
-    samp.preallocate_variables(
-        is_sampling_problem=True,
-        do_reweighting=True,
-    )
-    samp.sample()
+
+    # sample
+    #samp.sample_drifted()
+    samp.sample_drifted_vectorized()
+
+    # compute and print statistics
     samp.compute_statistics()
     samp.save_statistics()
     exit()

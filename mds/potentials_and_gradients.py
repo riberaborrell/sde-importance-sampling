@@ -55,80 +55,45 @@ def bias_potential(x, omegas, mus, sigmas):
     '''This method computes the bias potential evaluated at the point x
     
     Args:
-        x (float) : posision
-        omegas (array) : weights
-        means (array): mean of each gaussian
-        sigmas (array) : standard deviation of each gaussian
+        x (float or ndarry) : posision/s
+        omegas (ndarray) : weights
+        mus (ndarray): mean of each gaussian
+        sigmas (ndarray) : standard deviation of each gaussian
     '''
     assert omegas.shape == mus.shape == sigmas.shape, "Error"
     
+    if type(x) == np.ndarray:
+        mus = mus.reshape(mus.shape[0], 1)
+        sigmas = sigmas.reshape(sigmas.shape[0], 1)
+
     # get bias functions (gaussians) evalutated at x
     b = norm.pdf(x, mus, sigmas)
 
     # scalar product
-    Vbias = np.sum(omegas * b)
+    Vbias = np.dot(omegas, b)
 
     return Vbias
 
-def gradient_bias_potential(x, omegas, mus, sigmas):
+def bias_gradient(x, omegas, mus, sigmas):
     '''This method computes the gradient of the bias potential evaluated
        the point x
     
     Args:
         x (float) : posision
         omegas (array) : weights
-        means (array): mean of each gaussian
+        mus (array): mean of each gaussian
         sigmas (array) : standard deviation of each gaussian
     '''
     assert omegas.shape == mus.shape == sigmas.shape, "Error"
+    
+    if type(x) == np.ndarray:
+        mus = mus.reshape(mus.shape[0], 1)
+        sigmas = sigmas.reshape(sigmas.shape[0], 1)
 
     # get derivative of bias functions (gaussians) evalutated at x
     db = derivative_normal_pdf(x, mus, sigmas)
 
     # scalar product
-    dVbias = np.sum(omegas * db)
+    dVbias = np.dot(omegas, db)
 
-    return dVbias
-
-def bias_potential_grid(X, omegas, mus, sigmas):
-    '''This method computes the bias potential at the given grid points
-    
-    Args:
-        X (array) : posisions
-        omegas (array) : weights
-        means (array): mean of each gaussian
-        sigmas (array) : standard deviation of each gaussian
-
-    Returns:
-        Vbiased (array) : Biased potential evaluated at the array X
-    '''
-    # preallocate bias potential
-    Vbias = np.zeros(len(X))
-    
-    for i, x in enumerate(X):
-        # evaluate bias potential at x
-        Vbias[i] = bias_potential(x, omegas, mus, sigmas)
-
-    return Vbias
-
-def gradient_bias_potential_grid(X, omegas, mus, sigmas):
-    '''This method computes the gradient of the bias potential
-    
-    Args:
-        X (array) : posisions
-        omegas (array) : weights
-        means (array): mean of each gaussian density
-        sigmas (array) : standard deviation of each gaussian density
-
-    Returns:
-        dVbiased (float) : gradient of the bias potential evaluated at the array X
-    '''
-    assert omegas.shape == mus.shape == sigmas.shape, "Error"
-
-    # preallocate gradient of bias potential
-    dVbias = np.zeros(len(X))
-
-    for i, x in enumerate(X):
-        # evaluate gradien of the bias potential at x
-        dVbias[i] = gradient_bias_potential(x, omegas, mus, sigmas)
     return dVbias

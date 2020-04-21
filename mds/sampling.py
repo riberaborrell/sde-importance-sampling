@@ -4,8 +4,7 @@ from potentials_and_gradients import double_well_1d_potential, \
                                      one_well_1d_potential, \
                                      one_well_1d_gradient, \
                                      derivative_normal_pdf, \
-                                     bias_potential, \
-                                     bias_potential_grid
+                                     bias_potential
 
 import numpy as np
 from scipy import stats
@@ -106,6 +105,7 @@ class langevin_1d:
         # load metadynamics parameters
         bias_pot_coeff = np.load(
             os.path.join(METADYNAMICS_DATA_PATH, 'langevin1d_fake_bias_potential.npz')
+            #os.path.join(METADYNAMICS_DATA_PATH, 'langevin1d_metadynamics_bias_potential.npz')
         )
         omegas = bias_pot_coeff['omegas']
         meta_mus = bias_pot_coeff['mus']
@@ -117,7 +117,7 @@ class langevin_1d:
         # grid on the interval J_h = [J_min, J_max].
         X = np.linspace(J_min, J_max, m)
         # step size
-        h = (J_max - J_min) / m
+        #h = (J_max - J_min) / m
 
         # the ansatz functions are gaussians with standard deviation sigma
         # and means uniformly spaced in J_h
@@ -125,13 +125,12 @@ class langevin_1d:
         sigmas = 0.3 * np.ones(m)
         
         # ansatz functions evaluated at the grid
-        ansatz_functions = np.zeros((m, m))
-        for i in np.arange(m):
-            #TODO
-            ansatz_functions[i, :] = stats.norm.pdf(X, mus[i], sigmas[i])
+        mus = mus.reshape(mus.shape[0], 1)
+        sigmas = sigmas.reshape(sigmas.shape[0], 1)
+        ansatz_functions = stats.norm.pdf(X, mus, sigmas)
 
         # value function evaluated at the grid
-        V_bias = bias_potential_grid(X, omegas, meta_mus, meta_sigmas)
+        V_bias = bias_potential(X, omegas, meta_mus, meta_sigmas)
         phi = V_bias * beta / 2
 
         # solve a V = \Phi
@@ -142,6 +141,130 @@ class langevin_1d:
         self._mus = mus
         self._sigmas = sigmas
 
+
+    def ansatz_functions(self, x, mus=None, sigmas=None):
+        '''This method computes the ansatz functions evaluated at x
+
+        Args:
+            x (float or ndarray) : position/s
+            mus (ndarray): mean of each gaussian
+            sigmas (ndarray) : standard deviation of each gaussian
+        '''
+        if mus is None and sigmas is None:
+            mus = self._mus
+            sigmas = self._sigmas
+
+        assert mus.shape == sigmas.shape, "Error"
+
+        if type(x) == np.ndarray:
+            mus = mus.reshape(mus.shape[0], 1)
+            sigmas = sigmas.reshape(sigmas.shape[0], 1)
+
+        return stats.norm.pdf(x, mus, sigmas)
+
+    def value_function(self, x, a=None, mus=None, sigmas=None):
+        '''This method computes the value function evaluated at x
+
+        Args:
+            x (float or ndarray) : position/s
+            a (ndarray): parameters 
+            mus (ndarray): mean of each gaussian
+            sigmas (ndarray) : standard deviation of each gaussian
+        '''
+        if mus is None and sigmas is None:
+            mus = self._mus
+            sigmas = self._sigmas
+        
+        if a is None:
+            a = self._a
+
+        assert a.shape == mus.shape == sigmas.shape, "Error"
+
+        # ansatz functions
+        v = self.ansatz_functions(x, mus, sigmas)
+        
+        return np.dot(a, v)
+
+    def control_basis_functions(self, x, mus=None, sigmas=None):
+        '''This method computes the control basis functions evaluated at x
+
+        Args:
+            x (float or ndarray) : position/s
+            mus (ndarray): mean of each gaussian
+            sigmas (ndarray) : standard deviation of each gaussian
+        '''
+        # sampling parameters
+        beta = self._beta
+
+        if mus is None and sigmas is None:
+            mus = self._mus
+            sigmas = self._sigmas
+
+        assert mus.shape == sigmas.shape, "Error"
+
+        if type(x) == np.ndarray:
+            mus = mus.reshape(mus.shape[0], 1)
+            sigmas = sigmas.reshape(sigmas.shape[0], 1)
+
+        return - np.sqrt(2 / beta) * derivative_normal_pdf(x, mus, sigmas)
+
+    def control(self, x, a=None, mus=None, sigmas=None):
+        '''This method computes the control evaluated at x
+
+        Args:
+            X (float or ndarray) : position/s
+            a (ndarray): parameters 
+            mus (ndarray): mean of each gaussian
+            sigmas (ndarray) : standard deviation of each gaussian
+        '''
+        if mus is None and sigmas is None:
+            mus = self._mus
+            sigmas = self._sigmas
+        
+        if a is None:
+            a = self._a
+
+        assert a.shape == mus.shape == sigmas.shape, "Error"
+
+        # control basis functions at x
+        b = self.control_basis_functions(x, mus, sigmas)
+
+        return np.dot(a, b)
+
+    def bias_potential(self, x):
+        '''This method computes the bias potential at x
+
+        Args:
+            x (float or ndarray) : position
+        '''
+        return self.value_function(x) * 2 / self._beta
+
+    def bias_gradient(self, u):
+        '''This method computes the bias gradient at x
+
+        Args:
+            u (float or ndarray) : control at x
+        '''
+        return - np.sqrt(2 / self._beta) * u
+
+    def tilted_potential(self, x):
+        '''This method computes the tilted potential at x
+
+        Args:
+            x (float or ndarray) : position
+        '''
+        return double_well_1d_potential(x) + self.bias_potential(x)
+
+    def tilted_gradient(self, x, u):
+        '''This method computes the tilted gradient at x
+
+        Args:
+            x (float or ndarray) : position
+            u (float or ndarray) : control at x
+        '''
+        #TODO assert if x ndarray also u ndarray
+        return double_well_1d_gradient(x) + self.bias_gradient(u)
+    
     def set_sampling_parameters(self, xzero, M, target_set, dt, N, seed=None):
         '''
         '''
@@ -210,190 +333,149 @@ class langevin_1d:
                 self._J_rew = np.empty(M)
                 self._J_rew[:] = np.NaN
 
-    def ansatz_functions(self, x):
-        '''This method computes the ansatz functions evaluated at x
-
-        Args:
-            x (float or ndarray) : position/s
-        '''
-        m = self._m
-        mus = self._mus
-        sigmas = self._sigmas
-
-        if type(x) == np.ndarray:
-            # preallocate v
-            x_dim = x.shape[0]
-            v = np.zeros((m, x_dim))
-            for i, y in enumerate(x):
-                # compute gaussians with mus and sigmas at y
-                v[:, i] = stats.norm.pdf(y, mus, sigmas)
-        else:
-            v = stats.norm.pdf(x, mus, sigmas)
-
-        return v
-
-    def value_function(self, x):
-        '''This method computes the value function evaluated at x
-
-        Args:
-            x (float or ndarray) : position/s
-        '''
-        # a coefficients
-        a = self._a
-
-        # ansatz functions
-        v = self.ansatz_functions(x)
-        
-        return np.dot(a, v)
-
-    def control_basis_functions(self, x):
-        '''This method computes the control basis functions evaluated at x
-
-        Args:
-            x (float or ndarray) : position/s
-        '''
-        # sampling parameters
-        beta = self._beta
-
-        # ansatz functions
-        m = self._m
-        mus = self._mus
-        sigmas = self._sigmas
-
-        if type(x) == np.ndarray:
-            x_dim = x.shape[0]
-            b = np.zeros((m, x_dim))
-            for i, y in enumerate(x):
-                # compute basis functions with mus and sigmas at y
-                b[:, i] = - np.sqrt(2 / beta) * derivative_normal_pdf(y, mus, sigmas)
-        else:
-            b = - np.sqrt(2 / beta) * derivative_normal_pdf(x, mus, sigmas)
-
-        return b
-
-    def control(self, x):
-        '''This method computes the control evaluated at x
-
-        Args:
-            X (float or ndarray) : position/s
-        '''
-        # a coefficients
-        a = self._a
-
-        # control basis functions at x
-        b = self.control_basis_functions(x)
-
-        return np.dot(a, b)
-
-    def bias_potential(self, x):
-        '''This method computes the bias potential at x
-
-        Args:
-            x (float or ndarray) : position
-        '''
-        return self.value_function(x) * 2 / self._beta
-
-    def bias_gradient(self, u):
-        '''This method computes the bias gradient at x
-
-        Args:
-            u (float or ndarray) : control at x
-        '''
-        return - np.sqrt(2 / self._beta) * u
-
-    def tilted_potential(self, x):
-        '''This method computes the tilted potential at x
-
-        Args:
-            x (float or ndarray) : position
-        '''
-        return double_well_1d_potential(x) + self.bias_potential(x)
-
-    def tilted_gradient(self, x, u):
-        '''This method computes the tilted gradient at x
-
-        Args:
-            x (float or ndarray) : position
-            u (float or ndarray) : control at x
-        '''
-        #TODO assert if x ndarray also u ndarray
-        return double_well_1d_gradient(x) + self.bias_gradient(u)
-
     @timer
-    def sample(self):
-        
+    def sample_not_drifted(self):
         M = self._M
         N = self._N
         dt = self._dt
         xzero = self._xzero
         beta = self._beta
-        is_drifted = self._is_drifted
         target_set_min = self._target_set_min
         target_set_max = self._target_set_max
-        do_reweighting = self._do_reweighting
-        is_sampling_problem = self._is_sampling_problem
-        is_soc_problem = self._is_soc_problem
 
-        k = 200
+        self.preallocate_variables(is_sampling_problem=True)
 
         for i in np.arange(M):
             # initialize Xtemp
             Xtemp = xzero
-            
-            if is_drifted:
-                # compute control at Xtemp
-                utemp = self.control(Xtemp)
-
-            if do_reweighting:
-                # initialize Girsanov Martingale terms, G_t = e^(G1_t + G2_t)
-                G1temp = 0
-                G2temp = 0
-            
-            if is_soc_problem:
-                    m = self._m
-                    cost = 0
-                    sum_partial_tilde_gh = np.zeros(m)
-                    grad_Sh = np.zeros(m)
             
             for n in np.arange(1, N+1):
                 # Brownian increment
                 dB = np.sqrt(dt) * np.random.normal(0, 1)
 
                 # compute gradient
-                if not is_drifted:
-                    gradient = double_well_1d_gradient(Xtemp)
-                else:
-                    gradient = self.tilted_gradient(Xtemp, utemp)
+                gradient = double_well_1d_gradient(Xtemp)
 
                 # SDE iteration
                 drift = - gradient * dt
                 diffusion = np.sqrt(2 / beta) * dB
                 Xtemp = Xtemp + drift + diffusion
                 
-                if is_drifted:
-                    # compute control at Xtemp
-                    utemp = self.control(Xtemp)
+                # check if we have arrived to the target set
+                if (Xtemp >= target_set_min and Xtemp <= target_set_max):
+                    fht = n * dt
 
-                if do_reweighting:
-                    # compute martingale terms
-                    # G1_t = int_0^fht -u_t dB_t
-                    # G2_t = int_0^fht - 1/2 (u_t)^2 dt
-                    G1temp = G1temp - utemp * dB
-                    G2temp = G2temp - 0.5 * (utemp ** 2) * dt 
+                    # save first hitting time
+                    self._fht[i] = fht
 
-                if is_soc_problem:
-                    # evaluate the control basis functions at Xtmep
-                    btemp = self.control_basis_functions(Xtemp)
-                    
-                    # compute cost, ...
-                    cost = cost + 0.5 * (utemp ** 2) * dt
-                    sum_partial_tilde_gh = sum_partial_tilde_gh + utemp * btemp * dt  
-                    grad_Sh = grad_Sh + np.random.normal(0, 1) * btemp
+                    # save quantity of interest at the fht
+                    self._Psi[i] = np.exp(-beta * fht)
+                    break
+    
+    @timer
+    def sample_not_drifted_vectorized(self):
+        M = self._M
+        N = self._N
+        dt = self._dt
+        xzero = self._xzero
+        beta = self._beta
+        target_set_min = self._target_set_min
+        target_set_max = self._target_set_max
+
+        self.preallocate_variables(is_sampling_problem=True)
+
+        # initialize Xtemp
+        Xtemp = xzero * np.ones(M)
+        
+        # has arrived in target set
+        been_in_target_set = np.repeat([False], M)
+        
+        for n in np.arange(1, N+1):
+            # Brownian increment
+            dB = np.sqrt(dt) * np.random.normal(0, 1, M)
+
+            # compute gradient
+            gradient = double_well_1d_gradient(Xtemp)
+
+            # SDE iteration
+            drift = - gradient * dt
+            diffusion = np.sqrt(2 / beta) * dB
+            Xtemp = Xtemp + drift + diffusion
+           
+            # trajectories in the target set
+            is_in_target_set = ((Xtemp >= target_set_min) & (Xtemp <= target_set_max))
+           
+            # indices of trajectories new in the target set
+            new_in_target_set_idx = np.where(
+                (is_in_target_set == True) & (been_in_target_set == False)
+            )[0]
+
+            # update trajectories which have been in the target set
+            been_in_target_set[new_in_target_set_idx] = True
+            
+            # save first hitting time
+            self._fht[new_in_target_set_idx] = n * dt
+            
+            # check if all trajectories have arrived to the target set
+            if been_in_target_set.all() == True:
+                break
+        
+        # save quantity of interest at the fht
+        self._Psi = np.exp(-beta * self._fht)
+    
+    @timer
+    def sample_drifted(self):
+        
+        M = self._M
+        N = self._N
+        dt = self._dt
+        xzero = self._xzero
+        beta = self._beta
+        target_set_min = self._target_set_min
+        target_set_max = self._target_set_max
+        
+        self.preallocate_variables(
+            is_sampling_problem=True,
+            do_reweighting=True,
+        )
+
+        k = 10
+
+        for i in np.arange(M):
+            # initialize Xtemp
+            Xtemp = xzero
+            
+            # compute control at Xtemp
+            utemp = self.control(Xtemp)
+
+            # initialize Girsanov Martingale terms, G_t = e^(G1_t + G2_t)
+            G1temp = 0
+            G2temp = 0
+            
+            for n in np.arange(1, N+1):
+                # Brownian increment
+                dB = np.sqrt(dt) * np.random.normal(0, 1)
+
+                # compute gradient
+                gradient = self.tilted_gradient(Xtemp, utemp)
+
+                # SDE iteration
+                drift = - gradient * dt
+                diffusion = np.sqrt(2 / beta) * dB
+                Xtemp = Xtemp + drift + diffusion
+                
+                # compute control at Xtemp
+                utemp = self.control(Xtemp)
+
+                # compute Girsanov Martingale terms
+                # G1_t = int_0^fht -u_t dB_t
+                # G2_t = int_0^fht - 1/2 (u_t)^2 dt
+                G1temp = G1temp - utemp * dB
+                G2temp = G2temp - 0.5 * (utemp ** 2) * dt 
                 
                 # save Girsanov Martingale at time k
-                if do_reweighting and n == k: 
+                if n == k: 
                     self._G_N[i] = np.exp(G1temp + G2temp)
-                        
 
                 # check if we have arrived to the target set
                 if (Xtemp >= target_set_min and Xtemp <= target_set_max):
@@ -402,125 +484,169 @@ class langevin_1d:
                     # save first hitting time
                     self._fht[i] = fht
 
-                    if is_sampling_problem:
-                        # save quantity of interest at the fht
-                        self._Psi[i] = np.exp(-beta * fht)
+                    # save quantity of interest at the fht
+                    self._Psi[i] = np.exp(-beta * fht)
 
-                    if is_soc_problem:
-                        self._J[i] = cost + fht
-                        grad_Sh = grad_Sh * (- np.sqrt(dt * beta / 2))
-                        self._gradJ[i, :] = sum_partial_tilde_gh - (cost + fht) * grad_Sh
-                    if do_reweighting:
-                        # save Girsanov Martingale at time k
-                        self._G_fht[i] = np.exp(G1temp + G2temp)
+                    # save Girsanov Martingale at time k
+                    self._G_fht[i] = np.exp(G1temp + G2temp)
 
-                        # save re-weighted first hitting time
-                        self._fht_rew[i] = fht * np.exp(G1temp + G2temp)
+                    # save re-weighted first hitting time
+                    self._fht_rew[i] = fht * np.exp(G1temp + G2temp)
 
-                        # save re-weighted quantity of interest
-                        if is_sampling_problem:
-                            self._Psi_rew[i] = np.exp(-beta * fht + G1temp + G2temp) 
-
+                    # save re-weighted quantity of interest
+                    self._Psi_rew[i] = np.exp(-beta * fht + G1temp + G2temp) 
                     break
-    
+
     @timer
-    def sample_vectorized(self):
+    def sample_drifted_vectorized(self):
         M = self._M
         N = self._N
         dt = self._dt
         xzero = self._xzero
         beta = self._beta
-        is_drifted = self._is_drifted
         target_set_min = self._target_set_min
         target_set_max = self._target_set_max
-        do_reweighting = self._do_reweighting
-        is_sampling_problem = self._is_sampling_problem
-        is_soc_problem = self._is_soc_problem
-
         
+        self.preallocate_variables(
+            is_sampling_problem=True,
+            do_reweighting=True,
+        )
+        k = 10
+
         # initialize Xtemp
         Xtemp = xzero * np.ones(M)
         
-        if is_drifted:
-            # compute control at Xtemp
-            utemp = self.control(Xtemp)
-
-        if do_reweighting:
-            # initialize martingale terms, M_t = e^(M1_t + M2_t)
-            M1temp = np.zeros(M)
-            M2temp = np.zeros(M)
+        # control at Xtemp
+        utemp = self.control(Xtemp)
         
-        if is_soc_problem:
-                m = self._m
-                cost = 0
-                sum_partial_tilde_gh = np.zeros(m)
-                grad_Sh = np.zeros(m)
+        # initialize Girsanov Martingale terms, G_t = e^(G1_t + G2_t)
+        G1temp = np.zeros(M)
+        G2temp = np.zeros(M)
+
+        # has arrived in target set
+        been_in_target_set = np.repeat([False], M)
         
         for n in np.arange(1, N+1):
             # Brownian increment
             dB = np.sqrt(dt) * np.random.normal(0, 1, M)
 
             # compute gradient
-            if not is_drifted:
-                gradient = double_well_1d_gradient(Xtemp)
-            else:
-                gradient = self.tilted_gradient(Xtemp, utemp)
+            gradient = self.tilted_gradient(Xtemp, utemp)
 
             # SDE iteration
             drift = - gradient * dt
             diffusion = np.sqrt(2 / beta) * dB
             Xtemp = Xtemp + drift + diffusion
+
+            # control at Xtemp
+            utemp = self.control(Xtemp)
+
+            # Girsanov Martingale terms
+            G1temp = G1temp - utemp * dB
+            G2temp = G2temp - 0.5 * (utemp ** 2) * dt 
             
-            if is_drifted:
+            # trajectories in the target set
+            is_in_target_set = ((Xtemp >= target_set_min) & (Xtemp <= target_set_max))
+
+            # indices of trajectories new in the target set
+            new_in_target_set_idx = np.where(
+                (is_in_target_set == True) & (been_in_target_set == False)
+            )[0]
+                
+            # update list of indices whose trajectories have been in the target set
+            been_in_target_set[new_in_target_set_idx] = True
+            
+            # save first hitting time
+            self._fht[new_in_target_set_idx] = n * dt
+            #self._fht_rew[new_in_target_set_idx] = fht * np.exp(
+            #    G1temp[new_in_target_set_idx] + G2temp[new_in_target_set_idx]
+            #)
+            
+            # save Girsanov Martingale
+            self._G_fht[new_in_target_set_idx] = np.exp(
+                G1temp[new_in_target_set_idx] + G2temp[new_in_target_set_idx]
+            )
+            # save Girsanov Martingale at time k
+            if n == k: 
+                self._G_N = np.exp(G1temp + G2temp)
+            
+            # check if all trajectories have arrived to the target set
+            if been_in_target_set.all() == True:
+                break
+
+        # save rew fht
+        self._fht_rew = self._fht * self._G_fht
+
+        # save quantity of interest at the fht
+        self._Psi = np.exp(-beta * self._fht)
+        self._Psi_rew = np.exp(-beta * self._fht) * self._G_fht
+    
+    @timer
+    def sample_soc(self):
+        M = self._M
+        N = self._N
+        dt = self._dt
+        xzero = self._xzero
+        beta = self._beta
+        target_set_min = self._target_set_min
+        target_set_max = self._target_set_max
+        m = self._m
+        
+        self.preallocate_variables(
+            do_reweighting=False,
+            is_sampling_problem=False,
+            is_soc_problem=True,
+        )
+
+
+        for i in np.arange(M):
+            # initialize Xtemp
+            Xtemp = xzero
+            
+            # compute control at Xtemp
+            utemp = self.control(Xtemp)
+
+            # bla
+            cost = 0
+            sum_partial_tilde_gh = np.zeros(m)
+            grad_Sh = np.zeros(m)
+            
+            for n in np.arange(1, N+1):
+                # Brownian increment
+                dB = np.sqrt(dt) * np.random.normal(0, 1)
+
+                # compute gradient
+                gradient = self.tilted_gradient(Xtemp, utemp)
+
+                # SDE iteration
+                drift = - gradient * dt
+                diffusion = np.sqrt(2 / beta) * dB
+                Xtemp = Xtemp + drift + diffusion
+                
                 # compute control at Xtemp
                 utemp = self.control(Xtemp)
 
-            if do_reweighting:
-                # compute martingale terms
-                # M1temp = int_0^fht (-u_t dB_t)
-                # M2temp = int_0^fht (- 1/2 (u_t)^2 dt)
-                M1temp = M1temp - utemp * dB
-                M2temp = M2temp - 0.5 * (utemp ** 2) * dt 
-
-            if is_soc_problem:
                 # evaluate the control basis functions at Xtmep
                 btemp = self.control_basis_functions(Xtemp)
-                
+                    
                 # compute cost, ...
                 cost = cost + 0.5 * (utemp ** 2) * dt
                 sum_partial_tilde_gh = sum_partial_tilde_gh + utemp * btemp * dt  
-                #grad_Sh = grad_Sh + norm_dist[n] * btemp
                 grad_Sh = grad_Sh + np.random.normal(0, 1) * btemp
+                
+                # check if we have arrived to the target set
+                if (Xtemp >= target_set_min and Xtemp <= target_set_max):
+                    fht = n * dt
 
-            # check if we have arrived to the target set
-             
-            if (Xtemp >= target_set_min and Xtemp <= target_set_max):
-                fht = n * dt
+                    # save first hitting time
+                    self._fht[i] = fht
 
-                # save first hitting time
-                self._fht[i] = fht
-
-                if is_sampling_problem:
-                    # save quantity of interest at the fht
-                    self._Psi[i] = np.exp(-beta * fht)
-
-                if is_soc_problem:
                     self._J[i] = cost + fht
-                    grad_Sh = grad_Sh * (-np.sqrt(dt * beta))
-                    self._gradJ[i] = sum_partial_tilde_gh - (cost + fht) * grad_Sh
-
-                if do_reweighting:
-                    # save Girsanov Martingale at fht
-                    self._M_fht[i] = np.exp(M1temp + M2temp)
+                    grad_Sh = grad_Sh * (- np.sqrt(dt * beta / 2))
+                    self._gradJ[i, :] = sum_partial_tilde_gh - (cost + fht) * grad_Sh
                     
-                    # save re-weighted first hitting time
-                    self._fht_rew[i] = fht * np.exp(M1temp + M2temp)
+                    break
 
-                    # save re-weighted quantity of interest
-                    if is_sampling_problem:
-                        self._Psi_rew[i] = np.exp(-beta * fht + M1temp + M2temp) 
-
-                break
 
     def save_variables(self, i, n, x):
         # TODO: deprecated method!

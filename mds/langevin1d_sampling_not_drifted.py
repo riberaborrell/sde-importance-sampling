@@ -78,8 +78,12 @@ def main():
         dt=args.dt,
         N=args.N,
     )
-    samp.preallocate_variables(is_sampling_problem=True)
-    samp.sample()
+
+    # sample
+    #samp.sample_not_drifted()
+    samp.sample_not_drifted_vectorized()
+
+    # compute and print statistics
     samp.compute_statistics()
     samp.save_statistics()
 
