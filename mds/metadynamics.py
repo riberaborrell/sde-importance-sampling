@@ -2,9 +2,7 @@ from plotting import Plot
 from potentials_and_gradients import double_well_1d_potential, \
                                      double_well_1d_gradient, \
                                      bias_potential, \
-                                     bias_potential_grid, \
-                                     gradient_bias_potential, \
-                                     gradient_bias_potential_grid
+                                     bias_gradient
 
 import numpy as np
 from scipy import stats
@@ -104,8 +102,8 @@ def metadynamics_algorithm(beta, xzero, well_set, k, dt, N, seed=None, do_plots=
             
             if do_plots:
                 # plot tilted potential and gradient
-                Vbias = bias_potential_grid(X, omegas[:i], mus[:i], sigmas[:i])
-                dVbias = gradient_bias_potential_grid(X, omegas[:i], mus[:i], sigmas[:i])
+                Vbias = bias_potential(X, omegas[:i], mus[:i], sigmas[:i])
+                dVbias = bias_gradient(X, omegas[:i], mus[:i], sigmas[:i])
                 pl = Plot(
                     file_name='tilted_potential_and_gradient_i_' + str(i),
                     file_type='png', 
@@ -200,7 +198,7 @@ def get_a_from_metadynamics(beta, m, J_min, J_max):
         ansatz_functions[i, :] = stats.norm.pdf(X, mus[i], sigmas[i])
 
     # value function evaluated at the grid
-    V_bias = bias_potential_grid(X, omegas, meta_mus, meta_sigmas)
+    V_bias = bias_potential(X, omegas, meta_mus, meta_sigmas)
     phi = V_bias * beta / 2
 
     # solve a V = \Phi

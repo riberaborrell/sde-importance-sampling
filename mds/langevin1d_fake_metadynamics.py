@@ -9,8 +9,8 @@ from plotting import Plot
 
 from potentials_and_gradients import double_well_1d_potential, \
                                      double_well_1d_gradient, \
-                                     bias_potential_grid, \
-                                     gradient_bias_potential_grid
+                                     bias_potential, \
+                                     bias_gradient
 import os
 
 MDS_PATH = os.path.abspath(os.path.dirname(__file__))
@@ -36,8 +36,8 @@ def main():
     #sigmas = np.array([0.3, 0.3, 0.3])
 
     # plot tilted potential and gradient
-    Vbias = bias_potential_grid(X, omegas, mus, sigmas)
-    dVbias = gradient_bias_potential_grid(X, omegas, mus, sigmas)
+    Vbias = bias_potential(X, omegas, mus, sigmas)
+    dVbias = bias_gradient(X, omegas, mus, sigmas)
     pl = Plot(
         file_name='fake_tilted_potential_and_gradient_left_well',
         file_type='png',
