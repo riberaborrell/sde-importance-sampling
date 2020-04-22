@@ -1,7 +1,5 @@
 import sampling
 
-from metadynamics import get_a_from_metadynamics
-
 import numpy as np
 import os
 
@@ -30,16 +28,22 @@ class gradient_descent:
 
         self._m = m
         self._as = np.zeros((epochs + 1, m))
-
-        a, mus, sigmas = get_a_from_metadynamics(
+        
+        # initialize langevin_1d object
+        samp = sampling.langevin_1d(
             beta=2,
+            is_drifted=True,
+        )
+
+        # set a and coefficients of the ansatz functions from metadynamics
+        samp.set_bias_potential_from_metadynamics(
             m=m,
             J_min=-1.9,
             J_max=0.9,
         )
-        self._as[0] = a
-        self._mus = mus
-        self._sigmas = sigmas 
+        self._as[0] = samp._a
+        self._mus = samp._mus
+        self._sigmas = samp._sigmas 
 
     def train_step(self, a):
         lr = self._lr
@@ -73,9 +77,6 @@ class gradient_descent:
         loss = samp._mean_J
         grad_loss = samp._mean_gradJ
 
-        #print(a)
-        #print(loss)
-            
         # Update parameters
         a = a - lr * grad_loss 
         
@@ -104,7 +105,15 @@ class gradient_descent:
     def save_statistics(self):
         # save as and losses
         np.savez(
-            os.path.join(DATA_PATH, 'gradient_descent_greedy.npz'),
+            os.path.join(DATA_PATH, 'losts_gd_greedy.npz'),
             a=self._as,
             losses=self._losses,
+        )
+
+        # save optimal bias potential
+        np.savez(
+            os.path.join(DATA_PATH, 'langevin1d_bias_potential_gd_greedy.npz'),
+            a=self._as[-1],
+            mus=self._mus,
+            sigmas=self._sigmas,
         )

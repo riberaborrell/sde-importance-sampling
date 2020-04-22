@@ -112,7 +112,6 @@ class langevin_1d:
         self._mus = meta_mus
         self._sigmas = meta_sigmas
 
-
     def set_bias_potential_from_metadynamics(self, m, J_min, J_max):
         '''
         '''
@@ -813,4 +812,3 @@ class langevin_1d:
             dir_path=FIGURES_PATH,
         )
         pl.tilted_potential_and_gradient(X, V, dV, Vbias, dVbias)
-

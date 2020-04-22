@@ -1,8 +1,8 @@
 import gradient_descent
-import sampling
 from plotting import Plot
 from potentials_and_gradients import double_well_1d_potential, \
                                      double_well_1d_gradient
+import sampling
 
 import argparse
 import numpy as np
@@ -18,8 +18,8 @@ def get_parser():
         '--learning-rate',
         dest='lr',
         type=float,
-        default=0.004,
-        help='Set learning rate. Default: 0.004',
+        default=0.002,
+        help='Set learning rate. Default: 0.002',
     )
     parser.add_argument(
         '--epochs',
@@ -34,6 +34,12 @@ def get_parser():
         type=int,
         default=10**2,
         help='Set number of trajectories to sample. Default: 100',
+    )
+    parser.add_argument(
+        '--do-plots',
+        dest='do_plots',
+        action='store_true',
+        help='Do plots. Default: False',
     )
     return parser
 
@@ -51,35 +57,22 @@ def main():
     soc.gradient_descent()
     soc.save_statistics()
     
-    a = soc._as[-1]
-    mus = soc._mus
-    sigmas = soc._sigmas
-    losses = soc._losses
-
-    print(a)
-    
-    
-    # initialize sample object
-    samp = sampling.langevin_1d(
-        beta=2,
-        is_drifted=True,
-    )
-    samp.set_bias_potential(a, mus, sigmas)
-
     # plot tilted potential and gradient
-    X = np.linspace(-2, 2, 100)
-    V = double_well_1d_potential(X)
-    dV = double_well_1d_gradient(X)
-    Vbias = samp.bias_potential(X)
-    U = samp.control(X)
-    dVbias = samp.bias_gradient(U)
+    if args.do_plots:
+        samp = sampling.langevin_1d(
+            beta=2,
+            is_drifted=True,
+        )
+        
+        samp.set_bias_potential(
+            a=soc._as[-1],
+            mus=soc._mus,
+            sigmas=soc._sigmas,
+        )
 
-    pl = Plot(
-        file_name='tilted_potential_and_gradient_gradient_descent',
-        file_type='png',
-        dir_path=FIGURES_PATH,
-    )
-    pl.tilted_potential_and_gradient(X, V, dV, Vbias, dVbias)
+        samp.plot_potential_and_gradient(
+            file_name='potential_and_gradient_gd_greedy',
+        )
 
 if __name__ == "__main__":
     main()
