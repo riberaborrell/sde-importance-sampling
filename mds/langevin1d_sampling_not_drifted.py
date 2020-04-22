@@ -58,6 +58,12 @@ def get_parser():
         default=10**5,
         help='Set number of time steps. Default: 100.000',
     )
+    parser.add_argument(
+        '--do-plots',
+        dest='do_plots',
+        action='store_true',
+        help='Do plots. Default: False',
+    )
     return parser
 
 
@@ -78,6 +84,9 @@ def main():
         dt=args.dt,
         N=args.N,
     )
+    # plot potential and gradient
+    if args.do_plots:
+        samp.plot_potential_and_gradient(file_name='potential_and_gradient_not_drifted')
 
     # sample
     #samp.sample_not_drifted()

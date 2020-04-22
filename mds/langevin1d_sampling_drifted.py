@@ -1,9 +1,6 @@
 import sampling
-#from metadynamics import get_a_from_metadynamics, \
-#                         get_a_from_fake_metadynamics
 from potentials_and_gradients import double_well_1d_potential, \
                                      double_well_1d_gradient
-from plotting import Plot
 
 import argparse
 from datetime import datetime
@@ -66,6 +63,12 @@ def get_parser():
         default=10**5,
         help='Set number of time steps. Default: 100.000',
     )
+    parser.add_argument(
+        '--do-plots',
+        dest='do_plots',
+        action='store_true',
+        help='Do plots. Default: False',
+    )
     return parser
 
 
@@ -83,9 +86,10 @@ def main():
          m=10,
          J_min=-1.9,
          J_max=0.9,
-         #J_min=-0.9,
-         #J_max=1.9,
     )
+    # plot potential and gradient
+    if args.do_plots:
+        samp.plot_potential_and_gradient(file_name='potential_and_gradient_drifted')
 
     # set sampling and Euler-Majurama parameters
     samp.set_sampling_parameters(
@@ -104,22 +108,6 @@ def main():
     # compute and print statistics
     samp.compute_statistics()
     samp.save_statistics()
-    exit()
-    
-    # plot tilted potential and gradient
-    X = np.linspace(-2, 2, 100)
-    V = double_well_1d_potential(X)
-    dV = double_well_1d_gradient(X)
-    Vbias = samp.bias_potential(X)
-    U = samp.control(X)
-    dVbias = samp.bias_gradient(U)
-
-    pl = Plot(
-        file_name='tilted_potential_and_gradient',
-        file_type='png',
-        dir_path=FIGURES_PATH,
-    )
-    pl.tilted_potential_and_gradient(X, V, dV, Vbias, dVbias)
     
 
 if __name__ == "__main__":

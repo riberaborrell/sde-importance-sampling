@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 import os
 
 MDS_PATH = os.path.abspath(os.path.dirname(__file__))
-METADYNAMICS_DATA_PATH = os.path.join(MDS_PATH, 'data/metadynamics')
 METADYNAMICS_FIGURES_PATH = os.path.join(MDS_PATH, 'figures/metadynamics')
 
 
@@ -116,7 +115,7 @@ def metadynamics_algorithm(beta, xzero, well_set, k, dt, N, seed=None, do_plots=
         if i == 0:
             gradient = double_well_1d_gradient(Xtemp)
         else:
-            dVbias = gradient_bias_potential(Xtemp, omegas[:i], mus[:i], sigmas[:i])
+            dVbias = bias_gradient(Xtemp, omegas[:i], mus[:i], sigmas[:i])
             gradient = double_well_1d_gradient(Xtemp) + dVbias
 
         # compute drift and diffusion coefficients
@@ -135,14 +134,14 @@ def metadynamics_algorithm(beta, xzero, well_set, k, dt, N, seed=None, do_plots=
 
     if n == N:
         print('The trajectory has NOT left the well set!')
-    if do_plots:
+    #if do_plots:
         # plot trajectory
-        pl = Plot(
-            file_name='trajectory_metadynamics',
-            file_type='png',
-            dir_path=METADYNAMICS_FIGURES_PATH,
-        )
-        pl.trajectory(t, Xem)
+        #pl = Plot(
+        #    file_name='trajectory_metadynamics',
+        #    file_type='png',
+        #    dir_path=METADYNAMICS_FIGURES_PATH,
+        #)
+        #pl.trajectory(t, Xem)
     
     # report 
     print('Steps: {:8.2f}'.format(n))
@@ -150,58 +149,3 @@ def metadynamics_algorithm(beta, xzero, well_set, k, dt, N, seed=None, do_plots=
     print('Bias functions: {:d}'.format(i))
 
     return omegas[:i], mus[:i], sigmas[:i]
-
-def get_a_from_fake_metadynamics(beta):
-    # load metadynamics parameters
-    bias_pot_coeff = np.load(os.path.join(METADYNAMICS_DATA_PATH, 'langevin1d_fake_bias_potential.npz'))
-    omegas = bias_pot_coeff['omegas']
-    meta_mus = bias_pot_coeff['mus']
-    meta_sigmas = bias_pot_coeff['sigmas']
-    
-    a = omegas * beta / 2
-
-    return a, meta_mus, meta_sigmas
-
-def get_a_from_metadynamics(beta, m, J_min, J_max):
-    '''
-    '''
-    # validate input 
-    if J_min >= J_max:
-        #TODO raise error
-        print("The interval J_h is not valid")
-   
-    # load metadynamics parameters
-    #bias_pot_coeff = np.load(os.path.join(METADYNAMICS_DATA_PATH, 'langevin1d_meta_bias_potential.npz'))
-    bias_pot_coeff = np.load(os.path.join(METADYNAMICS_DATA_PATH, 'langevin1d_fake_bias_potential.npz'))
-    omegas = bias_pot_coeff['omegas']
-    meta_mus = bias_pot_coeff['mus']
-    meta_sigmas = bias_pot_coeff['sigmas']
-
-    # define a coefficients 
-    a = np.zeros(m)
-    
-    # grid on the interval J_h = [J_min, J_max].
-    X = np.linspace(J_min, J_max, m)
-    # step size
-    h = (J_max - J_min) / m
-
-    # the ansatz functions are gaussians with standard deviation sigma
-    # and means uniformly spaced in J_h
-    mus = X
-    sigmas = 0.3 * np.ones(m)
-    
-    # ansatz functions evaluated at the grid
-    ansatz_functions = np.zeros((m, m))
-    for i in np.arange(m):
-        #for j in np.arange(m):
-        #    ansatz_functions[i, j] = stats.norm.pdf(X[j], mus[i], sigmas[i])
-        ansatz_functions[i, :] = stats.norm.pdf(X, mus[i], sigmas[i])
-
-    # value function evaluated at the grid
-    V_bias = bias_potential(X, omegas, meta_mus, meta_sigmas)
-    phi = V_bias * beta / 2
-
-    # solve a V = \Phi
-    a = np.linalg.solve(ansatz_functions, phi)
-
-    return a, mus, sigmas

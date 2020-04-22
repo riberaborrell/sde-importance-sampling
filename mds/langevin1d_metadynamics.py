@@ -1,14 +1,13 @@
-import argparse
-
 from decorators import timer
 from metadynamics import metadynamics_algorithm
+import sampling
 
+import argparse
 import numpy as np
 import os
 
 MDS_PATH = os.path.abspath(os.path.dirname(__file__))
-METADYNAMICS_DATA_PATH = os.path.join(MDS_PATH, 'data/metadynamics')
-METADYNAMICS_FIGURES_PATH = os.path.join(MDS_PATH, 'figures/metadynamics')
+DATA_PATH = os.path.join(MDS_PATH, 'data')
 
 def get_parser():
     parser = argparse.ArgumentParser(description='Metadynamics')
@@ -69,6 +68,12 @@ def get_parser():
         default=10**5,
         help='Set number of time steps. Default: 100.000',
     )
+    parser.add_argument(
+        '--do-plots',
+        dest='do_plots',
+        action='store_true',
+        help='Do plots. Default: False',
+    )
     return parser
 
 @timer
@@ -82,13 +87,27 @@ def main():
         k=args.k,
         dt=args.dt,
         N=args.N,
-        do_plots=True,
+        do_plots=args.do_plots,
         seed=args.seed,
     )
+    
+    # initialize langevin_1d object
+    samp = sampling.langevin_1d(
+        beta=args.beta,
+        is_drifted=True,
+    )
+    
+    # set bias potential
+    a = omegas * args.beta / 2
+    samp.set_bias_potential(a, mus, sigmas)
+    
+    # plot potential and gradient
+    if args.do_plots:
+        samp.plot_potential_and_gradient(file_name='potential_and_gradient_metadynamics')
         
     # save bias
     np.savez(
-        os.path.join(METADYNAMICS_DATA_PATH, 'langevin1d_metadynamics_bias_potential.npz'),
+        os.path.join(DATA_PATH, 'langevin1d_bias_potential_metadynamics.npz'),
         omegas=omegas,
         mus=mus,
         sigmas=sigmas,

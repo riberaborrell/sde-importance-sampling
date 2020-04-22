@@ -5,6 +5,7 @@ from potentials_and_gradients import double_well_1d_potential, \
                                      one_well_1d_gradient, \
                                      derivative_normal_pdf, \
                                      bias_potential
+from plotting import Plot
 
 import numpy as np
 from scipy import stats
@@ -13,7 +14,6 @@ import os
 
 MDS_PATH = os.path.abspath(os.path.dirname(__file__))
 DATA_PATH = os.path.join(MDS_PATH, 'data')
-METADYNAMICS_DATA_PATH = os.path.join(DATA_PATH, 'metadynamics')
 FIGURES_PATH = os.path.join(MDS_PATH, 'figures')
 
 class langevin_1d:
@@ -92,6 +92,26 @@ class langevin_1d:
         self._a = a
         self._mus = mus
         self._sigmas = sigmas 
+    
+    def set_bias_potential_from_metadynamics_original(self):
+        beta = self._beta
+
+        # load metadynamics parameters
+        bias_pot_coeff = np.load(
+            os.path.join(DATA_PATH, 'langevin1d_bias_potential_fake_metadynamics.npz')
+            #os.path.join(DATA_PATH, 'langevin1d_bias_potential_metadynamics.npz')
+        )
+        omegas = bias_pot_coeff['omegas']
+        meta_mus = bias_pot_coeff['mus']
+        meta_sigmas = bias_pot_coeff['sigmas']
+    
+        a = omegas * beta / 2
+        
+        self._m = a.shape[0]
+        self._a = a
+        self._mus = meta_mus
+        self._sigmas = meta_sigmas
+
 
     def set_bias_potential_from_metadynamics(self, m, J_min, J_max):
         '''
@@ -104,8 +124,8 @@ class langevin_1d:
        
         # load metadynamics parameters
         bias_pot_coeff = np.load(
-            os.path.join(METADYNAMICS_DATA_PATH, 'langevin1d_fake_bias_potential.npz')
-            #os.path.join(METADYNAMICS_DATA_PATH, 'langevin1d_metadynamics_bias_potential.npz')
+            os.path.join(DATA_PATH, 'langevin1d_bias_potential_fake_metadynamics.npz')
+            #os.path.join(DATA_PATH, 'langevin1d_bias_potential_metadynamics.npz')
         )
         omegas = bias_pot_coeff['omegas']
         meta_mus = bias_pot_coeff['mus']
@@ -125,9 +145,7 @@ class langevin_1d:
         sigmas = 0.3 * np.ones(m)
         
         # ansatz functions evaluated at the grid
-        mus = mus.reshape(mus.shape[0], 1)
-        sigmas = sigmas.reshape(sigmas.shape[0], 1)
-        ansatz_functions = stats.norm.pdf(X, mus, sigmas)
+        ansatz_functions = self.ansatz_functions(X, mus, sigmas)
 
         # value function evaluated at the grid
         V_bias = bias_potential(X, omegas, meta_mus, meta_sigmas)
@@ -775,3 +793,24 @@ class langevin_1d:
                     ''.format(self._re_Psi_rew))
     
         f.close()
+
+    def plot_potential_and_gradient(self, file_name):
+        X = np.linspace(-2, 2, 100)
+        V = double_well_1d_potential(X)
+        dV = double_well_1d_gradient(X)
+
+        if self._is_drifted:
+            Vbias = self.bias_potential(X)
+            U = self.control(X)
+            dVbias = self.bias_gradient(U)
+        else:
+            Vbias = np.zeros(X.shape[0])
+            dVbias = np.zeros(X.shape[0])
+
+        pl = Plot(
+            file_name=file_name,
+            file_type='png',
+            dir_path=FIGURES_PATH,
+        )
+        pl.tilted_potential_and_gradient(X, V, dV, Vbias, dVbias)
+
