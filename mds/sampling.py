@@ -72,6 +72,8 @@ class langevin_1d:
         self._J_rew = None
        
         # mean, variance and re
+        self._first_fht = None
+        self._last_fht = None 
         self._mean_fht = None
         self._var_fht = None
         self._re_fht = None
@@ -257,11 +259,14 @@ class langevin_1d:
         return self.value_function(x) * 2 / self._beta
 
     def bias_gradient(self, u):
+    #def bias_gradient(self, x):
         '''This method computes the bias gradient at x
 
         Args:
             u (float or ndarray) : control at x
+            #x (float or ndarray) : position 
         '''
+        #return - np.sqrt(2 / self._beta) * u
         return - np.sqrt(2 / self._beta) * u
 
     def tilted_potential(self, x):
@@ -462,9 +467,6 @@ class langevin_1d:
             # initialize Xtemp
             Xtemp = xzero
             
-            # compute control at Xtemp
-            utemp = self.control(Xtemp)
-
             # initialize Girsanov Martingale terms, G_t = e^(G1_t + G2_t)
             G1temp = 0
             G2temp = 0
@@ -472,6 +474,9 @@ class langevin_1d:
             for n in np.arange(1, N+1):
                 # Brownian increment
                 dB = np.sqrt(dt) * np.random.normal(0, 1)
+                
+                # compute control at Xtemp
+                utemp = self.control(Xtemp)
 
                 # compute gradient
                 gradient = self.tilted_gradient(Xtemp, utemp)
@@ -481,9 +486,6 @@ class langevin_1d:
                 diffusion = np.sqrt(2 / beta) * dB
                 Xtemp = Xtemp + drift + diffusion
                 
-                # compute control at Xtemp
-                utemp = self.control(Xtemp)
-
                 # compute Girsanov Martingale terms
                 # G1_t = int_0^fht -u_t dB_t
                 # G2_t = int_0^fht - 1/2 (u_t)^2 dt
@@ -528,13 +530,9 @@ class langevin_1d:
             is_sampling_problem=True,
             do_reweighting=True,
         )
-        k = 10
 
         # initialize Xtemp
         Xtemp = xzero * np.ones(M)
-        
-        # control at Xtemp
-        utemp = self.control(Xtemp)
         
         # initialize Girsanov Martingale terms, G_t = e^(G1_t + G2_t)
         G1temp = np.zeros(M)
@@ -546,6 +544,9 @@ class langevin_1d:
         for n in np.arange(1, N+1):
             # Brownian increment
             dB = np.sqrt(dt) * np.random.normal(0, 1, M)
+            
+            # control at Xtemp
+            utemp = self.control(Xtemp)
 
             # compute gradient
             gradient = self.tilted_gradient(Xtemp, utemp)
@@ -554,9 +555,6 @@ class langevin_1d:
             drift = - gradient * dt
             diffusion = np.sqrt(2 / beta) * dB
             Xtemp = Xtemp + drift + diffusion
-
-            # control at Xtemp
-            utemp = self.control(Xtemp)
 
             # Girsanov Martingale terms
             G1temp = G1temp - utemp * dB
@@ -583,12 +581,11 @@ class langevin_1d:
             self._G_fht[new_in_target_set_idx] = np.exp(
                 G1temp[new_in_target_set_idx] + G2temp[new_in_target_set_idx]
             )
-            # save Girsanov Martingale at time k
-            if n == k: 
-                self._G_N = np.exp(G1temp + G2temp)
             
             # check if all trajectories have arrived to the target set
             if been_in_target_set.all() == True:
+                # save Girsanov Martingale at the time when the last trajectory arrive
+                self._G_N = np.exp(G1temp + G2temp)
                 break
 
         # save rew fht
@@ -696,49 +693,53 @@ class langevin_1d:
         do_reweighting = self._do_reweighting
 
         # sort out trajectories which have not arrived
-        fht = np.array([t for t in self._fht if not np.isnan(t)])
-        self._fht = fht
+        self._fht = self._fht[np.where(np.isnan(self._fht) != True)]
+
+        # first and last fht
+        self._first_fht = np.min(self._fht)
+        self._last_fht = np.max(self._fht)
+
         # compute mean and variance of fht
         self._mean_fht, \
         self._var_fht, \
-        self._re_fht = self.compute_mean_variance_and_rel_error(fht)
+        self._re_fht = self.compute_mean_variance_and_rel_error(self._fht)
 
         if is_sampling_problem:
             # compute mean and variance of Psi
-            Psi = np.array([x for x in self._Psi if not np.isnan(x)])
+            self._Psi = self._Psi[np.where(np.isnan(self._Psi) != True)]
             self._mean_Psi, \
             self._var_Psi, \
-            self._re_Psi = self.compute_mean_variance_and_rel_error(Psi)
+            self._re_Psi = self.compute_mean_variance_and_rel_error(self._Psi)
         
         if is_soc_problem:
             # compute mean of J
-            J = np.array([x for x in self._J if not np.isnan(x)])
-            self._mean_J = np.mean(J)
+            self._J = self._J[np.where(np.isnan(self._J) != True)]
+            self._mean_J = np.mean(self._J)
 
             # compute mean of gradJ
-            gradJ = np.array([x for x in self._gradJ if not np.isnan(x).any()])
-            self._mean_gradJ = np.mean(gradJ, axis=0)
+            self._gradJ = self._gradJ[np.where(np.isnan(self._gradJ) != True)]
+            self._mean_gradJ = np.mean(self._gradJ, axis=0)
 
         if do_reweighting:
             # compute mean of M_fht
-            G_fht = np.array([x for x in self._G_fht if not np.isnan(x)])
-            self._mean_G_fht = np.mean(G_fht)
+            self._G_fht = self._G_fht[np.where(np.isnan(self._G_fht) != True)]
+            self._mean_G_fht = np.mean(self._G_fht)
             
             # compute mean of M_N
-            G_N = np.array([x for x in self._G_N if not np.isnan(x)])
-            self._mean_G_N= np.mean(G_N)
+            self._G_N = self._G_N[np.where(np.isnan(self._G_N) != True)]
+            self._mean_G_N= np.mean(self._G_N)
             
             # compute mean and variance of fht re-weighted
-            fht_rew = np.array([t for t in self._fht_rew if not np.isnan(t)])
+            self._fht_rew = self._fht_rew[np.where(np.isnan(self._fht_rew) != True)]
             self._mean_fht_rew, \
             self._var_fht_rew, \
-            self._re_fht_rew = self.compute_mean_variance_and_rel_error(fht_rew)
+            self._re_fht_rew = self.compute_mean_variance_and_rel_error(self._fht_rew)
 
             # compute mean and variance of Psi re_weighted
-            Psi_rew = np.array([x for x in self._Psi_rew if not np.isnan(x)])
+            self._Psi_rew = self._Psi_rew[np.where(np.isnan(self._Psi_rew) != True)]
             self._mean_Psi_rew, \
             self._var_Psi_rew, \
-            self._re_Psi_rew = self.compute_mean_variance_and_rel_error(Psi_rew)
+            self._re_Psi_rew = self.compute_mean_variance_and_rel_error(self._Psi_rew)
 
     def save_statistics(self):
         '''
@@ -768,6 +769,8 @@ class langevin_1d:
         
         f.write('E[fhs] = {:.2f}\n\n'.format(self._mean_fht / self._dt))
 
+        f.write('first fht = {:2.4f}\n'.format(self._first_fht))
+        f.write('last fht = {:2.4f}\n'.format(self._last_fht))
         f.write('E[fht] = {:2.4f}\n'.format(self._mean_fht))
         f.write('Var[fht] = {:2.4f}\n'.format(self._var_fht))
         f.write('RE[fht] = {:2.4f}\n\n'.format(self._re_fht))
