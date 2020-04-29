@@ -19,8 +19,8 @@ def get_parser():
         '--beta',
         dest='beta',
         type=float,
-        default=2,
-        help='Set the parameter beta for the 1D MD SDE. Default: 2',
+        default=1,
+        help='Set the parameter beta for the 1D MD SDE. Default: 1',
     )
     parser.add_argument(
         '--xzero',

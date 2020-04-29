@@ -24,8 +24,8 @@ def get_parser():
         '--beta',
         dest='beta',
         type=float,
-        default=2,
-        help='Set the parameter beta for the 1D MD SDE. Default: 2',
+        default=1,
+        help='Set the parameter beta for the 1D MD SDE. Default: 1',
     )
     parser.add_argument(
         '--xzero',
@@ -82,11 +82,17 @@ def main():
     )
 
     # set bias potential
-    samp.set_bias_potential_from_metadynamics(
-         m=10,
-         J_min=-1.9,
-         J_max=0.9,
+    #samp.set_bias_potential_from_metadynamics()
+    samp.set_uniformly_dist_ansatz_functions(
+        m=10,
+        sigma=0.2,
     )
+    samp.set_a_from_metadynamics()
+
+    # set optimal bias potential from reference solution
+    #samp.set_a_optimal()
+    #samp._a = samp._a_optimal
+
     # plot potential and gradient
     if args.do_plots:
         samp.plot_potential_and_gradient(file_name='potential_and_gradient_drifted')

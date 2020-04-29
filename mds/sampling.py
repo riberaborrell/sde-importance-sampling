@@ -6,6 +6,7 @@ from potentials_and_gradients import double_well_1d_potential, \
                                      derivative_normal_pdf, \
                                      bias_potential
 from plotting import Plot
+from lorenz_reference_solution import DoubleWell_stopping
 
 import numpy as np
 from scipy import stats
@@ -43,6 +44,7 @@ class langevin_1d:
         # ansatz functions (gaussians) and coefficients
         self._m = None
         self._a = None
+        self._a_optimal = None
         self._mus = None
         self._sigmas = None 
         
@@ -86,18 +88,51 @@ class langevin_1d:
         self._mean_G_N= None
 
         self._mean_J = None
+
+    def set_ansatz_functions(self, mus, sigmas):
+        '''This method sets the mean and the standard deviation of the 
+           ansatz functions 
+
+        Args:
+            mus (ndarray): mean of each gaussian
+            sigmas (ndarray) : standard deviation of each gaussian
+        '''
+        assert mus.shape == sigmas.shape, "Error"
+
+        self._m = mus.shape[0] 
+        self._mus = mus
+        self._sigmas = sigmas
+    
+    def set_uniformly_dist_ansatz_functions(self, m, sigma):
+        '''This method sets the number of ansatz functions and their mean
+           and standard deviation. The means will be uniformly distributed
+           in the set J and the standard deviation is given.
+
+        Args:
+            m (int): number of ansatz functions
+            sigma (float) : standard deviation
+        '''
+        J_min = -1.9
+        J_max = 0.9
+        
+        self._m = m
+        self._mus = np.linspace(J_min, J_max, m)
+        self._sigmas = sigma * np.ones(m)
    
     def set_bias_potential(self, a, mus, sigmas):
         '''
+        Args:
+            a (ndarray): parameters
+            mus (ndarray): mean of each gaussian
+            sigmas (ndarray) : standard deviation of each gaussian
         '''
+        assert a.shape == mus.shape == sigmas.shape, "Error"
         self._m = a.shape[0] 
         self._a = a
         self._mus = mus
         self._sigmas = sigmas 
     
-    def set_bias_potential_from_metadynamics_original(self):
-        beta = self._beta
-
+    def set_bias_potential_from_metadynamics(self):
         # load metadynamics parameters
         bias_pot_coeff = np.load(
             os.path.join(DATA_PATH, 'langevin1d_bias_potential_fake_metadynamics.npz')
@@ -106,23 +141,24 @@ class langevin_1d:
         omegas = bias_pot_coeff['omegas']
         meta_mus = bias_pot_coeff['mus']
         meta_sigmas = bias_pot_coeff['sigmas']
+        
+        assert omegas.shape == meta_mus.shape == meta_sigmas.shape, "Error"
     
-        a = omegas * beta / 2
+        a = omegas / 2
         
         self._m = a.shape[0]
         self._a = a
         self._mus = meta_mus
         self._sigmas = meta_sigmas
 
-    def set_bias_potential_from_metadynamics(self, m, J_min, J_max):
+    def set_a_from_metadynamics(self):
         '''
         '''
-        beta = self._beta
-        # validate input 
-        if J_min >= J_max:
-            #TODO raise error
-            print("The interval J_h is not valid")
-       
+        #TODO assert self._m, self._mus, self._sigmas
+        m = self._m
+        mus = self._mus
+        sigmas= self._sigmas
+
         # load metadynamics parameters
         bias_pot_coeff = np.load(
             os.path.join(DATA_PATH, 'langevin1d_bias_potential_fake_metadynamics.npz')
@@ -131,35 +167,39 @@ class langevin_1d:
         omegas = bias_pot_coeff['omegas']
         meta_mus = bias_pot_coeff['mus']
         meta_sigmas = bias_pot_coeff['sigmas']
+        
+        assert omegas.shape == meta_mus.shape == meta_sigmas.shape, "Error"
 
         # define a coefficients 
         a = np.zeros(m)
         
-        # grid on the interval J_h = [J_min, J_max].
-        X = np.linspace(J_min, J_max, m)
-        # step size
-        #h = (J_max - J_min) / m
+        # grid on the interval J = [J_min, J_max].
+        X = mus
 
-        # the ansatz functions are gaussians with standard deviation sigma
-        # and means uniformly spaced in J_h
-        mus = X
-        sigmas = 0.3 * np.ones(m)
-        
         # ansatz functions evaluated at the grid
         ansatz_functions = self.ansatz_functions(X, mus, sigmas)
 
         # value function evaluated at the grid
         V_bias = bias_potential(X, omegas, meta_mus, meta_sigmas)
-        phi = V_bias * beta / 2
+        phi = V_bias / 2
 
         # solve a V = \Phi
         a = np.linalg.solve(ansatz_functions, phi)
 
-        self._m = m
         self._a = a
-        self._mus = mus
-        self._sigmas = sigmas
 
+    def set_a_optimal(self):
+        sol = DoubleWell_stopping(
+            beta=self._beta,
+        )
+        sol.compute_reference_solution()
+        X = np.linspace(-2, 2, 399)
+        b = sol.u
+        a = self.control_basis_functions(X).T
+
+        x, residuals, rank, s = np.linalg.lstsq(a, b, rcond=None)
+
+        self._a_optimal = x
 
     def ansatz_functions(self, x, mus=None, sigmas=None):
         '''This method computes the ansatz functions evaluated at x
@@ -189,6 +229,9 @@ class langevin_1d:
             a (ndarray): parameters 
             mus (ndarray): mean of each gaussian
             sigmas (ndarray) : standard deviation of each gaussian
+        
+        Return:
+            b ((m,)-ndarray or (m, M)-ndarray)
         '''
         if mus is None and sigmas is None:
             mus = self._mus
@@ -211,6 +254,9 @@ class langevin_1d:
             x (float or ndarray) : position/s
             mus (ndarray): mean of each gaussian
             sigmas (ndarray) : standard deviation of each gaussian
+
+        Return:
+            b ((m,)-ndarray or (m, M)-ndarray)
         '''
         # sampling parameters
         beta = self._beta
@@ -225,7 +271,7 @@ class langevin_1d:
             mus = mus.reshape(mus.shape[0], 1)
             sigmas = sigmas.reshape(sigmas.shape[0], 1)
 
-        return - np.sqrt(2 / beta) * derivative_normal_pdf(x, mus, sigmas)
+        return - np.sqrt(2) * derivative_normal_pdf(x, mus, sigmas)
 
     def control(self, x, a=None, mus=None, sigmas=None):
         '''This method computes the control evaluated at x
@@ -256,18 +302,15 @@ class langevin_1d:
         Args:
             x (float or ndarray) : position
         '''
-        return self.value_function(x) * 2 / self._beta
+        return 2 * self.value_function(x)
 
     def bias_gradient(self, u):
-    #def bias_gradient(self, x):
         '''This method computes the bias gradient at x
 
         Args:
             u (float or ndarray) : control at x
-            #x (float or ndarray) : position 
         '''
-        #return - np.sqrt(2 / self._beta) * u
-        return - np.sqrt(2 / self._beta) * u
+        return - np.sqrt(2) * u
 
     def tilted_potential(self, x):
         '''This method computes the tilted potential at x
@@ -284,7 +327,10 @@ class langevin_1d:
             x (float or ndarray) : position
             u (float or ndarray) : control at x
         '''
-        #TODO assert if x ndarray also u ndarray
+        assert type(x) == type(u), "Error"
+        if type(x) == np.ndarray:
+            assert x.shape == u.shape, "Error"
+
         return double_well_1d_gradient(x) + self.bias_gradient(u)
     
     def set_sampling_parameters(self, xzero, M, target_set, dt, N, seed=None):
@@ -329,14 +375,10 @@ class langevin_1d:
             #self._F[:] = np.NaN
 
         if self._is_soc_problem:
-            self._cost = np.empty(M)
-            self._cost[:] = np.NaN
             self._J = np.empty(M)
             self._J[:] = np.NaN
-            self._gradJ= np.empty((M, m))
+            self._gradJ= np.empty((m, M))
             self._gradJ[:] = np.NaN
-            self._gradSh = np.empty((M, m))
-            self._gradSh[:] = np.NaN
         
         if self._do_reweighting: 
             self._G_fht = np.empty(M, )
@@ -489,8 +531,8 @@ class langevin_1d:
                 # compute Girsanov Martingale terms
                 # G1_t = int_0^fht -u_t dB_t
                 # G2_t = int_0^fht - 1/2 (u_t)^2 dt
-                G1temp = G1temp - utemp * dB
-                G2temp = G2temp - 0.5 * (utemp ** 2) * dt 
+                G1temp = G1temp - np.sqrt(1 / beta) * utemp * dB
+                G2temp = G2temp - (1 / beta) * 0.5 * (utemp ** 2) * dt 
                 
                 # save Girsanov Martingale at time k
                 if n == k: 
@@ -557,8 +599,8 @@ class langevin_1d:
             Xtemp = Xtemp + drift + diffusion
 
             # Girsanov Martingale terms
-            G1temp = G1temp - utemp * dB
-            G2temp = G2temp - 0.5 * (utemp ** 2) * dt 
+            G1temp = G1temp - np.sqrt(1 / beta) * utemp * dB
+            G2temp = G2temp - (1 / beta) * 0.5 * (utemp ** 2) * dt 
             
             # trajectories in the target set
             is_in_target_set = ((Xtemp >= target_set_min) & (Xtemp <= target_set_max))
@@ -575,6 +617,10 @@ class langevin_1d:
             self._fht[new_in_target_set_idx] = n * dt
             #self._fht_rew[new_in_target_set_idx] = fht * np.exp(
             #    G1temp[new_in_target_set_idx] + G2temp[new_in_target_set_idx]
+            #)
+            #self._Psi_rew[new_in_target_set_idx] = np.exp(
+            #    - beta * n * dt
+            #    + G1temp[new_in_target_set_idx] + G2temp[new_in_target_set_idx]
             #)
             
             # save Girsanov Martingale
@@ -660,6 +706,82 @@ class langevin_1d:
                     self._gradJ[i, :] = sum_partial_tilde_gh - (cost + fht) * grad_Sh
                     
                     break
+    
+    @timer
+    def sample_soc_vectorized(self):
+        M = self._M
+        N = self._N
+        dt = self._dt
+        xzero = self._xzero
+        beta = self._beta
+        target_set_min = self._target_set_min
+        target_set_max = self._target_set_max
+        m = self._m
+        
+        self.preallocate_variables(
+            do_reweighting=False,
+            is_sampling_problem=False,
+            is_soc_problem=True,
+        )
+
+        # initialize Xtemp
+        Xtemp = xzero * np.ones(M)
+            
+        # bla
+        cost = np.zeros(M)
+        sum_grad_gh = np.zeros((m, M))
+        grad_Sh = np.zeros((m, M))
+            
+        # has arrived in target set
+        been_in_target_set = np.repeat([False], M)
+
+        for n in np.arange(1, N+1):
+            # Brownian increment
+            dB = np.sqrt(dt) * np.random.normal(0, 1, M)
+            
+            # compute control at Xtemp
+            utemp = self.control(Xtemp)
+
+            # compute gradient
+            gradient = self.tilted_gradient(Xtemp, utemp)
+
+            # SDE iteration
+            drift = - gradient * dt
+            diffusion = np.sqrt(2 / beta) * dB
+            Xtemp += drift + diffusion
+                
+            # evaluate the control basis functions at Xtmep
+            btemp = self.control_basis_functions(Xtemp)
+                    
+            # compute cost, ...
+            cost += 0.5 * (utemp ** 2)
+            sum_grad_gh += dt * utemp * btemp 
+            grad_Sh += beta * np.sqrt(dt / 2) * np.random.normal(0, 1, M) * btemp
+                
+            # trajectories in the target set
+            is_in_target_set = ((Xtemp >= target_set_min) & (Xtemp <= target_set_max))
+            
+            # indices of trajectories new in the target set
+            new_in_target_set_idx = np.where(
+                (is_in_target_set == True) & (been_in_target_set == False)
+            )[0]
+            if len(new_in_target_set_idx) == 0:
+                continue
+            
+            # update list of indices whose trajectories have been in the target set
+            been_in_target_set[new_in_target_set_idx] = True
+
+            # save first hitting time
+            fht = n * dt
+            self._fht[new_in_target_set_idx] = fht
+            self._J[new_in_target_set_idx] = dt * (fht + cost[new_in_target_set_idx])
+            self._gradJ[:, new_in_target_set_idx] = sum_grad_gh[:, new_in_target_set_idx] - \
+                                                    dt * (fht + cost[new_in_target_set_idx]) * \
+                                                    grad_Sh[:, new_in_target_set_idx]
+            
+            # check if all trajectories have arrived to the target set
+            if been_in_target_set.all() == True:
+                break
 
 
     def save_variables(self, i, n, x):
@@ -713,12 +835,12 @@ class langevin_1d:
         
         if is_soc_problem:
             # compute mean of J
-            self._J = self._J[np.where(np.isnan(self._J) != True)]
+            #self._J = self._J[np.where(np.isnan(self._J) != True)]
             self._mean_J = np.mean(self._J)
 
             # compute mean of gradJ
-            self._gradJ = self._gradJ[np.where(np.isnan(self._gradJ) != True)]
-            self._mean_gradJ = np.mean(self._gradJ, axis=0)
+            #self._gradJ = self._gradJ[np.where(np.isnan(self._gradJ) != True)]
+            self._mean_gradJ = np.mean(self._gradJ, axis=1)
 
         if do_reweighting:
             # compute mean of M_fht
@@ -774,12 +896,13 @@ class langevin_1d:
         f.write('E[fht] = {:2.4f}\n'.format(self._mean_fht))
         f.write('Var[fht] = {:2.4f}\n'.format(self._var_fht))
         f.write('RE[fht] = {:2.4f}\n\n'.format(self._re_fht))
-        
-        f.write('E[exp(-beta * fht)] = {:2.4e}\n'.format(self._mean_Psi))
-        f.write('Var[exp(-beta * fht)] = {:2.4e}\n'.format(self._var_Psi))
-        f.write('RE[exp(-beta * fht)] = {:2.4e}\n\n'.format(self._re_Psi))
+       
+        if self._is_sampling_problem:
+            f.write('E[exp(-beta * fht)] = {:2.4e}\n'.format(self._mean_Psi))
+            f.write('Var[exp(-beta * fht)] = {:2.4e}\n'.format(self._var_Psi))
+            f.write('RE[exp(-beta * fht)] = {:2.4e}\n\n'.format(self._re_Psi))
 
-        if self._is_drifted and self._do_reweighting:
+        if self._is_sampling_problem and self._is_drifted and self._do_reweighting:
             f.write('E[M_fht] = {:2.4e}\n'.format(self._mean_G_fht))
             f.write('E[M_N]: {:2.4e}\n\n'.format(self._mean_G_N))
             
@@ -793,10 +916,15 @@ class langevin_1d:
                     ''.format(self._var_Psi_rew))
             f.write('RE[exp(-beta * fht) * M_fht] = {:2.4e}\n\n'
                     ''.format(self._re_Psi_rew))
+        
+        if self._is_soc_problem:
+            f.write('E[Jh] = {:2.4e}\n'.format(self._mean_J))
+            for j in np.arange(self._m):
+                f.write('E[(grad_Jh)j] = {:2.4e}\n'.format(self._mean_gradJ[j]))
     
         f.close()
 
-    def plot_potential_and_gradient(self, file_name):
+    def plot_potential_and_gradient(self, file_name, dir_path=FIGURES_PATH):
         X = np.linspace(-2, 2, 100)
         V = double_well_1d_potential(X)
         dV = double_well_1d_gradient(X)
@@ -812,6 +940,6 @@ class langevin_1d:
         pl = Plot(
             file_name=file_name,
             file_type='png',
-            dir_path=FIGURES_PATH,
+            dir_path=dir_path,
         )
         pl.tilted_potential_and_gradient(X, V, dV, Vbias, dVbias)
