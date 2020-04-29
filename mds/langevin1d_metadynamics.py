@@ -21,8 +21,8 @@ def get_parser():
         '--beta',
         dest='beta',
         type=float,
-        default=2,
-        help='Set the parameter beta for the 1D MD SDE. Default: 2',
+        default=1,
+        help='Set the parameter beta for the 1D MD SDE. Default: 1',
     )
     parser.add_argument(
         '--xzero',
@@ -45,7 +45,7 @@ def get_parser():
         dest='well_set',
         type=float,
         default=[-1.7, 0],
-        help='Set the well set interval. Default: [-1.8, -0.1]',
+        help='Set the well set interval. Default: [-1.7, -0.0]',
     )
     parser.add_argument(
         '--k',
@@ -98,7 +98,7 @@ def main():
     )
     
     # set bias potential
-    a = omegas * args.beta / 2
+    a = omegas / 2
     samp.set_bias_potential(a, mus, sigmas)
     
     # plot potential and gradient

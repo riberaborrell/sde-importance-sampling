@@ -20,8 +20,33 @@ def get_parser():
         '--beta',
         dest='beta',
         type=float,
-        default=2,
-        help='Set the parameter beta for the 1D MD SDE. Default: 2',
+        default=1,
+        help='Set the parameter beta for the 1D MD SDE. Default: 1',
+    )
+    parser.add_argument(
+        '--omegas',
+        nargs='+',
+        dest='omegas',
+        type=float,
+        default=[0.6, 0.8, 1.0, 0.6, 0.4],
+        help='Set the weights of the bias potential. Default: 1',
+    )
+    parser.add_argument(
+        '--mus',
+        nargs='+',
+        dest='mus',
+        type=float,
+        default=[-1.6, -1.3, -1., -0.7, -0.4],
+        help='Set the means of the gaussians of the bias potential. \
+              Default: []',
+    )
+    parser.add_argument(
+        '--sigmas',
+        nargs='+',
+        dest='sigmas',
+        type=float,
+        default=[0.2, 0.2, 0.2, 0.2, 0.2],
+        help='Set the weights of the bias potential. Default: 1',
     )
     parser.add_argument(
         '--do-plots',
@@ -34,17 +59,10 @@ def get_parser():
 @timer
 def main():
     args = get_parser().parse_args()
-
-    # set bias functions and weights (left well)
-    omegas = np.array([4, 2, 2])
-    mus = np.array([-1, -1.4, -0.3])
-    sigmas = np.array([0.3, 0.3, 0.3])
+    args.omegas = np.array(args.omegas)
+    args.mus = np.array(args.mus)
+    args.sigmas = np.array(args.sigmas)
     
-    # set bias functions and weights (right well)
-    #omegas = np.array([4, 2, 2])
-    #mus = np.array([1, 1.4, 0.3])
-    #sigmas = np.array([0.3, 0.3, 0.3])
-
     # initialize langevin_1d object
     samp = sampling.langevin_1d(
         beta=args.beta,
@@ -52,8 +70,8 @@ def main():
     )
     
     # set bias potential
-    a = omegas * args.beta / 2
-    samp.set_bias_potential(a, mus, sigmas)
+    a = args.omegas * args.beta / 2
+    samp.set_bias_potential(a, args.mus, args.sigmas)
     
     # plot potential and gradient
     if args.do_plots:
@@ -62,9 +80,9 @@ def main():
     # save bias
     np.savez(
         os.path.join(DATA_PATH, 'langevin1d_bias_potential_fake_metadynamics.npz'),
-        omegas=omegas,
-        mus=mus,
-        sigmas=sigmas,
+        omegas=args.omegas,
+        mus=args.mus,
+        sigmas=args.sigmas,
     )
 
 

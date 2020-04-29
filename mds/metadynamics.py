@@ -47,25 +47,24 @@ def metadynamics_algorithm(beta, xzero, well_set, k, dt, N, seed=None, do_plots=
     # bias functions
     i = 0
 
-    # preallocate mean and standard deviation for the bias funcitons
-    mus = np.zeros(int(N/k))
-    sigmas = np.zeros(int(N/k))
-
     # set the weights of the bias functions
     # constant
     #omegas = 0.1 * np.ones(int(N/k))
-
+    
     # exp factor
     omegas = 0.95 * np.ones(int(N/k))
-    omegas = 1 * np.array([w**(i+1) for i, w in enumerate(omegas)])
-
-    # inv proportional 
+    omegas = 0.1 * np.array([w**(i+1) for i, w in enumerate(omegas)])
+   
+   # inv proportional 
     #omegas = 0.1 * np.ones(int(N/k))
     #omegas = np.array([w / (i+1) for i, w in enumerate(omegas)])
     
+    # preallocate means of the gaussians of the bias functions 
+    mus = np.zeros(int(N/k))
+    
     # set the standard desviation of the bias functions
     # constant
-    sigmas = 0.3 * np.ones(int(N/k))
+    sigmas = 0.2 * np.ones(int(N/k))
     
     # exp factor
     #sigmas = 0.3 * np.ones(int(N/k))
