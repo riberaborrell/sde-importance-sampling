@@ -26,7 +26,7 @@ class Plot:
         plt.plot(X, V, 'b-', label=r'Potential $V(x)$')
         plt.plot(X, dV, 'r-', label=r'Gradient $\nabla V(X)$')
         plt.xlabel('x', fontsize=16)
-        plt.ylim(top=1, bottom=-1)
+        plt.ylim(top=6, bottom=-6)
         plt.legend(loc='upper left', fontsize=8)
         plt.savefig(self.file_path)
         plt.close()
@@ -38,7 +38,7 @@ class Plot:
         ax1.plot(X, V + Vbias, 'm-', label=r'$\tilde{V}(x)$')
         ax1.set_xlabel('x', fontsize=16)
         ax1.set_xlim(left=-1.8, right=1.8)
-        ax1.set_ylim(top=8, bottom=0)
+        ax1.set_ylim(top=4, bottom=0)
         ax1.legend(loc='upper right', fontsize=8)
         ax1.grid(True)
         ax2.plot(X, dV, 'b-.', label=r'$\nabla V(x)$')
@@ -46,41 +46,40 @@ class Plot:
         ax2.plot(X, dV + dVbias, 'm-.', label=r'$\nabla \tilde{V}(x)$')
         ax2.set_xlabel('x', fontsize=16)
         ax2.set_xlim(left=-1.8, right=1.8)
-        ax2.set_ylim(top=12, bottom=-12)
+        ax2.set_ylim(top=6, bottom=-6)
         ax2.legend(loc='upper right', fontsize=8)
         ax2.grid(True)
         fig.savefig(self.file_path)
     
-    #TODO 
-    def tilted_potential_and_gradient_old(self, X, V, dV, Vbias, dVbias):
-        plt.plot(X, V, 'b-', label=r'Potential $V(x)$')
-        plt.plot(X, Vbias, 'r-', label=r'bias Potential $V_{bias}(x)$')
-        plt.plot(X, V + Vbias, 'm-', label=r'tilted Potential $\tilde{V}(x)$')
-        plt.plot(X, dV, 'b-.', label=r'gradient $\nabla V(x)$')
-        plt.plot(X, dVbias, 'r-.', label=r'bias gradient $\nabla V_{bias}(x)$')
-        plt.plot(X, dV + dVbias, 'm-.', label=r'tilted gradient $\nabla \tilde{V}(x)$')
-        plt.xlabel('x', fontsize=16)
-        plt.ylim(top=1, bottom=-1)
-        plt.legend(loc='lower right', fontsize=8)
-        plt.savefig(self.file_path)
-        plt.close()
-
     def tilted_potential(self, X, V, Vbias):
         plt.plot(X, V, 'b-', label=r'Potential $V(x)$')
         plt.plot(X, Vbias, 'r-', label=r'bias Potential $V_{bias}(x)$')
         plt.plot(X, V + Vbias, c='purple', linestyle='-', label=r'tilted Potential $\tilde{V}(x)$')
         plt.xlabel('x', fontsize=16)
-        plt.ylim(top=1, bottom=0)
+        plt.ylim(top=4, bottom=0)
         plt.legend(loc='upper left', fontsize=8)
         plt.savefig(self.file_path)
         plt.close()
 
-    def gradient_tilted_potential(self, X, dV, dVbias):
+    def tilted_gradient(self, X, dV, dVbias):
         plt.plot(X, dV, 'b-', label=r'gradient $\nabla V(x)$')
         plt.plot(X, dVbias, 'r-', label=r'bias gradient $\nabla V_{bias}(x)$')
         plt.plot(X, dV + dVbias, c='purple', linestyle='-', label=r'tilted gradient $\nabla \tilde{V}(x)$')
         plt.xlabel('x', fontsize=16)
-        plt.ylim(top=4, bottom=-4)
+        plt.xlim(left=-1.8, right=1.8)
+        plt.ylim(top=6, bottom=-6)
+        plt.legend(loc='upper left', fontsize=8)
+        plt.savefig(self.file_path)
+        plt.close()
+    
+    def gradient_descent_tilted_potentials(self, X, Vs, Vopt):
+        for i, V in enumerate(Vs):
+            label = r'epoch = {:d}'.format(i)
+            plt.plot(X, V, linestyle='-', label=label)
+        plt.plot(X, Vopt, linestyle='dashed', label='optimal')
+
+        plt.xlabel('x', fontsize=16)
+        plt.ylim(top=4, bottom=0)
         plt.legend(loc='upper left', fontsize=8)
         plt.savefig(self.file_path)
         plt.close()
