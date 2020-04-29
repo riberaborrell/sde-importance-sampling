@@ -18,22 +18,22 @@ def get_parser():
         '--learning-rate',
         dest='lr',
         type=float,
-        default=0.002,
-        help='Set learning rate. Default: 0.002',
+        default=1.,
+        help='Set learning rate. Default:',
     )
     parser.add_argument(
         '--epochs',
         dest='epochs',
         type=int,
-        default=10,
-        help='Set number of epochs. Default: 10',
+        default=15,
+        help='Set number of epochs. Default: 15',
     )
     parser.add_argument(
         '--M',
         dest='M',
         type=int,
-        default=10**2,
-        help='Set number of trajectories to sample. Default: 100',
+        default=2*10**3,
+        help='Set number of trajectories to sample. Default: 2000',
     )
     parser.add_argument(
         '--do-plots',
@@ -54,25 +54,14 @@ def main():
     )
 
     soc.set_parameters_greedy(m=10)
+    
+    soc._do_plots = True
     soc.gradient_descent()
     soc.save_statistics()
     
     # plot tilted potential and gradient
     if args.do_plots:
-        samp = sampling.langevin_1d(
-            beta=2,
-            is_drifted=True,
-        )
-        
-        samp.set_bias_potential(
-            a=soc._as[-1],
-            mus=soc._mus,
-            sigmas=soc._sigmas,
-        )
-
-        samp.plot_potential_and_gradient(
-            file_name='potential_and_gradient_gd_greedy',
-        )
+        soc.plot_tilted_potentials()
 
 if __name__ == "__main__":
     main()
