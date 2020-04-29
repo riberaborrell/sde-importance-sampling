@@ -3,22 +3,22 @@ import matplotlib.pyplot as plt
 
 from scipy.stats import norm
 
-def double_well_1d_potential(x):
+def double_well_1d_potential(x, alpha=1):
     '''This method returns a potential function evaluated at the point/s x
     Args:
         x (float or float array) : posicion/s
+        alpha (float) : parameter
     '''
-    return 2 * (x**2 - 1)**2
-    #return 0.5 * (x**2 - 1)**2
+    return alpha * (x**2 - 1)**2
 
-def double_well_1d_gradient(x):
+def double_well_1d_gradient(x, alpha=1):
     '''This method returns the gradient of a potential function evaluated
     at the point/s x
     Args:
         x (float or float array) : posicion/s
+        alpha (float) : parameter
     '''
-    return 8 * x * (x**2 - 1)
-    #return 2 * x * (x**2 - 1)
+    return 4 * alpha * x * (x**2 - 1)
 
 def one_well_1d_potential(x):
     return (x - 1)**2
