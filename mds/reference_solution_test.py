@@ -27,11 +27,11 @@ DV = double_well_1d_gradient(X)
 F = sol.F
 Vbias = 2 * F
 
-U = sol.u_optimal
+U = sol.u_opt
 DVbias = - np.sqrt(2) * U
 
 pl = Plot(
-    file_name='reference_solution',
+    file_name='potential_and_gradient_reference_solution',
     file_type='png',
     dir_path=FIGURES_PATH,
 )
