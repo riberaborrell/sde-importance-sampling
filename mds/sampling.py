@@ -6,7 +6,7 @@ from potentials_and_gradients import double_well_1d_potential, \
                                      derivative_normal_pdf, \
                                      bias_potential
 from plotting import Plot
-from lorenz_reference_solution import DoubleWell_stopping
+from reference_solution import langevin_1d_reference_solution 
 
 import numpy as np
 from scipy import stats
@@ -189,12 +189,14 @@ class langevin_1d:
         self._a = a
 
     def set_a_optimal(self):
-        sol = DoubleWell_stopping(
+        sol = langevin_1d_reference_solution(
             beta=self._beta,
+            target_set_min=0.9,
+            target_set_max=1.1,
         )
         sol.compute_reference_solution()
         X = np.linspace(-2, 2, 399)
-        b = sol.u
+        b = sol.u_optimal
         a = self.control_basis_functions(X).T
 
         x, residuals, rank, s = np.linalg.lstsq(a, b, rcond=None)
