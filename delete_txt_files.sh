@@ -1,0 +1,1 @@
+rm mds/data/*.txt

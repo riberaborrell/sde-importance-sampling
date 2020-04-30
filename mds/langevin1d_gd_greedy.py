@@ -18,7 +18,7 @@ def get_parser():
         '--learning-rate',
         dest='lr',
         type=float,
-        default=1.,
+        default=0.01,
         help='Set learning rate. Default:',
     )
     parser.add_argument(
@@ -55,7 +55,6 @@ def main():
 
     soc.set_parameters_greedy(m=10)
     
-    soc._do_plots = True
     soc.gradient_descent()
     soc.save_statistics()
     
