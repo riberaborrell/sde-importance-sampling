@@ -78,7 +78,7 @@ def main():
 
     # set optimal bias potential from reference solution
     samp.set_a_optimal()
-    #samp._a = samp._a_optimal
+    #samp.a = samp.a_opt
 
     # plot potential and gradient
     if args.do_plots:

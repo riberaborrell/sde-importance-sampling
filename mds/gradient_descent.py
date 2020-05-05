@@ -25,7 +25,7 @@ class gradient_descent:
         self.mus = None
         self.sigmas = None
         
-        self.as = None
+        self.a_s = None
 
         self.do_plots = False
 
@@ -33,7 +33,7 @@ class gradient_descent:
         epochs = self.epochs
 
         self.m = m
-        self.as = np.zeros((epochs + 1, m))
+        self.a_s = np.zeros((epochs + 1, m))
         
         # initialize langevin_1d object
         samp = sampling.langevin_1d(beta=1)
@@ -48,10 +48,10 @@ class gradient_descent:
         # get optimal solution
         samp.set_a_optimal()
     
-        self.a_opt = samp._a_optimal
-        self.as[0] = samp._a
-        self.mus = samp._mus
-        self.sigmas = samp._sigmas 
+        self.a_opt = samp.a_opt
+        self.a_s[0] = samp.a
+        self.mus = samp.mus
+        self.sigmas = samp.sigmas 
 
     def train_step(self, a, epoch):
         lr = self.lr
@@ -87,8 +87,8 @@ class gradient_descent:
         samp.sample_soc()
 
         samp.compute_statistics()
-        loss = samp._mean_J
-        grad_loss = samp._mean_gradJ
+        loss = samp.mean_J
+        grad_loss = samp.mean_gradJ
 
         a_dif = self.a_opt - a
         print(epoch, loss, np.mean(grad_loss))
@@ -105,7 +105,7 @@ class gradient_descent:
         epochs = self.epochs
         losses = self.losses
         
-        a = self.as[0]
+        a = self.a_s[0]
         for epoch in np.arange(1, epochs + 1):
 
             # compute loss and do update parameters
@@ -115,21 +115,21 @@ class gradient_descent:
             self.losses[epoch - 1] = loss
 
             # save parameters
-            self.as[epoch] = a
+            self.a_s[epoch] = a
 
 
     def save_statistics(self):
         # save as and losses
         np.savez(
             os.path.join(DATA_PATH, 'losts_gd_greedy.npz'),
-            a=self.as,
+            a=self.a_s,
             losses=self.losses,
         )
 
         # save optimal bias potential
         np.savez(
             os.path.join(DATA_PATH, 'langevin1d_bias_potential_gd_greedy.npz'),
-            a=self.as[-1],
+            a=self.a_s[-1],
             mus=self.mus,
             sigmas=self.sigmas,
         )
@@ -145,7 +145,7 @@ class gradient_descent:
         Vs = np.zeros((epochs + 1, 100))
         for epoch in np.arange(epochs + 1):
             samp = sampling.langevin_1d(beta=1)
-            a = self.as[epoch]
+            a = self.a_s[epoch]
             samp.set_bias_potential(a, mus, sigmas)
             Vs[epoch, :] = samp.tilted_potential(X)
         

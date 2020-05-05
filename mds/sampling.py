@@ -44,7 +44,7 @@ class langevin_1d:
         # ansatz functions (gaussians) and coefficients
         self.m = None
         self.a = None
-        self.a_optimal = None
+        self.a_opt = None
         self.mus = None
         self.sigmas = None 
         
@@ -203,7 +203,7 @@ class langevin_1d:
 
         x, residuals, rank, s = np.linalg.lstsq(a, b, rcond=None)
 
-        self.a_optimal = x
+        self.a_opt = x
 
     def ansatz_functions(self, x, mus=None, sigmas=None):
         '''This method computes the ansatz functions evaluated at x

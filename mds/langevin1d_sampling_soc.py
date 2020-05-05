@@ -76,7 +76,7 @@ def main():
         sigma=0.2,
     )
     samp.set_a_from_metadynamics()
-    #samp._a = np.zeros(10)
+    #samp.a = np.zeros(10)
 
     # set sampling and Euler-Majurama parameters
     samp.set_sampling_parameters(
