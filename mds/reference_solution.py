@@ -1,5 +1,4 @@
-from potentials_and_gradients import double_well_1d_potential, \
-                                     double_well_1d_gradient
+from potentials_and_gradients import double_well_1d_gradient
 
 import numpy as np
 
@@ -10,8 +9,12 @@ class langevin_1d_reference_solution():
         self.target_set_max = target_set_max
 
     def compute_reference_solution(self):
-        ''' This method computes the solution of the BVP associated
-            to the langevin equation by using the Shortley-Welley method.
+        ''' This method computes the solution of the following BVP
+            0 = LΨ − β f Ψ in D
+            Ψ = exp(−βg) in ∂D,
+            where f = 1 and g =1, by using the Shortley-Welley method.
+            Its solution is the moment generating function associated
+            to the overdamped langevin sde.
         '''
         beta = self.beta
         target_set_min = self.target_set_min
@@ -47,22 +50,30 @@ class langevin_1d_reference_solution():
         B[target_set_h_idx] = 1
         
         # stability: Psi shall be flat on the boundary
+        A[0, :] = 0
         A[0, 0] = 1 
         A[0, 1] = -1 
         B[0] = 0
         
+        A[N - 1, :] = 0
         A[N - 1 , N - 1] = 1 
         A[N - 1 , N - 2] = -1 
         B[N - 1] = 0
-
+        
+        # Apply the Shortley-Welley method. Psi solves the following linear system of equations
         Psi = np.linalg.solve(A, B)
-        F =  - np.log(Psi)
-        u_optimal = np.zeros(N)
-        u_optimal[1:] = np.sqrt(2 / beta) * (F[1:] - F[:-1]) / h
-        u_optimal[0] = u_optimal[1]
 
+        # compute the free energy which corresponds to the value function at the optimal control
+        F =  - np.log(Psi) / beta
+
+        # compute the optimal control: u_opt = -sqrt(2) grad F 
+        u_opt = np.zeros(N)
+        u_opt[1:] = - np.sqrt(2) * (F[1:] - F[:-1]) / h
+        u_opt[0] = u_opt[1]
+
+        # save variables
         self.h = h
         self.omega_h = omega_h
         self.Psi = Psi
         self.F = F
-        self.u_optimal = u_optimal
+        self.u_opt = u_opt

@@ -13,7 +13,6 @@ import os
 MDS_PATH = os.path.abspath(os.path.dirname(__file__))
 METADYNAMICS_FIGURES_PATH = os.path.join(MDS_PATH, 'figures/metadynamics')
 
-
 def metadynamics_algorithm(beta, xzero, well_set, k, dt, N, seed=None, do_plots=False):
     '''
     '''
@@ -21,6 +20,9 @@ def metadynamics_algorithm(beta, xzero, well_set, k, dt, N, seed=None, do_plots=
     if seed:
         np.random.seed(seed)
 
+    if do_plots:
+        pl = Plot(dir_path=METADYNAMICS_FIGURES_PATH)
+        
     # check well set
     well_set_min = well_set[0]
     well_set_max = well_set[1]
@@ -102,11 +104,7 @@ def metadynamics_algorithm(beta, xzero, well_set, k, dt, N, seed=None, do_plots=
                 # plot tilted potential and gradient
                 Vbias = bias_potential(X, omegas[:i], mus[:i], sigmas[:i])
                 dVbias = bias_gradient(X, omegas[:i], mus[:i], sigmas[:i])
-                pl = Plot(
-                    file_name='tilted_potential_and_gradient_i_' + str(i),
-                    file_type='png', 
-                    dir_path=METADYNAMICS_FIGURES_PATH,
-                )
+                pl.file_name = 'tilted_potential_and_gradient_i_' + str(i)
                 pl.tilted_potential_and_gradient(X, V, dV, Vbias, dVbias)
             
         
@@ -135,11 +133,7 @@ def metadynamics_algorithm(beta, xzero, well_set, k, dt, N, seed=None, do_plots=
         print('The trajectory has NOT left the well set!')
     #if do_plots:
         # plot trajectory
-        #pl = Plot(
-        #    file_name='trajectory_metadynamics',
-        #    file_type='png',
-        #    dir_path=METADYNAMICS_FIGURES_PATH,
-        #)
+        #pl.file_name = 'trajectory_metadynamics'
         #pl.trajectory(t, Xem)
     
     # report 

@@ -195,9 +195,10 @@ class langevin_1d:
             target_set_max=1.1,
         )
         sol.compute_reference_solution()
-        X = np.linspace(-2, 2, 399)
-        b = sol.u_optimal
-        a = self.control_basis_functions(X).T
+
+        X = sol.omega_h
+        a = self.ansatz_functions(X).T
+        b = sol.F
 
         x, residuals, rank, s = np.linalg.lstsq(a, b, rcond=None)
 
@@ -941,7 +942,6 @@ class langevin_1d:
 
         pl = Plot(
             file_name=file_name,
-            file_type='png',
             dir_path=dir_path,
         )
         pl.tilted_potential_and_gradient(X, V, dV, Vbias, dVbias)

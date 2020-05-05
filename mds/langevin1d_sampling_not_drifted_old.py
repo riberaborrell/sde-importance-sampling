@@ -97,7 +97,7 @@ def main():
     X = np.linspace(-2, 2, 100)
     V = double_well_1d_potential(X)
     dV = gradient_double_well_1d_potential(X)
-    pl = Plot(file_name='potential_and_gradient', file_type='png')
+    pl = Plot(file_name='potential_and_gradient')
     pl.potential_and_gradient(X, V, dV)
 
     for i in np.arange(M):
@@ -126,7 +126,7 @@ def main():
                 break
 
     # plot last trajectory
-    pl = Plot(file_name='last_trajectory', file_type='png')
+    pl = Plot(file_name='last_trajectory')
     pl.trajectory(t, Xem[0])
     
     # sort out trajectories which have not arrived

@@ -158,7 +158,7 @@ def main():
                 break
 
     # plot last trajectory
-    pl = Plot(file_name='last_tilted_trajectory', file_type='png')
+    pl = Plot(file_name='last_tilted_trajectory')
     pl.trajectory(t, Xem[0])
 
     # sort out trajectories which have not arrived
