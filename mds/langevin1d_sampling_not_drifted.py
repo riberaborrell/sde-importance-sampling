@@ -1,11 +1,6 @@
 import sampling
 
 import argparse
-from datetime import datetime
-
-import numpy as np
-
-import os
 
 def get_parser():
     parser = argparse.ArgumentParser(description='not drifted 1D overdamped Langevin')

@@ -7,26 +7,25 @@ MDS_PATH = os.path.abspath(os.path.dirname(__file__))
 FIGURES_PATH = os.path.join(MDS_PATH, 'figures')
 
 class Plot:
-    #TODO update file_path when file_name, file_type or dir_path changes
-    def __init__(self, file_name, file_type=None, dir_path=None):
-        # check if the type of file is given
-        if not file_type:
-            file_type = 'png'
+    def __init__(self, file_name=None, file_type='png', dir_path=FIGURES_PATH):
+        self.file_name = file_name
+        self.file_type = file_type
+        self.dir_path = dir_path
 
-        # check if the directory path is given
-        if not dir_path:
-            dir_path = FIGURES_PATH
-
-        self.file_path = os.path.join(
-            dir_path,
-            file_name + '.' + file_type
-        )
+    @property
+    def file_path(self):
+        if self.file_name:
+            return os.path.join(
+                self.dir_path, self.file_name + '.' + self.file_type
+            )
+        else:
+            return None
 
     def potential_and_gradient(self, X, V, dV):
         plt.plot(X, V, 'b-', label=r'Potential $V(x)$')
         plt.plot(X, dV, 'r-', label=r'Gradient $\nabla V(X)$')
         plt.xlabel('x', fontsize=16)
-        plt.ylim(top=6, bottom=-6)
+        plt.ylim(top=8, bottom=-8)
         plt.legend(loc='upper left', fontsize=8)
         plt.savefig(self.file_path)
         plt.close()
@@ -38,7 +37,7 @@ class Plot:
         ax1.plot(X, V + Vbias, 'm-', label=r'$\tilde{V}(x)$')
         ax1.set_xlabel('x', fontsize=16)
         ax1.set_xlim(left=-1.8, right=1.8)
-        ax1.set_ylim(top=4, bottom=0)
+        ax1.set_ylim(top=8, bottom=0)
         ax1.legend(loc='upper right', fontsize=8)
         ax1.grid(True)
         ax2.plot(X, dV, 'b-.', label=r'$\nabla V(x)$')
@@ -46,7 +45,7 @@ class Plot:
         ax2.plot(X, dV + dVbias, 'm-.', label=r'$\nabla \tilde{V}(x)$')
         ax2.set_xlabel('x', fontsize=16)
         ax2.set_xlim(left=-1.8, right=1.8)
-        ax2.set_ylim(top=6, bottom=-6)
+        ax2.set_ylim(top=12, bottom=-12)
         ax2.legend(loc='upper right', fontsize=8)
         ax2.grid(True)
         fig.savefig(self.file_path)
@@ -56,7 +55,8 @@ class Plot:
         plt.plot(X, Vbias, 'r-', label=r'bias Potential $V_{bias}(x)$')
         plt.plot(X, V + Vbias, c='purple', linestyle='-', label=r'tilted Potential $\tilde{V}(x)$')
         plt.xlabel('x', fontsize=16)
-        plt.ylim(top=4, bottom=0)
+        plt.xlim(left=-1.8, right=1.8)
+        plt.ylim(top=8, bottom=0)
         plt.legend(loc='upper left', fontsize=8)
         plt.savefig(self.file_path)
         plt.close()
@@ -67,7 +67,7 @@ class Plot:
         plt.plot(X, dV + dVbias, c='purple', linestyle='-', label=r'tilted gradient $\nabla \tilde{V}(x)$')
         plt.xlabel('x', fontsize=16)
         plt.xlim(left=-1.8, right=1.8)
-        plt.ylim(top=6, bottom=-6)
+        plt.ylim(top=12, bottom=-12)
         plt.legend(loc='upper left', fontsize=8)
         plt.savefig(self.file_path)
         plt.close()
@@ -79,7 +79,7 @@ class Plot:
         plt.plot(X, Vopt, linestyle='dashed', label='optimal')
 
         plt.xlabel('x', fontsize=16)
-        plt.ylim(top=4, bottom=0)
+        plt.ylim(top=8, bottom=0)
         plt.legend(loc='upper left', fontsize=8)
         plt.savefig(self.file_path)
         plt.close()

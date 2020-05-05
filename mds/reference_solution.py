@@ -1,5 +1,4 @@
-from potentials_and_gradients import double_well_1d_potential, \
-                                     double_well_1d_gradient
+from potentials_and_gradients import double_well_1d_gradient
 
 import numpy as np
 

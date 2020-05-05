@@ -6,7 +6,6 @@ import os
 
 MDS_PATH = os.path.abspath(os.path.dirname(__file__))
 DATA_PATH = os.path.join(MDS_PATH, 'data')
-FIGURES_PATH = os.path.join(MDS_PATH, 'figures')
 GD_FIGURES_PATH = os.path.join(MDS_PATH, 'figures/gradient_descent_greedy')
 
 class gradient_descent:
@@ -22,9 +21,11 @@ class gradient_descent:
         self._losses = np.zeros(epochs + 1)
         
         self._m = None
-        self._as = None
+        self._a_opt = None
         self._mus = None
         self._sigmas = None
+        
+        self._as = None
 
         self._do_plots = False
 
@@ -45,7 +46,11 @@ class gradient_descent:
             sigma=0.2,
         )
         samp.set_a_from_metadynamics()
-
+        
+        # get optimal solution
+        samp.set_a_optimal()
+    
+        self._a_opt = samp._a_optimal
         self._as[0] = samp._a
         self._mus = samp._mus
         self._sigmas = samp._sigmas 
@@ -91,7 +96,9 @@ class gradient_descent:
         loss = samp._mean_J
         grad_loss = samp._mean_gradJ
 
+        a_dif = self._a_opt - a
         print(epoch, loss, np.mean(grad_loss))
+        print(a)
 
         # Update parameters
         a = a - lr * grad_loss 
@@ -154,9 +161,5 @@ class gradient_descent:
         # compute optimal tilted potential
         Voptimal = np.zeros(100)
 
-        pl = Plot(
-            file_name='tilted_potentials_gradient_descent',
-            file_type='png',
-            dir_path=FIGURES_PATH ,
-        )
+        pl = Plot(file_name='tilted_potentials_gradient_descent')
         pl.gradient_descent_tilted_potentials(X, Vs, Voptimal)
