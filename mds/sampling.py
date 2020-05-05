@@ -54,7 +54,11 @@ class langevin_1d:
         # sampling problem
         self.is_sampling_problem = None
         self.Psi = None
-        self.F = None
+        
+        self.G_N = None
+        self.G_fht = None
+        
+        self.Psi_rew = None
 
         # soc problem
         self.is_soc_problem = None
@@ -63,16 +67,6 @@ class langevin_1d:
         self.gradJ = None
         self.gradSh = None
 
-        self.do_reweighting = None
-        self.G_N = None
-        self.G_fht = None
-        self.fht_rew = None
-        
-        self.Psi_rew = None
-        self.F_rew = None
-
-        self.J_rew = None
-       
         # mean, variance and re
         self.first_fht = None
         self.last_fht = None 
@@ -86,6 +80,10 @@ class langevin_1d:
 
         self.mean_G_fht = None
         self.mean_G_N= None
+        
+        self.mean_Psi_rew = None
+        self.var_Psi_rew = None
+        self.re_Psi_rew = None
 
         self.mean_J = None
 
@@ -359,49 +357,38 @@ class langevin_1d:
         self.dt = dt
         self.N = N
 
-    def preallocate_variables(self, do_reweighting=False, is_sampling_problem=True,
-               is_soc_problem=False):
+    def preallocate_variables(self, is_sampling_problem=False, 
+                              is_soc_problem=False):
         '''
         '''
         N = self.N
         M = self.M
         m = self.m
 
-        self.do_reweighting = do_reweighting 
-        self.is_sampling_problem = is_sampling_problem 
-        self.is_soc_problem = is_soc_problem 
-
         self.fht = np.empty(M)
         self.fht[:] = np.NaN
         
-        if self.is_sampling_problem:
+        if is_sampling_problem and not self.is_drifted:
             self.Psi = np.empty(M)
             self.Psi[:] = np.NaN
-            #self.F = np.empty(M)
-            #self.F[:] = np.NaN
 
-        if self.is_soc_problem:
-            self.J = np.empty(M)
-            self.J[:] = np.NaN
-            self.gradJ= np.empty((m, M))
-            self.gradJ[:] = np.NaN
-        
-        if self.do_reweighting: 
+        elif is_sampling_problem and self.is_drifted:
             self.G_fht = np.empty(M, )
             self.G_fht[:] = np.NaN
             self.G_N = np.empty(M)
             self.G_N[:] = np.NaN
 
-            self.fht_rew = np.empty(M)
-            self.fht_rew[:] = np.NaN
-            
-            if self.is_sampling_problem:
-                self.Psi_rew = np.empty(M)
-                self.Psi_rew[:] = np.NaN
-            
-            if self.is_soc_problem:
-                self.J_rew = np.empty(M)
-                self.J_rew[:] = np.NaN
+            self.Psi_rew = np.empty(M)
+            self.Psi_rew[:] = np.NaN
+
+        if is_soc_problem:
+            self.J = np.empty(M)
+            self.J[:] = np.NaN
+            self.gradJ= np.empty((m, M))
+            self.gradJ[:] = np.NaN
+        
+        self.is_sampling_problem = is_sampling_problem 
+        self.is_soc_problem = is_soc_problem 
 
     @timer
     def sample_not_drifted(self):
@@ -504,10 +491,7 @@ class langevin_1d:
         target_set_min = self.target_set_min
         target_set_max = self.target_set_max
         
-        self.preallocate_variables(
-            is_sampling_problem=True,
-            do_reweighting=True,
-        )
+        self.preallocate_variables(is_sampling_problem=True)
 
         k = 10
 
@@ -574,10 +558,7 @@ class langevin_1d:
         target_set_min = self.target_set_min
         target_set_max = self.target_set_max
         
-        self.preallocate_variables(
-            is_sampling_problem=True,
-            do_reweighting=True,
-        )
+        self.preallocate_variables(is_sampling_problem=True)
 
         # initialize Xtemp
         Xtemp = xzero * np.ones(M)
@@ -658,11 +639,7 @@ class langevin_1d:
         target_set_max = self.target_set_max
         m = self.m
         
-        self.preallocate_variables(
-            do_reweighting=False,
-            is_sampling_problem=False,
-            is_soc_problem=True,
-        )
+        self.preallocate_variables(is_soc_problem=True)
 
 
         for i in np.arange(M):
@@ -724,11 +701,7 @@ class langevin_1d:
         target_set_max = self.target_set_max
         m = self.m
         
-        self.preallocate_variables(
-            do_reweighting=False,
-            is_sampling_problem=False,
-            is_soc_problem=True,
-        )
+        self.preallocate_variables(is_soc_problem=True)
 
         # initialize Xtemp
         Xtemp = xzero * np.ones(M)
@@ -816,10 +789,6 @@ class langevin_1d:
         return mean, var, re 
 
     def compute_statistics(self):
-        is_sampling_problem = self.is_sampling_problem
-        is_soc_problem = self.is_soc_problem
-        do_reweighting = self.do_reweighting
-
         # sort out trajectories which have not arrived
         self.fht = self.fht[np.where(np.isnan(self.fht) != True)]
 
@@ -832,23 +801,14 @@ class langevin_1d:
         self.var_fht, \
         self.re_fht = self.compute_mean_variance_and_rel_error(self.fht)
 
-        if is_sampling_problem:
+        if self.is_sampling_problem and not self.is_drifted:
             # compute mean and variance of Psi
             self.Psi = self.Psi[np.where(np.isnan(self.Psi) != True)]
             self.mean_Psi, \
             self.var_Psi, \
             self.re_Psi = self.compute_mean_variance_and_rel_error(self.Psi)
         
-        if is_soc_problem:
-            # compute mean of J
-            #self.J = self.J[np.where(np.isnan(self.J) != True)]
-            self.mean_J = np.mean(self.J)
-
-            # compute mean of gradJ
-            #self.gradJ = self.gradJ[np.where(np.isnan(self.gradJ) != True)]
-            self.mean_gradJ = np.mean(self.gradJ, axis=1)
-
-        if do_reweighting:
+        elif self.is_sampling_problem and self.is_drifted:
             # compute mean of M_fht
             self.G_fht = self.G_fht[np.where(np.isnan(self.G_fht) != True)]
             self.mean_G_fht = np.mean(self.G_fht)
@@ -857,17 +817,21 @@ class langevin_1d:
             self.G_N = self.G_N[np.where(np.isnan(self.G_N) != True)]
             self.mean_G_N= np.mean(self.G_N)
             
-            # compute mean and variance of fht re-weighted
-            self.fht_rew = self.fht_rew[np.where(np.isnan(self.fht_rew) != True)]
-            self.mean_fht_rew, \
-            self.var_fht_rew, \
-            self.re_fht_rew = self.compute_mean_variance_and_rel_error(self.fht_rew)
-
             # compute mean and variance of Psi re_weighted
             self.Psi_rew = self.Psi_rew[np.where(np.isnan(self.Psi_rew) != True)]
             self.mean_Psi_rew, \
             self.var_Psi_rew, \
             self.re_Psi_rew = self.compute_mean_variance_and_rel_error(self.Psi_rew)
+        
+        if self.is_soc_problem:
+            # compute mean of J
+            #self.J = self.J[np.where(np.isnan(self.J) != True)]
+            self.mean_J = np.mean(self.J)
+
+            # compute mean of gradJ
+            #self.gradJ = self.gradJ[np.where(np.isnan(self.gradJ) != True)]
+            self.mean_gradJ = np.mean(self.gradJ, axis=1)
+
 
     def save_statistics(self):
         '''
@@ -903,18 +867,14 @@ class langevin_1d:
         f.write('Var[fht] = {:2.4f}\n'.format(self.var_fht))
         f.write('RE[fht] = {:2.4f}\n\n'.format(self.re_fht))
        
-        if self.is_sampling_problem:
+        if self.is_sampling_problem and not self.is_drifted:
             f.write('E[exp(-beta * fht)] = {:2.4e}\n'.format(self.mean_Psi))
             f.write('Var[exp(-beta * fht)] = {:2.4e}\n'.format(self.var_Psi))
             f.write('RE[exp(-beta * fht)] = {:2.4e}\n\n'.format(self.re_Psi))
 
-        if self.is_sampling_problem and self.is_drifted and self.do_reweighting:
+        elif self.is_sampling_problem and self.is_drifted:
             f.write('E[M_fht] = {:2.4e}\n'.format(self.mean_G_fht))
             f.write('E[M_N]: {:2.4e}\n\n'.format(self.mean_G_N))
-            
-            f.write('E[fht * M_fht] = {:2.4f}\n'.format(self.mean_fht_rew))
-            f.write('Var[fht * M_fht] = {:2.4f}\n'.format(self.var_fht_rew))
-            f.write('RE[fht * M_fht] = {:2.4f}\n\n'.format(self.re_fht_rew))
             
             f.write('E[exp(-beta * fht) * M_fht] = {:2.4e}\n'
                     ''.format(self.mean_Psi_rew))
