@@ -25,69 +25,69 @@ class langevin_1d:
         '''
         '''
         #seed
-        self._seed = None
+        self.seed = None
 
         # sde parameters
-        self._beta = beta
-        self._is_drifted = is_drifted 
+        self.beta = beta
+        self.is_drifted = is_drifted 
 
         # sampling
-        self._xzero = None
-        self._M = None
-        self._target_set_min = None
-        self._target_set_max = None
+        self.xzero = None
+        self.M = None
+        self.target_set_min = None
+        self.target_set_max = None
 
         # Euler-Majurama
-        self._dt = None
-        self._N = None
+        self.dt = None
+        self.N = None
 
         # ansatz functions (gaussians) and coefficients
-        self._m = None
-        self._a = None
-        self._a_optimal = None
-        self._mus = None
-        self._sigmas = None 
+        self.m = None
+        self.a = None
+        self.a_optimal = None
+        self.mus = None
+        self.sigmas = None 
         
         # variables
-        self._fht = None
+        self.fht = None
 
         # sampling problem
-        self._is_sampling_problem = None
-        self._Psi = None
-        self._F = None
+        self.is_sampling_problem = None
+        self.Psi = None
+        self.F = None
 
         # soc problem
-        self._is_soc_problem = None
-        self._cost = None
-        self._J = None
-        self._gradJ = None
-        self._gradSh = None
+        self.is_soc_problem = None
+        self.cost = None
+        self.J = None
+        self.gradJ = None
+        self.gradSh = None
 
-        self._do_reweighting = None
-        self._G_N = None
-        self._G_fht = None
-        self._fht_rew = None
+        self.do_reweighting = None
+        self.G_N = None
+        self.G_fht = None
+        self.fht_rew = None
         
-        self._Psi_rew = None
-        self._F_rew = None
+        self.Psi_rew = None
+        self.F_rew = None
 
-        self._J_rew = None
+        self.J_rew = None
        
         # mean, variance and re
-        self._first_fht = None
-        self._last_fht = None 
-        self._mean_fht = None
-        self._var_fht = None
-        self._re_fht = None
+        self.first_fht = None
+        self.last_fht = None 
+        self.mean_fht = None
+        self.var_fht = None
+        self.re_fht = None
 
-        self._mean_Psi = None
-        self._var_Psi = None
-        self._re_Psi = None
+        self.mean_Psi = None
+        self.var_Psi = None
+        self.re_Psi = None
 
-        self._mean_G_fht = None
-        self._mean_G_N= None
+        self.mean_G_fht = None
+        self.mean_G_N= None
 
-        self._mean_J = None
+        self.mean_J = None
 
     def set_ansatz_functions(self, mus, sigmas):
         '''This method sets the mean and the standard deviation of the 
@@ -99,9 +99,9 @@ class langevin_1d:
         '''
         assert mus.shape == sigmas.shape, "Error"
 
-        self._m = mus.shape[0] 
-        self._mus = mus
-        self._sigmas = sigmas
+        self.m = mus.shape[0] 
+        self.mus = mus
+        self.sigmas = sigmas
     
     def set_uniformly_dist_ansatz_functions(self, m, sigma):
         '''This method sets the number of ansatz functions and their mean
@@ -115,9 +115,9 @@ class langevin_1d:
         J_min = -1.9
         J_max = 0.9
         
-        self._m = m
-        self._mus = np.linspace(J_min, J_max, m)
-        self._sigmas = sigma * np.ones(m)
+        self.m = m
+        self.mus = np.linspace(J_min, J_max, m)
+        self.sigmas = sigma * np.ones(m)
    
     def set_bias_potential(self, a, mus, sigmas):
         '''
@@ -127,10 +127,10 @@ class langevin_1d:
             sigmas (ndarray) : standard deviation of each gaussian
         '''
         assert a.shape == mus.shape == sigmas.shape, "Error"
-        self._m = a.shape[0] 
-        self._a = a
-        self._mus = mus
-        self._sigmas = sigmas 
+        self.m = a.shape[0] 
+        self.a = a
+        self.mus = mus
+        self.sigmas = sigmas 
     
     def set_bias_potential_from_metadynamics(self):
         # load metadynamics parameters
@@ -146,18 +146,18 @@ class langevin_1d:
     
         a = omegas / 2
         
-        self._m = a.shape[0]
-        self._a = a
-        self._mus = meta_mus
-        self._sigmas = meta_sigmas
+        self.m = a.shape[0]
+        self.a = a
+        self.mus = meta_mus
+        self.sigmas = meta_sigmas
 
     def set_a_from_metadynamics(self):
         '''
         '''
-        #TODO assert self._m, self._mus, self._sigmas
-        m = self._m
-        mus = self._mus
-        sigmas= self._sigmas
+        #TODO assert self.m, self.mus, self.sigmas
+        m = self.m
+        mus = self.mus
+        sigmas= self.sigmas
 
         # load metadynamics parameters
         bias_pot_coeff = np.load(
@@ -186,11 +186,11 @@ class langevin_1d:
         # solve a V = \Phi
         a = np.linalg.solve(ansatz_functions, phi)
 
-        self._a = a
+        self.a = a
 
     def set_a_optimal(self):
         sol = langevin_1d_reference_solution(
-            beta=self._beta,
+            beta=self.beta,
             target_set_min=0.9,
             target_set_max=1.1,
         )
@@ -202,7 +202,7 @@ class langevin_1d:
 
         x, residuals, rank, s = np.linalg.lstsq(a, b, rcond=None)
 
-        self._a_optimal = x
+        self.a_optimal = x
 
     def ansatz_functions(self, x, mus=None, sigmas=None):
         '''This method computes the ansatz functions evaluated at x
@@ -213,8 +213,8 @@ class langevin_1d:
             sigmas (ndarray) : standard deviation of each gaussian
         '''
         if mus is None and sigmas is None:
-            mus = self._mus
-            sigmas = self._sigmas
+            mus = self.mus
+            sigmas = self.sigmas
 
         assert mus.shape == sigmas.shape, "Error"
 
@@ -237,11 +237,11 @@ class langevin_1d:
             b ((m,)-ndarray or (m, M)-ndarray)
         '''
         if mus is None and sigmas is None:
-            mus = self._mus
-            sigmas = self._sigmas
+            mus = self.mus
+            sigmas = self.sigmas
         
         if a is None:
-            a = self._a
+            a = self.a
 
         assert a.shape == mus.shape == sigmas.shape, "Error"
 
@@ -262,11 +262,11 @@ class langevin_1d:
             b ((m,)-ndarray or (m, M)-ndarray)
         '''
         # sampling parameters
-        beta = self._beta
+        beta = self.beta
 
         if mus is None and sigmas is None:
-            mus = self._mus
-            sigmas = self._sigmas
+            mus = self.mus
+            sigmas = self.sigmas
 
         assert mus.shape == sigmas.shape, "Error"
 
@@ -286,11 +286,11 @@ class langevin_1d:
             sigmas (ndarray) : standard deviation of each gaussian
         '''
         if mus is None and sigmas is None:
-            mus = self._mus
-            sigmas = self._sigmas
+            mus = self.mus
+            sigmas = self.sigmas
         
         if a is None:
-            a = self._a
+            a = self.a
 
         assert a.shape == mus.shape == sigmas.shape, "Error"
 
@@ -344,71 +344,71 @@ class langevin_1d:
             np.random.seed(seed)
 
         # sampling
-        self._xzero = xzero
-        self._M = M 
+        self.xzero = xzero
+        self.M = M 
         if target_set[0] >= target_set[1]:
             #TODO raise error
             print("The target set interval is not valid")
-        self._target_set_min = target_set[0]
-        self._target_set_max = target_set[1]
+        self.target_set_min = target_set[0]
+        self.target_set_max = target_set[1]
 
         # Euler-Majurama
-        self._dt = dt
-        self._N = N
+        self.dt = dt
+        self.N = N
 
     def preallocate_variables(self, do_reweighting=False, is_sampling_problem=True,
                is_soc_problem=False):
         '''
         '''
-        N = self._N
-        M = self._M
-        m = self._m
+        N = self.N
+        M = self.M
+        m = self.m
 
-        self._do_reweighting = do_reweighting 
-        self._is_sampling_problem = is_sampling_problem 
-        self._is_soc_problem = is_soc_problem 
+        self.do_reweighting = do_reweighting 
+        self.is_sampling_problem = is_sampling_problem 
+        self.is_soc_problem = is_soc_problem 
 
-        self._fht = np.empty(M)
-        self._fht[:] = np.NaN
+        self.fht = np.empty(M)
+        self.fht[:] = np.NaN
         
-        if self._is_sampling_problem:
-            self._Psi = np.empty(M)
-            self._Psi[:] = np.NaN
-            #self._F = np.empty(M)
-            #self._F[:] = np.NaN
+        if self.is_sampling_problem:
+            self.Psi = np.empty(M)
+            self.Psi[:] = np.NaN
+            #self.F = np.empty(M)
+            #self.F[:] = np.NaN
 
-        if self._is_soc_problem:
-            self._J = np.empty(M)
-            self._J[:] = np.NaN
-            self._gradJ= np.empty((m, M))
-            self._gradJ[:] = np.NaN
+        if self.is_soc_problem:
+            self.J = np.empty(M)
+            self.J[:] = np.NaN
+            self.gradJ= np.empty((m, M))
+            self.gradJ[:] = np.NaN
         
-        if self._do_reweighting: 
-            self._G_fht = np.empty(M, )
-            self._G_fht[:] = np.NaN
-            self._G_N = np.empty(M)
-            self._G_N[:] = np.NaN
+        if self.do_reweighting: 
+            self.G_fht = np.empty(M, )
+            self.G_fht[:] = np.NaN
+            self.G_N = np.empty(M)
+            self.G_N[:] = np.NaN
 
-            self._fht_rew = np.empty(M)
-            self._fht_rew[:] = np.NaN
+            self.fht_rew = np.empty(M)
+            self.fht_rew[:] = np.NaN
             
-            if self._is_sampling_problem:
-                self._Psi_rew = np.empty(M)
-                self._Psi_rew[:] = np.NaN
+            if self.is_sampling_problem:
+                self.Psi_rew = np.empty(M)
+                self.Psi_rew[:] = np.NaN
             
-            if self._is_soc_problem:
-                self._J_rew = np.empty(M)
-                self._J_rew[:] = np.NaN
+            if self.is_soc_problem:
+                self.J_rew = np.empty(M)
+                self.J_rew[:] = np.NaN
 
     @timer
     def sample_not_drifted(self):
-        M = self._M
-        N = self._N
-        dt = self._dt
-        xzero = self._xzero
-        beta = self._beta
-        target_set_min = self._target_set_min
-        target_set_max = self._target_set_max
+        M = self.M
+        N = self.N
+        dt = self.dt
+        xzero = self.xzero
+        beta = self.beta
+        target_set_min = self.target_set_min
+        target_set_max = self.target_set_max
 
         self.preallocate_variables(is_sampling_problem=True)
 
@@ -433,21 +433,21 @@ class langevin_1d:
                     fht = n * dt
 
                     # save first hitting time
-                    self._fht[i] = fht
+                    self.fht[i] = fht
 
                     # save quantity of interest at the fht
-                    self._Psi[i] = np.exp(-beta * fht)
+                    self.Psi[i] = np.exp(-beta * fht)
                     break
     
     @timer
     def sample_not_drifted_vectorized(self):
-        M = self._M
-        N = self._N
-        dt = self._dt
-        xzero = self._xzero
-        beta = self._beta
-        target_set_min = self._target_set_min
-        target_set_max = self._target_set_max
+        M = self.M
+        N = self.N
+        dt = self.dt
+        xzero = self.xzero
+        beta = self.beta
+        target_set_min = self.target_set_min
+        target_set_max = self.target_set_max
 
         self.preallocate_variables(is_sampling_problem=True)
 
@@ -481,25 +481,25 @@ class langevin_1d:
             been_in_target_set[new_in_target_set_idx] = True
             
             # save first hitting time
-            self._fht[new_in_target_set_idx] = n * dt
+            self.fht[new_in_target_set_idx] = n * dt
             
             # check if all trajectories have arrived to the target set
             if been_in_target_set.all() == True:
                 break
         
         # save quantity of interest at the fht
-        self._Psi = np.exp(-beta * self._fht)
+        self.Psi = np.exp(-beta * self.fht)
     
     @timer
     def sample_drifted(self):
         
-        M = self._M
-        N = self._N
-        dt = self._dt
-        xzero = self._xzero
-        beta = self._beta
-        target_set_min = self._target_set_min
-        target_set_max = self._target_set_max
+        M = self.M
+        N = self.N
+        dt = self.dt
+        xzero = self.xzero
+        beta = self.beta
+        target_set_min = self.target_set_min
+        target_set_max = self.target_set_max
         
         self.preallocate_variables(
             is_sampling_problem=True,
@@ -539,37 +539,37 @@ class langevin_1d:
                 
                 # save Girsanov Martingale at time k
                 if n == k: 
-                    self._G_N[i] = np.exp(G1temp + G2temp)
+                    self.G_N[i] = np.exp(G1temp + G2temp)
 
                 # check if we have arrived to the target set
                 if (Xtemp >= target_set_min and Xtemp <= target_set_max):
                     fht = n * dt
 
                     # save first hitting time
-                    self._fht[i] = fht
+                    self.fht[i] = fht
 
                     # save quantity of interest at the fht
-                    self._Psi[i] = np.exp(-beta * fht)
+                    self.Psi[i] = np.exp(-beta * fht)
 
                     # save Girsanov Martingale at time k
-                    self._G_fht[i] = np.exp(G1temp + G2temp)
+                    self.G_fht[i] = np.exp(G1temp + G2temp)
 
                     # save re-weighted first hitting time
-                    self._fht_rew[i] = fht * np.exp(G1temp + G2temp)
+                    self.fht_rew[i] = fht * np.exp(G1temp + G2temp)
 
                     # save re-weighted quantity of interest
-                    self._Psi_rew[i] = np.exp(-beta * fht + G1temp + G2temp) 
+                    self.Psi_rew[i] = np.exp(-beta * fht + G1temp + G2temp) 
                     break
 
     @timer
     def sample_drifted_vectorized(self):
-        M = self._M
-        N = self._N
-        dt = self._dt
-        xzero = self._xzero
-        beta = self._beta
-        target_set_min = self._target_set_min
-        target_set_max = self._target_set_max
+        M = self.M
+        N = self.N
+        dt = self.dt
+        xzero = self.xzero
+        beta = self.beta
+        target_set_min = self.target_set_min
+        target_set_max = self.target_set_max
         
         self.preallocate_variables(
             is_sampling_problem=True,
@@ -617,43 +617,43 @@ class langevin_1d:
             been_in_target_set[new_in_target_set_idx] = True
             
             # save first hitting time
-            self._fht[new_in_target_set_idx] = n * dt
-            #self._fht_rew[new_in_target_set_idx] = fht * np.exp(
+            self.fht[new_in_target_set_idx] = n * dt
+            #self.fht_rew[new_in_target_set_idx] = fht * np.exp(
             #    G1temp[new_in_target_set_idx] + G2temp[new_in_target_set_idx]
             #)
-            #self._Psi_rew[new_in_target_set_idx] = np.exp(
+            #self.Psi_rew[new_in_target_set_idx] = np.exp(
             #    - beta * n * dt
             #    + G1temp[new_in_target_set_idx] + G2temp[new_in_target_set_idx]
             #)
             
             # save Girsanov Martingale
-            self._G_fht[new_in_target_set_idx] = np.exp(
+            self.G_fht[new_in_target_set_idx] = np.exp(
                 G1temp[new_in_target_set_idx] + G2temp[new_in_target_set_idx]
             )
             
             # check if all trajectories have arrived to the target set
             if been_in_target_set.all() == True:
                 # save Girsanov Martingale at the time when the last trajectory arrive
-                self._G_N = np.exp(G1temp + G2temp)
+                self.G_N = np.exp(G1temp + G2temp)
                 break
 
         # save rew fht
-        self._fht_rew = self._fht * self._G_fht
+        self.fht_rew = self.fht * self.G_fht
 
         # save quantity of interest at the fht
-        self._Psi = np.exp(-beta * self._fht)
-        self._Psi_rew = np.exp(-beta * self._fht) * self._G_fht
+        self.Psi = np.exp(-beta * self.fht)
+        self.Psi_rew = np.exp(-beta * self.fht) * self.G_fht
     
     @timer
     def sample_soc(self):
-        M = self._M
-        N = self._N
-        dt = self._dt
-        xzero = self._xzero
-        beta = self._beta
-        target_set_min = self._target_set_min
-        target_set_max = self._target_set_max
-        m = self._m
+        M = self.M
+        N = self.N
+        dt = self.dt
+        xzero = self.xzero
+        beta = self.beta
+        target_set_min = self.target_set_min
+        target_set_max = self.target_set_max
+        m = self.m
         
         self.preallocate_variables(
             do_reweighting=False,
@@ -702,24 +702,24 @@ class langevin_1d:
                     fht = n * dt
 
                     # save first hitting time
-                    self._fht[i] = fht
+                    self.fht[i] = fht
 
-                    self._J[i] = cost + fht
+                    self.J[i] = cost + fht
                     grad_Sh = grad_Sh * (- np.sqrt(dt * beta / 2))
-                    self._gradJ[i, :] = sum_partial_tilde_gh - (cost + fht) * grad_Sh
+                    self.gradJ[i, :] = sum_partial_tilde_gh - (cost + fht) * grad_Sh
                     
                     break
     
     @timer
     def sample_soc_vectorized(self):
-        M = self._M
-        N = self._N
-        dt = self._dt
-        xzero = self._xzero
-        beta = self._beta
-        target_set_min = self._target_set_min
-        target_set_max = self._target_set_max
-        m = self._m
+        M = self.M
+        N = self.N
+        dt = self.dt
+        xzero = self.xzero
+        beta = self.beta
+        target_set_min = self.target_set_min
+        target_set_max = self.target_set_max
+        m = self.m
         
         self.preallocate_variables(
             do_reweighting=False,
@@ -776,9 +776,9 @@ class langevin_1d:
 
             # save first hitting time
             fht = n * dt
-            self._fht[new_in_target_set_idx] = fht
-            self._J[new_in_target_set_idx] = dt * (fht + cost[new_in_target_set_idx])
-            self._gradJ[:, new_in_target_set_idx] = sum_grad_gh[:, new_in_target_set_idx] - \
+            self.fht[new_in_target_set_idx] = fht
+            self.J[new_in_target_set_idx] = dt * (fht + cost[new_in_target_set_idx])
+            self.gradJ[:, new_in_target_set_idx] = sum_grad_gh[:, new_in_target_set_idx] - \
                                                     dt * (fht + cost[new_in_target_set_idx]) * \
                                                     grad_Sh[:, new_in_target_set_idx]
             
@@ -789,9 +789,9 @@ class langevin_1d:
 
     def save_variables(self, i, n, x):
         # TODO: deprecated method!
-        dt = self._dt
-        beta = self._beta
-        is_drifted = self._is_drifted
+        dt = self.dt
+        beta = self.beta
+        is_drifted = self.is_drifted
 
     def compute_mean_variance_and_rel_error(self, x):
         '''This method computes the mean, the variance and the relative
@@ -813,58 +813,58 @@ class langevin_1d:
         return mean, var, re 
 
     def compute_statistics(self):
-        is_sampling_problem = self._is_sampling_problem
-        is_soc_problem = self._is_soc_problem
-        do_reweighting = self._do_reweighting
+        is_sampling_problem = self.is_sampling_problem
+        is_soc_problem = self.is_soc_problem
+        do_reweighting = self.do_reweighting
 
         # sort out trajectories which have not arrived
-        self._fht = self._fht[np.where(np.isnan(self._fht) != True)]
+        self.fht = self.fht[np.where(np.isnan(self.fht) != True)]
 
         # first and last fht
-        self._first_fht = np.min(self._fht)
-        self._last_fht = np.max(self._fht)
+        self.first_fht = np.min(self.fht)
+        self.last_fht = np.max(self.fht)
 
         # compute mean and variance of fht
-        self._mean_fht, \
-        self._var_fht, \
-        self._re_fht = self.compute_mean_variance_and_rel_error(self._fht)
+        self.mean_fht, \
+        self.var_fht, \
+        self.re_fht = self.compute_mean_variance_and_rel_error(self.fht)
 
         if is_sampling_problem:
             # compute mean and variance of Psi
-            self._Psi = self._Psi[np.where(np.isnan(self._Psi) != True)]
-            self._mean_Psi, \
-            self._var_Psi, \
-            self._re_Psi = self.compute_mean_variance_and_rel_error(self._Psi)
+            self.Psi = self.Psi[np.where(np.isnan(self.Psi) != True)]
+            self.mean_Psi, \
+            self.var_Psi, \
+            self.re_Psi = self.compute_mean_variance_and_rel_error(self.Psi)
         
         if is_soc_problem:
             # compute mean of J
-            #self._J = self._J[np.where(np.isnan(self._J) != True)]
-            self._mean_J = np.mean(self._J)
+            #self.J = self.J[np.where(np.isnan(self.J) != True)]
+            self.mean_J = np.mean(self.J)
 
             # compute mean of gradJ
-            #self._gradJ = self._gradJ[np.where(np.isnan(self._gradJ) != True)]
-            self._mean_gradJ = np.mean(self._gradJ, axis=1)
+            #self.gradJ = self.gradJ[np.where(np.isnan(self.gradJ) != True)]
+            self.mean_gradJ = np.mean(self.gradJ, axis=1)
 
         if do_reweighting:
             # compute mean of M_fht
-            self._G_fht = self._G_fht[np.where(np.isnan(self._G_fht) != True)]
-            self._mean_G_fht = np.mean(self._G_fht)
+            self.G_fht = self.G_fht[np.where(np.isnan(self.G_fht) != True)]
+            self.mean_G_fht = np.mean(self.G_fht)
             
             # compute mean of M_N
-            self._G_N = self._G_N[np.where(np.isnan(self._G_N) != True)]
-            self._mean_G_N= np.mean(self._G_N)
+            self.G_N = self.G_N[np.where(np.isnan(self.G_N) != True)]
+            self.mean_G_N= np.mean(self.G_N)
             
             # compute mean and variance of fht re-weighted
-            self._fht_rew = self._fht_rew[np.where(np.isnan(self._fht_rew) != True)]
-            self._mean_fht_rew, \
-            self._var_fht_rew, \
-            self._re_fht_rew = self.compute_mean_variance_and_rel_error(self._fht_rew)
+            self.fht_rew = self.fht_rew[np.where(np.isnan(self.fht_rew) != True)]
+            self.mean_fht_rew, \
+            self.var_fht_rew, \
+            self.re_fht_rew = self.compute_mean_variance_and_rel_error(self.fht_rew)
 
             # compute mean and variance of Psi re_weighted
-            self._Psi_rew = self._Psi_rew[np.where(np.isnan(self._Psi_rew) != True)]
-            self._mean_Psi_rew, \
-            self._var_Psi_rew, \
-            self._re_Psi_rew = self.compute_mean_variance_and_rel_error(self._Psi_rew)
+            self.Psi_rew = self.Psi_rew[np.where(np.isnan(self.Psi_rew) != True)]
+            self.mean_Psi_rew, \
+            self.var_Psi_rew, \
+            self.re_Psi_rew = self.compute_mean_variance_and_rel_error(self.Psi_rew)
 
     def save_statistics(self):
         '''
@@ -879,51 +879,51 @@ class langevin_1d:
         # write in file
         f = open(file_path, "w")
 
-        f.write('drifted process: {}\n'.format(self._is_drifted))
-        f.write('beta: {:2.1f}\n'.format(self._beta))
-        f.write('dt: {:2.4f}\n'.format(self._dt))
-        f.write('Y_0: {:2.1f}\n'.format(self._xzero))
+        f.write('drifted process: {}\n'.format(self.is_drifted))
+        f.write('beta: {:2.1f}\n'.format(self.beta))
+        f.write('dt: {:2.4f}\n'.format(self.dt))
+        f.write('Y_0: {:2.1f}\n'.format(self.xzero))
         f.write('target set: [{:2.1f}, {:2.1f}]\n\n'
-                ''.format(self._target_set_min, self._target_set_max))
+                ''.format(self.target_set_min, self.target_set_max))
 
-        f.write('sampled trajectories: {:d}\n'.format(self._M))
-        f.write('time steps: {:d}\n\n'.format(self._N))
+        f.write('sampled trajectories: {:d}\n'.format(self.M))
+        f.write('time steps: {:d}\n\n'.format(self.N))
 
         f.write('% trajectories which have arrived: {:2.2f}\n\n'
-                ''.format(100 * len(self._fht) / self._M))
+                ''.format(100 * len(self.fht) / self.M))
         
-        f.write('E[fhs] = {:.2f}\n\n'.format(self._mean_fht / self._dt))
+        f.write('E[fhs] = {:.2f}\n\n'.format(self.mean_fht / self.dt))
 
-        f.write('first fht = {:2.4f}\n'.format(self._first_fht))
-        f.write('last fht = {:2.4f}\n'.format(self._last_fht))
-        f.write('E[fht] = {:2.4f}\n'.format(self._mean_fht))
-        f.write('Var[fht] = {:2.4f}\n'.format(self._var_fht))
-        f.write('RE[fht] = {:2.4f}\n\n'.format(self._re_fht))
+        f.write('first fht = {:2.4f}\n'.format(self.first_fht))
+        f.write('last fht = {:2.4f}\n'.format(self.last_fht))
+        f.write('E[fht] = {:2.4f}\n'.format(self.mean_fht))
+        f.write('Var[fht] = {:2.4f}\n'.format(self.var_fht))
+        f.write('RE[fht] = {:2.4f}\n\n'.format(self.re_fht))
        
-        if self._is_sampling_problem:
-            f.write('E[exp(-beta * fht)] = {:2.4e}\n'.format(self._mean_Psi))
-            f.write('Var[exp(-beta * fht)] = {:2.4e}\n'.format(self._var_Psi))
-            f.write('RE[exp(-beta * fht)] = {:2.4e}\n\n'.format(self._re_Psi))
+        if self.is_sampling_problem:
+            f.write('E[exp(-beta * fht)] = {:2.4e}\n'.format(self.mean_Psi))
+            f.write('Var[exp(-beta * fht)] = {:2.4e}\n'.format(self.var_Psi))
+            f.write('RE[exp(-beta * fht)] = {:2.4e}\n\n'.format(self.re_Psi))
 
-        if self._is_sampling_problem and self._is_drifted and self._do_reweighting:
-            f.write('E[M_fht] = {:2.4e}\n'.format(self._mean_G_fht))
-            f.write('E[M_N]: {:2.4e}\n\n'.format(self._mean_G_N))
+        if self.is_sampling_problem and self.is_drifted and self.do_reweighting:
+            f.write('E[M_fht] = {:2.4e}\n'.format(self.mean_G_fht))
+            f.write('E[M_N]: {:2.4e}\n\n'.format(self.mean_G_N))
             
-            f.write('E[fht * M_fht] = {:2.4f}\n'.format(self._mean_fht_rew))
-            f.write('Var[fht * M_fht] = {:2.4f}\n'.format(self._var_fht_rew))
-            f.write('RE[fht * M_fht] = {:2.4f}\n\n'.format(self._re_fht_rew))
+            f.write('E[fht * M_fht] = {:2.4f}\n'.format(self.mean_fht_rew))
+            f.write('Var[fht * M_fht] = {:2.4f}\n'.format(self.var_fht_rew))
+            f.write('RE[fht * M_fht] = {:2.4f}\n\n'.format(self.re_fht_rew))
             
             f.write('E[exp(-beta * fht) * M_fht] = {:2.4e}\n'
-                    ''.format(self._mean_Psi_rew))
+                    ''.format(self.mean_Psi_rew))
             f.write('Var[exp(-beta * fht) * M_fht] = {:2.4e}\n'
-                    ''.format(self._var_Psi_rew))
+                    ''.format(self.var_Psi_rew))
             f.write('RE[exp(-beta * fht) * M_fht] = {:2.4e}\n\n'
-                    ''.format(self._re_Psi_rew))
+                    ''.format(self.re_Psi_rew))
         
-        if self._is_soc_problem:
-            f.write('E[Jh] = {:2.4e}\n'.format(self._mean_J))
-            for j in np.arange(self._m):
-                f.write('E[(grad_Jh)j] = {:2.4e}\n'.format(self._mean_gradJ[j]))
+        if self.is_soc_problem:
+            f.write('E[Jh] = {:2.4e}\n'.format(self.mean_J))
+            for j in np.arange(self.m):
+                f.write('E[(grad_Jh)j] = {:2.4e}\n'.format(self.mean_gradJ[j]))
     
         f.close()
 
@@ -932,7 +932,7 @@ class langevin_1d:
         V = double_well_1d_potential(X)
         dV = double_well_1d_gradient(X)
 
-        if self._is_drifted:
+        if self.is_drifted:
             Vbias = self.bias_potential(X)
             U = self.control(X)
             dVbias = self.bias_gradient(U)

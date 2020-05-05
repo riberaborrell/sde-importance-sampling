@@ -14,26 +14,26 @@ class gradient_descent:
     def __init__(self, lr, epochs, M):
         '''
         '''
-        self._lr = lr
-        self._epochs = epochs
-        self._M = M
+        self.lr = lr
+        self.epochs = epochs
+        self.M = M
 
-        self._losses = np.zeros(epochs + 1)
+        self.losses = np.zeros(epochs + 1)
         
-        self._m = None
-        self._a_opt = None
-        self._mus = None
-        self._sigmas = None
+        self.m = None
+        self.a_opt = None
+        self.mus = None
+        self.sigmas = None
         
-        self._as = None
+        self.as = None
 
-        self._do_plots = False
+        self.do_plots = False
 
     def set_parameters_greedy(self, m):
-        epochs = self._epochs
+        epochs = self.epochs
 
-        self._m = m
-        self._as = np.zeros((epochs + 1, m))
+        self.m = m
+        self.as = np.zeros((epochs + 1, m))
         
         # initialize langevin_1d object
         samp = sampling.langevin_1d(
@@ -50,16 +50,16 @@ class gradient_descent:
         # get optimal solution
         samp.set_a_optimal()
     
-        self._a_opt = samp._a_optimal
-        self._as[0] = samp._a
-        self._mus = samp._mus
-        self._sigmas = samp._sigmas 
+        self.a_opt = samp._a_optimal
+        self.as[0] = samp._a
+        self.mus = samp._mus
+        self.sigmas = samp._sigmas 
 
     def train_step(self, a, epoch):
-        lr = self._lr
-        M = self._M
-        mus = self._mus
-        sigmas = self._sigmas
+        lr = self.lr
+        M = self.M
+        mus = self.mus
+        sigmas = self.sigmas
 
         # initialize langevin_1d object
         samp = sampling.langevin_1d(
@@ -71,7 +71,7 @@ class gradient_descent:
         samp.set_bias_potential(a, mus, sigmas)
 
         # plot potential and gradient
-        if self._do_plots:
+        if self.do_plots:
             file_name = 'potential_and_gradient_gd_greedy_epoch{:d}'.format(epoch)
             samp.plot_potential_and_gradient(
                 file_name=file_name,
@@ -96,7 +96,7 @@ class gradient_descent:
         loss = samp._mean_J
         grad_loss = samp._mean_gradJ
 
-        a_dif = self._a_opt - a
+        a_dif = self.a_opt - a
         print(epoch, loss, np.mean(grad_loss))
         print(a)
 
@@ -107,43 +107,43 @@ class gradient_descent:
         return a, loss
 
     def gradient_descent(self):
-        m = self._m
-        epochs = self._epochs
-        losses = self._losses
+        m = self.m
+        epochs = self.epochs
+        losses = self.losses
         
-        a = self._as[0]
+        a = self.as[0]
         for epoch in np.arange(1, epochs + 1):
 
             # compute loss and do update parameters
             a, loss = self.train_step(a, epoch)
 
             # save loss 
-            self._losses[epoch - 1] = loss
+            self.losses[epoch - 1] = loss
 
             # save parameters
-            self._as[epoch] = a
+            self.as[epoch] = a
 
 
     def save_statistics(self):
         # save as and losses
         np.savez(
             os.path.join(DATA_PATH, 'losts_gd_greedy.npz'),
-            a=self._as,
-            losses=self._losses,
+            a=self.as,
+            losses=self.losses,
         )
 
         # save optimal bias potential
         np.savez(
             os.path.join(DATA_PATH, 'langevin1d_bias_potential_gd_greedy.npz'),
-            a=self._as[-1],
-            mus=self._mus,
-            sigmas=self._sigmas,
+            a=self.as[-1],
+            mus=self.mus,
+            sigmas=self.sigmas,
         )
 
     def plot_tilted_potentials(self):
-        epochs = self._epochs
-        mus = self._mus
-        sigmas = self._sigmas
+        epochs = self.epochs
+        mus = self.mus
+        sigmas = self.sigmas
 
         X = np.linspace(-2, 2, 100)
 
@@ -154,7 +154,7 @@ class gradient_descent:
                 beta=1,
                 is_drifted=True,
             )
-            a = self._as[epoch]
+            a = self.as[epoch]
             samp.set_bias_potential(a, mus, sigmas)
             Vs[epoch, :] = samp.tilted_potential(X)
         
