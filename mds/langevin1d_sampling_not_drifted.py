@@ -82,8 +82,7 @@ def main():
         samp.plot_potential_and_gradient(file_name='potential_and_gradient_not_drifted')
 
     # sample
-    #samp.sample_not_drifted()
-    samp.sample_not_drifted_vectorized()
+    samp.sample_not_drifted()
 
     # compute and print statistics
     samp.compute_statistics()

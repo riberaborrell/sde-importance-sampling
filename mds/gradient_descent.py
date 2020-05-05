@@ -84,8 +84,7 @@ class gradient_descent:
         )
         
         # compute loss function and its gradient
-        #samp.sample_soc()
-        samp.sample_soc_vectorized()
+        samp.sample_soc()
 
         samp.compute_statistics()
         loss = samp._mean_J

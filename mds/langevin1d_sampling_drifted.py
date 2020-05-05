@@ -95,8 +95,7 @@ def main():
     )
 
     # sample
-    #samp.sample_drifted()
-    samp.sample_drifted_vectorized()
+    samp.sample_drifted()
 
     # compute and print statistics
     samp.compute_statistics()

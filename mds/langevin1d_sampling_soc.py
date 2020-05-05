@@ -89,7 +89,7 @@ def main():
     )
 
     # sample
-    samp.sample_soc_vectorized()
+    samp.sample_soc()
 
     # compute and print statistics
     samp.compute_statistics()
