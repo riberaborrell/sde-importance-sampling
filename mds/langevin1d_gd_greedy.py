@@ -1,16 +1,7 @@
 import gradient_descent
 from plotting import Plot
-from potentials_and_gradients import double_well_1d_potential, \
-                                     double_well_1d_gradient
-import sampling
 
 import argparse
-import numpy as np
-
-import os
-
-MDS_PATH = os.path.abspath(os.path.dirname(__file__))
-FIGURES_PATH = os.path.join(MDS_PATH, 'figures')
 
 def get_parser():
     parser = argparse.ArgumentParser(description='Gradient Descent')

@@ -14,18 +14,12 @@ def main():
             DATA_PATH, 'langevin1d_bias_potential_gd_greedy.npz'
         )
     )
-
-    samp = sampling.langevin_1d(
-        beta=2,
-        is_drifted=True,
-    )
-    
+    samp = sampling.langevin_1d(beta=1)
     samp.set_bias_potential(
         a=optimal_bias_pot_coeff['a'],
         mus=optimal_bias_pot_coeff['mus'],
         sigmas=optimal_bias_pot_coeff['sigmas'],
     )
-
     samp.plot_potential_and_gradient(
         file_name='potential_and_gradient_gd_greedy',
     )

@@ -36,10 +36,8 @@ class gradient_descent:
         self.as = np.zeros((epochs + 1, m))
         
         # initialize langevin_1d object
-        samp = sampling.langevin_1d(
-            beta=1,
-            is_drifted=True,
-        )
+        samp = sampling.langevin_1d(beta=1)
+
         # set a and coefficients of the ansatz functions from metadynamics
         samp.set_uniformly_dist_ansatz_functions(
             m=10,
@@ -62,10 +60,7 @@ class gradient_descent:
         sigmas = self.sigmas
 
         # initialize langevin_1d object
-        samp = sampling.langevin_1d(
-            beta=1,
-            is_drifted=True,
-        )
+        samp = sampling.langevin_1d(beta=1)
 
         # set a and coefficients of the ansatz functions
         samp.set_bias_potential(a, mus, sigmas)
@@ -150,10 +145,7 @@ class gradient_descent:
         # compute tilted potentials
         Vs = np.zeros((epochs + 1, 100))
         for epoch in np.arange(epochs + 1):
-            samp = sampling.langevin_1d(
-                beta=1,
-                is_drifted=True,
-            )
+            samp = sampling.langevin_1d(beta=1)
             a = self.as[epoch]
             samp.set_bias_potential(a, mus, sigmas)
             Vs[epoch, :] = samp.tilted_potential(X)

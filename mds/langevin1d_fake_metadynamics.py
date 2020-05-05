@@ -1,8 +1,5 @@
 from decorators import timer
-from potentials_and_gradients import double_well_1d_potential, \
-                                     double_well_1d_gradient, \
-                                     bias_potential, \
-                                     bias_gradient
+
 import sampling
 
 import argparse
@@ -12,7 +9,6 @@ import os
 
 MDS_PATH = os.path.abspath(os.path.dirname(__file__))
 DATA_PATH = os.path.join(MDS_PATH, 'data')
-FIGURES_PATH = os.path.join(MDS_PATH, 'figures')
     
 def get_parser():
     parser = argparse.ArgumentParser(description='fake metadynamics algorithm')
@@ -64,13 +60,10 @@ def main():
     args.sigmas = np.array(args.sigmas)
     
     # initialize langevin_1d object
-    samp = sampling.langevin_1d(
-        beta=args.beta,
-        is_drifted=True,
-    )
+    samp = sampling.langevin_1d(beta=args.beta)
     
     # set bias potential
-    a = args.omegas * args.beta / 2
+    a = args.omegas / 2
     samp.set_bias_potential(a, args.mus, args.sigmas)
     
     # plot potential and gradient

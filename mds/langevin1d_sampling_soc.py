@@ -1,16 +1,8 @@
 import sampling
-from potentials_and_gradients import double_well_1d_potential, \
-                                     double_well_1d_gradient
 
 import argparse
-from datetime import datetime
 
 import numpy as np
-
-import os
-
-MDS_PATH = os.path.abspath(os.path.dirname(__file__))
-FIGURES_PATH = os.path.join(MDS_PATH, 'figures')
 
 def get_parser():
     parser = argparse.ArgumentParser(description='drifted 1D overdamped Langevin')
@@ -76,10 +68,7 @@ def main():
     args = get_parser().parse_args()
     
     # initialize langevin_1d object
-    samp = sampling.langevin_1d(
-        beta=args.beta,
-        is_drifted=True,
-    )
+    samp = sampling.langevin_1d(beta=args.beta)
 
     # set bias potential
     samp.set_uniformly_dist_ansatz_functions(

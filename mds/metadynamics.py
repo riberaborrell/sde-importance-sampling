@@ -5,8 +5,6 @@ from potentials_and_gradients import double_well_1d_potential, \
                                      bias_gradient
 
 import numpy as np
-from scipy import stats
-import matplotlib.pyplot as plt
 
 import os
 

@@ -92,10 +92,7 @@ def main():
     )
     
     # initialize langevin_1d object
-    samp = sampling.langevin_1d(
-        beta=args.beta,
-        is_drifted=True,
-    )
+    samp = sampling.langevin_1d(beta=args.beta)
     
     # set bias potential
     a = omegas / 2

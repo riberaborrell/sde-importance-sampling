@@ -66,10 +66,8 @@ def main():
     args = get_parser().parse_args()
 
     # initialize langevin_1d object
-    samp = sampling.langevin_1d(
-        beta=args.beta,
-        is_drifted=False,
-    )
+    samp = sampling.langevin_1d(beta=args.beta)
+
     # set sampling and Euler-Majurama parameters
     samp.set_sampling_parameters( 
         seed=args.seed, 

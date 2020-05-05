@@ -21,7 +21,7 @@ class langevin_1d:
     '''
     '''
 
-    def __init__(self, beta, is_drifted):
+    def __init__(self, beta, is_drifted=False):
         '''
         '''
         #seed
@@ -127,6 +127,7 @@ class langevin_1d:
             sigmas (ndarray) : standard deviation of each gaussian
         '''
         assert a.shape == mus.shape == sigmas.shape, "Error"
+        self.is_drifted = True
         self.m = a.shape[0] 
         self.a = a
         self.mus = mus
@@ -146,6 +147,7 @@ class langevin_1d:
     
         a = omegas / 2
         
+        self.is_drifted = True
         self.m = a.shape[0]
         self.a = a
         self.mus = meta_mus
@@ -186,6 +188,7 @@ class langevin_1d:
         # solve a V = \Phi
         a = np.linalg.solve(ansatz_functions, phi)
 
+        self.is_drifted = True
         self.a = a
 
     def set_a_optimal(self):
