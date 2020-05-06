@@ -29,7 +29,7 @@ class gradient_descent:
 
         self.do_plots = False
 
-    def set_parameters_greedy(self, m):
+    def set_parameters_greedy(self, m, sigma):
         epochs = self.epochs
 
         self.m = m
@@ -39,13 +39,10 @@ class gradient_descent:
         samp = sampling.langevin_1d(beta=1)
 
         # set a and coefficients of the ansatz functions from metadynamics
-        samp.set_uniformly_dist_ansatz_functions(
-            m=10,
-            sigma=0.2,
-        )
+        samp.set_uniformly_dist_ansatz_functions(m, sigma)
         samp.set_a_from_metadynamics()
         
-        # get optimal solution
+        # set optimal solution
         samp.set_a_optimal()
     
         self.a_opt = samp.a_opt
@@ -121,21 +118,21 @@ class gradient_descent:
     def save_statistics(self):
         # save as and losses
         np.savez(
-            os.path.join(DATA_PATH, 'losts_gd_greedy.npz'),
-            a=self.a_s,
-            losses=self.losses,
-        )
-
-        # save optimal bias potential
-        np.savez(
-            os.path.join(DATA_PATH, 'langevin1d_bias_potential_gd_greedy.npz'),
-            a=self.a_s[-1],
+            os.path.join(DATA_PATH, 'langevin1d_gd_greedy.npz'),
+            lr=self.lr,
+            epochs=self.epochs,
+            M=self.M,
+            a_opt=self.a_opt,
             mus=self.mus,
             sigmas=self.sigmas,
+            a_s=self.a_s,
+            losses=self.losses,
         )
 
     def plot_tilted_potentials(self):
         epochs = self.epochs
+        a_opt = self.a_opt
+        a_s = self.a_s
         mus = self.mus
         sigmas = self.sigmas
 
@@ -145,12 +142,12 @@ class gradient_descent:
         Vs = np.zeros((epochs + 1, 100))
         for epoch in np.arange(epochs + 1):
             samp = sampling.langevin_1d(beta=1)
-            a = self.a_s[epoch]
-            samp.set_bias_potential(a, mus, sigmas)
+            samp.set_bias_potential(a_s[epoch], mus, sigmas)
             Vs[epoch, :] = samp.tilted_potential(X)
         
         # compute optimal tilted potential
-        Voptimal = np.zeros(100)
+        samp.set_bias_potential(a_opt, mus, sigmas)
+        Voptimal = samp.tilted_potential(X)
 
         pl = Plot(file_name='tilted_potentials_gradient_descent')
         pl.gradient_descent_tilted_potentials(X, Vs, Voptimal)

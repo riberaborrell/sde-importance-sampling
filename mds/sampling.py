@@ -151,7 +151,7 @@ class langevin_1d:
         self.a = a
         self.mus = meta_mus
         self.sigmas = meta_sigmas
-
+    
     def set_a_from_metadynamics(self):
         '''
         '''
@@ -161,13 +161,13 @@ class langevin_1d:
         sigmas= self.sigmas
 
         # load metadynamics parameters
-        bias_pot_coeff = np.load(
+        bias_pot = np.load(
             os.path.join(DATA_PATH, 'langevin1d_bias_potential_fake_metadynamics.npz')
             #os.path.join(DATA_PATH, 'langevin1d_bias_potential_metadynamics.npz')
         )
-        omegas = bias_pot_coeff['omegas']
-        meta_mus = bias_pot_coeff['mus']
-        meta_sigmas = bias_pot_coeff['sigmas']
+        omegas = bias_pot['omegas']
+        meta_mus = bias_pot['mus']
+        meta_sigmas = bias_pot['sigmas']
         
         assert omegas.shape == meta_mus.shape == meta_sigmas.shape, "Error"
 
@@ -191,6 +191,7 @@ class langevin_1d:
         self.a = a
 
     def compute_a_optimal(self):
+        #TODO assert self.m, self.mus, self.sigmas
         assert self.mus.shape == self.sigmas.shape, "Error"
 
         sol = langevin_1d_reference_solution(
@@ -207,10 +208,17 @@ class langevin_1d:
         x, residuals, rank, s = np.linalg.lstsq(a, b, rcond=None)
 
         self.a_opt = x
-
+    
     def set_a_optimal(self):
-        assert self.mus.shape == self.sigmas.shape, "Error"
+        #TODO assert self.m, self.mus, self.sigmas
 
+        bias_pot = np.load(
+            os.path.join(DATA_PATH, 'langevin1d_bias_potential_optimal.npz')
+        )
+        #assert self.mus == bias_pot['mus'], "Error"
+        #assert self.sigmas == bias_pot['sigmas'], "Error"
+        
+        self.a_opt = bias_pot['a_opt']
 
     def ansatz_functions(self, x, mus=None, sigmas=None):
         '''This method computes the ansatz functions evaluated at x

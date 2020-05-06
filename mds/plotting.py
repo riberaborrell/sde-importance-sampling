@@ -49,6 +49,7 @@ class Plot:
         ax2.legend(loc='upper right', fontsize=8)
         ax2.grid(True)
         fig.savefig(self.file_path)
+        plt.close()
     
     def tilted_potential(self, X, V, Vbias):
         plt.plot(X, V, 'b-', label=r'Potential $V(x)$')
@@ -79,6 +80,7 @@ class Plot:
         plt.plot(X, Vopt, linestyle='dashed', label='optimal')
 
         plt.xlabel('x', fontsize=16)
+        plt.xlim(left=-1.8, right=1.8)
         plt.ylim(top=8, bottom=0)
         plt.legend(loc='upper left', fontsize=8)
         plt.savefig(self.file_path)

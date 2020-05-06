@@ -75,6 +75,7 @@ def main():
     a_opt = x
     np.savez(
         os.path.join(DATA_PATH, 'langevin1d_bias_potential_optimal.npz'),
+        m=a_opt.shape[0],
         a_opt=a_opt,
         mus=samp.mus,
         sigmas=samp.sigmas,

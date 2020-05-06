@@ -23,8 +23,23 @@ def get_parser():
         '--M',
         dest='M',
         type=int,
-        default=2*10**3,
-        help='Set number of trajectories to sample. Default: 2000',
+        default=10**3,
+        help='Set number of trajectories to sample. Default: 1000',
+    )
+    parser.add_argument(
+        '--m',
+        dest='m',
+        type=int,
+        default=10,
+        help='Set the number of uniformly distributed ansatz functions \
+              that you want to use. Default: 10',
+    )
+    parser.add_argument(
+        '--sigma',
+        dest='sigma',
+        type=float,
+        default=0.2,
+        help='Set the standard deviation of the ansatz functions. Default: 0.2',
     )
     parser.add_argument(
         '--do-plots',
@@ -44,7 +59,8 @@ def main():
         M=args.M,
     )
 
-    soc.set_parameters_greedy(m=10)
+    soc.set_parameters_greedy(m=args.m, sigma=args.sigma)
+    soc.do_plots = True
     
     soc.gradient_descent()
     soc.save_statistics()
