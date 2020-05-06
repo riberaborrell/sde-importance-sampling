@@ -125,6 +125,7 @@ class langevin_1d:
             sigmas (ndarray) : standard deviation of each gaussian
         '''
         assert a.shape == mus.shape == sigmas.shape, "Error"
+
         self.is_drifted = True
         self.m = a.shape[0] 
         self.a = a
@@ -189,7 +190,9 @@ class langevin_1d:
         self.is_drifted = True
         self.a = a
 
-    def set_a_optimal(self):
+    def compute_a_optimal(self):
+        assert self.mus.shape == self.sigmas.shape, "Error"
+
         sol = langevin_1d_reference_solution(
             beta=self.beta,
             target_set_min=0.9,
@@ -204,6 +207,10 @@ class langevin_1d:
         x, residuals, rank, s = np.linalg.lstsq(a, b, rcond=None)
 
         self.a_opt = x
+
+    def set_a_optimal(self):
+        assert self.mus.shape == self.sigmas.shape, "Error"
+
 
     def ansatz_functions(self, x, mus=None, sigmas=None):
         '''This method computes the ansatz functions evaluated at x
@@ -262,9 +269,6 @@ class langevin_1d:
         Return:
             b ((m,)-ndarray or (m, M)-ndarray)
         '''
-        # sampling parameters
-        beta = self.beta
-
         if mus is None and sigmas is None:
             mus = self.mus
             sigmas = self.sigmas
@@ -300,13 +304,23 @@ class langevin_1d:
 
         return np.dot(a, b)
 
-    def bias_potential(self, x):
+    def bias_potential(self, x, a=None, mus=None, sigmas=None):
         '''This method computes the bias potential at x
 
         Args:
             x (float or ndarray) : position
+            a (ndarray): parameters 
+            mus (ndarray): mean of each gaussian
+            sigmas (ndarray) : standard deviation of each gaussian
         '''
-        return 2 * self.value_function(x)
+        if mus is None and sigmas is None:
+            mus = self.mus
+            sigmas = self.sigmas
+        
+        if a is None:
+            a = self.a
+
+        return 2 * self.value_function(x, a, mus, sigmas)
 
     def bias_gradient(self, u):
         '''This method computes the bias gradient at x
@@ -502,7 +516,8 @@ class langevin_1d:
             
             # check if all trajectories have arrived to the target set
             if been_in_target_set.all() == True:
-                # save Girsanov Martingale at the time when the last trajectory arrive
+                # save Girsanov Martingale at the time when 
+                # the last trajectory arrive
                 self.G_N = np.exp(G1temp + G2temp)
                 break
 
@@ -574,7 +589,8 @@ class langevin_1d:
             self.fht[new_idx] = fht
             self.J[new_idx] = dt * (fht + cost[new_idx])
             self.gradJ[:, new_idx] = sum_grad_gh[:, new_idx] \
-                                   - dt * (fht + cost[new_idx]) * grad_Sh[:, new_idx]
+                                   - dt * (fht + cost[new_idx]) \
+                                   * grad_Sh[:, new_idx]
             
             # check if all trajectories have arrived to the target set
             if been_in_target_set.all() == True:

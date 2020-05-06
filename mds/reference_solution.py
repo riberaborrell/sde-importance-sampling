@@ -4,6 +4,10 @@ import numpy as np
 
 class langevin_1d_reference_solution():
     def __init__(self, beta, target_set_min, target_set_max):
+        if target_set_min >= target_set_max:
+            #TODO raise error
+            print("The target set interval is not valid")
+
         self.beta = beta
         self.target_set_min = target_set_min
         self.target_set_max = target_set_max
