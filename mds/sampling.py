@@ -110,11 +110,11 @@ class langevin_1d:
             m (int): number of ansatz functions
             sigma (float) : standard deviation
         '''
-        J_min = -1.9
-        J_max = 0.9
+        J_min = -2.0
+        J_max = 0.8
         
         self.m = m
-        self.mus = np.linspace(J_min, J_max, m)
+        self.mus = np.around(np.linspace(J_min, J_max, m), decimals=2)
         self.sigmas = sigma * np.ones(m)
    
     def set_bias_potential(self, a, mus, sigmas):
@@ -135,8 +135,7 @@ class langevin_1d:
     def set_bias_potential_from_metadynamics(self):
         # load metadynamics parameters
         bias_pot_coeff = np.load(
-            os.path.join(DATA_PATH, 'langevin1d_bias_potential_fake_metadynamics.npz')
-            #os.path.join(DATA_PATH, 'langevin1d_bias_potential_metadynamics.npz')
+            os.path.join(DATA_PATH, 'langevin1d_bias_potential_metadynamics.npz')
         )
         omegas = bias_pot_coeff['omegas']
         meta_mus = bias_pot_coeff['mus']
@@ -162,8 +161,7 @@ class langevin_1d:
 
         # load metadynamics parameters
         bias_pot = np.load(
-            os.path.join(DATA_PATH, 'langevin1d_bias_potential_fake_metadynamics.npz')
-            #os.path.join(DATA_PATH, 'langevin1d_bias_potential_metadynamics.npz')
+            os.path.join(DATA_PATH, 'langevin1d_bias_potential_metadynamics.npz')
         )
         omegas = bias_pot['omegas']
         meta_mus = bias_pot['mus']
@@ -558,7 +556,8 @@ class langevin_1d:
 
         for n in np.arange(1, N+1):
             # Brownian increment
-            dB = np.sqrt(dt) * np.random.normal(0, 1, M)
+            normal_dist_samples = np.random.normal(0, 1, M)
+            dB = np.sqrt(dt) * normal_dist_samples
             
             # compute control at Xtemp
             utemp = self.control(Xtemp)
@@ -575,9 +574,9 @@ class langevin_1d:
             Xtemp += drift + diffusion
                 
             # compute cost, ...
-            cost += 0.5 * (utemp ** 2)
+            cost += 0.5 * (utemp ** 2) * dt
             sum_grad_gh += dt * utemp * btemp 
-            grad_Sh += beta * np.sqrt(dt / 2) * np.random.normal(0, 1, M) * btemp
+            grad_Sh += beta * np.sqrt(dt / 2) * normal_dist_samples * btemp
                 
             # trajectories in the target set
             is_in_target_set = ((Xtemp >= target_set_min) & (Xtemp <= target_set_max))
@@ -595,9 +594,9 @@ class langevin_1d:
             # save first hitting time
             fht = n * dt
             self.fht[new_idx] = fht
-            self.J[new_idx] = dt * (fht + cost[new_idx])
+            self.J[new_idx] = fht + cost[new_idx]
             self.gradJ[:, new_idx] = sum_grad_gh[:, new_idx] \
-                                   - dt * (fht + cost[new_idx]) \
+                                   + (fht + cost[new_idx]) \
                                    * grad_Sh[:, new_idx]
             
             # check if all trajectories have arrived to the target set
