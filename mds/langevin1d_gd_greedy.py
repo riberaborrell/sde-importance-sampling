@@ -9,7 +9,7 @@ def get_parser():
         '--learning-rate',
         dest='lr',
         type=float,
-        default=0.01,
+        default=1.,
         help='Set learning rate. Default:',
     )
     parser.add_argument(
@@ -23,8 +23,8 @@ def get_parser():
         '--M',
         dest='M',
         type=int,
-        default=10**3,
-        help='Set number of trajectories to sample. Default: 1000',
+        default=500,
+        help='Set number of trajectories to sample. Default: 500',
     )
     parser.add_argument(
         '--m',
@@ -59,10 +59,17 @@ def main():
         M=args.M,
     )
 
-    soc.set_parameters_greedy(m=args.m, sigma=args.sigma)
+    soc.set_sample()
+
+    soc.set_ansatz_functions_greedy(m=args.m, sigma=args.sigma)
+
+    #soc.set_a_from_metadynamics_greedy()
+    #soc.set_a_optimal_greedy()
+    soc.set_a_null_greedy()
+
     soc.do_plots = True
     
-    soc.gradient_descent()
+    soc.gradient_descent_greedy()
     soc.save_statistics()
     
     # plot tilted potential and gradient
