@@ -56,6 +56,28 @@ def get_parser():
         help='Set number of time steps. Default: 100.000',
     )
     parser.add_argument(
+        '--m',
+        dest='m',
+        type=int,
+        default=10,
+        help='Set the number of uniformly distributed ansatz functions \
+              that you want to use. Default: 10',
+    )
+    parser.add_argument(
+        '--sigma',
+        dest='sigma',
+        type=float,
+        default=0.2,
+        help='Set the standard deviation of the ansatz functions. Default: 0.2',
+    )
+    parser.add_argument(
+        '--a-type',
+        dest='a_type',
+        choices=['optimal', 'meta', 'null'],
+        default='optimal',
+        help='Type of drift. Default: optimal',
+    )
+    parser.add_argument(
         '--do-plots',
         dest='do_plots',
         action='store_true',
@@ -68,18 +90,26 @@ def main():
     args = get_parser().parse_args()
     
     # initialize langevin_1d object
-    samp = sampling.langevin_1d(beta=args.beta)
+    sample = sampling.langevin_1d(beta=args.beta)
 
-    # set bias potential
-    samp.set_uniformly_dist_ansatz_functions(
-        m=10,
-        sigma=0.2,
-    )
-    samp.set_a_from_metadynamics()
-    #samp.a = np.zeros(10)
+    # set ansatz functions and a_opt 
+    sample.set_uniformly_dist_ansatz_functions(m=args.m, sigma=args.sigma)
+    sample.set_a_optimal()
+    
+    # set a
+    if args.a_type == 'optimal':
+        sample.is_drifted = True
+        sample.a = sample.a_opt
+
+    elif args.a_type == 'meta':
+        sample.set_a_from_metadynamics()
+
+    else:
+        sample.is_drifted = True
+        sample.a = np.zeros(args.m)
 
     # set sampling and Euler-Majurama parameters
-    samp.set_sampling_parameters(
+    sample.set_sampling_parameters(
         seed=args.seed,
         xzero=args.xzero,
         M=args.M, 
@@ -89,11 +119,11 @@ def main():
     )
 
     # sample
-    samp.sample_soc()
+    sample.sample_soc()
 
     # compute and print statistics
-    samp.compute_statistics()
-    samp.save_statistics()
+    sample.compute_statistics()
+    sample.save_statistics()
     
 
 if __name__ == "__main__":

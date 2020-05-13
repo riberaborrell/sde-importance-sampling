@@ -12,7 +12,7 @@ GD_FIGURES_PATH = os.path.join(MDS_PATH, 'figures/gradient_descent_greedy')
 class gradient_descent:
     '''
     '''
-    def __init__(self, lr, epochs, M):
+    def __init__(self, lr, epochs, M, do_plots=False):
         '''
         '''
         self.lr = lr
@@ -26,7 +26,7 @@ class gradient_descent:
         
         self.sample = None
 
-        self.do_plots = False
+        self.do_plots = do_plots
 
     def set_sample(self):
         # initialize langevin_1d object
@@ -113,14 +113,7 @@ class gradient_descent:
             self.a_s[epoch + 1] = a
 
             # print 
-            print(epoch)
-            print(self.a_s[epoch])  
-            print(loss)
-            print(grad_loss)
-            print(self.sample.a_opt - self.a_s[epoch])  
-        print(epoch + 1)
-        print(self.a_s[epoch + 1])  
-        print(self.sample.a_opt - self.a_s[epoch + 1])  
+            print(epoch, loss)
 
         # compute eucl dist between a and a opt
         self.a_dif = np.linalg.norm(self.a_s - self.sample.a_opt, axis=1)

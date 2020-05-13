@@ -110,8 +110,8 @@ class langevin_1d:
             m (int): number of ansatz functions
             sigma (float) : standard deviation
         '''
-        J_min = -2.
-        J_max = 2.
+        J_min = -2.0
+        J_max = 0.8
         
         self.m = m
         self.mus = np.around(np.linspace(J_min, J_max, m), decimals=2)

@@ -69,6 +69,13 @@ def get_parser():
         help='Set the standard deviation of the ansatz functions. Default: 0.2',
     )
     parser.add_argument(
+        '--a-type',
+        dest='a_type',
+        choices=['optimal', 'meta'],
+        default='optimal',
+        help='Type of drift. Default: optimal',
+    )
+    parser.add_argument(
         '--do-plots',
         dest='do_plots',
         action='store_true',
@@ -83,22 +90,21 @@ def main():
     # initialize langevin_1d object
     sample = sampling.langevin_1d(beta=args.beta)
 
-    # set bias potential
-    #sample.set_bias_potential_from_metadynamics()
+    # set ansatz functions and a optimal
     sample.set_uniformly_dist_ansatz_functions(m=args.m, sigma=args.sigma)
     sample.set_a_optimal()
     
-    # sample from metadynamics
-    sample.set_a_from_metadynamics()
-
-    # sample optimal solution
-    #sample.a = samp.a_opt
+    # set a 
+    if args.a_type == 'optimal':
+        sample.is_drifted = True
+        sample.a = sample.a_opt
+    else:
+        sample.set_a_from_metadynamics()
 
     # plot potential and gradient
     if args.do_plots:
         sample.plot_potential_and_gradient(file_name='potential_and_gradient_drifted')
 
-    exit()
     # set sampling and Euler-Majurama parameters
     samp.set_sampling_parameters(
         seed=args.seed,

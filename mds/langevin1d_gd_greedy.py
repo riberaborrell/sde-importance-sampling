@@ -42,6 +42,13 @@ def get_parser():
         help='Set the standard deviation of the ansatz functions. Default: 0.2',
     )
     parser.add_argument(
+        '--a-type',
+        dest='a_type',
+        choices=['optimal', 'meta', 'null'],
+        default='optimal',
+        help='Type of drift. Default: optimal',
+    )
+    parser.add_argument(
         '--do-plots',
         dest='do_plots',
         action='store_true',
@@ -57,19 +64,24 @@ def main():
         lr=args.lr,
         epochs=args.epochs,
         M=args.M,
+        do_plots=args.do_plots
     )
-
+    
+    # set the sde to sample and the sampling parameters
     soc.set_sample()
 
+    # set ansatz functions and a optimal
     soc.set_ansatz_functions_greedy(m=args.m, sigma=args.sigma)
     print(soc.sample.a_opt)
-
-    #soc.set_a_from_metadynamics_greedy()
-    #soc.set_a_optimal_greedy()
-    soc.set_a_null_greedy()
-
-    soc.do_plots = True
     
+    # set initial a
+    if args.a_type == 'optimal':
+        soc.set_a_optimal_greedy()
+    elif args.a_type == 'meta':
+        soc.set_a_from_metadynamics_greedy()
+    else:
+        soc.set_a_null_greedy()
+
     soc.gradient_descent_greedy()
     soc.save_statistics()
     soc.write_statistics()
