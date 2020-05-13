@@ -54,6 +54,21 @@ def get_parser():
         help='Set number of time steps. Default: 100.000',
     )
     parser.add_argument(
+        '--m',
+        dest='m',
+        type=int,
+        default=10,
+        help='Set the number of uniformly distributed ansatz functions \
+              that you want to use. Default: 10',
+    )
+    parser.add_argument(
+        '--sigma',
+        dest='sigma',
+        type=float,
+        default=0.2,
+        help='Set the standard deviation of the ansatz functions. Default: 0.2',
+    )
+    parser.add_argument(
         '--do-plots',
         dest='do_plots',
         action='store_true',
@@ -66,24 +81,24 @@ def main():
     args = get_parser().parse_args()
     
     # initialize langevin_1d object
-    samp = sampling.langevin_1d(beta=args.beta)
+    sample = sampling.langevin_1d(beta=args.beta)
 
     # set bias potential
-    #samp.set_bias_potential_from_metadynamics()
-    samp.set_uniformly_dist_ansatz_functions(
-        m=10,
-        sigma=0.2,
-    )
-    samp.set_a_from_metadynamics()
+    #sample.set_bias_potential_from_metadynamics()
+    sample.set_uniformly_dist_ansatz_functions(m=args.m, sigma=args.sigma)
+    sample.set_a_optimal()
+    
+    # sample from metadynamics
+    sample.set_a_from_metadynamics()
 
-    # set optimal bias potential from reference solution
-    samp.set_a_optimal()
-    #samp.a = samp.a_opt
+    # sample optimal solution
+    #sample.a = samp.a_opt
 
     # plot potential and gradient
     if args.do_plots:
-        samp.plot_potential_and_gradient(file_name='potential_and_gradient_drifted')
+        sample.plot_potential_and_gradient(file_name='potential_and_gradient_drifted')
 
+    exit()
     # set sampling and Euler-Majurama parameters
     samp.set_sampling_parameters(
         seed=args.seed,

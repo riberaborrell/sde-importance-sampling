@@ -30,11 +30,13 @@ class Plot:
         plt.savefig(self.file_path)
         plt.close()
     
-    def tilted_potential_and_gradient(self, X, V, dV, Vbias, dVbias):
+    def tilted_potential_and_gradient(self, X, V, dV, Vbias, dVbias, Vopt=None, dVopt=None):
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 8))
         ax1.plot(X, V, 'b-', label=r'$V(x)$')
         ax1.plot(X, Vbias, 'r-', label=r'$V_{bias}(x)$')
         ax1.plot(X, V + Vbias, 'm-', label=r'$\tilde{V}(x)$')
+        if Vopt is not None:
+            ax1.plot(X, Vopt, 'c-', label=r'$\tilde{V}_{opt}(x)$')
         ax1.set_xlabel('x', fontsize=16)
         ax1.set_xlim(left=-1.8, right=1.8)
         ax1.set_ylim(top=8, bottom=0)
@@ -43,6 +45,8 @@ class Plot:
         ax2.plot(X, dV, 'b-.', label=r'$\nabla V(x)$')
         ax2.plot(X, dVbias, 'r-.', label=r'$\nabla V_{bias}(x)$')
         ax2.plot(X, dV + dVbias, 'm-.', label=r'$\nabla \tilde{V}(x)$')
+        if dVopt is not None:
+            ax2.plot(X, dVopt, 'c-', label=r'$\nabla \tilde{V}_{opt}(x)$')
         ax2.set_xlabel('x', fontsize=16)
         ax2.set_xlim(left=-1.8, right=1.8)
         ax2.set_ylim(top=12, bottom=-12)
@@ -82,6 +86,14 @@ class Plot:
         plt.xlabel('x', fontsize=16)
         plt.xlim(left=-1.8, right=1.8)
         plt.ylim(top=8, bottom=0)
+        plt.legend(loc='upper left', fontsize=8)
+        plt.savefig(self.file_path)
+        plt.close()
+
+    def performance_function(self, X, J):
+        plt.plot(X, J, 'b-', label='J(x)')
+        plt.xlim(left=-1.8, right=1.8)
+        plt.ylim(top=3, bottom=0)
         plt.legend(loc='upper left', fontsize=8)
         plt.savefig(self.file_path)
         plt.close()

@@ -111,7 +111,7 @@ class langevin_1d:
             sigma (float) : standard deviation
         '''
         J_min = -2.
-        J_max = 0.8
+        J_max = 2.
         
         self.m = m
         self.mus = np.around(np.linspace(J_min, J_max, m), decimals=2)
@@ -188,35 +188,19 @@ class langevin_1d:
         self.is_drifted = True
         self.a = a
 
-    def compute_a_optimal(self):
-        #TODO assert self.m, self.mus, self.sigmas
-        assert self.mus.shape == self.sigmas.shape, "Error"
-
-        sol = langevin_1d_reference_solution(
-            beta=self.beta,
-            target_set_min=0.9,
-            target_set_max=1.1,
-        )
-        sol.compute_reference_solution()
-
-        X = sol.omega_h
-        a = self.ansatz_functions(X).T
-        b = sol.F
-
-        x, residuals, rank, s = np.linalg.lstsq(a, b, rcond=None)
-
-        self.a_opt = x
-    
     def set_a_optimal(self):
         #TODO assert self.m, self.mus, self.sigmas
-
-        bias_pot = np.load(
-            os.path.join(DATA_PATH, 'langevin1d_bias_potential_optimal.npz')
+        ref_sol = np.load(
+            os.path.join(DATA_PATH, 'langevin1d_reference_solution.npz')
         )
-        #assert self.mus == bias_pot['mus'], "Error"
-        #assert self.sigmas == bias_pot['sigmas'], "Error"
+    
+        # compute the optimal a given a basis of ansatz functions
+        X = ref_sol['omega_h']
+        a = self.ansatz_functions(X).T
+        b = ref_sol['F']
+        x, residuals, rank, s = np.linalg.lstsq(a, b, rcond=None)
         
-        self.a_opt = bias_pot['a_opt']
+        self.a_opt = x
 
     def ansatz_functions(self, x, mus=None, sigmas=None):
         '''This method computes the ansatz functions evaluated at x
@@ -747,8 +731,25 @@ class langevin_1d:
             Vbias = np.zeros(X.shape[0])
             dVbias = np.zeros(X.shape[0])
 
-        pl = Plot(
-            file_name=file_name,
-            dir_path=dir_path,
-        )
+        if self.a_opt is not None:
+            Vopt = V + self.bias_potential(X, self.a_opt)
+            U = self.control(X, self.a_opt)
+            dVopt = dV - np.sqrt(2) * U
+        else:
+            Vopt = None
+            dVopt = None
+
+        pl = Plot(file_name=file_name, dir_path=dir_path)
+        pl.tilted_potential_and_gradient(X, V, dV, Vbias, dVbias, Vopt, dVopt)
+
+    def plot_optimal_potential_and_gradient(self):
+        # tilted optimal potential and gradient on a gaussian basis 
+        X = np.linspace(-2, 2, 100)
+        V = double_well_1d_potential(X)
+        dV = double_well_1d_gradient(X)
+        Vbias = self.bias_potential(X, self.a_opt)
+        U = self.control(X, self.a_opt)
+        dVbias = - np.sqrt(2) * U
+        pl = Plot(file_name='potential_and_gradient_optimal')
         pl.tilted_potential_and_gradient(X, V, dV, Vbias, dVbias)
+
