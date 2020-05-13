@@ -110,7 +110,7 @@ class langevin_1d:
             m (int): number of ansatz functions
             sigma (float) : standard deviation
         '''
-        J_min = -2.0
+        J_min = -2.
         J_max = 0.8
         
         self.m = m
@@ -377,11 +377,14 @@ class langevin_1d:
         self.dt = dt
         self.N = N
 
-    def preallocate_variables(self, is_sampling_problem=False, 
-                              is_soc_problem=False):
+    def initialize_sampling_variables(self, is_sampling_problem=False, 
+                                      is_soc_problem=False):
         '''
         '''
-        N = self.N
+        #TODO
+        #assert self.M is not None, "Error"
+        #assert self.m is not None, "Error"
+
         M = self.M
         m = self.m
 
@@ -420,7 +423,7 @@ class langevin_1d:
         target_set_min = self.target_set_min
         target_set_max = self.target_set_max
 
-        self.preallocate_variables(is_sampling_problem=True)
+        self.initialize_sampling_variables(is_sampling_problem=True)
 
         # initialize Xtemp
         Xtemp = xzero * np.ones(M)
@@ -472,7 +475,7 @@ class langevin_1d:
         target_set_min = self.target_set_min
         target_set_max = self.target_set_max
         
-        self.preallocate_variables(is_sampling_problem=True)
+        self.initialize_sampling_variables(is_sampling_problem=True)
 
         # initialize Xtemp
         Xtemp = xzero * np.ones(M)
@@ -541,7 +544,7 @@ class langevin_1d:
         target_set_max = self.target_set_max
         m = self.m
         
-        self.preallocate_variables(is_soc_problem=True)
+        self.initialize_sampling_variables(is_soc_problem=True)
 
         # initialize Xtemp
         Xtemp = xzero * np.ones(M)
