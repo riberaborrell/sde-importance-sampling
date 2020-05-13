@@ -62,6 +62,7 @@ def main():
     soc.set_sample()
 
     soc.set_ansatz_functions_greedy(m=args.m, sigma=args.sigma)
+    print(soc.sample.a_opt)
 
     #soc.set_a_from_metadynamics_greedy()
     #soc.set_a_optimal_greedy()
@@ -71,6 +72,7 @@ def main():
     
     soc.gradient_descent_greedy()
     soc.save_statistics()
+    soc.write_statistics()
     
     # plot tilted potential and gradient
     if args.do_plots:

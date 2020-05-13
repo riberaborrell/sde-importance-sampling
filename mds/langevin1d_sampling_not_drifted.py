@@ -66,10 +66,10 @@ def main():
     args = get_parser().parse_args()
 
     # initialize langevin_1d object
-    samp = sampling.langevin_1d(beta=args.beta)
+    sample = sampling.langevin_1d(beta=args.beta)
 
     # set sampling and Euler-Majurama parameters
-    samp.set_sampling_parameters( 
+    sample.set_sampling_parameters( 
         seed=args.seed, 
         xzero=args.xzero,
         M=args.M, 
@@ -79,14 +79,14 @@ def main():
     )
     # plot potential and gradient
     if args.do_plots:
-        samp.plot_potential_and_gradient(file_name='potential_and_gradient_not_drifted')
-
+        sample.plot_potential_and_gradient(file_name='potential_and_gradient_not_drifted')
+    
     # sample
-    samp.sample_not_drifted()
+    sample.sample_not_drifted()
 
     # compute and print statistics
-    samp.compute_statistics()
-    samp.save_statistics()
+    sample.compute_statistics()
+    sample.save_statistics()
 
 
 if __name__ == "__main__":
