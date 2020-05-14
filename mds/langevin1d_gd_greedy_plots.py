@@ -15,13 +15,14 @@ def main():
     )
     
     # plot last tilted potential and gradient
-    samp = sampling.langevin_1d(beta=1)
-    samp.set_bias_potential(
+    sample = sampling.langevin_1d(beta=1)
+
+    sample.set_bias_potential(
         a=gd_greedy['a_s'][-1],
         mus=gd_greedy['mus'],
         sigmas=gd_greedy['sigmas'],
     )
-    samp.plot_potential_and_gradient(
+    sample.plot_potential_and_gradient(
         file_name='potential_and_gradient_gd_greedy',
     )
     
@@ -31,9 +32,10 @@ def main():
         epochs=gd_greedy['epochs'],
         M=gd_greedy['M'],
     )
-    gd.a_opt = gd_greedy['a_opt']
-    gd.mus = gd_greedy['mus']
-    gd.sigmas = gd_greedy['sigmas']
+    gd.sample = sample
+    gd.sample.a_opt = gd_greedy['a_opt']
+    #gd.mus = gd_greedy['mus']
+    #gd.sigmas = gd_greedy['sigmas']
     gd.a_s = gd_greedy['a_s']
     gd.losses = gd_greedy['losses']
     gd.plot_tilted_potentials()

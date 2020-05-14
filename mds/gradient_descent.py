@@ -12,7 +12,7 @@ GD_FIGURES_PATH = os.path.join(MDS_PATH, 'figures/gradient_descent_greedy')
 class gradient_descent:
     '''
     '''
-    def __init__(self, lr, epochs, M, do_plots=False):
+    def __init__(self, lr, epochs, M, do_ipa=False, do_fd=False, do_plots=False):
         '''
         '''
         self.lr = lr
@@ -27,6 +27,9 @@ class gradient_descent:
         self.sample = None
 
         self.do_plots = do_plots
+
+        self.do_ipa = do_ipa
+        self.do_fd = do_fd
 
     def set_sample(self):
         # initialize langevin_1d object
@@ -50,6 +53,7 @@ class gradient_descent:
 
         # set optimal solution in the ansatz function basis
         self.sample.set_a_optimal()
+        self.sample.plot_optimal_potential_and_gradient()
         
         # preallocate coefficient a of the gd
         self.a_s = np.zeros((epochs + 1, m))
@@ -69,6 +73,18 @@ class gradient_descent:
         self.sample.is_drifted = True
         self.a_s[0] = np.zeros(self.sample.m)
 
+    def perturb_a(self, a, j, sign, delta=None):
+        # assert j in np.arange(self.sample.m)
+        # assert sign = 1 or sign = -1
+        # assert delta > 0
+        if delta is None:
+            delta = self.lr / 10
+        perturbation = np.zeros(self.sample.m)
+        perturbation[j] = sign * delta
+
+        return a + perturbation
+
+
     def train_step(self, a):
         lr = self.lr
         M = self.M
@@ -78,10 +94,37 @@ class gradient_descent:
         sample.a = a
 
         # compute loss function and its gradient
-        sample.sample_soc()
-        sample.compute_statistics()
-        loss = sample.mean_J
-        grad_loss = sample.mean_gradJ
+        # infinitessimal perturbetion analysis
+        if self.do_ipa:
+            sample.sample_soc(do_ipa=True)
+            sample.compute_statistics()
+            loss = sample.mean_J
+            grad_loss = sample.mean_gradJ
+        
+        # finite differences
+        if self.do_fd:
+            sample.sample_soc()
+            sample.compute_statistics()
+            loss = sample.mean_J
+            grad_loss = np.zeros(sample.m) 
+
+            for j in np.arange(self.sample.m):
+                a_pert_j_p = self.perturb_a(a, j, 1)
+                sample.a = a_pert_j_p
+                sample.sample_soc()
+                sample.compute_statistics()
+                mean_J_pert_j_p = sample.mean_J
+
+                a_pert_j_m = self.perturb_a(a, j, -1)
+                sample.a = a_pert_j_m
+                sample.sample_soc()
+                sample.compute_statistics()
+                mean_J_pert_j_m = sample.mean_J
+
+                grad_loss[j] = sample.dt \
+                             * (mean_J_pert_j_p - mean_J_pert_j_m) \
+                             / (2 * self.lr / 10)
+
 
         # Update parameters
         a_updated = a - lr * grad_loss 

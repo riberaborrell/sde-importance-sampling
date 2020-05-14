@@ -64,7 +64,9 @@ def main():
         lr=args.lr,
         epochs=args.epochs,
         M=args.M,
-        do_plots=args.do_plots
+        #do_ipa=True,
+        do_fd=True,
+        do_plots=args.do_plots,
     )
     
     # set the sde to sample and the sampling parameters

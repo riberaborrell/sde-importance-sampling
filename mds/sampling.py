@@ -62,6 +62,7 @@ class langevin_1d:
 
         # soc problem
         self.is_soc_problem = None
+        self.do_ipa = None
         self.cost = None
         self.J = None
         self.gradJ = None
@@ -391,8 +392,9 @@ class langevin_1d:
         if is_soc_problem:
             self.J = np.empty(M)
             self.J[:] = np.NaN
-            self.gradJ= np.empty((m, M))
-            self.gradJ[:] = np.NaN
+            if self.do_ipa:
+                self.gradJ= np.empty((m, M))
+                self.gradJ[:] = np.NaN
         
         self.is_sampling_problem = is_sampling_problem 
         self.is_soc_problem = is_soc_problem 
@@ -518,7 +520,7 @@ class langevin_1d:
         self.Psi_rew = np.exp(-beta * self.fht) * self.G_fht
     
     @timer
-    def sample_soc(self):
+    def sample_soc(self, do_ipa=False):
         M = self.M
         N = self.N
         dt = self.dt
@@ -527,6 +529,7 @@ class langevin_1d:
         target_set_min = self.target_set_min
         target_set_max = self.target_set_max
         m = self.m
+        self.do_ipa = do_ipa
         
         self.initialize_sampling_variables(is_soc_problem=True)
 
@@ -535,16 +538,17 @@ class langevin_1d:
         
         # initialize cost, sum of grad of g and grad of S
         cost = np.zeros(M)
-        sum_grad_gh = np.zeros((m, M))
-        grad_Sh = np.zeros((m, M))
+        if do_ipa:
+            sum_grad_gh = np.zeros((m, M))
+            grad_Sh = np.zeros((m, M))
             
         # has arrived in target set
         been_in_target_set = np.repeat([False], M)
 
         for n in np.arange(1, N+1):
             # Brownian increment
-            normal_dist_samples = np.random.normal(0, 1, M)
-            dB = np.sqrt(dt) * normal_dist_samples
+            normal_dist_sample = np.random.normal(0, 1, M)
+            dB = np.sqrt(dt) * normal_dist_sample
             
             # compute control at Xtemp
             utemp = self.control(Xtemp)
@@ -562,8 +566,9 @@ class langevin_1d:
                 
             # compute cost, ...
             cost += 0.5 * (utemp ** 2) * dt
-            sum_grad_gh += dt * utemp * btemp 
-            grad_Sh += beta * np.sqrt(dt / 2) * normal_dist_samples * btemp
+            if do_ipa:
+                sum_grad_gh += dt * utemp * btemp 
+                grad_Sh += beta * np.sqrt(dt / 2) * normal_dist_sample * btemp
                 
             # trajectories in the target set
             is_in_target_set = ((Xtemp >= target_set_min) & (Xtemp <= target_set_max))
@@ -582,9 +587,10 @@ class langevin_1d:
             fht = n * dt
             self.fht[new_idx] = fht
             self.J[new_idx] = fht + cost[new_idx]
-            self.gradJ[:, new_idx] = sum_grad_gh[:, new_idx] \
-                                   + (fht + cost[new_idx]) \
-                                   * grad_Sh[:, new_idx]
+            if do_ipa:
+                self.gradJ[:, new_idx] = sum_grad_gh[:, new_idx] \
+                                         + (fht + cost[new_idx]) \
+                                         * grad_Sh[:, new_idx]
             
             # check if all trajectories have arrived to the target set
             if been_in_target_set.all() == True:
@@ -655,10 +661,11 @@ class langevin_1d:
             # compute mean of J
             #self.J = self.J[np.where(np.isnan(self.J) != True)]
             self.mean_J = np.mean(self.J)
-
-            # compute mean of gradJ
-            #self.gradJ = self.gradJ[np.where(np.isnan(self.gradJ) != True)]
-            self.mean_gradJ = np.mean(self.gradJ, axis=1)
+            
+            if self.do_ipa:
+                # compute mean of gradJ
+                #self.gradJ = self.gradJ[np.where(np.isnan(self.gradJ) != True)]
+                self.mean_gradJ = np.mean(self.gradJ, axis=1)
 
 
     def save_statistics(self):
@@ -713,8 +720,9 @@ class langevin_1d:
         
         if self.is_soc_problem:
             f.write('E[Jh] = {:2.4e}\n'.format(self.mean_J))
-            for j in np.arange(self.m):
-                f.write('E[(grad_Jh)j] = {:2.4e}\n'.format(self.mean_gradJ[j]))
+            if self.do_ipa:
+                for j in np.arange(self.m):
+                    f.write('E[(grad_Jh)j] = {:2.4e}\n'.format(self.mean_gradJ[j]))
     
         f.close()
 
