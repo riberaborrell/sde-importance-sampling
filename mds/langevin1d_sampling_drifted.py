@@ -91,7 +91,7 @@ def main():
     sample = sampling.langevin_1d(beta=args.beta)
 
     # set ansatz functions and a optimal
-    sample.set_uniformly_dist_ansatz_functions(m=args.m, sigma=args.sigma)
+    sample.set_unif_dist_ansatz_functions(m=args.m, sigma=args.sigma)
     sample.set_a_optimal()
     
     # set a 

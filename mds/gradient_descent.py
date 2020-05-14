@@ -49,7 +49,7 @@ class gradient_descent:
         epochs = self.epochs
 
         # set uniformly distributed ansatz functions
-        self.sample.set_uniformly_dist_ansatz_functions(m, sigma)
+        self.sample.set_unif_dist_ansatz_functions(m, sigma)
 
         # set optimal solution in the ansatz function basis
         self.sample.set_a_optimal()
@@ -78,7 +78,7 @@ class gradient_descent:
         # assert sign = 1 or sign = -1
         # assert delta > 0
         if delta is None:
-            delta = self.lr / 10
+            delta = self.lr / 50
         perturbation = np.zeros(self.sample.m)
         perturbation[j] = sign * delta
 
@@ -123,7 +123,7 @@ class gradient_descent:
 
                 grad_loss[j] = sample.dt \
                              * (mean_J_pert_j_p - mean_J_pert_j_m) \
-                             / (2 * self.lr / 10)
+                             / (2 * self.lr / 50)
 
 
         # Update parameters

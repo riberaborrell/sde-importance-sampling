@@ -102,7 +102,7 @@ class langevin_1d:
         self.mus = mus
         self.sigmas = sigmas
     
-    def set_uniformly_dist_ansatz_functions(self, m, sigma):
+    def set_unif_dist_ansatz_functions(self, m, sigma):
         '''This method sets the number of ansatz functions and their mean
            and standard deviation. The means will be uniformly distributed
            in the set J and the standard deviation is given.
@@ -112,7 +112,7 @@ class langevin_1d:
             sigma (float) : standard deviation
         '''
         J_min = -2.0
-        J_max = 0.8
+        J_max = 2.0
         
         self.m = m
         self.mus = np.around(np.linspace(J_min, J_max, m), decimals=2)
