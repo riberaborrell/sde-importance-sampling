@@ -106,7 +106,7 @@ def main():
         sample.plot_potential_and_gradient(file_name='potential_and_gradient_drifted')
 
     # set sampling and Euler-Majurama parameters
-    samp.set_sampling_parameters(
+    sample.set_sampling_parameters(
         seed=args.seed,
         xzero=args.xzero,
         M=args.M, 
@@ -116,11 +116,11 @@ def main():
     )
 
     # sample
-    samp.sample_drifted()
+    sample.sample_drifted()
 
     # compute and print statistics
-    samp.compute_statistics()
-    samp.save_statistics()
+    sample.compute_statistics()
+    sample.save_statistics()
     
 
 if __name__ == "__main__":

@@ -60,7 +60,7 @@ def bias_potential(x, omegas, mus, sigmas):
         mus (ndarray): mean of each gaussian
         sigmas (ndarray) : standard deviation of each gaussian
     '''
-    assert omegas.shape == mus.shape == sigmas.shape, "Error"
+    assert omegas.shape == mus.shape == sigmas.shape
     
     if type(x) == np.ndarray:
         mus = mus.reshape(mus.shape[0], 1)
@@ -84,7 +84,7 @@ def bias_gradient(x, omegas, mus, sigmas):
         mus (array): mean of each gaussian
         sigmas (array) : standard deviation of each gaussian
     '''
-    assert omegas.shape == mus.shape == sigmas.shape, "Error"
+    assert omegas.shape == mus.shape == sigmas.shape
     
     if type(x) == np.ndarray:
         mus = mus.reshape(mus.shape[0], 1)

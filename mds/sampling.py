@@ -96,7 +96,7 @@ class langevin_1d:
             mus (ndarray): mean of each gaussian
             sigmas (ndarray) : standard deviation of each gaussian
         '''
-        assert mus.shape == sigmas.shape, "Error"
+        assert mus.shape == sigmas.shape
 
         self.m = mus.shape[0] 
         self.mus = mus
@@ -125,7 +125,7 @@ class langevin_1d:
             mus (ndarray): mean of each gaussian
             sigmas (ndarray) : standard deviation of each gaussian
         '''
-        assert a.shape == mus.shape == sigmas.shape, "Error"
+        assert a.shape == mus.shape == sigmas.shape
 
         self.is_drifted = True
         self.m = a.shape[0] 
@@ -142,7 +142,7 @@ class langevin_1d:
         meta_mus = bias_pot_coeff['mus']
         meta_sigmas = bias_pot_coeff['sigmas']
         
-        assert omegas.shape == meta_mus.shape == meta_sigmas.shape, "Error"
+        assert omegas.shape == meta_mus.shape == meta_sigmas.shape
     
         a = omegas / 2
         
@@ -168,7 +168,7 @@ class langevin_1d:
         meta_mus = bias_pot['mus']
         meta_sigmas = bias_pot['sigmas']
         
-        assert omegas.shape == meta_mus.shape == meta_sigmas.shape, "Error"
+        assert omegas.shape == meta_mus.shape == meta_sigmas.shape
 
         # define a coefficients 
         a = np.zeros(m)
@@ -215,7 +215,7 @@ class langevin_1d:
             mus = self.mus
             sigmas = self.sigmas
 
-        assert mus.shape == sigmas.shape, "Error"
+        assert mus.shape == sigmas.shape
 
         if type(x) == np.ndarray:
             mus = mus.reshape(mus.shape[0], 1)
@@ -242,7 +242,7 @@ class langevin_1d:
         if a is None:
             a = self.a
 
-        assert a.shape == mus.shape == sigmas.shape, "Error"
+        assert a.shape == mus.shape == sigmas.shape
 
         # ansatz functions
         v = self.ansatz_functions(x, mus, sigmas)
@@ -264,7 +264,7 @@ class langevin_1d:
             mus = self.mus
             sigmas = self.sigmas
 
-        assert mus.shape == sigmas.shape, "Error"
+        assert mus.shape == sigmas.shape
 
         if type(x) == np.ndarray:
             mus = mus.reshape(mus.shape[0], 1)
@@ -288,7 +288,7 @@ class langevin_1d:
         if a is None:
             a = self.a
 
-        assert a.shape == mus.shape == sigmas.shape, "Error"
+        assert a.shape == mus.shape == sigmas.shape
 
         # control basis functions at x
         b = self.control_basis_functions(x, mus, sigmas)
@@ -336,9 +336,9 @@ class langevin_1d:
             x (float or ndarray) : position
             u (float or ndarray) : control at x
         '''
-        assert type(x) == type(u), "Error"
+        assert type(x) == type(u)
         if type(x) == np.ndarray:
-            assert x.shape == u.shape, "Error"
+            assert x.shape == u.shape
 
         return double_well_1d_gradient(x) + self.bias_gradient(u)
     
