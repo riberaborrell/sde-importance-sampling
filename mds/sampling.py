@@ -687,6 +687,12 @@ class langevin_1d:
         f.write('Y_0: {:2.1f}\n'.format(self.xzero))
         f.write('target set: [{:2.1f}, {:2.1f}]\n\n'
                 ''.format(self.target_set_min, self.target_set_max))
+        
+        if self.is_drifted:
+            f.write('m: {:d}\n'.format(self.m))
+            f.write('smallest mu: {:2.2f}\n'.format(np.min(self.mus)))
+            f.write('biggest mu: {:2.2f}\n'.format(np.max(self.mus)))
+            f.write('sigma: {:2.2f}\n\n'.format(self.sigmas[0]))
 
         f.write('sampled trajectories: {:d}\n'.format(self.M))
         f.write('time steps: {:d}\n\n'.format(self.N))

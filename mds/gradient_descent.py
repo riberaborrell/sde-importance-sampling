@@ -178,6 +178,8 @@ class gradient_descent:
         )
 
     def write_statistics(self):
+        sample = self.sample
+
         # set path
         time_stamp = datetime.today().strftime('%Y%m%d_%H%M%S')
         file_path = os.path.join(
@@ -188,7 +190,11 @@ class gradient_descent:
         # write in file
         f = open(file_path, "w")
         
-        f.write('m: {:d}\n'.format(self.sample.m))
+        f.write('m: {:d}\n'.format(sample.m))
+        f.write('smallest mu: {:2.2f}\n'.format(np.min(sample.mus)))
+        f.write('biggest mu: {:2.2f}\n'.format(np.max(sample.mus)))
+        f.write('sigma: {:2.2f}\n\n'.format(sample.sigmas[0]))
+
         for j in np.arange(self.sample.m):
             f.write('a_opt_j: {:2.4e}\n'.format(self.sample.a_opt[j]))
         f.write('\n')
@@ -196,10 +202,12 @@ class gradient_descent:
         for epoch in np.arange(self.epochs):
             f.write('epoch = {:d}\n'.format(epoch))
             f.write('loss = {:2.4e}\n'.format(self.losses[epoch]))
-            f.write('a_dif = {:2.4e}\n\n'.format(self.a_dif[epoch]))
+            f.write('|grad_loss|_2 = {:2.4e}\n'
+                    ''.format(np.linalg.norm(self.grad_losses[epoch])))
+            f.write('|a_dif|_2 = {:2.4e}\n\n'.format(self.a_dif[epoch]))
 
         f.write('epoch = {:d}\n'.format(self.epochs))
-        f.write('a_dif = {:2.4e}\n'.format(self.a_dif[self.epochs]))
+        f.write('|a_dif|_2 = {:2.4e}\n'.format(self.a_dif[self.epochs]))
             
         f.close()
 
