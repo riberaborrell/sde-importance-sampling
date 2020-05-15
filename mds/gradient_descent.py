@@ -30,6 +30,7 @@ class gradient_descent:
 
         self.do_ipa = do_ipa
         self.do_fd = do_fd
+        self.delta = 1.
 
     def set_sample(self):
         # initialize langevin_1d object
@@ -78,7 +79,7 @@ class gradient_descent:
         # assert sign = 1 or sign = -1
         # assert delta > 0
         if delta is None:
-            delta = self.lr / 50
+            delta = self.delta
         perturbation = np.zeros(self.sample.m)
         perturbation[j] = sign * delta
 
@@ -123,7 +124,7 @@ class gradient_descent:
 
                 grad_loss[j] = sample.dt \
                              * (mean_J_pert_j_p - mean_J_pert_j_m) \
-                             / (2 * self.lr / 50)
+                             / (2 * self.delta)
 
 
         # Update parameters
