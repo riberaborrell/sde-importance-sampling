@@ -42,6 +42,13 @@ def get_parser():
         help='Set the standard deviation of the ansatz functions. Default: 0.2',
     )
     parser.add_argument(
+        '--grad-type',
+        dest='grad_type',
+        choices=['ipa', 'fd'],
+        default='ipa',
+        help='Type of gradient computation (ipa or fd). Default: ipa',
+    )
+    parser.add_argument(
         '--a-type',
         dest='a_type',
         choices=['optimal', 'meta', 'null'],
@@ -64,8 +71,7 @@ def main():
         lr=args.lr,
         epochs=args.epochs,
         M=args.M,
-        #do_ipa=True,
-        do_fd=True,
+        grad_type=args.grad_type,
         do_plots=args.do_plots,
     )
     

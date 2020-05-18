@@ -12,7 +12,7 @@ GD_FIGURES_PATH = os.path.join(MDS_PATH, 'figures/gradient_descent_greedy')
 class gradient_descent:
     '''
     '''
-    def __init__(self, lr, epochs, M, do_ipa=False, do_fd=False, do_plots=False):
+    def __init__(self, lr, epochs, M, grad_type, do_plots=False):
         '''
         '''
         self.lr = lr
@@ -28,8 +28,7 @@ class gradient_descent:
 
         self.do_plots = do_plots
 
-        self.do_ipa = do_ipa
-        self.do_fd = do_fd
+        self.grad_type = grad_type
         self.delta = 1.
 
     def set_sample(self):
@@ -96,14 +95,14 @@ class gradient_descent:
 
         # compute loss function and its gradient
         # infinitessimal perturbetion analysis
-        if self.do_ipa:
+        if self.grad_type == 'ipa':
             sample.sample_soc(do_ipa=True)
             sample.compute_statistics()
             loss = sample.mean_J
             grad_loss = sample.mean_gradJ
         
         # finite differences
-        if self.do_fd:
+        if self.grad_type == 'fd':
             sample.sample_soc()
             sample.compute_statistics()
             loss = sample.mean_J
@@ -190,6 +189,12 @@ class gradient_descent:
 
         # write in file
         f = open(file_path, "w")
+        
+        f.write('learning rate: {:2.2f}\n'.format(self.lr))
+        f.write('epochs: {:d}\n'.format(self.epochs))
+        f.write('M: {:d}\n\n'.format(self.M))
+        
+        f.write('grad type: {}\n\n'.format(self.grad_type))
         
         f.write('m: {:d}\n'.format(sample.m))
         f.write('smallest mu: {:2.2f}\n'.format(np.min(sample.mus)))
