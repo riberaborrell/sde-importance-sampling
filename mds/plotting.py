@@ -20,6 +20,14 @@ class Plot:
             )
         else:
             return None
+    
+    def potential(self, X, V):
+        plt.plot(X, V, 'b-', label=r'Potential $V(x)$')
+        plt.xlabel('x', fontsize=16)
+        plt.ylim(top=8, bottom=0)
+        plt.legend(loc='upper left', fontsize=8)
+        plt.savefig(self.file_path)
+        plt.close()
 
     def potential_and_gradient(self, X, V, dV):
         plt.plot(X, V, 'b-', label=r'Potential $V(x)$')
