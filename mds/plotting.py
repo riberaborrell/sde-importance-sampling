@@ -106,6 +106,28 @@ class Plot:
         plt.savefig(self.file_path)
         plt.close()
 
+    def ansatz_functions(self, sample):
+        X = np.linspace(-2, 2, 1000)
+        ansatz_functions = sample.ansatz_functions(X)
+        m = len(ansatz_functions)
+        for j in range(m):
+            mu = sample.mus[j]
+            sigma = sample.sigmas[j]
+            label = r'$v_{' + str(j+1) + '}(x;' + str(mu) + ',' + str(sigma) + ')$'
+            plt.plot(X, ansatz_functions[j], label=label)
+        plt.title(r'$v_{j}(x; \mu, \sigma)$')
+        plt.xlabel('x', fontsize=16)
+        plt.legend(loc='upper left', fontsize=8)
+        plt.savefig(self.file_path)
+        plt.close()
+    
+    #def ansatz_functions(self, X, ans, weig_ans, V, Vbias):
+    #plt.plot(X, weig_ans[j], 'g-', label=r'$a_j v_j(x)$')
+    #plt.plot(X, V, 'b-', label=r'$V(x)$')
+    #plt.plot(X, Vbias, 'r-', label=r'$V_{bias}(x)$')
+    #plt.plot(X, V + Vbias, 'm-', label=r'$\tilde{V}(x)$')
+    #plt.ylim(top=4, bottom=0)
+
     #TODO plot potential and gradient in 1D.
 
     #TODO plot tilted potential and basis functions

@@ -758,7 +758,7 @@ class langevin_1d:
 
     def plot_optimal_potential_and_gradient(self):
         # tilted optimal potential and gradient on a gaussian basis 
-        X = np.linspace(-2, 2, 100)
+        X = np.linspace(-2, 2, 1000)
         V = double_well_1d_potential(X)
         dV = double_well_1d_gradient(X)
         Vbias = self.bias_potential(X, self.a_opt)
@@ -766,4 +766,17 @@ class langevin_1d:
         dVbias = - np.sqrt(2) * U
         pl = Plot(file_name='potential_and_gradient_optimal')
         pl.tilted_potential_and_gradient(X, V, dV, Vbias, dVbias)
+    
+    def plot_ansatz_functions(self):
+        pl = Plot(file_name='gaussian_ansatz_functions')
+        pl.ansatz_functions(self)
 
+        #V = double_well_1d_potential(X)
+        #Vbias = self.bias_potential(X)
+        #weighted_ansatz_functions = 2 \
+        #                          * self.a.reshape(self.m, 1) \
+        #                          * ansatz_functions
+        #pl.ansatz_functions(X, ansatz_functions, weighted_ansatz_functions,
+        #                    V, Vbias)
+        #pl.ansatz_functions(X, ansatz_functions, weighted_ansatz_functions,
+        #                    V, Vbias)

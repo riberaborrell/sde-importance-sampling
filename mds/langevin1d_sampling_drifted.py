@@ -104,7 +104,9 @@ def main():
     # plot potential and gradient
     if args.do_plots:
         sample.plot_potential_and_gradient(file_name='potential_and_gradient_drifted')
+        sample.plot_ansatz_functions()
 
+    exit()
     # set sampling and Euler-Majurama parameters
     sample.set_sampling_parameters(
         seed=args.seed,

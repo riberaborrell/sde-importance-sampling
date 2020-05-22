@@ -190,7 +190,7 @@ class gradient_descent:
         # write in file
         f = open(file_path, "w")
         
-        f.write('learning rate: {:2.2f}\n'.format(self.lr))
+        f.write('learning rate: {:2.3f}\n'.format(self.lr))
         f.write('epochs: {:d}\n'.format(self.epochs))
         f.write('M: {:d}\n\n'.format(self.M))
         
