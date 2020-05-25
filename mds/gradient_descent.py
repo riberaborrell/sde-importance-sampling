@@ -12,7 +12,7 @@ GD_FIGURES_PATH = os.path.join(MDS_PATH, 'figures/gradient_descent_greedy')
 class gradient_descent:
     '''
     '''
-    def __init__(self, lr, epochs, M, grad_type, do_plots=False):
+    def __init__(self, lr, epochs, M, grad_type, delta=None, do_plots=False):
         '''
         '''
         self.lr = lr
@@ -23,13 +23,13 @@ class gradient_descent:
         self.grad_losses = None
         self.a_s = None
         self.a_dif = None
-        
+
         self.sample = None
 
         self.do_plots = do_plots
 
         self.grad_type = grad_type
-        self.delta = 1.
+        self.delta = delta if delta is not None else None
 
     def set_sample(self):
         # initialize langevin_1d object
@@ -50,14 +50,16 @@ class gradient_descent:
 
         # set uniformly distributed ansatz functions
         self.sample.set_unif_dist_ansatz_functions(m, sigma)
+        if self.do_plots:
+            self.sample.plot_ansatz_functions()
 
         # set optimal solution in the ansatz function basis
         self.sample.set_a_optimal()
         self.sample.plot_optimal_potential_and_gradient()
-        
+
         # preallocate coefficient a of the gd
         self.a_s = np.zeros((epochs + 1, m))
-        
+
         # preallocate grad of the losses 
         self.grad_losses = np.zeros((epochs, m))
 
@@ -100,13 +102,13 @@ class gradient_descent:
             sample.compute_statistics()
             loss = sample.mean_J
             grad_loss = sample.mean_gradJ
-        
+
         # finite differences
         if self.grad_type == 'fd':
             sample.sample_soc()
             sample.compute_statistics()
             loss = sample.mean_J
-            grad_loss = np.zeros(sample.m) 
+            grad_loss = np.zeros(sample.m)
 
             for j in np.arange(self.sample.m):
                 a_pert_j_p = self.perturb_a(a, j, 1)
@@ -114,37 +116,36 @@ class gradient_descent:
                 sample.sample_soc()
                 sample.compute_statistics()
                 mean_J_pert_j_p = sample.mean_J
+                print(a_pert_j_p)
+                print(mean_J_pert_j_p)
 
                 a_pert_j_m = self.perturb_a(a, j, -1)
                 sample.a = a_pert_j_m
                 sample.sample_soc()
                 sample.compute_statistics()
                 mean_J_pert_j_m = sample.mean_J
+                print(a_pert_j_m)
+                print(mean_J_pert_j_m)
 
-                grad_loss[j] = sample.dt \
-                             * (mean_J_pert_j_p - mean_J_pert_j_m) \
+                grad_loss[j] = (mean_J_pert_j_p - mean_J_pert_j_m) \
                              / (2 * self.delta)
-
+                print(grad_loss[j])
 
         # Update parameters
-        a_updated = a - lr * grad_loss 
-        
+        a_updated = a - lr * grad_loss
+
         # Returns the parameters, the loss and the gradient
         return a_updated, loss, grad_loss
 
     def gradient_descent_greedy(self):
         epochs = self.epochs
-        
+
         for epoch in np.arange(epochs):
-            
+
             # plot potential and gradient
             if self.do_plots:
-                self.sample.a = self.a_s[epoch]
-                file_name = 'potential_and_gradient_gd_greedy_epoch{:d}'.format(epoch)
-                self.sample.plot_potential_and_gradient(
-                    file_name=file_name,
-                    dir_path=GD_FIGURES_PATH,
-                )
+                self.plot_potential_and_gradient_per_epoch(epoch)
+
             # compute loss and its gradient and update parameters
             a, loss, grad_loss = self.train_step(self.a_s[epoch])
 
@@ -160,6 +161,10 @@ class gradient_descent:
 
         # compute eucl dist between a and a opt
         self.a_dif = np.linalg.norm(self.a_s - self.sample.a_opt, axis=1)
+
+        # plot potential and gradient
+        if self.do_plots:
+            self.plot_potential_and_gradient_per_epoch(epoch + 1)
 
     def save_statistics(self):
         # save as and losses
@@ -183,40 +188,49 @@ class gradient_descent:
         # set path
         time_stamp = datetime.today().strftime('%Y%m%d_%H%M%S')
         file_path = os.path.join(
-            DATA_PATH, 
+            DATA_PATH,
             'langevin1d_gd_greedy' + time_stamp + '.txt',
         )
 
         # write in file
         f = open(file_path, "w")
-        
+
         f.write('learning rate: {:2.3f}\n'.format(self.lr))
         f.write('epochs: {:d}\n'.format(self.epochs))
         f.write('M: {:d}\n\n'.format(self.M))
-        
+
         f.write('grad type: {}\n\n'.format(self.grad_type))
-        
+
         f.write('m: {:d}\n'.format(sample.m))
         f.write('smallest mu: {:2.2f}\n'.format(np.min(sample.mus)))
         f.write('biggest mu: {:2.2f}\n'.format(np.max(sample.mus)))
         f.write('sigma: {:2.2f}\n\n'.format(sample.sigmas[0]))
 
-        for j in np.arange(self.sample.m):
-            f.write('a_opt_j: {:2.4e}\n'.format(self.sample.a_opt[j]))
-        f.write('\n')
+        f.write('a_opt_j: {}\n\n'.format(self.sample.a_opt))
 
         for epoch in np.arange(self.epochs):
             f.write('epoch = {:d}\n'.format(epoch))
+            f.write('a = {}\n'.format(self.a_s[epoch]))
+            f.write('|a_dif|_2 = {:2.4e}\n'.format(self.a_dif[epoch]))
             f.write('loss = {:2.4e}\n'.format(self.losses[epoch]))
-            f.write('|grad_loss|_2 = {:2.4e}\n'
+            f.write('grad_loss = {}\n'.format(self.grad_losses[epoch]))
+            f.write('|grad_loss|_2 = {:2.4e}\n\n'
                     ''.format(np.linalg.norm(self.grad_losses[epoch])))
-            f.write('|a_dif|_2 = {:2.4e}\n\n'.format(self.a_dif[epoch]))
 
-        f.write('epoch = {:d}\n'.format(self.epochs))
-        f.write('|a_dif|_2 = {:2.4e}\n'.format(self.a_dif[self.epochs]))
-            
+        f.write('epoch = {:d}\n'.format(epoch + 1))
+        f.write('a = {}\n'.format(self.a_s[epoch + 1]))
+        f.write('|a_dif|_2 = {:2.4e}\n'.format(self.a_dif[epoch + 1]))
+
         f.close()
 
+    def plot_potential_and_gradient_per_epoch(self, epoch):
+        file_name = 'potential_and_gradient_gd_greedy_epoch{:d}' \
+                    ''.format(epoch)
+        self.sample.a = self.a_s[epoch]
+        self.sample.plot_potential_and_gradient(
+            file_name=file_name,
+            dir_path=GD_FIGURES_PATH,
+        )
 
     def plot_tilted_potentials(self):
         sample = self.sample
@@ -230,7 +244,7 @@ class gradient_descent:
         for epoch in np.arange(epochs + 1):
             sample.a = a_s[epoch]
             Vs[epoch, :] = sample.tilted_potential(X)
-        
+
         # compute optimal tilted potential
         sample.a = sample.a_opt
         Voptimal = sample.tilted_potential(X)

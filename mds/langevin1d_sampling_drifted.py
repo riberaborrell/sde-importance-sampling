@@ -86,14 +86,15 @@ def get_parser():
 
 def main():
     args = get_parser().parse_args()
-    
+
     # initialize langevin_1d object
     sample = sampling.langevin_1d(beta=args.beta)
 
     # set ansatz functions and a optimal
     sample.set_unif_dist_ansatz_functions(m=args.m, sigma=args.sigma)
     sample.set_a_optimal()
-    
+    print(sample.a_opt)
+
     # set a 
     if args.a_type == 'optimal':
         sample.is_drifted = True
@@ -111,7 +112,7 @@ def main():
     sample.set_sampling_parameters(
         seed=args.seed,
         xzero=args.xzero,
-        M=args.M, 
+        M=args.M,
         target_set=args.target_set,
         dt=args.dt,
         N=args.N,
@@ -123,7 +124,7 @@ def main():
     # compute and print statistics
     sample.compute_statistics()
     sample.save_statistics()
-    
+
 
 if __name__ == "__main__":
     main()

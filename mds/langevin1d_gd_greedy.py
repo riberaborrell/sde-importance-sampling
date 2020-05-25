@@ -49,6 +49,13 @@ def get_parser():
         help='Type of gradient computation (ipa or fd). Default: ipa',
     )
     parser.add_argument(
+        '--delta',
+        dest='delta',
+        type=float,
+        default=None,
+        help='Set step size for the finite differences. Default: None',
+    )
+    parser.add_argument(
         '--a-type',
         dest='a_type',
         choices=['optimal', 'meta', 'null'],
@@ -65,23 +72,24 @@ def get_parser():
 
 def main():
     args = get_parser().parse_args()
-    
+
     # initialize gradient descent object
     soc = gradient_descent.gradient_descent(
         lr=args.lr,
         epochs=args.epochs,
         M=args.M,
         grad_type=args.grad_type,
+        delta=args.delta,
         do_plots=args.do_plots,
     )
-    
+
     # set the sde to sample and the sampling parameters
     soc.set_sample()
 
     # set ansatz functions and a optimal
     soc.set_ansatz_functions_greedy(m=args.m, sigma=args.sigma)
     print(soc.sample.a_opt)
-    
+
     # set initial a
     if args.a_type == 'optimal':
         soc.set_a_optimal_greedy()
@@ -93,7 +101,7 @@ def main():
     soc.gradient_descent_greedy()
     soc.save_statistics()
     soc.write_statistics()
-    
+
     # plot tilted potential and gradient
     if args.do_plots:
         soc.plot_tilted_potentials()
