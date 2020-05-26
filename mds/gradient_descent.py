@@ -101,7 +101,11 @@ class gradient_descent:
             sample.sample_soc(do_ipa=True)
             sample.compute_statistics()
             loss = sample.mean_J
-            grad_loss = sample.mean_gradJ
+            mean_fht = sample.mean_fht
+            mean_cost = sample.mean_cost
+            mean_gradJ = sample.mean_gradJ
+            mean_gradSh = sample.mean_gradSh
+            grad_loss = mean_gradJ + (mean_fht + mean_cost) * mean_gradSh
 
         # finite differences
         if self.grad_type == 'fd':
@@ -116,20 +120,15 @@ class gradient_descent:
                 sample.sample_soc()
                 sample.compute_statistics()
                 mean_J_pert_j_p = sample.mean_J
-                print(a_pert_j_p)
-                print(mean_J_pert_j_p)
 
                 a_pert_j_m = self.perturb_a(a, j, -1)
                 sample.a = a_pert_j_m
                 sample.sample_soc()
                 sample.compute_statistics()
                 mean_J_pert_j_m = sample.mean_J
-                print(a_pert_j_m)
-                print(mean_J_pert_j_m)
 
                 grad_loss[j] = (mean_J_pert_j_p - mean_J_pert_j_m) \
                              / (2 * self.delta)
-                print(grad_loss[j])
 
         # Update parameters
         a_updated = a - lr * grad_loss

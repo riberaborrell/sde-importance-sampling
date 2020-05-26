@@ -20,7 +20,7 @@ class Plot:
             )
         else:
             return None
-    
+
     def potential(self, X, V):
         plt.plot(X, V, 'b-', label=r'Potential $V(x)$')
         plt.xlabel('x', fontsize=16)
@@ -37,7 +37,7 @@ class Plot:
         plt.legend(loc='upper left', fontsize=8)
         plt.savefig(self.file_path)
         plt.close()
-    
+
     def tilted_potential_and_gradient(self, X, V, dV, Vbias, dVbias, Vopt=None, dVopt=None):
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 8))
         ax1.plot(X, V, 'b-', label=r'$V(x)$')
@@ -47,7 +47,7 @@ class Plot:
             ax1.plot(X, Vopt, 'c-', label=r'$\tilde{V}_{opt}(x)$')
         ax1.set_xlabel('x', fontsize=16)
         ax1.set_xlim(left=-1.8, right=1.8)
-        ax1.set_ylim(top=8, bottom=0)
+        ax1.set_ylim(top=8, bottom=-4)
         ax1.legend(loc='upper right', fontsize=8)
         ax1.grid(True)
         ax2.plot(X, dV, 'b-.', label=r'$\nabla V(x)$')
@@ -62,7 +62,7 @@ class Plot:
         ax2.grid(True)
         fig.savefig(self.file_path)
         plt.close()
-    
+
     def tilted_potential(self, X, V, Vbias):
         plt.plot(X, V, 'b-', label=r'Potential $V(x)$')
         plt.plot(X, Vbias, 'r-', label=r'bias Potential $V_{bias}(x)$')
@@ -84,7 +84,7 @@ class Plot:
         plt.legend(loc='upper left', fontsize=8)
         plt.savefig(self.file_path)
         plt.close()
-    
+
     def gradient_descent_tilted_potentials(self, X, Vs, Vopt):
         for i, V in enumerate(Vs):
             label = r'epoch = {:d}'.format(i)
@@ -120,7 +120,7 @@ class Plot:
         plt.legend(loc='upper left', fontsize=8)
         plt.savefig(self.file_path)
         plt.close()
-    
+
     #def ansatz_functions(self, X, ans, weig_ans, V, Vbias):
     #plt.plot(X, weig_ans[j], 'g-', label=r'$a_j v_j(x)$')
     #plt.plot(X, V, 'b-', label=r'$V(x)$')
