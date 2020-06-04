@@ -1,13 +1,16 @@
-from potentials_and_gradients import double_well_1d_gradient
-
 import numpy as np
 
-class langevin_1d_reference_solution():
-    def __init__(self, beta, target_set_min, target_set_max):
-        if target_set_min >= target_set_max:
-            #TODO raise error
-            print("The target set interval is not valid")
+from inspect import isfunction
 
+class langevin_1d_reference_solution():
+    def __init__(self, gradient, beta, target_set_min, target_set_max):
+
+        assert isfunction(gradient), 'the gradient must be a function'
+
+        assert target_set_min < target_set_max, \
+            'The target set interval is not valid'
+
+        self.gradient = gradient
         self.beta = beta
         self.target_set_min = target_set_min
         self.target_set_max = target_set_max
@@ -20,14 +23,15 @@ class langevin_1d_reference_solution():
             Its solution is the moment generating function associated
             to the overdamped langevin sde.
         '''
+        gradient = self.gradient
         beta = self.beta
         target_set_min = self.target_set_min
         target_set_max = self.target_set_max
 
         # discretization of the state space
-        omega_min = -2
-        omega_max = 2
-        h = 0.01
+        omega_min = -3
+        omega_max = 3
+        h = 0.004002
         N = int((omega_max - omega_min) / h + 1)
         omega_h = np.linspace(omega_min, omega_max, N)
         target_set_h_idx = np.where((omega_h >= target_set_min) & (omega_h <= target_set_max))
@@ -42,7 +46,7 @@ class langevin_1d_reference_solution():
 
         # weights of Psi
         for i in np.arange(1, N-1):
-            dV_bias = double_well_1d_gradient(omega_h[i])
+            dV_bias = gradient(omega_h[i])
             A[i, i - 1] = 1 / (beta**2 * h**2) + dV_bias / (beta * 2 * h)
             A[i, i] = - 2 / (beta**2 * h**2) - 1
             A[i, i + 1] = 1 / (beta**2 * h**2) - dV_bias / (beta * 2 * h)
@@ -52,18 +56,18 @@ class langevin_1d_reference_solution():
         for i in target_set_h_idx:
             A[i, i] = 1
         B[target_set_h_idx] = 1
-        
+
         # stability: Psi shall be flat on the boundary
         A[0, :] = 0
-        A[0, 0] = 1 
-        A[0, 1] = -1 
+        A[0, 0] = 1
+        A[0, 1] = -1
         B[0] = 0
-        
+
         A[N - 1, :] = 0
-        A[N - 1 , N - 1] = 1 
-        A[N - 1 , N - 2] = -1 
+        A[N - 1 , N - 1] = 1
+        A[N - 1 , N - 2] = -1
         B[N - 1] = 0
-        
+
         # Apply the Shortley-Welley method. Psi solves the following linear system of equations
         Psi = np.linalg.solve(A, B)
 

@@ -69,10 +69,10 @@ def main():
     sample = sampling.langevin_1d(beta=args.beta)
 
     # set sampling and Euler-Majurama parameters
-    sample.set_sampling_parameters( 
-        seed=args.seed, 
+    sample.set_sampling_parameters(
+        seed=args.seed,
         xzero=args.xzero,
-        M=args.M, 
+        M=args.M,
         target_set=args.target_set,
         dt=args.dt,
         N=args.N,
@@ -80,7 +80,7 @@ def main():
     # plot potential and gradient
     if args.do_plots:
         sample.plot_potential_and_gradient(file_name='potential_and_gradient_not_drifted')
-    
+
     # sample
     sample.sample_not_drifted()
 

@@ -1,32 +1,72 @@
 import numpy as np
-import matplotlib.pyplot as plt
+from scipy import stats
 
-from scipy.stats import norm
+def get_potential_and_gradient(potential_name):
+    '''Given a potential name this methods returns the corresponding
+       potential function and gradient function.
+    Args:
+        potential_name (str) : label of the potential
+    '''
+    if potential_name == 'sym_1well':
+        potential = one_well_potential
+        gradient = one_well_gradient
 
-def double_well_1d_potential(x, alpha=1):
-    '''This method returns a potential function evaluated at the point/s x
+    elif potential_name == 'sym_2well':
+        potential = symmetric_double_well_potential
+        gradient = symmetric_double_well_gradient
+
+    elif potential_name == 'asym_2well':
+        potential = asymmetric_double_well_potential
+        gradient = asymmetric_double_well_gradient
+
+    return potential, gradient
+
+def one_well_potential(x):
+    ''' Potential V(x)=(x-1)^2 evaluated at x
+    Args:
+        x (float or float array) : posicion/s
+    '''
+    return (x - 1)**2
+
+def one_well_gradient(x):
+    ''' Gradient dV(x)=2(x-1) evaluated at x
+    Args:
+        x (float or float array) : posicion/s
+    '''
+    return 2 * (x - 1)
+
+def symmetric_double_well_potential(x, alpha=1):
+    ''' Potential V(x;alpha)=alpha(x^2-1)^2 evaluated at x
     Args:
         x (float or float array) : posicion/s
         alpha (float) : parameter
     '''
     return alpha * (x**2 - 1)**2
 
-def double_well_1d_gradient(x, alpha=1):
-    '''This method returns the gradient of a potential function evaluated
-    at the point/s x
+def symmetric_double_well_gradient(x, alpha=1):
+    ''' Gradient dV(x;alpha)=4 alpha x(x^2-1) evaluated at x
     Args:
         x (float or float array) : posicion/s
         alpha (float) : parameter
     '''
     return 4 * alpha * x * (x**2 - 1)
 
-def one_well_1d_potential(x):
-    return (x - 1)**2
+def asymmetric_double_well_potential(x):
+    ''' Potential V(x)=(x^2-1)^2 - 0.2x + 0.3 at x
+    Args:
+        x (float or float array) : posicion/s
+    '''
+    return (x**2 - 1)**2 - 0.2*x + 0.3
 
-def one_well_1d_gradient(x):
-    return 2 * (x - 1)
+def asymmetric_double_well_gradient(x):
+    ''' Gradient dV(x)=4x(x^2-1) -0.2  evaluated at x
+    Args:
+        x (float or float array) : posicion/s
+    '''
+    return 4 * x * (x**2 - 1) - 0.2
 
-#TODO deprecated. Use norm.pdf(x, mu, sigma)
+
+#TODO deprecated. Use stats.norm.pdf(x, mu, sigma)
 def normal_pdf(x, mu=0, sigma=1):
     '''This method evaluates the normal probability density with mean
     mu and standard deviation sigma at the point x.
@@ -49,7 +89,7 @@ def derivative_normal_pdf(x, mu=0, sigma=1):
         mu (float or ndarray): mean
         sigma (float or ndarray) : standard deviation
     '''
-    return norm.pdf(x, mu, sigma) * (mu - x) / sigma**2
+    return stats.norm.pdf(x, mu, sigma) * (mu - x) / sigma**2
 
 def bias_potential(x, omegas, mus, sigmas):
     '''This method computes the bias potential evaluated at the point x
@@ -67,7 +107,7 @@ def bias_potential(x, omegas, mus, sigmas):
         sigmas = sigmas.reshape(sigmas.shape[0], 1)
 
     # get bias functions (gaussians) evalutated at x
-    b = norm.pdf(x, mus, sigmas)
+    b = stats.norm.pdf(x, mus, sigmas)
 
     # scalar product
     Vbias = np.dot(omegas, b)
