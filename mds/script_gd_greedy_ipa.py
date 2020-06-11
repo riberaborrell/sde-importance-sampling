@@ -75,7 +75,7 @@ def main():
     ref_sol = np.load(
         os.path.join(DATA_PATH, 'langevin1d_reference_solution.npz')
     )
-    Omega_h = ref_sol['omega_h']
+    omega_h = ref_sol['omega_h']
     Psi_opt = ref_sol['Psi']
     F_opt = ref_sol['F']
     u_opt = ref_sol['u_opt']
@@ -87,19 +87,19 @@ def main():
     sigma = sigmas[0]
 
     # plot ansatz functions
-    #plot_ansatz_functions(Omega_h, mus, sigmas)
+    #plot_ansatz_functions(omega_h, mus, sigmas)
 
     # get optimal coefficients
-    a_opt = get_optimal_coefficients(Omega_h, target_set, u_opt, mus, sigmas)
+    a_opt = get_optimal_coefficients(omega_h, target_set, u_opt, mus, sigmas)
 
     # set gd parameters
-    lr = 0.1
+    lr = 0.08
     epochs = 10
 
     # coefficients, performance function and free energy
     a_s = np.zeros((epochs + 1, m))
     loss = np.zeros(epochs + 1)
-    F = np.zeros((epochs + 1, len(Omega_h)))
+    F = np.zeros((epochs + 1, len(omega_h)))
 
     # set initial coefficients
     a_init_type = 'null'
@@ -107,11 +107,11 @@ def main():
 
     # gradient descent
     for epoch in range(epochs):
-        F[epoch, :] = compute_free_energy(Omega_h, target_set, a_s[epoch, :], mus, sigmas)
+        F[epoch, :] = compute_free_energy(omega_h, target_set, a_s[epoch, :], mus, sigmas)
         print(epoch)
-        plot_control(epoch, Omega_h, u_opt, a_s[epoch, :], mus, sigmas)
-        plot_free_energy(epoch, Omega_h, potential, F_opt, F[epoch])
-        plot_tilted_potential(epoch, Omega_h, potential, F_opt, F[epoch])
+        #plot_control(epoch, omega_h, u_opt, a_s[epoch, :], mus, sigmas)
+        #plot_free_energy(epoch, omega_h, potential, F_opt, F[epoch])
+        plot_tilted_potential(epoch, omega_h, potential, F_opt, F[epoch])
 
         mean_fht, mean_cost, mean_gradJ, mean_gradSh \
             = sample_loss(gradient, beta, xzero, target_set,
@@ -128,8 +128,8 @@ def main():
 
     epoch += 1
     print(epoch)
-    #plot_control(epoch, Omega_h, u_opt, a_s[epoch, :], mus, sigmas)
-    #plot_tilted_potential_and_free_energy(epoch, Omega_h, potential, F_opt,
+    #plot_control(epoch, omega_h, u_opt, a_s[epoch, :], mus, sigmas)
+    #plot_tilted_potential_and_free_energy(epoch, omega_h, potential, F_opt,
     #                                      a_s[epoch, :], mus, sigmas)
 
 def get_ansatz_functions(x, mus, sigmas):
@@ -183,8 +183,8 @@ def set_unif_dist_ansatz_functions(omega, target_set, m):
     sigma = (sigma_left + sigma_right) / 2
     sigmas = sigma * np.ones(m)
 
-    #mu_min = -2.2
-    #mu_max = 0.8
+    mu_min = -2.2
+    mu_max = 0.8
     #mu_min = -1.1
     #mu_max = 1.9
     #m = 51
@@ -304,11 +304,11 @@ def sample_loss(gradient, beta, xzero, target_set, M, m, a, mus, sigmas):
         # save first hitting time
         fht[new_idx] = n * dt
         cost[new_idx] = cost_temp[new_idx]
-        gradSh[:, new_idx] = gradSh_temp[:, new_idx] * beta * np.sqrt(dt / 2)
-        #gradSh[:, new_idx] = gradSh_temp[:, new_idx] * (- np.sqrt(dt * beta))
+        #gradSh[:, new_idx] = - gradSh_temp[:, new_idx] * beta * np.sqrt(dt / 2)
+        gradSh[:, new_idx] = - gradSh_temp[:, new_idx] * np.sqrt(dt * beta)
         gradJ[:, new_idx] = sum_grad_gh_temp[:, new_idx] \
-                               + (n * dt + cost_temp[new_idx]) \
-                               * gradSh[:, new_idx]
+                          - (n * dt + cost_temp[new_idx]) \
+                          * gradSh[:, new_idx]
 
         # check if all trajectories have arrived to the target set
         if been_in_target_set.all() == True:
@@ -346,7 +346,7 @@ def plot_control(epoch, X, u_opt, a, mus, sigmas):
 
     plt.plot(X, u, label='control')
     plt.plot(X, u_opt, label='optimal control')
-    plt.xlim(left=-2, right=2)
+    plt.xlim(left=-3, right=3)
     plt.ylim(bottom=-5, top=5)
     plt.legend()
 
@@ -371,7 +371,7 @@ def plot_tilted_potential(epoch, X, potential, F_opt, F):
     V = potential(X)
     plt.plot(X, V + 2 * F, label='approx potential')
     plt.plot(X, V + 2 * F_opt, label='optimal tilted potential')
-    plt.xlim(left=-2, right=2)
+    plt.xlim(left=-3, right=3)
     plt.ylim(bottom=0, top=15)
     plt.legend()
 
