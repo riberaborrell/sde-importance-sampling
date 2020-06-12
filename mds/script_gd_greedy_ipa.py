@@ -69,7 +69,7 @@ def main():
     beta = args.beta
     xzero = args.xzero
     target_set = args.target_set
-    M = 100
+    M = 200
 
     # get reference solution
     ref_sol = np.load(
@@ -82,9 +82,8 @@ def main():
 
     # ansatz functions basis
     m = 50
-    omega = np.array([-3, 3])
-    mus, sigmas = set_unif_dist_ansatz_functions(omega, target_set, m)
-    sigma = sigmas[0]
+    mus_min, mus_max = (-2, 2)
+    mus, sigmas = set_unif_dist_ansatz_functions(mus_min, mus_max, target_set, m)
 
     # plot ansatz functions
     #plot_ansatz_functions(omega_h, mus, sigmas)
@@ -93,24 +92,26 @@ def main():
     a_opt = get_optimal_coefficients(omega_h, target_set, u_opt, mus, sigmas)
 
     # set gd parameters
-    lr = 0.08
+    lr = 0.1
     epochs = 10
 
-    # coefficients, performance function and free energy
+    # coefficients, performance function, control and free energy
     a_s = np.zeros((epochs + 1, m))
     loss = np.zeros(epochs + 1)
+    u = np.zeros((epochs + 1, len(omega_h)))
     F = np.zeros((epochs + 1, len(omega_h)))
 
     # set initial coefficients
     a_init_type = 'null'
-    a_s[0, :] = set_initial_coefficients(m, sigma, a_opt, a_init_type)
+    a_s[0, :] = set_initial_coefficients(m, np.mean(sigmas), a_opt, a_init_type)
 
     # gradient descent
     for epoch in range(epochs):
-        F[epoch, :] = compute_free_energy(omega_h, target_set, a_s[epoch, :], mus, sigmas)
         print(epoch)
-        #plot_control(epoch, omega_h, u_opt, a_s[epoch, :], mus, sigmas)
-        #plot_free_energy(epoch, omega_h, potential, F_opt, F[epoch])
+        u[epoch, :] = control_on_grid(omega_h, a_s[epoch, :], mus, sigmas)
+        F[epoch, :] = free_energy_on_grid(omega_h, target_set, a_s[epoch, :], mus, sigmas)
+        plot_control(epoch, omega_h, u_opt, u[epoch])
+        plot_free_energy(epoch, omega_h, potential, F_opt, F[epoch])
         plot_tilted_potential(epoch, omega_h, potential, F_opt, F[epoch])
 
         mean_fht, mean_cost, mean_gradJ, mean_gradSh \
@@ -128,9 +129,12 @@ def main():
 
     epoch += 1
     print(epoch)
-    #plot_control(epoch, omega_h, u_opt, a_s[epoch, :], mus, sigmas)
-    #plot_tilted_potential_and_free_energy(epoch, omega_h, potential, F_opt,
-    #                                      a_s[epoch, :], mus, sigmas)
+    u[epoch, :] = control_on_grid(omega_h, a_s[epoch, :], mus, sigmas)
+    F[epoch, :] = free_energy_on_grid(omega_h, target_set, a_s[epoch, :], mus, sigmas)
+    plot_control(epoch, omega_h, u_opt, u[epoch])
+    plot_free_energy(epoch, omega_h, potential, F_opt, F[epoch])
+    plot_tilted_potential(epoch, omega_h, potential, F_opt, F[epoch])
+    plot_gd_tilted_potentials(epochs, omega_h, potential, F_opt, F)
 
 def get_ansatz_functions(x, mus, sigmas):
     if type(x) == np.ndarray:
@@ -139,21 +143,20 @@ def get_ansatz_functions(x, mus, sigmas):
     return stats.norm.pdf(x, mus, sigmas)
 
 
-def set_unif_dist_ansatz_functions(omega, target_set, m):
-    # assume target_set is connected and contained in omega
-    omega_min, omega_max = omega
+def set_unif_dist_ansatz_functions(mus_min, mus_max, target_set, m):
+    # assume target_set is connected and contained in [mus_min, mus_max]
     target_set_min, target_set_max = target_set
 
     # set grid 
     h = 0.001
-    N = int((omega_max - omega_min) / h)
-    omega = np.around(np.linspace(omega_min, omega_max, N + 1), decimals=3)
+    N = int((mus_max - mus_min) / h)
+    X = np.around(np.linspace(mus_min, mus_max, N + 1), decimals=3)
 
     # get indexes for nodes in/out the target set
-    idx_ts = np.where((omega >= target_set_min) & (omega <= target_set_max))[0]
-    idx_nts = np.where((omega < target_set_min) | (omega > target_set_max))[0]
-    idx_l = np.where(omega < target_set_min)[0]
-    idx_r = np.where(omega > target_set_max)[0]
+    idx_ts = np.where((X >= target_set_min) & (X <= target_set_max))[0]
+    idx_nts = np.where((X < target_set_min) | (X > target_set_max))[0]
+    idx_l = np.where(X < target_set_min)[0]
+    idx_r = np.where(X > target_set_max)[0]
 
     # compute ratio of nodes in the left/right side of the target set
     ratio_left = idx_l.shape[0] / idx_nts.shape[0]
@@ -166,25 +169,31 @@ def set_unif_dist_ansatz_functions(omega, target_set, m):
 
     # distribute ansatz functions unif (in each side)
     mus_left = np.around(
-        #np.linspace(omega[idx_l][0], omega[idx_l][-1], m_left),
-        np.linspace(omega[idx_l][0], omega[idx_l][-1], m_left + 2)[1:-1],
+        np.linspace(X[idx_l][0], X[idx_l][-1], m_left + 2)[:-2],
         decimals=3,
     )
     mus_right = np.around(
-        #np.linspace(omega[idx_r][0], omega[idx_r][-1], m_right),
-        np.linspace(omega[idx_r][0], omega[idx_r][-1], m_right + 2)[1:-1],
+        np.linspace(X[idx_r][0], X[idx_r][-1], m_right + 2)[2:],
         decimals=3,
     )
     mus = np.concatenate((mus_left, mus_right), axis=0)
 
-    # compute sigma
-    sigma_left = mus_left[1] - mus_left[0]
-    sigma_right = mus_right[1] - mus_right[0]
-    sigma = (sigma_left + sigma_right) / 2
-    sigmas = sigma * np.ones(m)
+    # compute sigmas
+    sigma_left = np.around(mus_left[1] - mus_left[0], decimals=3)
+    sigma_right = np.around(mus_right[1] - mus_right[0], decimals=3)
+    sigmas_left = sigma_left * np.ones(m_left)
+    sigmas_right = sigma_right * np.ones(m_right)
+    sigmas = np.concatenate((sigmas_left, sigmas_right), axis=0)
+    sigmas *= 2
+    sigma_avg = np.around(np.mean(sigmas), decimals=3)
 
-    mu_min = -2.2
-    mu_max = 0.8
+    print(m_left, m_right, m)
+    print(mus_left[0], mus_left[-1])
+    print(mus_right[0], mus_right[-1])
+    print(sigma_left, sigma_right, sigma_avg)
+
+    #mu_min = -2.2
+    #mu_max = 0.8
     #mu_min = -1.1
     #mu_max = 1.9
     #m = 51
@@ -219,8 +228,8 @@ def get_optimal_coefficients(omega, target_set, u_opt, mus, sigmas):
     return x
 
 
-def set_initial_coefficients(m, sigma, a_opt, a_init_type):
-    pert_factor = sigma
+def set_initial_coefficients(m, sigma_avg, a_opt, a_init_type):
+    pert_factor = sigma_avg
 
     # set a_init
     if a_init_type == 'null':
@@ -323,10 +332,15 @@ def sample_loss(gradient, beta, xzero, target_set, M, m, a, mus, sigmas):
     return mean_fht, mean_cost, mean_gradJ, mean_gradSh
 
 
-def compute_free_energy(omega, target_set, a, mus, sigmas):
-    X = omega
+def control_on_grid(X, a, mus, sigmas):
+    v = get_ansatz_functions(X, mus, sigmas)
+    u = np.dot(a, v)
+    return u
+
+
+def free_energy_on_grid(X, target_set, a, mus, sigmas):
     dx = X[1] - X[0]
-    N = len(omega)
+    N = len(X)
 
     # compute Free energy from the control
     F = np.zeros(N)
@@ -340,10 +354,7 @@ def compute_free_energy(omega, target_set, a, mus, sigmas):
     return F
 
 
-def plot_control(epoch, X, u_opt, a, mus, sigmas):
-    v = get_ansatz_functions(X, mus, sigmas)
-    u = np.dot(a, v)
-
+def plot_control(epoch, X, u_opt, u):
     plt.plot(X, u, label='control')
     plt.plot(X, u_opt, label='optimal control')
     plt.xlim(left=-3, right=3)
@@ -380,29 +391,17 @@ def plot_tilted_potential(epoch, X, potential, F_opt, F):
     plt.savefig(file_path)
     plt.close()
 
-def plot_tilted_potentials(epoch, Omega_h, u_opt, mus, sigmas, a):
-    potential, gradient = get_potential_and_gradient('asym_2well')
-
-    N = 1000
-    X = np.linspace(-2, 2, N)
-    dx = X[1] - X[0]
-
-    # compute Free energy from the control
-    F = np.zeros(N)
-    for k in range(1, N):
-        v = get_ansatz_functions(X[k], mus, sigmas)
-        u_at_x = np.dot(a, v)
-        F[k] = F[k - 1] - (1 / np.sqrt(2.0)) * u_at_x * dx
-
-    # plot potential
+def plot_gd_tilted_potentials(epochs, X, potential, F_opt, F):
     V = potential(X)
-    plt.plot(X, V + 2 * F, label='approx potential')
-    V = potential(Omega_h)
-    plt.plot(Omega_h, V + 2 * F_opt, label='optimal tilted potential')
-    plt.xlim(left=-2, right=2)
+    plt.plot(X, V + 2 * F_opt, linestyle='dashed', label='optimal')
+    for epoch in range(epochs + 1):
+        label = r'epoch = {:d}'.format(epoch)
+        plt.plot(X, V + 2 * F[epoch], linestyle='-', label=label)
+    plt.xlim(left=-3, right=3)
     plt.ylim(bottom=0, top=15)
     plt.legend()
-    file_name = 'approx_tilted_potential_epoch{}.png'.format(epoch)
+
+    file_name = 'approx_tilted_potentials_gd.png'
     file_path = os.path.join(GD_FIGURES_PATH, file_name)
     plt.savefig(file_path)
     plt.close()
