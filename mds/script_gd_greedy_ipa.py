@@ -102,7 +102,7 @@ def main():
     F = np.zeros((epochs + 1, len(omega_h)))
 
     # set initial coefficients
-    a_init_type = 'null'
+    a_init_type = 'opt'
     a_s[0, :] = set_initial_coefficients(m, np.mean(sigmas), a_opt, a_init_type)
 
     # gradient descent
@@ -113,6 +113,7 @@ def main():
         plot_control(epoch, omega_h, u_opt, u[epoch])
         plot_free_energy(epoch, omega_h, potential, F_opt, F[epoch])
         plot_tilted_potential(epoch, omega_h, potential, F_opt, F[epoch])
+        exit()
 
         mean_fht, mean_cost, mean_gradJ, mean_gradSh \
             = sample_loss(gradient, beta, xzero, target_set,
@@ -339,17 +340,29 @@ def control_on_grid(X, a, mus, sigmas):
 
 
 def free_energy_on_grid(X, target_set, a, mus, sigmas):
+    # discretization step and number of grid points
     dx = X[1] - X[0]
     N = len(X)
 
-    # compute Free energy from the control
+    # initialize free energy array
     F = np.zeros(N)
-    for k in np.flip(np.arange(0, N-1)):
-    #for k in np.arange(1, N):
+
+    # get indices where grid in the left / right of the target set
+    target_set_min, target_set_max = target_set
+    idx_l = np.where(X < target_set_min)[0]
+    idx_r = np.where(X > target_set_max)[0]
+
+    # compute free energy in the left of the target set 
+    for k in np.flip(idx_l):
         v = get_ansatz_functions(X[k], mus, sigmas)
-        u_at_x = np.dot(a, v)
-        F[k - 1] = F[k] + (1 / np.sqrt(2.0)) * u_at_x * dx
-        #F[k] = F[k - 1] - (1 / np.sqrt(2.0)) * u_at_x * dx
+        u = np.dot(a, v)
+        F[k - 1] = F[k] + (1 / np.sqrt(2.0)) * u * dx
+
+    # compute free energy in the right of the target set
+    for k in idx_r:
+        v = get_ansatz_functions(X[k], mus, sigmas)
+        u = np.dot(a, v)
+        F[k] = F[k - 1] - (1 / np.sqrt(2.0)) * u * dx
 
     return F
 
