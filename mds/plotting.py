@@ -1,3 +1,5 @@
+from utils import get_figures_path
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -7,7 +9,8 @@ MDS_PATH = os.path.abspath(os.path.dirname(__file__))
 FIGURES_PATH = os.path.join(MDS_PATH, 'figures')
 
 class Plot:
-    def __init__(self, file_name=None, file_type='png', dir_path=FIGURES_PATH):
+    dir_path = get_figures_path()
+    def __init__(self, dir_path=FIGURES_PATH, file_name=None, file_type='png'):
         self.file_name = file_name
         self.file_type = file_type
         self.dir_path = dir_path
@@ -24,7 +27,7 @@ class Plot:
     def potential(self, X, V):
         plt.plot(X, V, 'b-', label=r'Potential $V(x)$')
         plt.xlabel('x', fontsize=16)
-        plt.ylim(top=8, bottom=0)
+        plt.ylim(top=15, bottom=0)
         plt.legend(loc='upper left', fontsize=8)
         plt.savefig(self.file_path)
         plt.close()
@@ -102,6 +105,14 @@ class Plot:
         plt.plot(X, J, 'b-', label='J(x)')
         plt.xlim(left=-1.8, right=1.8)
         plt.ylim(top=3, bottom=0)
+        plt.legend(loc='upper left', fontsize=8)
+        plt.savefig(self.file_path)
+        plt.close()
+
+    def control(self, X, u):
+        plt.plot(X, u, 'b-', label='u(x)')
+        plt.xlim(left=-1.8, right=1.8)
+        plt.ylim(top=5, bottom=-5)
         plt.legend(loc='upper left', fontsize=8)
         plt.savefig(self.file_path)
         plt.close()
