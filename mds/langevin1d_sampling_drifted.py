@@ -11,6 +11,13 @@ def get_parser():
         help='Set the seed for RandomState',
     )
     parser.add_argument(
+        '--potential',
+        dest='potential_name',
+        choices=['sym_1well', 'sym_2well', 'asym_2well'],
+        default='sym_2well',
+        help='Set the potential for the 1D MD SDE. Default: symmetric double well',
+    )
+    parser.add_argument(
         '--beta',
         dest='beta',
         type=float,
@@ -69,11 +76,11 @@ def get_parser():
         help='Set the standard deviation of the ansatz functions. Default: 0.2',
     )
     parser.add_argument(
-        '--a-type',
-        dest='a_type',
-        choices=['optimal', 'meta'],
+        '--a-init',
+        dest='a_init',
+        choices=['null', 'meta', 'optimal'],
         default='optimal',
-        help='Type of drift. Default: optimal',
+        help='Type of control. Default: optimal',
     )
     parser.add_argument(
         '--do-plots',
@@ -88,7 +95,11 @@ def main():
     args = get_parser().parse_args()
 
     # initialize langevin_1d object
-    sample = sampling.langevin_1d(beta=args.beta)
+    sample = sampling.langevin_1d(
+        potential_name=args.potential_name,
+        beta=args.beta,
+        target_set=args.target_set,
+    )
 
     # set ansatz functions and a optimal
     sample.set_unif_dist_ansatz_functions(m=args.m, sigma=args.sigma)
@@ -96,24 +107,24 @@ def main():
     print(sample.a_opt)
 
     # set a 
-    if args.a_type == 'optimal':
+    if args.a_init == 'optimal':
         sample.is_drifted = True
         sample.a = sample.a_opt
-    else:
+    elif args.a_init == 'meta':
+        sample.is_drifted = True
         sample.set_a_from_metadynamics()
 
     # plot potential and gradient
     if args.do_plots:
-        sample.plot_potential_and_gradient(file_name='potential_and_gradient_drifted')
+        sample.plot_tilted_potential(file_name='sampling_drifted_potential')
+        sample.plot_tilted_drift(file_name='sampling_drifted_drift')
         sample.plot_ansatz_functions()
 
-    #exit()
     # set sampling and Euler-Majurama parameters
     sample.set_sampling_parameters(
         seed=args.seed,
         xzero=args.xzero,
         M=args.M,
-        target_set=args.target_set,
         dt=args.dt,
         N=args.N,
     )

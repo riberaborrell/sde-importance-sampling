@@ -11,6 +11,13 @@ def get_parser():
         help='Set the seed for RandomState',
     )
     parser.add_argument(
+        '--potential',
+        dest='potential_name',
+        choices=['sym_1well', 'sym_2well', 'asym_2well'],
+        default='sym_2well',
+        help='Set the potential for the 1D MD SDE. Default: symmetric double well',
+    )
+    parser.add_argument(
         '--beta',
         dest='beta',
         type=float,
@@ -66,20 +73,24 @@ def main():
     args = get_parser().parse_args()
 
     # initialize langevin_1d object
-    sample = sampling.langevin_1d(beta=args.beta)
+    sample = sampling.langevin_1d(
+        potential_name=args.potential_name,
+        beta=args.beta,
+        target_set=args.target_set,
+    )
 
     # set sampling and Euler-Majurama parameters
     sample.set_sampling_parameters(
         seed=args.seed,
         xzero=args.xzero,
         M=args.M,
-        target_set=args.target_set,
         dt=args.dt,
         N=args.N,
     )
     # plot potential and gradient
     if args.do_plots:
-        sample.plot_potential_and_gradient(file_name='potential_and_gradient_not_drifted')
+        sample.plot_tilted_potential(file_name='sampling_drifted_potential')
+        sample.plot_tilted_drift(file_name='sampling_drifted_drift')
 
     # sample
     sample.sample_not_drifted()

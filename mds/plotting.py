@@ -31,11 +31,13 @@ class Plot:
         plt.savefig(self.file_path)
         plt.close()
 
-    def potential_and_tilted_potential(self, X, V, Vbias):
+    def potential_and_tilted_potential(self, X, V, Vbias, Vopt=None):
         plt.title('Potential, bias potential and tilted potential')
         plt.plot(X, V, 'b-', label=r'$V(x)$')
         plt.plot(X, Vbias, 'r-', label=r'$V_{b}(x)$')
         plt.plot(X, V + Vbias, c='purple', linestyle='-', label=r'$\tilde{V}(x)$')
+        if Vopt is not None:
+            plt.plot(X, Vopt, 'c-', label=r'$\tilde{V}_{opt}(x)$')
         plt.xlabel('x', fontsize=16)
         plt.ylim(top=15, bottom=0)
         plt.legend(loc='upper left', fontsize=8)
@@ -43,11 +45,13 @@ class Plot:
         plt.savefig(self.file_path)
         plt.close()
 
-    def drift_and_tilted_drift(self, X, dV, dVbias):
+    def drift_and_tilted_drift(self, X, dV, dVbias, dVopt=None):
         plt.title('Drift, bias drift and tilted drift')
         plt.plot(X, -dV, 'b-', label=r'$ - \nabla V(x)$')
         plt.plot(X, -dVbias, 'r-', label=r'$ - \nabla V_{bias}(x)$')
-        plt.plot(X, -dV -dVbias, c='purple', linestyle='-', label=r' - $\nabla \tilde{V}(x)$')
+        plt.plot(X, -dV -dVbias, c='purple', linestyle='-', label=r'$ - \nabla \tilde{V}(x)$')
+        if dVopt is not None:
+            plt.plot(X, -dVopt, 'c-', label=r'$ - \nabla \tilde{V}_{opt}(x)$')
         plt.xlabel('x', fontsize=16)
         plt.ylim(top=5, bottom=-5)
         plt.legend(loc='upper left', fontsize=8)

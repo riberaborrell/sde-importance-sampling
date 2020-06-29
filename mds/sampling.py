@@ -1,41 +1,49 @@
 from decorators import timer
-from potentials_and_gradients import double_well_1d_potential, \
-                                     double_well_1d_gradient, \
-                                     one_well_1d_potential, \
-                                     one_well_1d_gradient, \
+from potentials_and_gradients import get_potential_and_gradient, \
                                      derivative_normal_pdf, \
                                      bias_potential
 from plotting import Plot
 from reference_solution import langevin_1d_reference_solution
+from utils import get_data_path
+from validation import is_valid_1d_target_set
 
 import numpy as np
 from scipy import stats
 from datetime import datetime
 import os
 
-MDS_PATH = os.path.abspath(os.path.dirname(__file__))
-DATA_PATH = os.path.join(MDS_PATH, 'data')
-FIGURES_PATH = os.path.join(MDS_PATH, 'figures')
-
 class langevin_1d:
     '''
     '''
 
-    def __init__(self, beta, is_drifted=False):
+    def __init__(self, potential_name, beta, target_set, is_drifted=False):
         '''
         '''
+        # get potential and gradient functions
+        potential, gradient = get_potential_and_gradient(potential_name)
+
+        # validate target set
+        if not is_valid_1d_target_set(target_set):
+            #TODO raise error
+            print('invalid target set')
+            return
+
+        # dir_path
+        self.dir_path = get_data_path(potential_name, beta, target_set)
+
         #seed
         self.seed = None
 
         # sde parameters
+        self.potential = potential
+        self.gradient = gradient
         self.beta = beta
+        self.target_set = target_set
         self.is_drifted = is_drifted
 
         # sampling
         self.xzero = None
         self.M = None
-        self.target_set_min = None
-        self.target_set_max = None
 
         # Euler-Majurama
         self.dt = None
@@ -113,8 +121,8 @@ class langevin_1d:
             m (int): number of ansatz functions
             sigma (float) : standard deviation
         '''
-        J_min = -1.9
-        J_max = 1.1
+        J_min = -2.2
+        J_max = 0.8
 
         self.m = m
         self.mus = np.around(np.linspace(J_min, J_max, m), decimals=2)
@@ -138,7 +146,7 @@ class langevin_1d:
     def set_bias_potential_from_metadynamics(self):
         # load metadynamics parameters
         bias_pot_coeff = np.load(
-            os.path.join(DATA_PATH, 'langevin1d_bias_potential_metadynamics.npz')
+            os.path.join(self.dir_path, 'metadynamics_bias_potential.npz')
         )
         omegas = bias_pot_coeff['omegas']
         meta_mus = bias_pot_coeff['mus']
@@ -164,7 +172,7 @@ class langevin_1d:
 
         # load metadynamics parameters
         bias_pot = np.load(
-            os.path.join(DATA_PATH, 'langevin1d_bias_potential_metadynamics.npz')
+            os.path.join(self.dir_path, 'metadynamics_bias_potential.npz')
         )
         omegas = bias_pot['omegas']
         meta_mus = bias_pot['mus']
@@ -194,14 +202,14 @@ class langevin_1d:
     def set_a_optimal(self):
         #TODO assert self.m, self.mus, self.sigmas
         ref_sol = np.load(
-            os.path.join(DATA_PATH, 'langevin1d_reference_solution.npz')
+            os.path.join(self.dir_path, 'reference_solution.npz')
         )
 
         # compute the optimal a given a basis of ansatz functions
         X = ref_sol['omega_h']
         a = self.ansatz_functions(X).T
         b = ref_sol['F']
-        x, residuals, rank, s = np.linalg.lstsq(a, b, rcond=-1)
+        x, residuals, rank, s = np.linalg.lstsq(a, b, rcond=None)
 
         self.a_opt = x
 
@@ -329,7 +337,7 @@ class langevin_1d:
         Args:
             x (float or ndarray) : position
         '''
-        return double_well_1d_potential(x) + self.bias_potential(x)
+        return self.potential(x) + self.bias_potential(x)
 
     def tilted_gradient(self, x, u):
         '''This method computes the tilted gradient at x
@@ -342,9 +350,9 @@ class langevin_1d:
         if type(x) == np.ndarray:
             assert x.shape == u.shape
 
-        return double_well_1d_gradient(x) + self.bias_gradient(u)
+        return self.gradient(x) + self.bias_gradient(u)
 
-    def set_sampling_parameters(self, xzero, M, target_set, dt, N, seed=None):
+    def set_sampling_parameters(self, xzero, M, dt, N, seed=None):
         '''
         '''
         # set random seed
@@ -354,11 +362,6 @@ class langevin_1d:
         # sampling
         self.xzero = xzero
         self.M = M
-        if target_set[0] >= target_set[1]:
-            #TODO raise error
-            print("The target set interval is not valid")
-        self.target_set_min = target_set[0]
-        self.target_set_max = target_set[1]
 
         # Euler-Majurama
         self.dt = dt
@@ -412,8 +415,7 @@ class langevin_1d:
         dt = self.dt
         xzero = self.xzero
         beta = self.beta
-        target_set_min = self.target_set_min
-        target_set_max = self.target_set_max
+        target_set_min, target_set_max = self.target_set
 
         self.initialize_sampling_variables(is_sampling_problem=True)
 
@@ -428,7 +430,7 @@ class langevin_1d:
             dB = np.sqrt(dt) * np.random.normal(0, 1, M)
 
             # compute gradient
-            gradient = double_well_1d_gradient(Xtemp)
+            gradient = self.gradient(Xtemp)
 
             # SDE iteration
             drift = - gradient * dt
@@ -464,8 +466,7 @@ class langevin_1d:
         dt = self.dt
         xzero = self.xzero
         beta = self.beta
-        target_set_min = self.target_set_min
-        target_set_max = self.target_set_max
+        target_set_min, target_set_max = self.target_set
 
         self.initialize_sampling_variables(is_sampling_problem=True)
 
@@ -532,8 +533,7 @@ class langevin_1d:
         dt = self.dt
         xzero = self.xzero
         beta = self.beta
-        target_set_min = self.target_set_min
-        target_set_max = self.target_set_max
+        target_set_min, target_set_max = self.target_set
         m = self.m
         self.do_ipa = do_ipa
 
@@ -552,9 +552,10 @@ class langevin_1d:
         been_in_target_set = np.repeat([False], M)
 
         for n in np.arange(1, N+1):
+            normal_dist_samples = np.random.normal(0, 1, M)
+
             # Brownian increment
-            normal_dist_sample = np.random.normal(0, 1, M)
-            dB = np.sqrt(dt) * normal_dist_sample
+            dB = np.sqrt(dt) * normal_dist_samples
 
             # compute control at Xtemp
             utemp = self.control(Xtemp)
@@ -563,10 +564,10 @@ class langevin_1d:
             btemp = self.control_basis_functions(Xtemp)
 
             # compute gradient
-            gradient = self.tilted_gradient(Xtemp, utemp)
+            tilted_gradient = self.tilted_gradient(Xtemp, utemp)
 
             # SDE iteration
-            drift = - gradient * dt
+            drift = - tilted_gradient * dt
             diffusion = np.sqrt(2 / beta) * dB
             Xtemp += drift + diffusion
 
@@ -574,7 +575,7 @@ class langevin_1d:
             cost += 0.5 * (utemp ** 2) * dt
             if do_ipa:
                 sum_grad_gh += dt * utemp * btemp
-                gradSh += normal_dist_sample * btemp
+                gradSh += normal_dist_samples * btemp
 
             # trajectories in the target set
             is_in_target_set = ((Xtemp >= target_set_min) & (Xtemp <= target_set_max))
@@ -595,11 +596,11 @@ class langevin_1d:
             self.cost[new_idx] = cost[new_idx]
             self.J[new_idx] = fht + cost[new_idx]
             if do_ipa:
-                gradSh[:, new_idx] *= beta * np.sqrt(dt / 2)
+                #gradSh[:, new_idx] *= beta * np.sqrt(dt / 2)
+                gradSh[:, new_idx] *= - np.sqrt(dt * beta)
                 self.gradSh[:, new_idx] = gradSh[:, new_idx]
                 self.gradJ[:, new_idx] = sum_grad_gh[:, new_idx] \
-                                         + (fht + cost[new_idx]) \
-                                         * gradSh[:, new_idx]
+                                       - (fht + cost[new_idx]) * gradSh[:, new_idx]
 
             # check if all trajectories have arrived to the target set
             if been_in_target_set.all() == True:
@@ -684,8 +685,8 @@ class langevin_1d:
         # set path
         time_stamp = datetime.today().strftime('%Y%m%d_%H%M%S')
         file_path = os.path.join(
-            DATA_PATH,
-            'langevin_1d_2well_' + time_stamp + '.txt',
+            self.dir_path,
+            'sampling_' + time_stamp + '.txt',
         )
 
         # write in file
@@ -696,7 +697,7 @@ class langevin_1d:
         f.write('dt: {:2.4f}\n'.format(self.dt))
         f.write('Y_0: {:2.1f}\n'.format(self.xzero))
         f.write('target set: [{:2.1f}, {:2.1f}]\n\n'
-                ''.format(self.target_set_min, self.target_set_max))
+                ''.format(self.target_set[0], self.target_set[1]))
 
         if self.is_drifted:
             f.write('m: {:d}\n'.format(self.m))
@@ -742,35 +743,44 @@ class langevin_1d:
 
         f.close()
 
-    def plot_potential_and_gradient(self, file_name, dir_path=FIGURES_PATH):
-        X = np.linspace(-2, 2, 100)
-        V = double_well_1d_potential(X)
-        dV = double_well_1d_gradient(X)
-
+    def plot_tilted_potential(self, file_name):
+        X = np.linspace(-3, 3, 100)
+        V = self.potential(X)
         if self.is_drifted:
             Vbias = self.bias_potential(X)
+        else:
+            Vbias = np.zeros(X.shape[0])
+
+        pl = Plot(dir_path=self.dir_path, file_name=file_name)
+        if self.a_opt is not None:
+            Vopt = V + self.bias_potential(X, self.a_opt)
+            pl.potential_and_tilted_potential(X, V, Vbias, Vopt)
+        else:
+            pl.potential_and_tilted_potential(X, V, Vbias)
+
+
+    def plot_tilted_drift(self, file_name):
+        X = np.linspace(-3, 3, 100)
+        dV = self.gradient(X)
+        if self.is_drifted:
             U = self.control(X)
             dVbias = self.bias_gradient(U)
         else:
-            Vbias = np.zeros(X.shape[0])
             dVbias = np.zeros(X.shape[0])
 
+        pl = Plot(dir_path=self.dir_path, file_name=file_name)
         if self.a_opt is not None:
-            Vopt = V + self.bias_potential(X, self.a_opt)
             U = self.control(X, self.a_opt)
             dVopt = dV - np.sqrt(2) * U
+            pl.drift_and_tilted_drift(X, dV, dVbias, dVopt)
         else:
-            Vopt = None
-            dVopt = None
-
-        pl = Plot(file_name=file_name, dir_path=dir_path)
-        pl.tilted_potential_and_gradient(X, V, dV, Vbias, dVbias, Vopt, dVopt)
+            pl.drift_and_tilted_drift(X, dV, dVbias)
 
     def plot_optimal_potential_and_gradient(self):
         # tilted optimal potential and gradient on a gaussian basis 
         X = np.linspace(-2, 2, 1000)
-        V = double_well_1d_potential(X)
-        dV = double_well_1d_gradient(X)
+        V = self.potential(X)
+        dV = self.gradient(X)
         Vbias = self.bias_potential(X, self.a_opt)
         U = self.control(X, self.a_opt)
         dVbias = - np.sqrt(2) * U
@@ -780,13 +790,3 @@ class langevin_1d:
     def plot_ansatz_functions(self):
         pl = Plot(file_name='gaussian_ansatz_functions')
         pl.ansatz_functions(self)
-
-        #V = double_well_1d_potential(X)
-        #Vbias = self.bias_potential(X)
-        #weighted_ansatz_functions = 2 \
-        #                          * self.a.reshape(self.m, 1) \
-        #                          * ansatz_functions
-        #pl.ansatz_functions(X, ansatz_functions, weighted_ansatz_functions,
-        #                    V, Vbias)
-        #pl.ansatz_functions(X, ansatz_functions, weighted_ansatz_functions,
-        #                    V, Vbias)
