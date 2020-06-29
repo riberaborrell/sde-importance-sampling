@@ -1,16 +1,13 @@
-from utils import get_figures_path
+from utils import get_data_path
 
 import numpy as np
 import matplotlib.pyplot as plt
 
 import os
 
-MDS_PATH = os.path.abspath(os.path.dirname(__file__))
-FIGURES_PATH = os.path.join(MDS_PATH, 'figures')
-
 class Plot:
-    dir_path = get_figures_path()
-    def __init__(self, dir_path=FIGURES_PATH, file_name=None, file_type='png'):
+    dir_path = get_data_path()
+    def __init__(self, dir_path=dir_path, file_name=None, file_type='png'):
         self.file_name = file_name
         self.file_type = file_type
         self.dir_path = dir_path
@@ -25,14 +22,60 @@ class Plot:
             return None
 
     def potential(self, X, V):
-        plt.plot(X, V, 'b-', label=r'Potential $V(x)$')
+        plt.title('Potential')
+        plt.plot(X, V, 'b-', label=r'$V(x)$')
         plt.xlabel('x', fontsize=16)
         plt.ylim(top=15, bottom=0)
         plt.legend(loc='upper left', fontsize=8)
+        plt.grid(True)
+        plt.savefig(self.file_path)
+        plt.close()
+
+    def potential_and_tilted_potential(self, X, V, Vbias):
+        plt.title('Potential, bias potential and tilted potential')
+        plt.plot(X, V, 'b-', label=r'$V(x)$')
+        plt.plot(X, Vbias, 'r-', label=r'$V_{b}(x)$')
+        plt.plot(X, V + Vbias, c='purple', linestyle='-', label=r'$\tilde{V}(x)$')
+        plt.xlabel('x', fontsize=16)
+        plt.ylim(top=15, bottom=0)
+        plt.legend(loc='upper left', fontsize=8)
+        plt.grid(True)
+        plt.savefig(self.file_path)
+        plt.close()
+
+    def drift_and_tilted_drift(self, X, dV, dVbias):
+        plt.title('Drift, bias drift and tilted drift')
+        plt.plot(X, -dV, 'b-', label=r'$ - \nabla V(x)$')
+        plt.plot(X, -dVbias, 'r-', label=r'$ - \nabla V_{bias}(x)$')
+        plt.plot(X, -dV -dVbias, c='purple', linestyle='-', label=r' - $\nabla \tilde{V}(x)$')
+        plt.xlabel('x', fontsize=16)
+        plt.ylim(top=5, bottom=-5)
+        plt.legend(loc='upper left', fontsize=8)
+        plt.grid(True)
+        plt.savefig(self.file_path)
+        plt.close()
+
+    def free_energy(self, X, J):
+        plt.title('Free energy / Performance function')
+        plt.plot(X, J, 'b-', label='F(x)')
+        plt.ylim(top=3, bottom=0)
+        plt.legend(loc='upper left', fontsize=8)
+        plt.grid(True)
+        plt.savefig(self.file_path)
+        plt.close()
+
+    def control(self, X, u):
+        plt.title('Control')
+        plt.plot(X, u, 'b-', label='u(x)')
+        plt.xlim(left=-1.8, right=1.8)
+        plt.ylim(top=5, bottom=-5)
+        plt.legend(loc='upper left', fontsize=8)
+        plt.grid(True)
         plt.savefig(self.file_path)
         plt.close()
 
     def potential_and_gradient(self, X, V, dV):
+        plt.title('Potential and Gradient')
         plt.plot(X, V, 'b-', label=r'Potential $V(x)$')
         plt.plot(X, dV, 'r-', label=r'Gradient $\nabla V(X)$')
         plt.xlabel('x', fontsize=16)
@@ -66,28 +109,6 @@ class Plot:
         fig.savefig(self.file_path)
         plt.close()
 
-    def tilted_potential(self, X, V, Vbias):
-        plt.plot(X, V, 'b-', label=r'Potential $V(x)$')
-        plt.plot(X, Vbias, 'r-', label=r'bias Potential $V_{bias}(x)$')
-        plt.plot(X, V + Vbias, c='purple', linestyle='-', label=r'tilted Potential $\tilde{V}(x)$')
-        plt.xlabel('x', fontsize=16)
-        plt.xlim(left=-1.8, right=1.8)
-        plt.ylim(top=8, bottom=0)
-        plt.legend(loc='upper left', fontsize=8)
-        plt.savefig(self.file_path)
-        plt.close()
-
-    def tilted_gradient(self, X, dV, dVbias):
-        plt.plot(X, dV, 'b-', label=r'gradient $\nabla V(x)$')
-        plt.plot(X, dVbias, 'r-', label=r'bias gradient $\nabla V_{bias}(x)$')
-        plt.plot(X, dV + dVbias, c='purple', linestyle='-', label=r'tilted gradient $\nabla \tilde{V}(x)$')
-        plt.xlabel('x', fontsize=16)
-        plt.xlim(left=-1.8, right=1.8)
-        plt.ylim(top=12, bottom=-12)
-        plt.legend(loc='upper left', fontsize=8)
-        plt.savefig(self.file_path)
-        plt.close()
-
     def gradient_descent_tilted_potentials(self, X, Vs, Vopt):
         for i, V in enumerate(Vs):
             label = r'epoch = {:d}'.format(i)
@@ -97,22 +118,6 @@ class Plot:
         plt.xlabel('x', fontsize=16)
         plt.xlim(left=-1.8, right=1.8)
         plt.ylim(top=8, bottom=0)
-        plt.legend(loc='upper left', fontsize=8)
-        plt.savefig(self.file_path)
-        plt.close()
-
-    def performance_function(self, X, J):
-        plt.plot(X, J, 'b-', label='J(x)')
-        plt.xlim(left=-1.8, right=1.8)
-        plt.ylim(top=3, bottom=0)
-        plt.legend(loc='upper left', fontsize=8)
-        plt.savefig(self.file_path)
-        plt.close()
-
-    def control(self, X, u):
-        plt.plot(X, u, 'b-', label='u(x)')
-        plt.xlim(left=-1.8, right=1.8)
-        plt.ylim(top=5, bottom=-5)
         plt.legend(loc='upper left', fontsize=8)
         plt.savefig(self.file_path)
         plt.close()

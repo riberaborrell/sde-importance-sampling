@@ -13,6 +13,5 @@
 # ignore mathlab files
 *.m
 
-# ignore figures and data directories
-mds/figures/
+# ignore data directories
 mds/data/

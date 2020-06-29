@@ -1,10 +1,12 @@
 from plotting import Plot
 from potentials_and_gradients import get_potential_and_gradient
 from reference_solution import langevin_1d_reference_solution
-from utils import get_figures_path, get_data_path
+from utils import get_data_path
 
 import argparse
 import numpy as np
+
+import os
 
 def get_parser():
     parser = argparse.ArgumentParser(description='Computes the reference solution for the 1D overdamped Langevin')
@@ -31,6 +33,13 @@ def get_parser():
         help='Set the target set interval. Default: [0.9, 1.1]',
     )
     parser.add_argument(
+        '--h',
+        dest='h',
+        type=float,
+        default=0.001,
+        help='Set the discretization step size. Default: 0.001',
+    )
+    parser.add_argument(
         '--do-plots',
         dest='do_plots',
         action='store_true',
@@ -48,15 +57,16 @@ def main():
         gradient=gradient,
         beta=args.beta,
         target_set=args.target_set,
+        h=args.h,
     )
     sol.compute_reference_solution()
 
     #TODO approximate the first hitting time
 
     # save optimal performance function from the reference solution
-    dir_path = get_data_path(args.potential_name, args.target_set, args.beta)
+    dir_path = get_data_path(args.potential_name, args.beta, args.target_set)
     np.savez(
-        dir_path,
+        os.path.join(dir_path, 'reference_solution.npz'),
         omega_h=sol.omega_h,
         Psi=sol.Psi,
         F=sol.F,
@@ -65,27 +75,34 @@ def main():
 
     if args.do_plots:
         pl = Plot()
-        dir_path = get_figures_path(args.potential_name, args.target_set, args.beta)
+        dir_path = get_data_path(args.potential_name, args.beta, args.target_set)
         pl.dir_path = dir_path
 
         # plot optimal performance function (i.e free energy) from the reference solution 
         X = sol.omega_h
         F = sol.F
         pl.file_name = 'reference_solution_free_energy'
-        pl.performance_function(X, F)
+        pl.free_energy(X, F)
 
-        # plot optimal tilted potential and gradient from reference solution
+        # plot optimal tilted potential
         V = potential(X)
-        dV = gradient(X)
         Vb = 2 * F
+        pl.file_name = 'reference_solution_optimal_tilted_potential'
+        pl.potential_and_tilted_potential(X, V, Vb)
+
+        # plot optimal tilted gradient from reference solution
+        dV = gradient(X)
         u = sol.u_opt
         dVb = - np.sqrt(2) * u
-        pl.file_name = 'reference_solution_optimal_tilted_potential'
-        pl.tilted_potential_and_gradient(X, V, dV, Vb, dVb)
+        pl.file_name = 'reference_solution_optimal_tilted_drift'
+        pl.drift_and_tilted_drift(X, dV, dVb)
 
         # plot optimal control
         pl.file_name = 'reference_solution_optimal_control'
         pl.control(X, u)
+
+        #pl.file_name = 'reference_solution_optimal_tilted_potential'
+        #pl.tilted_potential_and_gradient(X, V, dV, Vb, dVb)
 
 if __name__ == "__main__":
     main()

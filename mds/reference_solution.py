@@ -4,7 +4,7 @@ from inspect import isfunction
 
 #TODO: generalize method for f and g different to 1 and 0
 class langevin_1d_reference_solution():
-    def __init__(self, gradient, beta, target_set):
+    def __init__(self, gradient, beta, target_set, h=0.001):
 
         assert isfunction(gradient), 'the gradient must be a function'
 
@@ -16,6 +16,7 @@ class langevin_1d_reference_solution():
         self.beta = beta
         self.target_set_min = target_set_min
         self.target_set_max = target_set_max
+        self.h = h
 
     def compute_reference_solution(self):
         ''' This method computes the solution of the following BVP
@@ -33,7 +34,7 @@ class langevin_1d_reference_solution():
         # discretization of the state space
         omega_min = -3
         omega_max = 3
-        h = 0.001
+        h = self.h
         N = int((omega_max - omega_min) / h) + 1
         omega_h = np.around(np.linspace(omega_min, omega_max, N), decimals=3)
 

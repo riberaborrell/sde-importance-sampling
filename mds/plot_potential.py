@@ -1,5 +1,6 @@
 from plotting import Plot
 from potentials_and_gradients import get_potential_and_gradient
+from utils import get_data_path
 
 import argparse
 import numpy as np
@@ -21,11 +22,12 @@ def main():
 
     potential, gradient = get_potential_and_gradient(args.potential_name)
 
-    X = np.linspace(-2, 2, 1000)
+    X = np.linspace(-3, 3, 1000)
     V = potential(X)
 
-    file_name = args.potential_name + '_potential'
-    plot = Plot(file_name)
+    dir_path = get_data_path(args.potential_name)
+    file_name = 'potential'
+    plot = Plot(dir_path, file_name)
     plot.potential(X, V)
 
 
