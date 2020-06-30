@@ -1,8 +1,10 @@
+from decorators import timer
 from potentials_and_gradients import get_potential_and_gradient
 from script_utils import get_reference_solution, \
                          get_ansatz_functions, \
                          set_unif_dist_ansatz_functions, \
                          get_optimal_coefficients, \
+                         get_meta_coefficients, \
                          set_initial_coefficients, \
                          control_on_grid, \
                          free_energy_on_grid, \
@@ -11,18 +13,19 @@ from script_utils import get_reference_solution, \
                          plot_free_energy, \
                          plot_tilted_potential, \
                          plot_gd_tilted_potentials
+from utils import make_dir_path, empty_dir, get_data_path
 
 import numpy as np
 import matplotlib.pyplot as plt
-import pdb
 from scipy import stats
 from scipy.optimize import lsq_linear
 
 import argparse
-import pdb
+
+import os
 
 def get_parser():
-    parser = argparse.ArgumentParser(description='Likelihood')
+    parser = argparse.ArgumentParser(description='IPA')
     parser.add_argument(
         '--seed',
         dest='seed',
@@ -88,14 +91,28 @@ def get_parser():
         help='Set the number of uniformly distributed ansatz functions \
               that you want to use. Default: 20',
     )
+    parser.add_argument(
+        '--a-init',
+        dest='a_init',
+        choices=['null', 'meta', 'optimal'],
+        default='optimal',
+        help='Type of initial control. Default: optimal',
+    )
     return parser
 
+@timer
 def main():
     args = get_parser().parse_args()
 
     # set seed
     if args.seed:
         np.random.seed(args.seed)
+
+    # set data_path and gd path
+    data_path = get_data_path(args.potential_name, args.beta, args.target_set)
+    gd_path = os.path.join(data_path, 'gd-ipa-ansatz-control')
+    make_dir_path(gd_path)
+    empty_dir(gd_path)
 
     # set potential
     potential, gradient = get_potential_and_gradient(args.potential_name)
@@ -107,7 +124,7 @@ def main():
     M = args.M
 
     # get reference solution
-    omega_h, F_opt, u_opt = get_reference_solution()
+    omega_h, F_opt, u_opt = get_reference_solution(data_path)
 
     # ansatz functions basis
     m = args.m
@@ -115,10 +132,14 @@ def main():
     mus, sigmas = set_unif_dist_ansatz_functions(mus_min, mus_max, target_set, m)
 
     # plot ansatz functions
-    plot_ansatz_functions(omega_h, mus, sigmas)
+    plot_ansatz_functions(gd_path, omega_h, mus, sigmas)
 
     # get optimal coefficients
     a_opt = get_optimal_coefficients(omega_h, target_set, u_opt, mus, sigmas)
+
+    # get meta coefficients
+    a_meta = get_meta_coefficients(args.potential_name, args.beta, args.target_set,
+                                   omega_h, mus, sigmas)
 
     # set gd parameters
     lr = args.lr
@@ -131,19 +152,18 @@ def main():
     F = np.zeros((epochs + 1, len(omega_h)))
 
     # set initial coefficients
-    a_init_type = 'null'
-    a_s[0, :] = set_initial_coefficients(m, np.mean(sigmas), a_opt, a_init_type)
+    a_s[0, :] = set_initial_coefficients(m, np.mean(sigmas), a_opt, a_meta, args.a_init)
 
     # gradient descent
     for epoch in range(epochs):
         print(epoch)
         u[epoch, :] = control_on_grid(omega_h, a_s[epoch, :], mus, sigmas)
         F[epoch, :] = free_energy_on_grid(omega_h, target_set, a_s[epoch, :], mus, sigmas)
-        plot_control(epoch, omega_h, u_opt, u[epoch])
-        plot_free_energy(epoch, omega_h, potential, F_opt, F[epoch])
-        plot_tilted_potential(epoch, omega_h, potential, F_opt, F[epoch])
+        plot_control(gd_path, epoch, omega_h, u_opt, u[epoch])
+        plot_free_energy(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
+        plot_tilted_potential(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
 
-        mean_fht, mean_cost, mean_grad \
+        mean_fht, mean_cost, mean_gradJ, mean_gradSh \
             = sample_loss(gradient, beta, xzero, target_set,
                           M, m, a_s[epoch], mus, sigmas)
 
@@ -151,7 +171,8 @@ def main():
         loss[epoch] = mean_fht + mean_cost
 
         # gradient of the loss function (gradient of an expectation!)
-        grad_loss = mean_grad
+        grad_loss = mean_gradJ
+        #grad_loss = mean_gradJ + loss[epoch] * mean_gradSh
 
         # Update parameters
         a_s[epoch + 1, :] = a_s[epoch, :] - lr * grad_loss
@@ -160,10 +181,10 @@ def main():
     print(epoch)
     u[epoch, :] = control_on_grid(omega_h, a_s[epoch, :], mus, sigmas)
     F[epoch, :] = free_energy_on_grid(omega_h, target_set, a_s[epoch, :], mus, sigmas)
-    plot_control(epoch, omega_h, u_opt, u[epoch])
-    plot_free_energy(epoch, omega_h, potential, F_opt, F[epoch])
-    plot_tilted_potential(epoch, omega_h, potential, F_opt, F[epoch])
-    plot_gd_tilted_potentials(epochs, omega_h, potential, F_opt, F)
+    plot_control(gd_path, epoch, omega_h, u_opt, u[epoch])
+    plot_free_energy(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
+    plot_tilted_potential(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
+    plot_gd_tilted_potentials(gd_path, epochs, omega_h, potential, F_opt, F)
 
 
 def sample_loss(gradient, beta, xzero, target_set, M, m, a, mus, sigmas):
@@ -178,16 +199,15 @@ def sample_loss(gradient, beta, xzero, target_set, M, m, a, mus, sigmas):
     # initialize statistics 
     fht = np.zeros(M)
     cost = np.zeros(M)
-    grad_phi = np.zeros((m, M))
-    sto_int = np.zeros((m, M))
-    grad = np.zeros((m, M))
+    sum_grad_gh = np.zeros((m, M))
+    gradJ = np.zeros((m, M))
+    gradSh = np.zeros((m, M))
 
     # initialize temp variables
     Xtemp = xzero * np.ones(M)
     cost_temp = np.zeros(M)
-    grad_phi_temp = np.zeros((m, M))
-    sto_int_temp = np.zeros((m, M))
-    grad_temp = np.zeros((m, M))
+    sum_grad_gh_temp = np.zeros((m, M))
+    gradSh_temp = np.zeros((m, M))
 
     # has arrived in target set
     been_in_target_set = np.repeat([False], M)
@@ -203,10 +223,12 @@ def sample_loss(gradient, beta, xzero, target_set, M, m, a, mus, sigmas):
         btemp = get_ansatz_functions(Xtemp, mus, sigmas)
         utemp = np.dot(a, btemp)
 
-        # likelihood statistics
+        # ipa statistics 
         cost_temp += 0.5 * (utemp ** 2) * dt
-        grad_phi_temp += utemp * btemp * dt
-        sto_int_temp += btemp * dB
+        sum_grad_gh_temp += dt * utemp * btemp
+        #gradSh_temp += normal_dist_samples * btemp
+        #gradSh_temp += - beta * np.sqrt(dt / 2) * normal_dist_samples * btemp
+        gradSh_temp += - np.sqrt(dt * beta) * normal_dist_samples * btemp
 
         # compute gradient
         tilted_gradient = gradient(Xtemp) - np.sqrt(2) * utemp
@@ -229,24 +251,95 @@ def sample_loss(gradient, beta, xzero, target_set, M, m, a, mus, sigmas):
         # update list of indices whose trajectories have been in the target set
         been_in_target_set[new_idx] = True
 
-        # save statistics
+        # save ipa statistics
         fht[new_idx] = n * dt
         cost[new_idx] = cost_temp[new_idx]
-        grad_phi[:, new_idx] = grad_phi_temp[:, new_idx]
-        sto_int[:, new_idx] = sto_int_temp[:, new_idx]
+        sum_grad_gh[:, new_idx] = sum_grad_gh_temp[:, new_idx]
+        gradSh[:, new_idx] = gradSh_temp[:, new_idx]
 
         # check if all trajectories have arrived to the target set
         if been_in_target_set.all() == True:
-            grad = grad_phi + (fht + cost) * sto_int
+            gradJ = sum_grad_gh - (fht + cost) * gradSh
             break
 
     # compute averages
     mean_fht = np.mean(fht)
     mean_cost = np.mean(cost)
-    mean_grad = np.mean(grad, axis=1)
+    mean_gradJ = np.mean(gradJ, axis=1)
+    mean_gradSh = np.mean(gradSh, axis=1)
 
-    return mean_fht, mean_cost, mean_grad
+    return mean_fht, mean_cost, mean_gradJ, mean_gradSh
 
+
+
+# not used
+def sample_loss_not_vectorized(m, mus, sigmas, a):
+    # set potential
+    potential, gradient = get_potential_and_gradient('asym_2well')
+
+    # sampling parameters
+    beta = 4
+    xzero = 1
+    M = 100
+    target_set_min = -1.1
+    target_set_max = -1.0
+
+    # Euler-Majurama
+    dt = 0.001
+    N = 100000
+
+    # initialize statistics 
+    fht = np.zeros(M)
+    cost = np.zeros(M)
+    gradJ = np.zeros((m, M))
+    gradSh = np.zeros((m, M))
+
+    for i in np.arange(M):
+        Xtemp = xzero
+        cost_temp = 0
+        sum_grad_gh_temp = np.zeros(m)
+        gradSh_temp = np.zeros(m)
+
+        for n in np.arange(1, N+1):
+            normal_dist_sample = np.random.normal(0, 1)
+
+            # Brownian increment
+            dB = np.sqrt(dt) * normal_dist_sample
+
+            # control
+            btemp = get_ansatz_functions(Xtemp, mus, sigmas)
+            utemp = np.dot(a, btemp)
+
+            # compute gradient
+            tilted_gradient = gradient(Xtemp) - np.sqrt(2) * utemp
+
+            # SDE iteration
+            drift = - tilted_gradient * dt
+            diffusion = np.sqrt(2 / beta) * dB
+            Xtemp += drift + diffusion
+
+            # compute cost, ...
+            cost_temp += 0.5 * (utemp ** 2) * dt
+            sum_grad_gh_temp += dt * utemp * btemp
+            gradSh_temp += normal_dist_sample * btemp
+
+            # trajectories in the target set
+            if (Xtemp > target_set_min and Xtemp < target_set_max):
+                break
+
+        # save trajectory observables
+        fht[i] = n * dt
+        cost[i] = cost_temp
+        gradSh[:, i] = gradSh_temp * (- np.sqrt(dt * beta))
+        gradJ[:, i] = sum_grad_gh_temp - (fht[i] + cost[i]) * gradSh[:, i]
+
+    # compute averages
+    mean_fht = np.mean(fht)
+    mean_cost = np.mean(cost)
+    mean_gradJ = np.mean(gradJ, axis=1)
+    mean_gradSh = np.mean(gradSh, axis=1)
+
+    return mean_fht, mean_cost, mean_gradJ, mean_gradSh
 
 if __name__ == "__main__":
     main()
