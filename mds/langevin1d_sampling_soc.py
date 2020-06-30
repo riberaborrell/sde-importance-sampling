@@ -75,7 +75,7 @@ def get_parser():
         dest='a_type',
         choices=['optimal', 'meta', 'null'],
         default='optimal',
-        help='Type of drift. Default: optimal',
+        help='Type of control. Default: optimal',
     )
     parser.add_argument(
         '--do-plots',

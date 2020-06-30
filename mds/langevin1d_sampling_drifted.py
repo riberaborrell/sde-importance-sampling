@@ -80,7 +80,7 @@ def get_parser():
         dest='a_init',
         choices=['null', 'meta', 'optimal'],
         default='optimal',
-        help='Type of control. Default: optimal',
+        help='Type of initial control. Default: optimal',
     )
     parser.add_argument(
         '--do-plots',
