@@ -22,8 +22,7 @@ def get_reference_solution(data_path):
 
 def get_ansatz_functions(x, mus, sigmas):
     if type(x) == np.ndarray:
-        mus = mus.reshape(mus.shape[0], 1)
-        sigmas = sigmas.reshape(sigmas.shape[0], 1)
+        x = x.reshape(x.shape[0], 1)
     return stats.norm.pdf(x, mus, sigmas)
 
 
@@ -85,6 +84,7 @@ def set_unif_dist_ansatz_functions(mus_min, mus_max, target_set, m):
 
     return mus, sigmas
 
+
 def set_unif_dist_ansatz_functions2(mus_min, mus_max, target_set, m):
     # assume target_set is connected and contained in [mus_min, mus_max]
     target_set_min, target_set_max = target_set
@@ -136,20 +136,19 @@ def set_unif_dist_ansatz_functions2(mus_min, mus_max, target_set, m):
 
     return mus, sigmas
 
+
 def get_optimal_coefficients(X, target_set, u_opt, mus, sigmas):
     # ansatz functions at the grid
-    v = get_ansatz_functions(X, mus, sigmas)
-    a = v.T
+    a = get_ansatz_functions(X, mus, sigmas)
 
     # optimal control (from ref solution) at the grid
     b = u_opt
 
     # solve lin system of equations by using least squares
     x, residuals, rank, s = np.linalg.lstsq(a, b, rcond=None)
-    #res = lsq_linear(a, b, bounds=(0, 'inf'), lsmr_tol='auto', verbose=1)
-    #return res.x
     print(x)
     return x
+
 
 def get_optimal_coefficients2(X, target_set, F_opt, mus, sigmas):
     v = get_ansatz_functions(X, mus, sigmas)
@@ -158,6 +157,7 @@ def get_optimal_coefficients2(X, target_set, F_opt, mus, sigmas):
     x, residuals, rank, s = np.linalg.lstsq(a, b, rcond=None)
     print(x)
     return x
+
 
 def get_meta_coefficients(potential_name, beta, target_set, X, mus, sigmas):
     # load metadynamics parameters
@@ -182,8 +182,7 @@ def get_meta_coefficients(potential_name, beta, target_set, X, mus, sigmas):
     u = - dVb / np.sqrt(2)
 
     # solve v a = u
-    #a = np.linalg.solve(v, u)
-    x, residuals, rank, s = np.linalg.lstsq(a=v.T, b=u, rcond=None)
+    x, residuals, rank, s = np.linalg.lstsq(a=v, b=u, rcond=None)
     print(x)
     return x
 
@@ -240,7 +239,7 @@ def free_energy_on_grid2(X, a, mus, sigmas):
 
 def control_on_grid(X, a, mus, sigmas):
     v = get_ansatz_functions(X, mus, sigmas)
-    u = np.dot(a, v)
+    u = np.dot(a, v.T)
     return u
 
 def control_on_grid2(X, a, mus, sigmas):
@@ -302,9 +301,9 @@ def plot_gd_tilted_potentials(dir_path, epochs, X, potential, F_opt, F):
 
 def plot_ansatz_functions(dir_path, X, mus, sigmas):
     v = get_ansatz_functions(X, mus, sigmas)
-    m = v.shape[0]
+    m = v.shape[1]
     for j in range(m):
-        plt.plot(X, v[j])
+        plt.plot(X, v[:, j])
     plt.title(r'$v_{j}(x; \mu, \sigma)$')
     plt.xlabel('x', fontsize=16)
 
