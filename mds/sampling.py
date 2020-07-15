@@ -1,22 +1,21 @@
-from decorators import timer
 from potentials_and_gradients import get_potential_and_gradient, \
                                      derivative_normal_pdf, \
                                      bias_potential
 from plotting import Plot
 from reference_solution import langevin_1d_reference_solution
-from utils import get_data_path
+from utils import get_data_path, get_time_in_hms
 from validation import is_valid_1d_target_set
 
+import time
 import numpy as np
 from scipy import stats
-from datetime import datetime
 import os
 
 class langevin_1d:
     '''
     '''
 
-    def __init__(self, potential_name, beta, target_set, is_drifted=False):
+    def __init__(self, potential_name, alpha, beta, target_set, is_drifted=False):
         '''
         '''
         # get potential and gradient functions
@@ -35,19 +34,21 @@ class langevin_1d:
         self.seed = None
 
         # sde parameters
+        self.potential_name = potential_name
         self.potential = potential
         self.gradient = gradient
+        self.alpha = alpha
         self.beta = beta
-        self.target_set = target_set
         self.is_drifted = is_drifted
 
         # sampling
         self.xzero = None
+        self.target_set = target_set
         self.M = None
 
-        # Euler-Majurama
+        # Euler-Marujama
         self.dt = None
-        self.N = None
+        self.N_lim = None
 
         # ansatz functions (gaussians) and coefficients
         self.m = None
@@ -97,6 +98,10 @@ class langevin_1d:
         self.mean_gradJ = None
         self.mean_cost = None
         self.mean_gradSh = None
+
+        # computational time
+        self.t_initial = None
+        self.t_final = None
 
     def set_ansatz_functions(self, mus, sigmas):
         '''This method sets the mean and the standard deviation of the
@@ -337,7 +342,7 @@ class langevin_1d:
         Args:
             x (float or ndarray) : position
         '''
-        return self.potential(x) + self.bias_potential(x)
+        return self.potential(x, self.alpha) + self.bias_potential(x)
 
     def tilted_gradient(self, x, u):
         '''This method computes the tilted gradient at x
@@ -350,9 +355,9 @@ class langevin_1d:
         if type(x) == np.ndarray:
             assert x.shape == u.shape
 
-        return self.gradient(x) + self.bias_gradient(u)
+        return self.gradient(x, self.alpha) + self.bias_gradient(u)
 
-    def set_sampling_parameters(self, xzero, M, dt, N, seed=None):
+    def set_sampling_parameters(self, xzero, M, dt, N_lim, seed=None):
         '''
         '''
         # set random seed
@@ -363,9 +368,12 @@ class langevin_1d:
         self.xzero = xzero
         self.M = M
 
-        # Euler-Majurama
+        # Euler-Marujama
         self.dt = dt
-        self.N = N
+        self.N_lim = N_lim
+
+        # initialize timer
+        self.t_initial = time.time()
 
     def initialize_sampling_variables(self, is_sampling_problem=False,
                                       is_soc_problem=False):
@@ -408,10 +416,9 @@ class langevin_1d:
         self.is_sampling_problem = is_sampling_problem
         self.is_soc_problem = is_soc_problem
 
-    @timer
     def sample_not_drifted(self):
         M = self.M
-        N = self.N
+        N_lim = self.N_lim
         dt = self.dt
         xzero = self.xzero
         beta = self.beta
@@ -425,12 +432,12 @@ class langevin_1d:
         # has arrived in target set
         been_in_target_set = np.repeat([False], M)
 
-        for n in np.arange(1, N+1):
+        for n in np.arange(1, N_lim +1):
             # Brownian increment
             dB = np.sqrt(dt) * np.random.normal(0, 1, M)
 
             # compute gradient
-            gradient = self.gradient(Xtemp)
+            gradient = self.gradient(Xtemp, self.alpha)
 
             # SDE iteration
             drift = - gradient * dt
@@ -459,10 +466,9 @@ class langevin_1d:
         self.Psi = np.exp(-beta * self.fht)
 
 
-    @timer
     def sample_drifted(self):
         M = self.M
-        N = self.N
+        N_lim = self.N_lim
         dt = self.dt
         xzero = self.xzero
         beta = self.beta
@@ -480,7 +486,7 @@ class langevin_1d:
         # has arrived in target set
         been_in_target_set = np.repeat([False], M)
 
-        for n in np.arange(1, N+1):
+        for n in np.arange(1, N_lim +1):
             # Brownian increment
             dB = np.sqrt(dt) * np.random.normal(0, 1, M)
 
@@ -526,10 +532,9 @@ class langevin_1d:
         # save reweighted quantity of interest
         self.Psi_rew = np.exp(-beta * self.fht) * self.G_fht
 
-    @timer
     def sample_soc(self, do_ipa=False):
         M = self.M
-        N = self.N
+        N_lim = self.N_lim
         dt = self.dt
         xzero = self.xzero
         beta = self.beta
@@ -551,7 +556,7 @@ class langevin_1d:
         # has arrived in target set
         been_in_target_set = np.repeat([False], M)
 
-        for n in np.arange(1, N+1):
+        for n in np.arange(1, N_lim +1):
             normal_dist_samples = np.random.normal(0, 1, M)
 
             # Brownian increment
@@ -678,74 +683,93 @@ class langevin_1d:
                 self.mean_gradJ = np.mean(self.gradJ, axis=1)
                 self.mean_gradSh = np.mean(self.gradSh, axis=1)
 
+        # stop timer
+        self.t_final = time.time()
+
 
     def save_statistics(self):
         '''
         '''
         # set path
-        time_stamp = datetime.today().strftime('%Y%m%d_%H%M%S')
-        file_path = os.path.join(
-            self.dir_path,
-            'sampling_' + time_stamp + '.txt',
-        )
+        if not self.is_drifted:
+            sampling_stamp = 'report_sampling_not_drifted'
+        else:
+            sampling_stamp = 'report_sampling_drifted'
+        trajectories_stamp = 'M{:.0e}'.format(self.M)
+        file_name = sampling_stamp + '_' + trajectories_stamp + '.txt'
+        file_path = os.path.join(self.dir_path, file_name)
 
         # write in file
         f = open(file_path, "w")
 
-        f.write('drifted process: {}\n'.format(self.is_drifted))
+        f.write('SDE parameters\n')
+        f.write('potential: {}\n'.format(self.potential_name))
+        f.write('alpha: {:2.1f}\n'.format(self.alpha))
         f.write('beta: {:2.1f}\n'.format(self.beta))
+        f.write('drifted process: {}\n\n'.format(self.is_drifted))
+
+        f.write('Euler-Maruyama discretization parameters\n')
         f.write('dt: {:2.4f}\n'.format(self.dt))
-        f.write('Y_0: {:2.1f}\n'.format(self.xzero))
+        f.write('maximal time steps: {:,d}\n\n'.format(self.N_lim))
+
+        f.write('Sampling parameters and statistics\n')
+        f.write('xzero: {:2.1f}\n'.format(self.xzero))
         f.write('target set: [{:2.1f}, {:2.1f}]\n\n'
                 ''.format(self.target_set[0], self.target_set[1]))
+        f.write('sampled trajectories: {:,d}\n'.format(self.M))
+        f.write('trajectories which arrived: {:2.2f} %\n'
+                ''.format(100 * len(self.fht) / self.M))
+        f.write('time steps last trajectory: {:,d}\n\n'.format(int(self.last_fht / self.dt)))
 
         if self.is_drifted:
+            f.write('Control parametrization (unif distr ansatz functions)\n')
             f.write('m: {:d}\n'.format(self.m))
             f.write('smallest mu: {:2.2f}\n'.format(np.min(self.mus)))
             f.write('biggest mu: {:2.2f}\n'.format(np.max(self.mus)))
             f.write('sigma: {:2.2f}\n\n'.format(self.sigmas[0]))
 
-        f.write('sampled trajectories: {:d}\n'.format(self.M))
-        f.write('time steps: {:d}\n\n'.format(self.N))
 
-        f.write('% trajectories which have arrived: {:2.2f}\n\n'
-                ''.format(100 * len(self.fht) / self.M))
-
-        f.write('E[fhs] = {:.2f}\n\n'.format(self.mean_fht / self.dt))
-
-        f.write('first fht = {:2.4f}\n'.format(self.first_fht))
-        f.write('last fht = {:2.4f}\n'.format(self.last_fht))
-        f.write('E[fht] = {:2.4f}\n'.format(self.mean_fht))
-        f.write('Var[fht] = {:2.4f}\n'.format(self.var_fht))
-        f.write('RE[fht] = {:2.4f}\n\n'.format(self.re_fht))
+        f.write('First hitting time statistics\n')
+        f.write('first fht = {:2.3f}\n'.format(self.first_fht))
+        f.write('last fht = {:2.3f}\n'.format(self.last_fht))
+        f.write('E[fht] = {:2.3f}\n'.format(self.mean_fht))
+        f.write('Var[fht] = {:2.3f}\n'.format(self.var_fht))
+        f.write('RE[fht] = {:2.3f}\n\n'.format(self.re_fht))
 
         if self.is_sampling_problem and not self.is_drifted:
-            f.write('E[exp(-beta * fht)] = {:2.4e}\n'.format(self.mean_Psi))
-            f.write('Var[exp(-beta * fht)] = {:2.4e}\n'.format(self.var_Psi))
-            f.write('RE[exp(-beta * fht)] = {:2.4e}\n\n'.format(self.re_Psi))
+            f.write('Moment generation function statistics\n')
+            f.write('E[exp(-beta * fht)] = {:2.2e}\n'.format(self.mean_Psi))
+            f.write('Var[exp(-beta * fht)] = {:2.2e}\n'.format(self.var_Psi))
+            f.write('RE[exp(-beta * fht)] = {:2.2e}\n\n'.format(self.re_Psi))
 
         elif self.is_sampling_problem and self.is_drifted:
-            f.write('E[M_fht] = {:2.4e}\n'.format(self.mean_G_fht))
-            f.write('E[M_N]: {:2.4e}\n\n'.format(self.mean_G_N))
+            f.write('Girsanov Martingale\n')
+            f.write('E[M_fht] = {:2.2e}\n'.format(self.mean_G_fht))
+            f.write('E[M_N]: {:2.2e}\n\n'.format(self.mean_G_N))
 
-            f.write('E[exp(-beta * fht) * M_fht] = {:2.4e}\n'
+            f.write('Reweighted Moment generation function statistics\n')
+            f.write('E[exp(-beta * fht) * M_fht] = {:2.2e}\n'
                     ''.format(self.mean_Psi_rew))
-            f.write('Var[exp(-beta * fht) * M_fht] = {:2.4e}\n'
+            f.write('Var[exp(-beta * fht) * M_fht] = {:2.2e}\n'
                     ''.format(self.var_Psi_rew))
-            f.write('RE[exp(-beta * fht) * M_fht] = {:2.4e}\n\n'
+            f.write('RE[exp(-beta * fht) * M_fht] = {:2.2e}\n\n'
                     ''.format(self.re_Psi_rew))
 
         if self.is_soc_problem:
-            f.write('E[Jh] = {:2.4e}\n'.format(self.mean_J))
+            f.write('Gradient descent\n')
+            f.write('E[Jh] = {:2.2e}\n'.format(self.mean_J))
             if self.do_ipa:
                 for j in np.arange(self.m):
-                    f.write('E[(grad_Jh)j] = {:2.4e}\n'.format(self.mean_gradJ[j]))
+                    f.write('E[(grad_Jh)j] = {:2.2e}\n\n'.format(self.mean_gradJ[j]))
+
+        h, m, s = get_time_in_hms(self.t_final - self.t_initial)
+        f.write('Computational time: {:d}:{:02d}:{:02.2f}'.format(h, m, s))
 
         f.close()
 
     def plot_tilted_potential(self, file_name):
         X = np.linspace(-3, 3, 100)
-        V = self.potential(X)
+        V = self.potential(X, self.alpha)
         if self.is_drifted:
             Vbias = self.bias_potential(X)
         else:
@@ -761,7 +785,7 @@ class langevin_1d:
 
     def plot_tilted_drift(self, file_name):
         X = np.linspace(-3, 3, 100)
-        dV = self.gradient(X)
+        dV = self.gradient(X, self.alpha)
         if self.is_drifted:
             U = self.control(X)
             dVbias = self.bias_gradient(U)
@@ -779,7 +803,7 @@ class langevin_1d:
     def plot_optimal_potential_and_gradient(self):
         # tilted optimal potential and gradient on a gaussian basis 
         X = np.linspace(-2, 2, 1000)
-        V = self.potential(X)
+        V = self.potential(X, self.alpha)
         dV = self.gradient(X)
         Vbias = self.bias_potential(X, self.a_opt)
         U = self.control(X, self.a_opt)

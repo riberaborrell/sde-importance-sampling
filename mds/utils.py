@@ -1,10 +1,12 @@
+from datetime import datetime
+
 import os
 import shutil
 
 MDS_PATH = os.path.abspath(os.path.dirname(__file__))
 
 def make_dir_path(dir_path):
-    ''' Create directories of the give path if they do not already exist
+    ''' Create directories of the given path if they do not already exist
     '''
     if not os.path.isdir(dir_path):
         os.makedirs(dir_path)
@@ -47,3 +49,14 @@ def get_data_path(potential=None, beta=None, target_set=None):
     make_dir_path(dir_path)
 
     return dir_path
+
+def get_datetime_stamp():
+    time_stamp = datetime.today().strftime('%Y%m%d_%H%M%S')
+    return time_stamp
+
+def get_time_in_hms(dt):
+    m, s = divmod(dt, 60)
+    h, m = divmod(m, 60)
+    return int(h), int(m), s
+
+

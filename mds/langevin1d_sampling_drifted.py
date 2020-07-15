@@ -18,6 +18,13 @@ def get_parser():
         help='Set the potential for the 1D MD SDE. Default: symmetric double well',
     )
     parser.add_argument(
+        '--alpha',
+        dest='alpha',
+        type=float,
+        default=1,
+        help='Set the parameter alpha for the chosen potential. Default: 1',
+    )
+    parser.add_argument(
         '--beta',
         dest='beta',
         type=float,
@@ -54,11 +61,11 @@ def get_parser():
         help='Set dt. Default: 0.001',
     )
     parser.add_argument(
-        '--N',
-        dest='N',
+        '--N-lim',
+        dest='N_lim',
         type=int,
-        default=10**5,
-        help='Set number of time steps. Default: 100.000',
+        default=10**6,
+        help='Set maximal number of time steps. Default: 1.100.000',
     )
     parser.add_argument(
         '--m',
@@ -97,6 +104,7 @@ def main():
     # initialize langevin_1d object
     sample = sampling.langevin_1d(
         potential_name=args.potential_name,
+        alpha=args.alpha,
         beta=args.beta,
         target_set=args.target_set,
     )
@@ -120,13 +128,13 @@ def main():
         sample.plot_tilted_drift(file_name='sampling_drifted_drift')
         sample.plot_ansatz_functions()
 
-    # set sampling and Euler-Majurama parameters
+    # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(
         seed=args.seed,
         xzero=args.xzero,
         M=args.M,
         dt=args.dt,
-        N=args.N,
+        N_lim=args.N_lim,
     )
 
     # sample
