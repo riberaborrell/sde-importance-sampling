@@ -6,7 +6,7 @@ from inspect import isfunction
 class langevin_1d_reference_solution():
     def __init__(self, gradient, beta, target_set, h=0.001):
 
-        assert isfunction(gradient), 'the gradient must be a function'
+        assert isfunction(gradient.func), 'the gradient must be a function'
 
         target_set_min, target_set_max = target_set
         assert target_set_min < target_set_max, \
@@ -44,17 +44,17 @@ class langevin_1d_reference_solution():
 
         # discretization of the operator (epsionL -1), where L 
         # is the infinitessimal generator of the not drifted langevin 1d
-        # L = - dV_bias d/dx + epsilon d^2/dx^2
+        # L = - dV/dx d/dx + epsilon d^2/dx^2
 
         a = np.zeros((N, N))
         b = np.zeros(N)
 
         # weights of Psi
         for i in np.arange(1, N-1):
-            dV_bias = gradient(omega_h[i])
-            a[i, i - 1] = 1 / (beta**2 * h**2) + dV_bias / (beta * 2 * h)
+            dV = gradient(omega_h[i])
+            a[i, i - 1] = 1 / (beta**2 * h**2) + dV / (beta * 2 * h)
             a[i, i] = - 2 / (beta**2 * h**2) - 1
-            a[i, i + 1] = 1 / (beta**2 * h**2) - dV_bias / (beta * 2 * h)
+            a[i, i + 1] = 1 / (beta**2 * h**2) - dV / (beta * 2 * h)
 
         # boundary condition
         a[idx_ts, :] = 0

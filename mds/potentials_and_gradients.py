@@ -1,23 +1,25 @@
 import numpy as np
 from scipy import stats
 
-def get_potential_and_gradient(potential_name):
+import functools
+
+def get_potential_and_gradient(potential_name, alpha=1.0):
     '''Given a potential name this methods returns the corresponding
        potential function and gradient function.
     Args:
         potential_name (str) : label of the potential
     '''
     if potential_name == 'sym_1well':
-        potential = one_well_potential
-        gradient = one_well_gradient
+        potential = functools.partial(one_well_potential, alpha=alpha)
+        gradient = functools.partial(one_well_gradient, alpha=alpha)
 
     elif potential_name == 'sym_2well':
-        potential = symmetric_double_well_potential
-        gradient = symmetric_double_well_gradient
+        potential = functools.partial(symmetric_double_well_potential, alpha=alpha)
+        gradient = functools.partial(symmetric_double_well_gradient, alpha=alpha)
 
     elif potential_name == 'asym_2well':
-        potential = asymmetric_double_well_potential
-        gradient = asymmetric_double_well_gradient
+        potential = functools.partial(asymmetric_double_well_potential, alpha=alpha)
+        gradient = functools.partial(asymmetric_double_well_gradient, alpha=alpha)
 
     return potential, gradient
 

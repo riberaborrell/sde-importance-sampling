@@ -41,6 +41,13 @@ def get_parser():
         help='Set the potential for the 1D MD SDE. Default: symmetric double well',
     )
     parser.add_argument(
+        '--alpha',
+        dest='alpha',
+        type=float,
+        default=1,
+        help='Set the parameter alpha for the chosen potential. Default: 1',
+    )
+    parser.add_argument(
         '--beta',
         dest='beta',
         type=float,
@@ -115,7 +122,7 @@ def main():
     empty_dir(gd_path)
 
     # set potential
-    potential, gradient = get_potential_and_gradient(args.potential_name)
+    potential, gradient = get_potential_and_gradient(args.potential_name, args.alpha)
 
     # sampling parameters
     beta = args.beta
@@ -185,7 +192,7 @@ def sample_loss(gradient, beta, xzero, target_set, M, m, theta, mus, sigmas):
     # sampling parameters
     target_set_min, target_set_max = target_set
 
-    # Euler-Majurama
+    # Euler-Marujama
     dt = 0.001
     N = 100000
 
@@ -260,7 +267,7 @@ def sample_loss_not_vectorized(gradient, beta, xzero, target_set, M, m, theta, m
     # sampling parameters
     target_set_min, target_set_max = target_set
 
-    # Euler-Majurama
+    # Euler-Marujama
     dt = 0.001
     N = 100000
 

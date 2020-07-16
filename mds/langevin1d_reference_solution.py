@@ -25,6 +25,13 @@ def get_parser():
         help='Set the parameter beta for the 1D MD SDE. Default: 1',
     )
     parser.add_argument(
+        '--alpha',
+        dest='alpha',
+        type=float,
+        default=1,
+        help='Set the parameter alpha for the chosen potential. Default: 1',
+    )
+    parser.add_argument(
         '--target-set',
         nargs=2,
         dest='target_set',
@@ -50,7 +57,7 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
-    potential, gradient = get_potential_and_gradient(args.potential_name)
+    potential, gradient = get_potential_and_gradient(args.potential_name, args.alpha)
 
     # compute reference solution
     sol = langevin_1d_reference_solution(

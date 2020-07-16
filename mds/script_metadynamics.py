@@ -27,6 +27,13 @@ def get_parser():
         help='Set the potential for the 1D MD SDE. Default: symmetric double well',
     )
     parser.add_argument(
+        '--alpha',
+        dest='alpha',
+        type=float,
+        default=1,
+        help='Set the parameter alpha for the chosen potential. Default: 1',
+    )
+    parser.add_argument(
         '--beta',
         dest='beta',
         type=float,
@@ -91,6 +98,7 @@ def main():
 
     omegas, mus, sigmas = metadynamics_algorithm(
         potential_name=args.potential_name,
+        alpha=args.alpha,
         beta=args.beta,
         xzero=args.xzero,
         well_set=args.well_set,
@@ -104,6 +112,7 @@ def main():
     # initialize langevin_1d object
     sample = sampling.langevin_1d(
         potential_name=args.potential_name,
+        alpha=args.alpha,
         beta=args.beta,
         target_set=args.target_set,
     )
@@ -126,7 +135,7 @@ def main():
         sigmas=sigmas,
     )
 
-def metadynamics_algorithm(potential_name, beta, xzero, well_set, k, dt, N,
+def metadynamics_algorithm(potential_name, alpha, beta, xzero, well_set, k, dt, N,
                            target_set=[0.9, 1.1], seed=None, do_plots=False):
     '''
     '''
@@ -155,7 +164,7 @@ def metadynamics_algorithm(potential_name, beta, xzero, well_set, k, dt, N,
     X = np.linspace(-3, 3, 1000)
 
     # potential and gradient at the grid
-    potential, gradient = get_potential_and_gradient(potential_name)
+    potential, gradient = get_potential_and_gradient(potential_name, alpha)
     V = potential(X)
     dV = gradient(X)
 

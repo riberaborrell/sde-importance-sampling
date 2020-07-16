@@ -19,7 +19,7 @@ class langevin_1d:
         '''
         '''
         # get potential and gradient functions
-        potential, gradient = get_potential_and_gradient(potential_name)
+        potential, gradient = get_potential_and_gradient(potential_name, alpha)
 
         # validate target set
         if not is_valid_1d_target_set(target_set):
@@ -342,7 +342,7 @@ class langevin_1d:
         Args:
             x (float or ndarray) : position
         '''
-        return self.potential(x, self.alpha) + self.bias_potential(x)
+        return self.potential(x) + self.bias_potential(x)
 
     def tilted_gradient(self, x, u):
         '''This method computes the tilted gradient at x
@@ -355,7 +355,7 @@ class langevin_1d:
         if type(x) == np.ndarray:
             assert x.shape == u.shape
 
-        return self.gradient(x, self.alpha) + self.bias_gradient(u)
+        return self.gradient(x) + self.bias_gradient(u)
 
     def set_sampling_parameters(self, xzero, M, dt, N_lim, seed=None):
         '''
@@ -437,7 +437,7 @@ class langevin_1d:
             dB = np.sqrt(dt) * np.random.normal(0, 1, M)
 
             # compute gradient
-            gradient = self.gradient(Xtemp, self.alpha)
+            gradient = self.gradient(Xtemp)
 
             # SDE iteration
             drift = - gradient * dt
@@ -763,13 +763,13 @@ class langevin_1d:
                     f.write('E[(grad_Jh)j] = {:2.2e}\n\n'.format(self.mean_gradJ[j]))
 
         h, m, s = get_time_in_hms(self.t_final - self.t_initial)
-        f.write('Computational time: {:d}:{:02d}:{:02.2f}'.format(h, m, s))
+        f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
 
         f.close()
 
     def plot_tilted_potential(self, file_name):
         X = np.linspace(-3, 3, 100)
-        V = self.potential(X, self.alpha)
+        V = self.potential(X)
         if self.is_drifted:
             Vbias = self.bias_potential(X)
         else:
@@ -785,7 +785,7 @@ class langevin_1d:
 
     def plot_tilted_drift(self, file_name):
         X = np.linspace(-3, 3, 100)
-        dV = self.gradient(X, self.alpha)
+        dV = self.gradient(X)
         if self.is_drifted:
             U = self.control(X)
             dVbias = self.bias_gradient(U)
@@ -803,7 +803,7 @@ class langevin_1d:
     def plot_optimal_potential_and_gradient(self):
         # tilted optimal potential and gradient on a gaussian basis 
         X = np.linspace(-2, 2, 1000)
-        V = self.potential(X, self.alpha)
+        V = self.potential(X)
         dV = self.gradient(X)
         Vbias = self.bias_potential(X, self.a_opt)
         U = self.control(X, self.a_opt)
