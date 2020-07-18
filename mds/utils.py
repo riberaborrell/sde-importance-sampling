@@ -25,14 +25,28 @@ def empty_dir(dir_path):
             except Exception as e:
                 print('Failed to delete {}. Reason: {}'.format((file_path, e)))
 
-def get_data_path(potential=None, beta=None, target_set=None):
+def get_data_path(potential=None, alpha=None, beta=None, target_set=None, subdirectory=None):
+    ''' Get data path and create its directories
+    '''
     # get dir path
-    if potential and beta and target_set:
+    if potential and alpha and beta and target_set and subdirectory:
         target_set_min, target_set_max = target_set
         dir_path = os.path.join(
             MDS_PATH,
             'data',
             potential,
+            'alpha_{}'.format(float(alpha)),
+            'beta_{}'.format(float(beta)),
+            'target_set_{}_{}'.format(target_set_min, target_set_max),
+            subdirectory,
+        )
+    elif potential and alpha and beta and target_set:
+        target_set_min, target_set_max = target_set
+        dir_path = os.path.join(
+            MDS_PATH,
+            'data',
+            potential,
+            'alpha_{}'.format(float(alpha)),
             'beta_{}'.format(float(beta)),
             'target_set_{}_{}'.format(target_set_min, target_set_max),
         )
@@ -54,9 +68,21 @@ def get_datetime_stamp():
     time_stamp = datetime.today().strftime('%Y%m%d_%H%M%S')
     return time_stamp
 
+def get_sde_stamp(alpha, beta):
+    sde_stamp = 'alpha{}_beta{}'.format(float(alpha), float(beta))
+    return sde_stamp
+
+def get_trajectories_stamp(M):
+    assert type(M) == int, 'Error:'
+    trajectories_stamp = 'M{:.0e}'.format(M)
+    return sde_stamp
+
 def get_time_in_hms(dt):
     m, s = divmod(dt, 60)
     h, m = divmod(m, 60)
     return int(h), int(m), s
 
-
+def get_time_in_hms(dt):
+    m, s = divmod(dt, 60)
+    h, m = divmod(m, 60)
+    return int(h), int(m), s

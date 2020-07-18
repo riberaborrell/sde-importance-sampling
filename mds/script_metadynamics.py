@@ -4,7 +4,7 @@ from potentials_and_gradients import get_potential_and_gradient, \
                                      bias_potential, \
                                      bias_gradient
 import sampling
-from utils import make_dir_path, empty_dir, get_data_path
+from utils import empty_dir, get_data_path
 
 import argparse
 import numpy as np
@@ -127,9 +127,10 @@ def main():
         sample.plot_tilted_drift(file_name='metadynamics_tilted_drift')
 
     # save bias
-    dir_path = get_data_path(args.potential_name, args.beta, args.target_set)
+    dir_path = get_data_path(args.potential_name, args.alpha,
+                             args.beta, args.target_set, 'metadynamics')
     np.savez(
-        os.path.join(dir_path, 'metadynamics_bias_potential.npz'),
+        os.path.join(dir_path, 'bias_potential.npz'),
         omegas=omegas,
         mus=mus,
         sigmas=sigmas,
@@ -144,11 +145,7 @@ def metadynamics_algorithm(potential_name, alpha, beta, xzero, well_set, k, dt, 
         np.random.seed(seed)
 
     if do_plots:
-        dir_path = os.path.join(
-            get_data_path(potential_name, beta, target_set),
-            'metadynamics',
-        )
-        make_dir_path(dir_path)
+        dir_path = get_data_path(potential_name, alpha, beta, target_set, 'metadynamics')
         empty_dir(dir_path)
         pl = Plot(dir_path=dir_path)
 

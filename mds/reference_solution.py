@@ -1,18 +1,32 @@
+from potentials_and_gradients import get_potential_and_gradient
+from plotting import Plot
+from utils import get_data_path, get_sde_stamp, get_trajectories_stamp
+
 import numpy as np
 
 from inspect import isfunction
 
+import os
+
 #TODO: generalize method for f and g different to 1 and 0
 class langevin_1d_reference_solution():
-    def __init__(self, gradient, beta, target_set, h=0.001):
+    def __init__(self, potential_name, alpha, beta, target_set, h=0.001):
 
-        assert isfunction(gradient.func), 'the gradient must be a function'
+        # get potential and gradient functions
+        potential, gradient = get_potential_and_gradient(potential_name, alpha)
 
+        # validate target set
         target_set_min, target_set_max = target_set
         assert target_set_min < target_set_max, \
             'The target set interval is not valid'
 
+        # dir_path
+        self.dir_path = get_data_path(potential_name, alpha, beta,
+                                      target_set, 'reference_solution')
+
+        self.potential = potential
         self.gradient = gradient
+        self.alpha = alpha
         self.beta = beta
         self.target_set_min = target_set_min
         self.target_set_max = target_set_max
@@ -92,3 +106,33 @@ class langevin_1d_reference_solution():
         self.Psi = Psi
         self.F = F
         self.u_opt = u_opt
+
+    def save_reference_solution(self):
+        np.savez(
+            os.path.join(self.dir_path, 'reference_solution.npz'),
+            omega_h=self.omega_h,
+            Psi=self.Psi,
+            F=self.F,
+            u_opt=self.u_opt,
+        )
+
+    def plot_free_energy(self):
+        pl = Plot(self.dir_path, 'free_energy')
+        pl.free_energy(self.omega_h, self.F)
+
+    def plot_optimal_tilted_potential(self):
+        pl = Plot(self.dir_path, 'optimal_tilted_potential')
+        V = self.potential(self.omega_h)
+        Vb = 2 * self.F
+        pl.potential_and_tilted_potential(self.omega_h, V, Vb)
+
+    def plot_optimal_tilted_drift(self):
+        pl = Plot(self.dir_path, 'optimal_tilted_drift')
+        dV = self.gradient(self.omega_h)
+        u = self.u_opt
+        dVb = - np.sqrt(2) * u
+        pl.drift_and_tilted_drift(self.omega_h, dV, dVb)
+
+    def plot_optimal_control(self):
+        pl = Plot(self.dir_path, 'optimal_control')
+        pl.control(self.omega_h, self.u_opt)

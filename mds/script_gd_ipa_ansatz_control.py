@@ -13,7 +13,7 @@ from script_utils import get_reference_solution, \
                          plot_free_energy, \
                          plot_tilted_potential, \
                          plot_gd_tilted_potentials
-from utils import make_dir_path, empty_dir, get_data_path
+from utils import empty_dir, get_data_path
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -115,11 +115,14 @@ def main():
     if args.seed:
         np.random.seed(args.seed)
 
-    # set data_path and gd path
-    data_path = get_data_path(args.potential_name, args.beta, args.target_set)
-    gd_path = os.path.join(data_path, 'gd-ipa-ansatz-control')
-    make_dir_path(gd_path)
+    # set gd path
+    gd_path = get_data_path(args.potential_name, args.alpha, args.beta,
+                            args.target_set, 'gd-ipa-ansatz-control')
     empty_dir(gd_path)
+
+    # get ref sol path
+    ref_sol_path = get_data_path(args.potential_name, args.alpha, args.beta,
+                                 args.target_set, 'reference_solution')
 
     # set potential
     potential, gradient = get_potential_and_gradient(args.potential_name, args.alpha)
@@ -131,7 +134,7 @@ def main():
     M = args.M
 
     # get reference solution
-    omega_h, F_opt, u_opt = get_reference_solution(data_path)
+    omega_h, F_opt, u_opt = get_reference_solution(ref_sol_path)
 
     # ansatz functions basis
     m = args.m
@@ -145,8 +148,8 @@ def main():
     theta_opt = get_optimal_coefficients(omega_h, target_set, u_opt, mus, sigmas)
 
     # get meta coefficients
-    theta_meta = get_meta_coefficients(args.potential_name, args.beta, args.target_set,
-                                   omega_h, mus, sigmas)
+    theta_meta = get_meta_coefficients(args.potential_name, args.alpha, args.beta,
+                                       args.target_set, omega_h, mus, sigmas)
 
     # set gd parameters
     lr = args.lr

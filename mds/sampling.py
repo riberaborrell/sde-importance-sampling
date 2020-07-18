@@ -28,7 +28,7 @@ class langevin_1d:
             return
 
         # dir_path
-        self.dir_path = get_data_path(potential_name, beta, target_set)
+        self.dir_path = get_data_path(potential_name, alpha, beta, target_set, 'sampling')
 
         #seed
         self.seed = None
@@ -150,12 +150,12 @@ class langevin_1d:
 
     def set_bias_potential_from_metadynamics(self):
         # load metadynamics parameters
-        bias_pot_coeff = np.load(
-            os.path.join(self.dir_path, 'metadynamics_bias_potential.npz')
-        )
-        omegas = bias_pot_coeff['omegas']
-        meta_mus = bias_pot_coeff['mus']
-        meta_sigmas = bias_pot_coeff['sigmas']
+        dir_path = get_data_path(self.potential_name, self.alpha, self.beta,
+                                 self.target_set, 'metadynamics')
+        bias_pot = np.load(os.path.join(dir_path, 'bias_potential.npz'))
+        omegas = bias_pot['omegas']
+        meta_mus = bias_pot['mus']
+        meta_sigmas = bias_pot['sigmas']
 
         assert omegas.shape == meta_mus.shape == meta_sigmas.shape
 
@@ -176,9 +176,9 @@ class langevin_1d:
         sigmas= self.sigmas
 
         # load metadynamics parameters
-        bias_pot = np.load(
-            os.path.join(self.dir_path, 'metadynamics_bias_potential.npz')
-        )
+        dir_path = get_data_path(self.potential_name, self.alpha, self.beta,
+                                 self.target_set, 'metadynamics')
+        bias_pot = np.load(os.path.join(dir_path, 'bias_potential.npz'))
         omegas = bias_pot['omegas']
         meta_mus = bias_pot['mus']
         meta_sigmas = bias_pot['sigmas']
@@ -206,9 +206,9 @@ class langevin_1d:
 
     def set_a_optimal(self):
         #TODO assert self.m, self.mus, self.sigmas
-        ref_sol = np.load(
-            os.path.join(self.dir_path, 'reference_solution.npz')
-        )
+        dir_path = get_data_path(self.potential_name, self.alpha, self.beta,
+                                 self.target_set, 'reference_solution')
+        ref_sol = np.load(os.path.join(dir_path, 'reference_solution.npz'))
 
         # compute the optimal a given a basis of ansatz functions
         X = ref_sol['omega_h']
@@ -692,9 +692,9 @@ class langevin_1d:
         '''
         # set path
         if not self.is_drifted:
-            sampling_stamp = 'report_sampling_not_drifted'
+            sampling_stamp = 'report_not_drifted'
         else:
-            sampling_stamp = 'report_sampling_drifted'
+            sampling_stamp = 'report_drifted'
         trajectories_stamp = 'M{:.0e}'.format(self.M)
         file_name = sampling_stamp + '_' + trajectories_stamp + '.txt'
         file_path = os.path.join(self.dir_path, file_name)

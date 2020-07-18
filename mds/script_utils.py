@@ -159,12 +159,10 @@ def get_optimal_coefficients2(X, target_set, F_opt, mus, sigmas):
     return x
 
 
-def get_meta_coefficients(potential_name, beta, target_set, X, mus, sigmas):
+def get_meta_coefficients(potential_name, alpha, beta, target_set, X, mus, sigmas):
     # load metadynamics parameters
-    dir_path = get_data_path(potential_name, beta, target_set)
-    bias_pot = np.load(
-        os.path.join(dir_path, 'metadynamics_bias_potential.npz')
-    )
+    meta_path = get_data_path(potential_name, alpha, beta, target_set, 'metadynamics')
+    bias_pot = np.load(os.path.join(meta_path, 'bias_potential.npz'))
     omegas = bias_pot['omegas']
     meta_mus = bias_pot['mus']
     meta_sigmas = bias_pot['sigmas']
