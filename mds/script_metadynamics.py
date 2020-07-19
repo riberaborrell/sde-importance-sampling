@@ -231,11 +231,13 @@ def metadynamics_algorithm(potential_name, alpha, beta, xzero, well_set, k, dt, 
                 # plot tilted potential
                 Vbias = bias_potential(X, omegas[:i], mus[:i], sigmas[:i])
                 pl.file_name = 'tilted_potential_i_' + str(i)
+                pl.set_ylim(bottom=0, top=alpha * 10)
                 pl.potential_and_tilted_potential(X, V, Vbias)
 
                 # plot tilted gradient
                 dVbias = bias_gradient(X, omegas[:i], mus[:i], sigmas[:i])
                 pl.file_name = 'tilted_drift_i_' + str(i)
+                pl.set_ylim(bottom=-alpha * 5, top=alpha * 5)
                 pl.drift_and_tilted_drift(X, dV, dVbias)
 
         # compute drift and diffusion coefficients

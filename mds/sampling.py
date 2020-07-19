@@ -768,7 +768,7 @@ class langevin_1d:
         f.close()
 
     def plot_tilted_potential(self, file_name):
-        X = np.linspace(-3, 3, 100)
+        X = np.linspace(-3, 3, 1000)
         V = self.potential(X)
         if self.is_drifted:
             Vbias = self.bias_potential(X)
@@ -776,6 +776,7 @@ class langevin_1d:
             Vbias = np.zeros(X.shape[0])
 
         pl = Plot(dir_path=self.dir_path, file_name=file_name)
+        pl.set_ylim(bottom=0, top=self.alpha * 10)
         if self.a_opt is not None:
             Vopt = V + self.bias_potential(X, self.a_opt)
             pl.potential_and_tilted_potential(X, V, Vbias, Vopt)
@@ -784,7 +785,7 @@ class langevin_1d:
 
 
     def plot_tilted_drift(self, file_name):
-        X = np.linspace(-3, 3, 100)
+        X = np.linspace(-3, 3, 1000)
         dV = self.gradient(X)
         if self.is_drifted:
             U = self.control(X)
@@ -793,6 +794,7 @@ class langevin_1d:
             dVbias = np.zeros(X.shape[0])
 
         pl = Plot(dir_path=self.dir_path, file_name=file_name)
+        pl.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
         if self.a_opt is not None:
             U = self.control(X, self.a_opt)
             dVopt = dV - np.sqrt(2) * U

@@ -21,6 +21,12 @@ class Plot:
         else:
             return None
 
+    def set_ylim(self, bottom=None, top=None):
+        self.bottom = bottom
+        self.top = top
+        tick_sep = (top - bottom) / 10
+        self.yticks = np.arange(bottom, top + tick_sep, tick_sep)
+
     def potential(self, X, V):
         plt.title('Potential')
         plt.plot(X, V, 'b-', label=r'$V(x)$')
@@ -39,7 +45,8 @@ class Plot:
         if Vopt is not None:
             plt.plot(X, Vopt, 'c-', label=r'$\tilde{V}_{opt}(x)$')
         plt.xlabel('x', fontsize=16)
-        plt.ylim(top=15, bottom=0)
+        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
         plt.savefig(self.file_path)
@@ -53,7 +60,8 @@ class Plot:
         if dVopt is not None:
             plt.plot(X, -dVopt, 'c-', label=r'$ - \nabla \tilde{V}_{opt}(x)$')
         plt.xlabel('x', fontsize=16)
-        plt.ylim(top=5, bottom=-5)
+        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
         plt.savefig(self.file_path)
@@ -62,7 +70,8 @@ class Plot:
     def free_energy(self, X, J):
         plt.title('Free energy / Performance function')
         plt.plot(X, J, 'b-', label='F(x)')
-        plt.ylim(top=3, bottom=0)
+        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
         plt.savefig(self.file_path)
@@ -71,8 +80,8 @@ class Plot:
     def control(self, X, u):
         plt.title('Control')
         plt.plot(X, u, 'b-', label='u(x)')
-        plt.xlim(left=-1.8, right=1.8)
-        plt.ylim(top=5, bottom=-5)
+        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
         plt.savefig(self.file_path)

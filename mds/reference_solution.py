@@ -117,22 +117,31 @@ class langevin_1d_reference_solution():
         )
 
     def plot_free_energy(self):
+        X = self.omega_h
+        F = self.F
         pl = Plot(self.dir_path, 'free_energy')
-        pl.free_energy(self.omega_h, self.F)
+        pl.set_ylim(bottom=0, top=self.alpha * 2.5)
+        pl.free_energy(X, F)
 
     def plot_optimal_tilted_potential(self):
-        pl = Plot(self.dir_path, 'optimal_tilted_potential')
-        V = self.potential(self.omega_h)
+        X = self.omega_h
+        V = self.potential(X)
         Vb = 2 * self.F
-        pl.potential_and_tilted_potential(self.omega_h, V, Vb)
+        pl = Plot(self.dir_path, 'optimal_tilted_potential')
+        pl.set_ylim(bottom=0, top=self.alpha * 10)
+        pl.potential_and_tilted_potential(X, V, Vb)
 
     def plot_optimal_tilted_drift(self):
+        X = self.omega_h
+        dV = self.gradient(X)
+        dVb = - np.sqrt(2) * self.u_opt
         pl = Plot(self.dir_path, 'optimal_tilted_drift')
-        dV = self.gradient(self.omega_h)
-        u = self.u_opt
-        dVb = - np.sqrt(2) * u
-        pl.drift_and_tilted_drift(self.omega_h, dV, dVb)
+        pl.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
+        pl.drift_and_tilted_drift(X, dV, dVb)
 
     def plot_optimal_control(self):
+        X = self.omega_h
+        u = self.u_opt
         pl = Plot(self.dir_path, 'optimal_control')
-        pl.control(self.omega_h, self.u_opt)
+        pl.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
+        pl.control(X, u)

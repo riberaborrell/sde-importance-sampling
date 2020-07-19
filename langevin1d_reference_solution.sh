@@ -1,15 +1,12 @@
 #!/bin/bash
 
-alphas='1 2'
-betas='1 2 4 6'
+alpha_and_betas=$1
 
-for alpha in $alphas
+for i in $alpha_and_betas
 do
-  for beta in $betas
-  do
-    echo $alpha $beta
-    python mds/langevin1d_reference_solution.py --do-plots \
-                                                --alpha $alpha \
-                                                --beta $beta
-  done
+  IFS=',' read alpha beta <<< "${i}"
+  echo $alpha $beta
+  python mds/langevin1d_reference_solution.py --do-plots \
+                                              --alpha $alpha \
+                                              --beta $beta
 done
