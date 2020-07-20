@@ -13,7 +13,8 @@ from script_utils import get_reference_solution, \
                          plot_control, \
                          plot_free_energy, \
                          plot_tilted_potential, \
-                         plot_gd_tilted_potentials
+                         plot_gd_tilted_potentials, \
+                         plot_gd_losses
 from utils import empty_dir, get_data_path
 
 import numpy as np
@@ -90,6 +91,13 @@ def get_parser():
         type=float,
         default=0.1,
         help='Set learning rate. Default: 0.1',
+    )
+    parser.add_argument(
+        '--atol',
+        dest='atol',
+        type=float,
+        default=0.01,
+        help='Set absolute tolerance between value funtion and loss at xinit. Default: 0.01',
     )
     parser.add_argument(
         '--m',
@@ -184,8 +192,8 @@ def main():
         loss[epoch], grad_loss = sample_loss(gradient, beta, xzero, target_set,
                                              M, m, thetas[epoch], mus, sigmas)
         # check if we are close enought to the optimal
-        print(value_f, loss[epoch])
-        if np.isclose(value_f, loss[epoch], atol=0.05):
+        print('{:2.3f}, {:2.3f}'.format(value_f, loss[epoch]))
+        if np.isclose(value_f, loss[epoch], atol=args.atol):
             break
 
         # Update parameters
@@ -197,6 +205,7 @@ def main():
         F[epoch+1:] = np.nan
 
     plot_gd_tilted_potentials(gd_path, omega_h, potential, F_opt, F[:epoch+1])
+    plot_gd_losses(gd_path, value_f, loss[:epoch+1])
 
 
 def sample_loss(gradient, beta, xzero, target_set, M, m, theta, mus, sigmas):

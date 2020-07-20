@@ -253,6 +253,7 @@ def plot_control(dir_path, epoch, X, u_opt, u):
     plt.plot(X, u_opt, label='optimal control')
     plt.xlim(left=-3, right=3)
     plt.ylim(bottom=-5, top=5)
+    plt.grid(True)
     plt.legend()
 
     file_name = 'control_epoch{}.png'.format(epoch)
@@ -265,6 +266,7 @@ def plot_free_energy(dir_path, epoch, X, potential, F_opt, F):
     plt.plot(X, F_opt, label='ref solution free energy')
     plt.xlim(left=-3, right=3)
     plt.ylim(bottom=0, top=5)
+    plt.grid(True)
     plt.legend()
 
     file_name = 'free_energy_epoch{}.png'.format(epoch)
@@ -278,6 +280,7 @@ def plot_tilted_potential(dir_path, epoch, X, potential, F_opt, F):
     plt.plot(X, V + 2 * F_opt, label='optimal tilted potential')
     plt.xlim(left=-3, right=3)
     plt.ylim(bottom=0, top=15)
+    plt.grid(True)
     plt.legend()
 
     file_name = 'approx_tilted_potential_epoch{}.png'.format(epoch)
@@ -294,9 +297,27 @@ def plot_gd_tilted_potentials(dir_path, X, potential, F_opt, F):
         plt.plot(X, V + 2 * F[epoch], linestyle='-', label=label)
     plt.xlim(left=-3, right=3)
     plt.ylim(bottom=0, top=15)
+    plt.grid(True)
     plt.legend()
 
     file_name = 'approx_tilted_potentials_gd.png'
+    file_path = os.path.join(dir_path, file_name)
+    plt.savefig(file_path)
+    plt.close()
+
+def plot_gd_losses(dir_path, value_f, losses):
+    epochs = np.arange(losses.shape[0])
+    max_loss = np.max(losses)
+    plt.bar(x=epochs, height=losses, width=0.8, align='center', label=r'$J(x_0)$')
+    plt.plot([epochs[0]-0.4, epochs[-1] + 0.4], [value_f, value_f],
+             'k--', label=r'$F(x_0)$')
+    plt.xlim(left=epochs[0] -0.8, right=epochs[-1] + 0.8)
+    plt.xticks(epochs)
+    plt.ylim(bottom=0, top=max_loss * 1.2)
+    plt.grid(True)
+    plt.legend()
+
+    file_name = 'losses_gd.png'
     file_path = os.path.join(dir_path, file_name)
     plt.savefig(file_path)
     plt.close()
