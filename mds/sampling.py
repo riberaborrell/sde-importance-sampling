@@ -103,7 +103,7 @@ class langevin_1d:
         self.t_initial = None
         self.t_final = None
 
-    def set_ansatz_functions(self, mus, sigmas):
+    def set_given_ansatz_functions(self, mus, sigmas):
         '''This method sets the mean and the standard deviation of the
            ansatz functions
 
@@ -132,6 +132,59 @@ class langevin_1d:
         self.m = m
         self.mus = np.around(np.linspace(J_min, J_max, m), decimals=2)
         self.sigmas = sigma * np.ones(m)
+
+    def set_ansatz_functions(self, m, mus_min=-3, mus_max=3):
+        # assume target_set is connected and contained in [mus_min, mus_max]
+        target_set_min, target_set_max = self.target_set
+
+        # set grid 
+        h = 0.001
+        N = int((mus_max - mus_min) / h) + 1
+        X = np.around(np.linspace(mus_min, mus_max, N), decimals=3)
+
+        # get indexes for nodes in/out the target set
+        idx_ts = np.where((X >= target_set_min) & (X <= target_set_max))[0]
+        idx_nts = np.where((X < target_set_min) | (X > target_set_max))[0]
+        idx_l = np.where(X < target_set_min)[0]
+        idx_r = np.where(X > target_set_max)[0]
+
+        # compute ratio of nodes in the left/right side of the target set
+        ratio_left = idx_l.shape[0] / idx_nts.shape[0]
+        ratio_right = idx_r.shape[0] / idx_nts.shape[0]
+
+        # assigm number of ansatz functions in each side
+        m_left = int(np.round(m * ratio_left))
+        m_right = int(np.round(m * ratio_right))
+        assert m == m_left + m_right
+
+        # distribute ansatz functions unif (in each side)
+        mus_left = np.around(
+            np.linspace(X[idx_l][0], X[idx_l][-1], m_left + 2)[:-2],
+            decimals=3,
+        )
+        mus_right = np.around(
+            np.linspace(X[idx_r][0], X[idx_r][-1], m_right + 2)[2:],
+            decimals=3,
+        )
+        mus = np.concatenate((mus_left, mus_right), axis=0)
+
+        # compute sigmas
+        factor = 2
+        sigma_left = factor * np.around(mus_left[1] - mus_left[0], decimals=3)
+        sigma_right = factor * np.around(mus_right[1] - mus_right[0], decimals=3)
+        sigmas_left = sigma_left * np.ones(m_left)
+        sigmas_right = sigma_right * np.ones(m_right)
+        sigmas = np.concatenate((sigmas_left, sigmas_right), axis=0)
+        sigma_avg = np.around(np.mean(sigmas), decimals=3)
+
+        print(m_left, m_right, m)
+        print(mus_left[0], mus_left[-1])
+        print(mus_right[0], mus_right[-1])
+        print(sigma_left, sigma_right, sigma_avg)
+
+        self.m = m
+        self.mus = mus
+        self.sigmas = sigmas
 
     def set_bias_potential(self, a, mus, sigmas):
         '''

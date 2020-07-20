@@ -110,7 +110,8 @@ def main():
     )
 
     # set ansatz functions and a optimal
-    sample.set_unif_dist_ansatz_functions(m=args.m, sigma=args.sigma)
+    #sample.set_unif_dist_ansatz_functions(m=args.m, sigma=args.sigma)
+    sample.set_ansatz_functions(m=args.m)
     sample.set_a_optimal()
     print(sample.a_opt)
 

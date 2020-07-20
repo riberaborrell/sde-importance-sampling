@@ -50,8 +50,8 @@ def get_parser():
         '--M',
         dest='M',
         type=int,
-        default=10**4,
-        help='Set number of trajectories to sample. Default: 10.000',
+        default=10**3,
+        help='Set number of trajectories to sample. Default: 1.000',
     )
     parser.add_argument(
         '--dt',
@@ -64,8 +64,8 @@ def get_parser():
         '--N-lim',
         dest='N_lim',
         type=int,
-        default=10**6,
-        help='Set maximal number of time steps. Default: 1.100.000',
+        default=10**8,
+        help='Set maximal number of time steps. Default: 100.000.000',
     )
     parser.add_argument(
         '--do-plots',
