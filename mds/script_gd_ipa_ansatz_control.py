@@ -125,8 +125,9 @@ def main():
         np.random.seed(args.seed)
 
     # set gd path
+    subdirectory = 'gd-ipa-ansatz-control-{}'.format(args.theta_init)
     gd_path = get_data_path(args.potential_name, args.alpha, args.beta,
-                            args.target_set, 'gd-ipa-ansatz-control')
+                            args.target_set, subdirectory)
     empty_dir(gd_path)
 
     # get ref sol path
@@ -181,9 +182,11 @@ def main():
     for epoch in range(epochs):
         print(epoch)
 
-        # plot and save control, free_energy and tilted potential
+        # compute control and free energy on the grid
         u[epoch, :] = control_on_grid(omega_h, thetas[epoch, :], mus, sigmas)
         F[epoch, :] = free_energy_on_grid(omega_h, target_set, thetas[epoch, :], mus, sigmas)
+
+        # plot control, free_energy and tilted potential
         plot_control(gd_path, epoch, omega_h, u_opt, u[epoch])
         plot_free_energy(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
         plot_tilted_potential(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
@@ -199,13 +202,25 @@ def main():
         # Update parameters
         thetas[epoch + 1, :] = thetas[epoch, :] - lr * grad_loss
 
+    # if num of max epochs not reached
     if epoch < epochs - 1:
         loss[epoch+1:] = np.nan
         u[epoch+1:] = np.nan
         F[epoch+1:] = np.nan
 
+    # plot titled potential and loss per epoch
     plot_gd_tilted_potentials(gd_path, omega_h, potential, F_opt, F[:epoch+1])
     plot_gd_losses(gd_path, value_f, loss[:epoch+1])
+
+    # write control, approx free energy and loss
+    np.savez(
+        os.path.join(gd_path, 'gd-ipa.npz'),
+        omega_h=omega_h,
+        epochs=np.arange(epoch),
+        u=u[:epoch+1],
+        F=F[:epoch+1],
+        loss=loss[:epoch+1],
+    )
 
 
 def sample_loss(gradient, beta, xzero, target_set, M, m, theta, mus, sigmas):
