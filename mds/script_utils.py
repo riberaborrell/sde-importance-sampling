@@ -19,6 +19,9 @@ def get_reference_solution(data_path):
 
     return omega_h, F_opt, u_opt
 
+def get_F_opt_at_x(omega_h, F_opt, x):
+    idx = np.where(omega_h == x)[0][0]
+    return F_opt[idx]
 
 def get_ansatz_functions(x, mus, sigmas):
     if type(x) == np.ndarray:
@@ -282,10 +285,11 @@ def plot_tilted_potential(dir_path, epoch, X, potential, F_opt, F):
     plt.savefig(file_path)
     plt.close()
 
-def plot_gd_tilted_potentials(dir_path, epochs, X, potential, F_opt, F):
+def plot_gd_tilted_potentials(dir_path, X, potential, F_opt, F):
+    epochs = F.shape[0]
     V = potential(X)
     plt.plot(X, V + 2 * F_opt, linestyle='dashed', label='optimal')
-    for epoch in range(epochs + 1):
+    for epoch in range(epochs):
         label = r'epoch = {:d}'.format(epoch)
         plt.plot(X, V + 2 * F[epoch], linestyle='-', label=label)
     plt.xlim(left=-3, right=3)

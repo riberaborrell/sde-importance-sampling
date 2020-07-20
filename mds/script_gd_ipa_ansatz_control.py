@@ -1,6 +1,7 @@
 from decorators import timer
 from potentials_and_gradients import get_potential_and_gradient
 from script_utils import get_reference_solution, \
+                         get_F_opt_at_x, \
                          get_ansatz_functions, \
                          set_unif_dist_ansatz_functions, \
                          get_optimal_coefficients, \
@@ -136,6 +137,9 @@ def main():
     # get reference solution
     omega_h, F_opt, u_opt = get_reference_solution(ref_sol_path)
 
+    # get value function at xzero
+    value_f = get_F_opt_at_x(omega_h, F_opt, xzero)
+
     # ansatz functions basis
     m = args.m
     mus_min, mus_max = (-2, 2)
@@ -157,9 +161,9 @@ def main():
 
     # coefficients, performance function, control and free energy
     thetas = np.zeros((epochs + 1, m))
-    loss = np.zeros(epochs + 1)
-    u = np.zeros((epochs + 1, len(omega_h)))
-    F = np.zeros((epochs + 1, len(omega_h)))
+    loss = np.zeros(epochs)
+    u = np.zeros((epochs, len(omega_h)))
+    F = np.zeros((epochs, len(omega_h)))
 
     # set initial coefficients
     thetas[0, :] = set_initial_coefficients(m, np.mean(sigmas), theta_opt,
@@ -168,26 +172,31 @@ def main():
     # gradient descent
     for epoch in range(epochs):
         print(epoch)
+
+        # plot and save control, free_energy and tilted potential
         u[epoch, :] = control_on_grid(omega_h, thetas[epoch, :], mus, sigmas)
         F[epoch, :] = free_energy_on_grid(omega_h, target_set, thetas[epoch, :], mus, sigmas)
         plot_control(gd_path, epoch, omega_h, u_opt, u[epoch])
         plot_free_energy(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
         plot_tilted_potential(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
 
+        # get loss and its gradient 
         loss[epoch], grad_loss = sample_loss(gradient, beta, xzero, target_set,
                                              M, m, thetas[epoch], mus, sigmas)
+        # check if we are close enought to the optimal
+        print(value_f, loss[epoch])
+        if np.isclose(value_f, loss[epoch], atol=0.05):
+            break
 
         # Update parameters
         thetas[epoch + 1, :] = thetas[epoch, :] - lr * grad_loss
 
-    epoch += 1
-    print(epoch)
-    u[epoch, :] = control_on_grid(omega_h, thetas[epoch, :], mus, sigmas)
-    F[epoch, :] = free_energy_on_grid(omega_h, target_set, thetas[epoch, :], mus, sigmas)
-    plot_control(gd_path, epoch, omega_h, u_opt, u[epoch])
-    plot_free_energy(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
-    plot_tilted_potential(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
-    plot_gd_tilted_potentials(gd_path, epochs, omega_h, potential, F_opt, F)
+    if epoch < epochs - 1:
+        loss[epoch+1:] = np.nan
+        u[epoch+1:] = np.nan
+        F[epoch+1:] = np.nan
+
+    plot_gd_tilted_potentials(gd_path, omega_h, potential, F_opt, F[:epoch+1])
 
 
 def sample_loss(gradient, beta, xzero, target_set, M, m, theta, mus, sigmas):
