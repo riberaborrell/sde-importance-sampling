@@ -6,9 +6,9 @@ from reference_solution import langevin_1d_reference_solution
 from utils import get_data_path, get_time_in_hms
 from validation import is_valid_1d_target_set
 
-import time
 import numpy as np
 from scipy import stats
+import time
 import os
 
 class langevin_1d:

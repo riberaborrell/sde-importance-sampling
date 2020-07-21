@@ -1,5 +1,5 @@
 from potentials_and_gradients import derivative_normal_pdf
-from utils import get_data_path
+from utils import get_data_path, get_time_in_hms
 
 import numpy as np
 from scipy import stats
@@ -347,3 +347,31 @@ def plot_basis_functions(dir_path, X, mus, sigmas):
     file_path = os.path.join(dir_path, file_name)
     plt.savefig(file_path)
     plt.close()
+
+def save_gd_statistics(dir_path, omega_h, u, F, loss):
+    epochs_needed = u.shape[0]
+    np.savez(
+        os.path.join(dir_path, 'gd-ipa.npz'),
+        omega_h=omega_h,
+        epochs=np.arange(epochs_needed),
+        u=u,
+        F=F,
+        loss=loss,
+    )
+
+def write_gd_report(dir_path, epochs_lim, epochs_needed, lr, atol, value_f, last_loss, c_time):
+    file_path = os.path.join(dir_path, 'report.txt')
+
+    # write in file
+    f = open(file_path, "w")
+
+    f.write('GD parameters\n')
+    f.write('epochs lim: {}\n'.format(epochs_lim))
+    f.write('epochs needed: {}\n'.format(epochs_needed))
+    f.write('lr: {}\n'.format(lr))
+    f.write('atol: {}\n'.format(atol))
+    f.write('value function at xzero: {:2.3f}\n'.format(value_f))
+    f.write('approx value function at xzero: {:2.3f}\n'.format(last_loss))
+    h, m, s = get_time_in_hms(c_time)
+    f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
+

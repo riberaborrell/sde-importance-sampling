@@ -1,4 +1,3 @@
-from decorators import timer
 from potentials_and_gradients import get_potential_and_gradient
 from script_utils import get_reference_solution, \
                          get_F_opt_at_x, \
@@ -14,15 +13,15 @@ from script_utils import get_reference_solution, \
                          plot_free_energy, \
                          plot_tilted_potential, \
                          plot_gd_tilted_potentials, \
-                         plot_gd_losses
+                         plot_gd_losses, \
+                         save_gd_statistics, \
+                         write_gd_report
 from utils import empty_dir, get_data_path
 
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy import stats
-from scipy.optimize import lsq_linear
-
 import argparse
+import numpy as np
+import time
+
 
 import os
 
@@ -79,11 +78,11 @@ def get_parser():
         help='Set number of trajectories to sample. Default: 500',
     )
     parser.add_argument(
-        '--epochs',
-        dest='epochs',
+        '--epochs-lim',
+        dest='epochs_lim',
         type=int,
-        default=10,
-        help='Set number of epochs. Default: 10',
+        default=50,
+        help='Set maximal number of epochs. Default: 50',
     )
     parser.add_argument(
         '--lr',
@@ -103,9 +102,9 @@ def get_parser():
         '--m',
         dest='m',
         type=int,
-        default=20,
+        default=30,
         help='Set the number of uniformly distributed ansatz functions \
-              that you want to use. Default: 20',
+              that you want to use. Default: 30',
     )
     parser.add_argument(
         '--theta-init',
@@ -116,9 +115,11 @@ def get_parser():
     )
     return parser
 
-@timer
 def main():
     args = get_parser().parse_args()
+
+    # start timer
+    t_initial = time.time()
 
     # set seed
     if args.seed:
@@ -165,21 +166,22 @@ def main():
                                        args.target_set, omega_h, mus, sigmas)
 
     # set gd parameters
+    epochs_lim = args.epochs_lim
     lr = args.lr
-    epochs = args.epochs
+    atol = args.atol
 
     # coefficients, performance function, control and free energy
-    thetas = np.zeros((epochs + 1, m))
-    loss = np.zeros(epochs)
-    u = np.zeros((epochs, len(omega_h)))
-    F = np.zeros((epochs, len(omega_h)))
+    thetas = np.zeros((epochs_lim + 1, m))
+    loss = np.zeros(epochs_lim)
+    u = np.zeros((epochs_lim, len(omega_h)))
+    F = np.zeros((epochs_lim, len(omega_h)))
 
     # set initial coefficients
     thetas[0, :] = set_initial_coefficients(m, np.mean(sigmas), theta_opt,
                                             theta_meta, args.theta_init)
 
     # gradient descent
-    for epoch in range(epochs):
+    for epoch in range(epochs_lim):
         print(epoch)
 
         # compute control and free energy on the grid
@@ -196,14 +198,14 @@ def main():
                                              M, m, thetas[epoch], mus, sigmas)
         # check if we are close enought to the optimal
         print('{:2.3f}, {:2.3f}'.format(value_f, loss[epoch]))
-        if np.isclose(value_f, loss[epoch], atol=args.atol):
+        if np.isclose(value_f, loss[epoch], atol=atol):
             break
 
         # Update parameters
         thetas[epoch + 1, :] = thetas[epoch, :] - lr * grad_loss
 
     # if num of max epochs not reached
-    if epoch < epochs - 1:
+    if epoch < epochs_lim - 1:
         loss[epoch+1:] = np.nan
         u[epoch+1:] = np.nan
         F[epoch+1:] = np.nan
@@ -212,16 +214,15 @@ def main():
     plot_gd_tilted_potentials(gd_path, omega_h, potential, F_opt, F[:epoch+1])
     plot_gd_losses(gd_path, value_f, loss[:epoch+1])
 
-    # write control, approx free energy and loss
-    np.savez(
-        os.path.join(gd_path, 'gd-ipa.npz'),
-        omega_h=omega_h,
-        epochs=np.arange(epoch),
-        u=u[:epoch+1],
-        F=F[:epoch+1],
-        loss=loss[:epoch+1],
-    )
+    # save gd statistics
+    save_gd_statistics(gd_path, omega_h, u[:epoch+1], F[:epoch+1], loss[:epoch+1])
 
+    # end timer
+    t_final = time.time()
+
+    # write gd report
+    write_gd_report(gd_path, epochs_lim, epoch+1, lr,
+                    atol, value_f, loss[epoch], t_final - t_initial)
 
 def sample_loss(gradient, beta, xzero, target_set, M, m, theta, mus, sigmas):
 
