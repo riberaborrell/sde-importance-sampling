@@ -56,6 +56,13 @@ def get_parser():
         help='Set the target set interval. Default: [0.9, 1.1]',
     )
     parser.add_argument(
+        '--M',
+        dest='M',
+        type=int,
+        default=1,
+        help='Set number of trajectories to sample. Default: 1',
+    )
+    parser.add_argument(
         '--well-set',
         nargs=2,
         dest='well_set',
@@ -96,18 +103,34 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
-    omegas, mus, sigmas = metadynamics_algorithm(
-        potential_name=args.potential_name,
-        alpha=args.alpha,
-        beta=args.beta,
-        xzero=args.xzero,
-        well_set=args.well_set,
-        k=args.k,
-        dt=args.dt,
-        N=args.N,
-        do_plots=args.do_plots,
-        seed=args.seed,
-    )
+    M = args.M
+
+    # initialize bias potentials coefficients
+    meta_omegas = np.zeros(0)
+    meta_mus = np.zeros(0)
+    meta_sigmas = np.zeros(0)
+
+    # metadynamics algorythm for M trajectories 
+    for i in range(M):
+        omegas, mus, sigmas = metadynamics_algorithm(
+            potential_name=args.potential_name,
+            alpha=args.alpha,
+            beta=args.beta,
+            xzero=args.xzero,
+            well_set=args.well_set,
+            k=args.k,
+            dt=args.dt,
+            N=args.N,
+            do_plots=args.do_plots,
+            seed=args.seed,
+        )
+        # add coefficients
+        meta_omegas = np.concatenate((meta_omegas, omegas))
+        meta_mus= np.concatenate((meta_mus, mus))
+        meta_sigmas = np.concatenate((meta_sigmas, sigmas))
+
+    # normalize
+    meta_omegas /= M
 
     # initialize langevin_1d object
     sample = sampling.langevin_1d(
@@ -118,8 +141,8 @@ def main():
     )
 
     # set bias potential
-    a = omegas / 2
-    sample.set_bias_potential(a, mus, sigmas)
+    a = meta_omegas / 2
+    sample.set_bias_potential(a, meta_mus, meta_sigmas)
 
     # plot potential and gradient
     if args.do_plots:
@@ -131,9 +154,9 @@ def main():
                              args.beta, args.target_set, 'metadynamics')
     np.savez(
         os.path.join(dir_path, 'bias_potential.npz'),
-        omegas=omegas,
-        mus=mus,
-        sigmas=sigmas,
+        omegas=meta_omegas,
+        mus=meta_mus,
+        sigmas=meta_sigmas,
     )
 
 def metadynamics_algorithm(potential_name, alpha, beta, xzero, well_set, k, dt, N,
@@ -149,9 +172,11 @@ def metadynamics_algorithm(potential_name, alpha, beta, xzero, well_set, k, dt, 
         empty_dir(dir_path)
         pl = Plot(dir_path=dir_path)
 
+    # target set
+    target_set_min, target_set_max = target_set
+
     # check well set
-    well_set_min = well_set[0]
-    well_set_max = well_set[1]
+    well_set_min, well_set_max = well_set
     if well_set_min >= well_set_max:
         #TODO raise error
         print("The well set interval is not valid")
@@ -182,9 +207,9 @@ def metadynamics_algorithm(potential_name, alpha, beta, xzero, well_set, k, dt, 
 
     # exp factor
     omegas = 0.95 * np.ones(int(N/k))
-    omegas = 0.1 * np.array([w**(i+1) for i, w in enumerate(omegas)])
+    omegas = 0.2 * alpha * np.array([w**(i+1) for i, w in enumerate(omegas)])
 
-   # inv proportional 
+    # inv proportional 
     #omegas = 0.1 * np.ones(int(N/k))
     #omegas = np.array([w / (i+1) for i, w in enumerate(omegas)])
 
@@ -194,10 +219,6 @@ def metadynamics_algorithm(potential_name, alpha, beta, xzero, well_set, k, dt, 
     # set the standard desviation of the bias functions
     # constant
     sigmas = 0.2 * np.ones(int(N/k))
-
-    # exp factor
-    #sigmas = 0.3 * np.ones(int(N/k))
-    #sigmas = 0.2 * np.array([sigma**(i+1) for i, sigma in enumerate(sigmas)])
 
 
     # 1D MD SDE: dX_t = -grad V(X_t)dt + sqrt(2 beta**-1)dB_t, X_0 = x
@@ -212,8 +233,8 @@ def metadynamics_algorithm(potential_name, alpha, beta, xzero, well_set, k, dt, 
     dB = np.sqrt(dt) * np.random.normal(0, 1, N)
 
     for n in np.arange(1, N+1):
-        # stop simulation if particle leave the well set T
-        if (Xtemp < well_set_min or Xtemp > well_set_max):
+        # stop simulation if particle arrives in the target set
+        if (Xtemp >= target_set_min and Xtemp <= target_set_max):
             print('The trajectory HAS left the well set!')
             if do_plots:
                 Xem[n:N+1] = np.nan
@@ -222,6 +243,8 @@ def metadynamics_algorithm(potential_name, alpha, beta, xzero, well_set, k, dt, 
         # every k-steps add new bias function
         if (np.mod(n, k) == 0):
             mus[i] = np.mean(Xhelp)
+            #sigmas[i] = 10 * np.var(Xhelp)
+            #print('{:2.3f}, {:2.3f}'.format(np.mean(Xhelp), np.var(Xhelp)))
             #sigmas[i] = 0.2 * np.max(np.abs(Xhelp - mus[i]))
             #sigmas[i] = 20 * np.var(Xhelp)
             Xhelp = np.zeros(k+1)
@@ -232,13 +255,13 @@ def metadynamics_algorithm(potential_name, alpha, beta, xzero, well_set, k, dt, 
                 Vbias = bias_potential(X, omegas[:i], mus[:i], sigmas[:i])
                 pl.file_name = 'tilted_potential_i_' + str(i)
                 pl.set_ylim(bottom=0, top=alpha * 10)
-                pl.potential_and_tilted_potential(X, V, Vbias)
+                #pl.potential_and_tilted_potential(X, V, Vbias)
 
                 # plot tilted gradient
                 dVbias = bias_gradient(X, omegas[:i], mus[:i], sigmas[:i])
                 pl.file_name = 'tilted_drift_i_' + str(i)
                 pl.set_ylim(bottom=-alpha * 5, top=alpha * 5)
-                pl.drift_and_tilted_drift(X, dV, dVbias)
+                #pl.drift_and_tilted_drift(X, dV, dVbias)
 
         # compute drift and diffusion coefficients
         if i == 0:
