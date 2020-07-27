@@ -555,8 +555,8 @@ class langevin_1d:
             Xtemp = Xtemp + drift + diffusion
 
             # Girsanov Martingale terms
-            G1temp = G1temp - np.sqrt(1 / beta) * utemp * dB
-            G2temp = G2temp - (1 / beta) * 0.5 * (utemp ** 2) * dt
+            G1temp = G1temp - np.sqrt(beta) * utemp * dB
+            G2temp = G2temp - beta * 0.5 * (utemp ** 2) * dt
 
             # trajectories in the target set
             is_in_target_set = ((Xtemp >= target_set_min) & (Xtemp <= target_set_max))
