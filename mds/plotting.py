@@ -52,6 +52,20 @@ class Plot:
         plt.savefig(self.file_path)
         plt.close()
 
+    def tilted_potential_wrt_betas(self, X, V, betas, Vbias):
+        assert betas.shape[0] == Vbias.shape[0], ''
+        plt.title(r'Tilted potential $\tilde{V}(x)$')
+        for i, beta in enumerate(betas):
+            label = r'$\beta={:2.1f}$'.format(beta)
+            plt.plot(X, V + Vbias[i, :], '-', label=label)
+        plt.xlabel('x', fontsize=16)
+        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.yticks(self.yticks)
+        plt.legend(loc='upper left', fontsize=8)
+        plt.grid(True)
+        plt.savefig(self.file_path)
+        plt.close()
+
     def drift_and_tilted_drift(self, X, dV, dVbias, dVopt=None):
         plt.title('Drift, bias drift and tilted drift')
         plt.plot(X, -dV, 'b-', label=r'$ - \nabla V(x)$')
@@ -67,6 +81,21 @@ class Plot:
         plt.savefig(self.file_path)
         plt.close()
 
+    def tilted_drift_wrt_betas(self, X, dV, betas, dVbias):
+        assert betas.shape[0] == dVbias.shape[0], ''
+        plt.title(r'Tilted drift $ - \nabla \tilde{V}(x)$')
+        for i, beta in enumerate(betas):
+            label = r'$\beta={:2.1f}$'.format(beta)
+            plt.plot(X, -dV - dVbias[i, :], '-', label=label)
+        plt.xlabel('x', fontsize=16)
+        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.yticks(self.yticks)
+        plt.legend(loc='upper left', fontsize=8)
+        plt.grid(True)
+        plt.savefig(self.file_path)
+        plt.close()
+
+
     def free_energy(self, X, J):
         plt.title('Free energy / Performance function')
         plt.plot(X, J, 'b-', label='F(x)')
@@ -77,9 +106,35 @@ class Plot:
         plt.savefig(self.file_path)
         plt.close()
 
+    def free_energy_wrt_betas(self, X, betas, J):
+        assert betas.shape[0] == J.shape[0], ''
+        plt.title('Free energy / Performance function $F(x)$')
+        for i, beta in enumerate(betas):
+            label = r'$\beta={:2.1f}$'.format(beta)
+            plt.plot(X, J[i, :], '-', label=label)
+        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.yticks(self.yticks)
+        plt.legend(loc='upper left', fontsize=8)
+        plt.grid(True)
+        plt.savefig(self.file_path)
+        plt.close()
+
     def control(self, X, u):
         plt.title('Control')
         plt.plot(X, u, 'b-', label='u(x)')
+        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.yticks(self.yticks)
+        plt.legend(loc='upper left', fontsize=8)
+        plt.grid(True)
+        plt.savefig(self.file_path)
+        plt.close()
+
+    def control_wrt_betas(self, X, betas, u):
+        assert betas.shape[0] == u.shape[0], ''
+        plt.title(r'Control $u(x)$')
+        for i, beta in enumerate(betas):
+            label = r'$\beta={:2.1f}$'.format(beta)
+            plt.plot(X, u[i, :], '-', label=label)
         plt.ylim(top=self.top, bottom=self.bottom)
         plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
