@@ -12,9 +12,9 @@ do
     python mds/script_gd_ipa_ansatz_control.py --alpha $alpha \
                                                --beta $beta \
                                                --m 30 \
-                                               --epochs-lim 1 \
+                                               --epochs-lim 50 \
                                                --lr $lr \
-                                               --M 1 \
+                                               --M 1000 \
                                                --theta-init null
   done
 done
