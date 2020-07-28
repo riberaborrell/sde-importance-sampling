@@ -22,7 +22,6 @@ import argparse
 import numpy as np
 import time
 
-
 import os
 
 def get_parser():
@@ -113,6 +112,12 @@ def get_parser():
         default='optimal',
         help='Type of initial control. Default: optimal',
     )
+    parser.add_argument(
+        '--do-plots',
+        dest='do_plots',
+        action='store_true',
+        help='Do plots. Default: False',
+    )
     return parser
 
 def main():
@@ -126,7 +131,9 @@ def main():
         np.random.seed(args.seed)
 
     # set gd path
-    subdirectory = 'gd-ipa-ansatz-control-{}'.format(args.theta_init)
+    gd_stamp = 'gd-ipa-ansatz-control-{}'.format(args.theta_init)
+    lr_stamp = 'lr_{}'.format(float(args.lr))
+    subdirectory = os.path.join(gd_stamp, lr_stamp)
     gd_path = get_data_path(args.potential_name, args.alpha, args.beta,
                             args.target_set, subdirectory)
     empty_dir(gd_path)
@@ -156,7 +163,8 @@ def main():
     mus, sigmas = set_unif_dist_ansatz_functions(mus_min, mus_max, target_set, m)
 
     # plot ansatz functions
-    plot_ansatz_functions(gd_path, omega_h, mus, sigmas)
+    if args.do_plots:
+        plot_ansatz_functions(gd_path, omega_h, mus, sigmas)
 
     # get optimal coefficients
     theta_opt = get_optimal_coefficients(omega_h, target_set, u_opt, mus, sigmas)
@@ -189,13 +197,15 @@ def main():
         F[epoch, :] = free_energy_on_grid(omega_h, target_set, thetas[epoch, :], mus, sigmas)
 
         # plot control, free_energy and tilted potential
-        plot_control(gd_path, epoch, omega_h, u_opt, u[epoch])
-        plot_free_energy(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
-        plot_tilted_potential(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
+        if args.do_plots:
+            plot_control(gd_path, epoch, omega_h, u_opt, u[epoch])
+            plot_free_energy(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
+            plot_tilted_potential(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
 
         # get loss and its gradient 
         loss[epoch], grad_loss = sample_loss(gradient, beta, xzero, target_set,
                                              M, m, thetas[epoch], mus, sigmas)
+
         # check if we are close enought to the optimal
         print('{:2.3f}, {:2.3f}'.format(value_f, loss[epoch]))
         if np.isclose(value_f, loss[epoch], atol=atol):
@@ -211,8 +221,9 @@ def main():
         F[epoch+1:] = np.nan
 
     # plot titled potential and loss per epoch
-    plot_gd_tilted_potentials(gd_path, omega_h, potential, F_opt, F[:epoch+1])
-    plot_gd_losses(gd_path, value_f, loss[:epoch+1])
+    if args.do_plots:
+        plot_gd_tilted_potentials(gd_path, omega_h, potential, F_opt, F[:epoch+1])
+        plot_gd_losses(gd_path, value_f, loss[:epoch+1])
 
     # save gd statistics
     save_gd_statistics(gd_path, omega_h, u[:epoch+1], F[:epoch+1], loss[:epoch+1])
