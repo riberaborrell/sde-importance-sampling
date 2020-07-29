@@ -855,8 +855,8 @@ class langevin_1d:
         else:
             pl.drift_and_tilted_drift(X, dV, dVbias)
 
+    #TODO: revise it
     def plot_optimal_potential_and_gradient(self):
-        # tilted optimal potential and gradient on a gaussian basis 
         X = np.linspace(-2, 2, 1000)
         V = self.potential(X)
         dV = self.gradient(X)
@@ -867,5 +867,14 @@ class langevin_1d:
         pl.tilted_potential_and_gradient(X, V, dV, Vbias, dVbias)
 
     def plot_ansatz_functions(self):
-        pl = Plot(file_name='gaussian_ansatz_functions')
-        pl.ansatz_functions(self)
+        X = np.linspace(-3, 3, 1000)
+        v = self.ansatz_functions(X)
+        pl = Plot(dir_path=self.dir_path, file_name='gaussian_ansatz_functions')
+        pl.ansatz_functions(X, v)
+
+    def plot_control_basis_functions(self):
+        X = np.linspace(-3, 3, 1000)
+        b = self.control_basis_functions(X)
+        pl = Plot(dir_path=self.dir_path, file_name='control_basis_functions')
+        pl.control_basis_functions(X, b)
+

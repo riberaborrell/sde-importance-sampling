@@ -127,6 +127,7 @@ def main():
         sample.plot_tilted_potential(file_name='sampling_drifted_potential')
         sample.plot_tilted_drift(file_name='sampling_drifted_drift')
         sample.plot_ansatz_functions()
+        sample.plot_control_basis_functions()
 
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(
