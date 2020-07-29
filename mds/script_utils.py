@@ -28,13 +28,10 @@ def get_ansatz_functions(x, mus, sigmas):
         x = x.reshape(x.shape[0], 1)
     return stats.norm.pdf(x, mus, sigmas)
 
-
 def get_derivative_ansatz_functions(x, mus, sigmas):
     if type(x) == np.ndarray:
-        mus = mus.reshape(mus.shape[0], 1)
-        sigmas = sigmas.reshape(sigmas.shape[0], 1)
+        x = x.reshape(x.shape[0], 1)
     return derivative_normal_pdf(x, mus, sigmas)
-
 
 def set_unif_dist_ansatz_functions(mus_min, mus_max, target_set, m):
     # assume target_set is connected and contained in [mus_min, mus_max]
@@ -154,8 +151,7 @@ def get_optimal_coefficients(X, target_set, u_opt, mus, sigmas):
 
 
 def get_optimal_coefficients2(X, target_set, F_opt, mus, sigmas):
-    v = get_ansatz_functions(X, mus, sigmas)
-    a = v.T
+    a = get_ansatz_functions(X, mus, sigmas)
     b = F_opt
     x, residuals, rank, s = np.linalg.lstsq(a, b, rcond=None)
     print(x)
@@ -235,7 +231,7 @@ def free_energy_on_grid(X, target_set, a, mus, sigmas):
 
 def free_energy_on_grid2(X, a, mus, sigmas):
     v = get_ansatz_functions(X, mus, sigmas)
-    F = np.dot(a, v)
+    F = np.dot(a, v.T)
     return F
 
 def control_on_grid(X, a, mus, sigmas):
@@ -245,7 +241,7 @@ def control_on_grid(X, a, mus, sigmas):
 
 def control_on_grid2(X, a, mus, sigmas):
     b = - np.sqrt(2) * get_derivative_ansatz_functions(X, mus, sigmas)
-    u = np.dot(a, b)
+    u = np.dot(a, b.T)
     return u
 
 def plot_control(dir_path, epoch, X, u_opt, u):
@@ -337,9 +333,9 @@ def plot_ansatz_functions(dir_path, X, mus, sigmas):
 
 def plot_basis_functions(dir_path, X, mus, sigmas):
     b = - np.sqrt(2) * get_derivative_ansatz_functions(X, mus, sigmas)
-    m = b.shape[0]
+    m = b.shape[1]
     for j in range(m):
-        plt.plot(X, b[j])
+        plt.plot(X, b[:, j])
     plt.title(r'$b_{j}(x; \mu, \sigma)$')
     plt.xlabel('x', fontsize=16)
 
