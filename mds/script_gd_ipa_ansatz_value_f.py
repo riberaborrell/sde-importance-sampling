@@ -13,7 +13,10 @@ from script_utils import get_reference_solution, \
                          plot_control, \
                          plot_free_energy, \
                          plot_tilted_potential, \
-                         plot_gd_tilted_potentials
+                         plot_gd_tilted_potentials, \
+                         plot_gd_losses, \
+                         save_gd_statistics, \
+                         write_gd_report
 
 from utils import empty_dir, get_data_path
 
