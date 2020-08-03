@@ -303,7 +303,7 @@ def plot_basis_functions(dir_path, X, mus, sigmas):
     plt.savefig(file_path)
     plt.close()
 
-def save_gd_statistics(dir_path, omega_h, u, F, loss):
+def save_gd_statistics(dir_path, omega_h, u, F, loss, value_f):
     epochs_needed = u.shape[0]
     np.savez(
         os.path.join(dir_path, 'gd-ipa.npz'),
@@ -312,13 +312,21 @@ def save_gd_statistics(dir_path, omega_h, u, F, loss):
         u=u,
         F=F,
         loss=loss,
+        value_f=value_f,
     )
 
-def write_gd_report(dir_path, epochs_lim, epochs_needed, lr, atol, value_f, last_loss, c_time):
+def write_gd_report(dir_path, xzero, value_f, M, m, epochs_lim, epochs_needed, lr, atol, last_loss, c_time):
     file_path = os.path.join(dir_path, 'report.txt')
 
     # write in file
     f = open(file_path, "w")
+
+    f.write('Sampling parameters and statistics\n')
+    f.write('xzero: {:2.1f}\n'.format(xzero))
+    f.write('sampled trajectories: {:,d}\n\n'.format(M))
+
+    f.write('Control parametrization (unif distr ansatz functions)\n')
+    f.write('m: {:d}\n\n'.format(m))
 
     f.write('GD parameters\n')
     f.write('epochs lim: {}\n'.format(epochs_lim))

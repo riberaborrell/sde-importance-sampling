@@ -767,7 +767,7 @@ class langevin_1d:
 
         f.write('Sampling parameters and statistics\n')
         f.write('xzero: {:2.1f}\n'.format(self.xzero))
-        f.write('target set: [{:2.1f}, {:2.1f}]\n\n'
+        f.write('target set: [{:2.1f}, {:2.1f}]\n'
                 ''.format(self.target_set[0], self.target_set[1]))
         f.write('sampled trajectories: {:,d}\n'.format(self.M))
         f.write('trajectories which arrived: {:2.2f} %\n'

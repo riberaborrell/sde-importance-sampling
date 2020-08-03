@@ -103,6 +103,10 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
+    # set random seed
+    if args.seed:
+        np.random.seed(args.seed)
+
     M = args.M
 
     # initialize bias potentials coefficients
@@ -122,7 +126,6 @@ def main():
             dt=args.dt,
             N=args.N,
             do_plots=args.do_plots,
-            seed=args.seed,
         )
         # add coefficients
         meta_omegas = np.concatenate((meta_omegas, omegas))
