@@ -11,8 +11,4 @@ do
                                                 --alpha $alpha \
                                                 --beta $beta \
                                                 --M $M
-  python mds/langevin1d_sampling_drifted.py --do-plots \
-                                            --alpha $alpha \
-                                            --beta $beta \
-                                            --M $M
 done

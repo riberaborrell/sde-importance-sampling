@@ -11,10 +11,10 @@ do
     echo $alpha $beta $lr
     python mds/script_gd_ipa_ansatz_control.py --alpha $alpha \
                                                --beta $beta \
+                                               --theta-init meta \
                                                --m 30 \
                                                --epochs-lim 50 \
                                                --lr $lr \
-                                               --M 1000 \
-                                               --theta-init null
+                                               --M 1000
   done
 done
