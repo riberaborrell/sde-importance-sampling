@@ -89,50 +89,9 @@ def set_unif_dist_ansatz_functions2(mus_min, mus_max, target_set, m):
     # assume target_set is connected and contained in [mus_min, mus_max]
     target_set_min, target_set_max = target_set
 
-    # set grid 
-    h = 0.001
-    N = int((mus_max - mus_min) / h) + 1
-    X = np.around(np.linspace(mus_min, mus_max, N), decimals=3)
-
-    # get indexes for nodes in/out the target set
-    idx_ts = np.where((X >= target_set_min) & (X <= target_set_max))[0]
-    idx_nts = np.where((X < target_set_min) | (X > target_set_max))[0]
-    idx_l = np.where(X < target_set_min)[0]
-    idx_r = np.where(X > target_set_max)[0]
-
-    # compute ratio of nodes in the left/right side of the target set
-    ratio_left = idx_l.shape[0] / idx_nts.shape[0]
-    ratio_right = idx_r.shape[0] / idx_nts.shape[0]
-
-    # assigm number of ansatz functions in each side
-    m_left = int(np.round(m * ratio_left))
-    m_right = int(np.round(m * ratio_right))
-    assert m == m_left + m_right
-
-    factor = 2
-    sigma_left = (target_set_min - mus_min) / (factor + m_left -1)
-    sigma_right = (mus_max - target_set_max) / (factor + m_right -1)
-
-    # distribute ansatz functions unif (in each side)
-    mus_left = np.around(
-        np.linspace(mus_min, mus_min + (m_left -1) * sigma_left, m_left),
-        decimals=3,
-    )
-    mus_right = np.around(
-        np.linspace(mus_max - (m_right -1) * sigma_right, mus_max, m_right),
-        decimals=3,
-    )
-    mus = np.concatenate((mus_left, mus_right), axis=0)
-
-    sigmas_left = sigma_left * np.ones(m_left)
-    sigmas_right = sigma_right * np.ones(m_right)
-    sigmas = np.concatenate((sigmas_left, sigmas_right), axis=0)
-    sigma_avg = np.around(np.mean(sigmas), decimals=3)
-
-    print(m_left, m_right, m)
-    print(mus_left[0], mus_left[-1])
-    print(mus_right[0], mus_right[-1])
-    print(sigma_left, sigma_right, sigma_avg)
+    sigma = (target_set_min - mus_min) / (2.5 + m - 1)
+    mus = np.linspace(mus_min, mus_min + (m-1)*sigma, m)
+    sigmas = sigma * np.ones(m)
 
     return mus, sigmas
 
@@ -175,7 +134,7 @@ def get_meta_coefficients(potential_name, alpha, beta, target_set, X, mus, sigma
 
     # control evaluated at the grid u(x) = -1 / sqrt(2) dVb(x)
     basis = get_derivative_ansatz_functions(X, meta_mus, meta_sigmas)
-    dVb = np.dot(omegas, basis)
+    dVb = np.dot(omegas, basis.T)
     u = - dVb / np.sqrt(2)
 
     # solve v a = u
@@ -240,8 +199,8 @@ def control_on_grid(X, a, mus, sigmas):
     return u
 
 def control_on_grid2(X, a, mus, sigmas):
-    b = - np.sqrt(2) * get_derivative_ansatz_functions(X, mus, sigmas)
-    u = np.dot(a, b.T)
+    basis = - np.sqrt(2) * get_derivative_ansatz_functions(X, mus, sigmas)
+    u = np.dot(a, basis.T)
     return u
 
 def plot_control(dir_path, epoch, X, u_opt, u):
