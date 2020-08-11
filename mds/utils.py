@@ -50,6 +50,13 @@ def get_data_path(potential=None, alpha=None, beta=None, target_set=None, subdir
             'beta_{}'.format(float(beta)),
             'target_set_{}_{}'.format(target_set_min, target_set_max),
         )
+    elif potential and alpha:
+        dir_path = os.path.join(
+            MDS_PATH,
+            'data',
+            potential,
+            'alpha_{}'.format(float(alpha)),
+        )
     elif potential:
         dir_path = os.path.join(
             MDS_PATH,

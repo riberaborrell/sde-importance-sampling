@@ -20,6 +20,8 @@ class Plot:
             )
         else:
             return None
+    def set_title(self, title):
+        self.title = title
 
     def set_ylim(self, bottom=None, top=None):
         self.bottom = bottom
@@ -28,14 +30,25 @@ class Plot:
         self.yticks = np.arange(bottom, top + tick_sep, tick_sep)
 
     def potential(self, X, V):
-        plt.title('Potential')
+        plt.title(self.title)
         plt.plot(X, V, 'b-', label=r'$V(x)$')
         plt.xlabel('x', fontsize=16)
-        plt.ylim(top=15, bottom=0)
-        plt.legend(loc='upper left', fontsize=8)
+        plt.ylim(top=self.top, bottom=self.bottom)
         plt.grid(True)
         plt.savefig(self.file_path)
         plt.close()
+
+    def potentials(self, X, Vs, alphas):
+        assert Vs.shape[0] == alphas.shape[0], ''
+        plt.title(self.title)
+        for i, alpha in enumerate(alphas):
+            label = r'$\alpha = {:2.1f}$'.format(alpha)
+            plt.plot(X, Vs[i], '-', label=label)
+        plt.xlabel('x', fontsize=16)
+        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.legend(loc='upper left', fontsize=8)
+        plt.grid(True)
+        plt.savefig(self.file_path)
 
     def potential_and_tilted_potential(self, X, V, Vbias, Vopt=None):
         plt.title('Potential, bias potential and tilted potential')
