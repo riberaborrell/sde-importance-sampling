@@ -33,10 +33,13 @@ class langevin_1d_reference_solution():
         self.h = h
 
     def compute_reference_solution(self):
-        ''' This method computes the solution of the following BVP
-            0 = LΨ − β f Ψ in D
-            Ψ = exp(−βg) in ∂D,
-            where f = 1 and g =1, by using the Shortley-Welley method.
+        ''' This method computes by using finite differences the solution
+            of the following BVP:
+                0 = LΨ − β f Ψ in S
+                Ψ = exp(−βg) in ∂S,
+            where f = 1, g = 1 and L is the infinitessimal generator
+            of the not drifted 1d overdamped langevin process:
+                L = - dV/dx d/dx + epsilon d^2/dx^2
             Its solution is the moment generating function associated
             to the overdamped langevin sde.
         '''
@@ -52,53 +55,52 @@ class langevin_1d_reference_solution():
         N = int((omega_max - omega_min) / h) + 1
         omega_h = np.around(np.linspace(omega_min, omega_max, N), decimals=3)
 
-        # get indexes for nodes in/out the target set
-        idx_ts = np.where((omega_h >= target_set_min) & (omega_h <= target_set_max))
-        target_set_h = omega_h[idx_ts]
+        # index of the target set T and of the domain S = Omega \ T
+        idx_ts = np.where((omega_h >= target_set_min) & (omega_h <= target_set_max))[0]
+        idx_S = np.where((omega_h < target_set_min) | (omega_h > target_set_max))[0]
 
-        # discretization of the operator (epsionL -1), where L 
-        # is the infinitessimal generator of the not drifted langevin 1d
-        # L = - dV/dx d/dx + epsilon d^2/dx^2
-
+        # After discreting the operator (epsion L -1), the boundary conditions
+        # and stability conditions we obtain a linear system of equations: A \Psi = b.
         a = np.zeros((N, N))
         b = np.zeros(N)
 
-        # weights of Psi
-        for i in np.arange(1, N-1):
-            dV = gradient(omega_h[i])
-            a[i, i - 1] = 1 / (beta**2 * h**2) + dV / (beta * 2 * h)
-            a[i, i] = - 2 / (beta**2 * h**2) - 1
-            a[i, i + 1] = 1 / (beta**2 * h**2) - dV / (beta * 2 * h)
+        # discretization of (epsilon L - 1) on S
+        for k in idx_S[1:-1]:
+            dV = gradient(omega_h[k])
+            a[k, k - 1] = 1 / (beta**2 * h**2) + dV / (beta * 2 * h)
+            a[k, k] = - 2 / (beta**2 * h**2) - 1
+            a[k, k + 1] = 1 / (beta**2 * h**2) - dV / (beta * 2 * h)
 
-        # boundary condition
-        a[idx_ts, :] = 0
+        # boundary condition. Psi = 1 in ∂S but also in the target set
         for i in idx_ts:
             a[i, i] = 1
         b[idx_ts] = 1
 
-        # stability: Psi shall be flat on the boundary
-        a[0, :] = 0
+        # stability condition: Psi should be flat on the boundary of the
+        # discretized state space, i.e Psi(x_0)=Psi(x_1) and Psi(x_{N-1})=Psi(x_N)
         a[0, 0] = 1
         a[0, 1] = -1
         b[0] = 0
 
-        a[N - 1, :] = 0
         a[N - 1 , N - 1] = 1
         a[N - 1 , N - 2] = -1
         b[N - 1] = 0
 
-        # Apply the Shortley-Welley method. Psi solves the following linear system of equations
+        # solve the linear system 
         Psi = np.linalg.solve(a, b)
+        #Psi, residuals, rank, s = np.linalg.lstsq(a, b, rcond=None)
 
         # compute the free energy which corresponds to the value function at the optimal control
         F =  - np.log(Psi) / beta
 
-        # compute the optimal control u_opt = -sqrt(2) grad F with
-        # finite differences : u_opt(x_k) = -sqrt(2) (F(x_{k+1}) - F(x_{k+1})) / 2h
+        # compute the optimal control u_opt = -sqrt(2) grad F by finite differences:
+        # u_opt(x_k) = -sqrt(2) (F(x_{k+1}) - F(x_{k+1})) / 2h 
         u_opt = np.zeros(N)
-        u_opt[1: -1] = - np.sqrt(2) * (F[2:] - F[: -2]) / (2 * h)
+        u_opt[1: -1] = - np.sqrt(2) * (F[2:] - F[:-2]) / (2 * h)
+
+        # stability condition: u_opt should be flat on the boundary
         u_opt[0] = u_opt[1]
-        u_opt[-1] = u_opt[-2]
+        u_opt[N-1] = u_opt[N-2]
 
         # save variables
         self.h = h
