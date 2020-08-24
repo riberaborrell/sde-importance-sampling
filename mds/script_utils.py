@@ -244,14 +244,21 @@ def plot_tilted_potential(dir_path, epoch, X, potential, F_opt, F):
     plt.close()
 
 def plot_gd_tilted_potentials(dir_path, X, potential, F_opt, F):
-    epochs = F.shape[0]
+    num_epochs = F.shape[0]
+    num_epochs_to_show = 10
+    k = num_epochs // num_epochs_to_show
+    epochs = np.arange(num_epochs)
+    epochs_to_show = np.where(epochs % k == 0)[0]
+    if epochs[-1] != epochs_to_show[-1]:
+        epochs_to_show = np.append(epochs_to_show, epochs[-1])
     V = potential(X)
     plt.plot(X, V + 2 * F_opt, linestyle='dashed', label='optimal')
-    for epoch in range(epochs):
-        label = r'epoch = {:d}'.format(epoch)
-        plt.plot(X, V + 2 * F[epoch], linestyle='-', label=label)
+    for epoch in epochs:
+        if epoch in epochs_to_show:
+            label = r'epoch = {:d}'.format(epoch)
+            plt.plot(X, V + 2 * F[epoch], linestyle='-', label=label)
     plt.xlim(left=-3, right=3)
-    plt.ylim(bottom=0, top=15)
+    plt.ylim(bottom=0, top=80)
     plt.grid(True)
     plt.legend()
 
@@ -260,14 +267,30 @@ def plot_gd_tilted_potentials(dir_path, X, potential, F_opt, F):
     plt.savefig(file_path)
     plt.close()
 
-def plot_gd_losses(dir_path, value_f, losses):
+def plot_gd_losses_bar(dir_path, value_f, losses):
     epochs = np.arange(losses.shape[0])
     max_loss = np.max(losses)
-    plt.bar(x=epochs, height=losses, width=0.8, align='center', label=r'$J(x_0)$')
+    plt.bar(x=epochs, height=losses, width=0.8, color='b', align='center', label=r'$J(x_0)$')
     plt.plot([epochs[0]-0.4, epochs[-1] + 0.4], [value_f, value_f],
              'k--', label=r'$F(x_0)$')
     plt.xlim(left=epochs[0] -0.8, right=epochs[-1] + 0.8)
-    plt.xticks(epochs)
+    #plt.xticks(epochs)
+    plt.ylim(bottom=0, top=max_loss * 1.2)
+    #plt.grid(True)
+    plt.legend()
+
+    file_name = 'losses_gd_bar.png'
+    file_path = os.path.join(dir_path, file_name)
+    plt.savefig(file_path)
+    plt.close()
+
+def plot_gd_losses(dir_path, value_f, losses):
+    epochs = np.arange(losses.shape[0])
+    max_loss = np.max(losses)
+    plt.plot(epochs, losses, 'b-', label=r'$J(x_0)$')
+    plt.plot([epochs[0], epochs[-1]], [value_f, value_f], 'k--', label=r'$F(x_0)$')
+    #plt.xlim(left=epochs[0], right=epochs[-1])
+    #plt.xticks(epochs)
     plt.ylim(bottom=0, top=max_loss * 1.2)
     plt.grid(True)
     plt.legend()

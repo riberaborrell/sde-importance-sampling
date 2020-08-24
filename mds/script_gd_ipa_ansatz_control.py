@@ -309,7 +309,6 @@ def sample_loss(gradient, beta, xzero, target_set, M, m, theta, mus, sigmas):
 
     return mean_J, mean_grad_J
 
-
 def sample_loss_not_vectorized(gradient, beta, xzero, target_set, M, m, theta, mus, sigmas):
 
     # sampling parameters
