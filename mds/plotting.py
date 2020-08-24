@@ -38,6 +38,16 @@ class Plot:
         plt.savefig(self.file_path)
         plt.close()
 
+    def potential_2d(self, X, V):
+        assert X.ndim == V.ndim == 2, ''
+        plt.title(self.title)
+        plt.plot(X, V, 'b-', label=r'$V(x)$')
+        plt.xlabel('x', fontsize=16)
+        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.grid(True)
+        plt.savefig(self.file_path)
+        plt.close()
+
     def potentials(self, X, Vs, alphas):
         assert Vs.shape[0] == alphas.shape[0], ''
         plt.title(self.title)
