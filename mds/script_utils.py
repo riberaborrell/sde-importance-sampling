@@ -96,6 +96,14 @@ def set_unif_dist_ansatz_functions2(mus_min, mus_max, target_set, m):
     return mus, sigmas
 
 
+def set_unif_dist_ansatz_functions3(mus_min, mus_max, m, sigma=None):
+    mus = np.linspace(mus_min, mus_max, m)
+    if not sigma:
+        sigma = mus[1] - mus[0]
+    sigmas = sigma * np.ones(m)
+    return mus, sigmas
+
+
 def get_optimal_coefficients(X, target_set, u_opt, mus, sigmas):
     # ansatz functions at the grid
     a = get_ansatz_functions(X, mus, sigmas)
@@ -121,7 +129,7 @@ def get_meta_coefficients(potential_name, alpha, beta, target_set, X, mus, sigma
     # load metadynamics parameters
     meta_path = get_data_path(potential_name, alpha, beta, target_set, 'metadynamics')
     bias_pot = np.load(os.path.join(meta_path, 'bias_potential.npz'))
-    omegas = bias_pot['omegas']
+    meta_omegas = bias_pot['omegas']
     meta_mus = bias_pot['mus']
     meta_sigmas = bias_pot['sigmas']
 
@@ -134,11 +142,36 @@ def get_meta_coefficients(potential_name, alpha, beta, target_set, X, mus, sigma
 
     # control evaluated at the grid u(x) = -1 / sqrt(2) dVb(x)
     basis = get_derivative_ansatz_functions(X, meta_mus, meta_sigmas)
-    dVb = np.dot(omegas, basis.T)
+    dVb = np.dot(meta_omegas, basis.T)
     u = - dVb / np.sqrt(2)
 
     # solve v a = u
     x, residuals, rank, s = np.linalg.lstsq(a=v, b=u, rcond=None)
+    print(x)
+    return x
+
+def get_meta_coefficients2(potential_name, alpha, beta, target_set, X, mus, sigmas):
+    # load metadynamics parameters
+    meta_path = get_data_path(potential_name, alpha, beta, target_set, 'metadynamics')
+    bias_pot = np.load(os.path.join(meta_path, 'bias_potential.npz'))
+    meta_omegas = bias_pot['omegas']
+    meta_mus = bias_pot['mus']
+    meta_sigmas = bias_pot['sigmas']
+
+    # define a coefficients 
+    m = mus.shape[0]
+    a = np.zeros(m)
+
+    # ansatz functions evaluated at the grid
+    v = get_ansatz_functions(X, mus, sigmas)
+
+    # value function evaluated at the grid Psi(x) = 2 Vb(x)
+    v_meta = get_ansatz_functions(X, meta_mus, meta_sigmas)
+    Vb = np.dot(meta_omegas, v_meta.T)
+    Psi = Vb / 2
+
+    # solve v a = u
+    x, residuals, rank, s = np.linalg.lstsq(a=v, b=Psi, rcond=None)
     print(x)
     return x
 

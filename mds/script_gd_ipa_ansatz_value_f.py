@@ -4,7 +4,9 @@ from script_utils import get_reference_solution, \
                          get_derivative_ansatz_functions, \
                          set_unif_dist_ansatz_functions, \
                          set_unif_dist_ansatz_functions2, \
+                         set_unif_dist_ansatz_functions3, \
                          get_optimal_coefficients2, \
+                         get_meta_coefficients2, \
                          set_initial_coefficients, \
                          control_on_grid2, \
                          free_energy_on_grid2, \
@@ -161,8 +163,10 @@ def main():
 
     # ansatz functions basis
     m = args.m
-    mus_min, mus_max = (-2, 2)
-    mus, sigmas = set_unif_dist_ansatz_functions(mus_min, mus_max, target_set, m)
+    mus_min, mus_max = (-3, 3)
+    #mus, sigmas = set_unif_dist_ansatz_functions(mus_min, mus_max, target_set, m)
+    #mus, sigmas = set_unif_dist_ansatz_functions2(mus_min, mus_max, target_set, m)
+    mus, sigmas = set_unif_dist_ansatz_functions3(mus_min, mus_max, m, 1)
 
     # plot basis functions
     if args.do_plots:
@@ -172,6 +176,9 @@ def main():
     # get optimal coefficients
     theta_opt = get_optimal_coefficients2(omega_h, target_set, F_opt, mus, sigmas)
 
+    # get meta coefficients
+    theta_meta = get_meta_coefficients2(args.potential_name, args.alpha, args.beta,
+                                       args.target_set, omega_h, mus, sigmas)
     # set gd parameters
     epochs_lim = args.epochs_lim
     lr = args.lr
@@ -184,7 +191,6 @@ def main():
     F = np.zeros((epochs_lim + 1, len(omega_h)))
 
     # set initial coefficients
-    theta_meta = 0
     thetas[0, :] = set_initial_coefficients(m, np.mean(sigmas), theta_opt,
                                             theta_meta, args.theta_init)
 
@@ -226,14 +232,14 @@ def main():
         plot_gd_losses(gd_path, value_f, loss[:epoch+1])
 
     # save gd statistics
-    save_gd_statistics(gd_path, omega_h, u[:epoch+1], F[:epoch+1], loss[:epoch+1])
+    save_gd_statistics(gd_path, omega_h, u[:epoch+1], F[:epoch+1], loss[:epoch+1], value_f)
 
     # end timer
     t_final = time.time()
 
     # write gd report
-    write_gd_report(gd_path, epochs_lim, epoch+1, lr, atol,
-                    value_f, loss[epoch], t_final - t_initial)
+    write_gd_report(gd_path, xzero, value_f, epochs_lim, epoch+1, lr, atol,
+                    loss[epoch], t_final - t_initial)
 
 
 def sample_loss(gradient, beta, xzero, target_set, M, m, theta, mus, sigmas):
