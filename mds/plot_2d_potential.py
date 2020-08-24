@@ -76,12 +76,14 @@ def main():
         V[idx_x, idx_y] = np.nan
 
         fig, ax = plt.subplots()
+        levels = np.logspace(-2, 1, 20, endpoint=True)
         cs = ax.contourf(
             xx,
             yy,
             V,
             vmin=0,
             vmax=10,
+            levels=levels,
             #locator = ticker.LogLocator(10),
             cmap=cm.coolwarm,
         )
