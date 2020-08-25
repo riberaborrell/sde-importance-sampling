@@ -109,6 +109,14 @@ def get_parser():
               that you want to use. Default: 20',
     )
     parser.add_argument(
+        '--sigma',
+        dest='sigma',
+        type=float,
+        default=0.1,
+        help='Set the standard deviation of the gaussian ansatz functions \
+              that you want to use. Default: 0.1',
+    )
+    parser.add_argument(
         '--theta-init',
         dest='theta_init',
         choices=['null', 'meta', 'optimal'],
@@ -162,8 +170,9 @@ def main():
 
     # ansatz functions basis
     m = args.m
+    sigma = args.sigma
     mus_min, mus_max = (-3, 3)
-    mus, sigmas = set_unif_dist_ansatz_functions(mus_min, mus_max, m, 1)
+    mus, sigmas = set_unif_dist_ansatz_functions(mus_min, mus_max, m, sigma)
     #mus, sigmas = set_unif_dist_ansatz_functions_on_S(mus_min, mus_max, target_set, m)
 
     # plot basis functions
