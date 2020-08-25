@@ -3,6 +3,7 @@ from script_utils import get_reference_solution, \
                          get_F_opt_at_x, \
                          get_ansatz_functions, \
                          set_unif_dist_ansatz_functions, \
+                         set_unif_dist_ansatz_functions_on_S, \
                          get_optimal_coefficients, \
                          get_meta_coefficients, \
                          set_initial_coefficients, \
@@ -16,6 +17,7 @@ from script_utils import get_reference_solution, \
                          plot_gd_losses, \
                          save_gd_statistics, \
                          write_gd_report
+
 from utils import empty_dir, get_data_path
 
 import argparse
@@ -159,8 +161,9 @@ def main():
 
     # ansatz functions basis
     m = args.m
-    mus_min, mus_max = (-2, 2)
-    mus, sigmas = set_unif_dist_ansatz_functions(mus_min, mus_max, target_set, m)
+    mus_min, mus_max = (-3, 3)
+    mus, sigmas = set_unif_dist_ansatz_functions(mus_min, mus_max, m, 1)
+    #mus, sigmas = set_unif_dist_ansatz_functions_on_S(mus_min, mus_max, target_set, m)
 
     # plot ansatz functions
     if args.do_plots:
@@ -201,6 +204,7 @@ def main():
             plot_control(gd_path, epoch, omega_h, u_opt, u[epoch])
             plot_free_energy(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
             plot_tilted_potential(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
+        exit()
 
         # get loss and its gradient 
         loss[epoch], grad_loss = sample_loss(gradient, beta, xzero, target_set,

@@ -11,6 +11,7 @@ MDS_PATH = os.path.abspath(os.path.dirname(__file__))
 DATA_PATH = os.path.join(MDS_PATH, 'data')
 GD_FIGURES_PATH = os.path.join(MDS_PATH, 'figures/gradient_descent_greedy')
 
+
 def get_reference_solution(data_path):
     ref_sol = np.load(os.path.join(data_path, 'reference_solution.npz'))
     omega_h = ref_sol['omega_h']
@@ -19,21 +20,33 @@ def get_reference_solution(data_path):
 
     return omega_h, F_opt, u_opt
 
+
 def get_F_opt_at_x(omega_h, F_opt, x):
     idx = np.where(omega_h == x)[0][0]
     return F_opt[idx]
+
 
 def get_ansatz_functions(x, mus, sigmas):
     if type(x) == np.ndarray:
         x = x.reshape(x.shape[0], 1)
     return stats.norm.pdf(x, mus, sigmas)
 
+
 def get_derivative_ansatz_functions(x, mus, sigmas):
     if type(x) == np.ndarray:
         x = x.reshape(x.shape[0], 1)
     return derivative_normal_pdf(x, mus, sigmas)
 
-def set_unif_dist_ansatz_functions(mus_min, mus_max, target_set, m):
+
+def set_unif_dist_ansatz_functions(mus_min, mus_max, m, sigma=None):
+    mus = np.linspace(mus_min, mus_max, m)
+    if not sigma:
+        sigma = mus[1] - mus[0]
+    sigmas = sigma * np.ones(m)
+    return mus, sigmas
+
+
+def set_unif_dist_ansatz_functions_on_S(mus_min, mus_max, target_set, m):
     # assume target_set is connected and contained in [mus_min, mus_max]
     target_set_min, target_set_max = target_set
 
@@ -85,7 +98,7 @@ def set_unif_dist_ansatz_functions(mus_min, mus_max, target_set, m):
     return mus, sigmas
 
 
-def set_unif_dist_ansatz_functions2(mus_min, mus_max, target_set, m):
+def set_unif_dist_ansatz_functions_on_S_left(mus_min, mus_max, target_set, m):
     # assume target_set is connected and contained in [mus_min, mus_max]
     target_set_min, target_set_max = target_set
 
@@ -95,13 +108,6 @@ def set_unif_dist_ansatz_functions2(mus_min, mus_max, target_set, m):
 
     return mus, sigmas
 
-
-def set_unif_dist_ansatz_functions3(mus_min, mus_max, m, sigma=None):
-    mus = np.linspace(mus_min, mus_max, m)
-    if not sigma:
-        sigma = mus[1] - mus[0]
-    sigmas = sigma * np.ones(m)
-    return mus, sigmas
 
 
 def get_optimal_coefficients(X, target_set, u_opt, mus, sigmas):

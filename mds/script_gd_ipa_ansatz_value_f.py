@@ -3,8 +3,7 @@ from script_utils import get_reference_solution, \
                          get_F_opt_at_x, \
                          get_derivative_ansatz_functions, \
                          set_unif_dist_ansatz_functions, \
-                         set_unif_dist_ansatz_functions2, \
-                         set_unif_dist_ansatz_functions3, \
+                         set_unif_dist_ansatz_functions_on_S, \
                          get_optimal_coefficients2, \
                          get_meta_coefficients2, \
                          set_initial_coefficients, \
@@ -164,9 +163,8 @@ def main():
     # ansatz functions basis
     m = args.m
     mus_min, mus_max = (-3, 3)
-    #mus, sigmas = set_unif_dist_ansatz_functions(mus_min, mus_max, target_set, m)
-    #mus, sigmas = set_unif_dist_ansatz_functions2(mus_min, mus_max, target_set, m)
-    mus, sigmas = set_unif_dist_ansatz_functions3(mus_min, mus_max, m, 1)
+    mus, sigmas = set_unif_dist_ansatz_functions(mus_min, mus_max, m, 1)
+    #mus, sigmas = set_unif_dist_ansatz_functions_on_S(mus_min, mus_max, target_set, m)
 
     # plot basis functions
     if args.do_plots:
@@ -207,6 +205,8 @@ def main():
             plot_control(gd_path, epoch, omega_h, u_opt, u[epoch])
             plot_free_energy(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
             plot_tilted_potential(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
+        if epoch == 1:
+            exit()
 
         # get loss and its gradient 
         loss[epoch], grad_loss = sample_loss(gradient, beta, xzero, target_set,
