@@ -204,7 +204,6 @@ def main():
             plot_control(gd_path, epoch, omega_h, u_opt, u[epoch])
             plot_free_energy(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
             plot_tilted_potential(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
-        exit()
 
         # get loss and its gradient 
         loss[epoch], grad_loss = sample_loss(gradient, beta, xzero, target_set,
