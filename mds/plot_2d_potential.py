@@ -1,3 +1,5 @@
+from potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES
+
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
@@ -6,12 +8,19 @@ from matplotlib import ticker, cm
 def get_parser():
     parser = argparse.ArgumentParser(description='3D Plot of the potential landscape')
     parser.add_argument(
-        '--alphas',
-        dest='alphas',
-        nargs=2,
+        '--potential',
+        dest='potential_name',
+        choices=POTENTIAL_NAMES,
+        default='2d_2well',
+        help='Set the type of potential to plot. Default: symmetric double well',
+    )
+    parser.add_argument(
+        '--alpha',
+        dest='alpha',
+        nargs='+',
         type=float,
-        default=[1, 1],
-        help='Set the parameter alpha for the chosen potentials. Default: [1, 1]',
+        default=[1, 1, 1, 1],
+        help='Set the parameter alpha for the chosen potentials. Default: [1, 1, 1, 1]',
     )
     parser.add_argument(
         '--plot-surface',
@@ -29,7 +38,10 @@ def get_parser():
 
 def main():
     args = get_parser().parse_args()
-    alphas = np.array(args.alphas)
+    potential_name = args.potential_name
+    alpha = np.array(args.alpha)
+
+    potential, _ = get_potential_and_gradient(potential_name, alpha)
 
     xmin, xmax = (-2, 2)
     ymin, ymax = (-2, 2)
@@ -37,13 +49,13 @@ def main():
     x = np.arange(xmin, xmax, h)
     y = np.arange(ymin, ymax, h)
 
-    zlim_bottom, zlim_top = (0, 10 * alphas.max())
+    zlim_bottom, zlim_top = (0, 10 * alpha.max())
 
     # surface plot
     if args.plot_surface:
         # create potential
         xx, yy = np.meshgrid(x, y, sparse=True)
-        V = alphas[0] * (xx**2 - 1)**2 + alphas[1] * (yy**2 - 1)**2
+        V = potential(xx, yy)
 
         # clip data outside zlims
         idx_x, idx_y = np.where((V < zlim_bottom) | (V > zlim_top))
@@ -68,7 +80,7 @@ def main():
     if args.plot_contour:
         # create potential
         xx, yy = np.meshgrid(x, y)
-        V = alphas[0] * (xx**2 - 1)**2 + alphas[1] * (yy**2 - 1)**2
+        V = potential(xx, yy)
 
         # clip data outside zlims
         zlim_bottom, zlim_top = (0, 10)
@@ -84,7 +96,6 @@ def main():
             vmin=0,
             vmax=10,
             levels=levels,
-            #locator = ticker.LogLocator(10),
             cmap=cm.coolwarm,
         )
         cbar = fig.colorbar(cs)

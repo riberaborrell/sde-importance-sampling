@@ -29,33 +29,33 @@ def get_data_path(potential=None, alpha=None, beta=None, target_set=None, subdir
     ''' Get data path and create its directories
     '''
     # get dir path
-    if potential and alpha and beta and target_set and subdirectory:
+    if potential and alpha is not None and beta and target_set and subdirectory:
         target_set_min, target_set_max = target_set
         dir_path = os.path.join(
             MDS_PATH,
             'data',
             potential,
-            'alpha_{}'.format(float(alpha)),
-            'beta_{}'.format(float(beta)),
+            get_alpha_stamp(alpha),
+            get_beta_stamp(beta),
             'target_set_{}_{}'.format(target_set_min, target_set_max),
             subdirectory,
         )
-    elif potential and alpha and beta and target_set:
+    elif potential and alpha is not None and beta and target_set:
         target_set_min, target_set_max = target_set
         dir_path = os.path.join(
             MDS_PATH,
             'data',
             potential,
-            'alpha_{}'.format(float(alpha)),
-            'beta_{}'.format(float(beta)),
+            get_alpha_stamp(alpha),
+            get_beta_stamp(beta),
             'target_set_{}_{}'.format(target_set_min, target_set_max),
         )
-    elif potential and alpha:
+    elif potential and alpha is not None:
         dir_path = os.path.join(
             MDS_PATH,
             'data',
             potential,
-            'alpha_{}'.format(float(alpha)),
+            get_alpha_stamp(alpha),
         )
     elif potential:
         dir_path = os.path.join(
@@ -71,13 +71,24 @@ def get_data_path(potential=None, alpha=None, beta=None, target_set=None, subdir
 
     return dir_path
 
+def get_alpha_stamp(alpha):
+    assert alpha.ndim == 1, ''
+    alpha_stamp = 'alpha'
+    for alpha_i in alpha:
+        alpha_stamp += '_{}'.format(float(alpha_i))
+    return alpha_stamp
+
+def get_beta_stamp(beta):
+    return 'beta_{}'.format(float(beta))
+
+def get_sde_stamp(alpha, beta):
+    sde_stamp = get_alpha_stamp(alpha)
+    sde_stamp += get_beta_stamp(beta)
+    return sde_stamp
+
 def get_datetime_stamp():
     time_stamp = datetime.today().strftime('%Y%m%d_%H%M%S')
     return time_stamp
-
-def get_sde_stamp(alpha, beta):
-    sde_stamp = 'alpha{}_beta{}'.format(float(alpha), float(beta))
-    return sde_stamp
 
 def get_trajectories_stamp(M):
     assert type(M) == int, 'Error:'

@@ -12,6 +12,11 @@ class Plot:
         self.file_type = file_type
         self.dir_path = dir_path
 
+        self.title = None
+        self.bottom = None
+        self.top = None
+        self.yticks = None
+
     @property
     def file_path(self):
         if self.file_name:
@@ -20,6 +25,7 @@ class Plot:
             )
         else:
             return None
+
     def set_title(self, title):
         self.title = title
 
@@ -29,33 +35,33 @@ class Plot:
         tick_sep = (top - bottom) / 10
         self.yticks = np.arange(bottom, top + tick_sep, tick_sep)
 
-    def potential(self, X, V):
+    def potential(self, X, V, label=None):
         plt.title(self.title)
-        plt.plot(X, V, 'b-', label=r'$V(x)$')
+        if label is not None:
+            plt.plot(X, V, 'b-', label=label)
+        else:
+            plt.plot(X, V, 'b-')
         plt.xlabel('x', fontsize=16)
         plt.ylim(top=self.top, bottom=self.bottom)
+        plt.yticks(self.yticks)
         plt.grid(True)
+        plt.legend()
         plt.savefig(self.file_path)
         plt.close()
 
-    def potential_2d(self, X, V):
-        assert X.ndim == V.ndim == 2, ''
+    def potentials(self, X, Vs, labels=None):
+        if labels is not None:
+            assert Vs.shape[0] == len(labels), ''
         plt.title(self.title)
-        plt.plot(X, V, 'b-', label=r'$V(x)$')
-        plt.xlabel('x', fontsize=16)
-        plt.ylim(top=self.top, bottom=self.bottom)
-        plt.grid(True)
-        plt.savefig(self.file_path)
-        plt.close()
+        for i in range(Vs.shape[0]):
+            if labels is not None:
+                plt.plot(X, Vs[i], '-', label=labels[i])
+            else:
+                plt.plot(X, Vs[i], '-')
 
-    def potentials(self, X, Vs, alphas):
-        assert Vs.shape[0] == alphas.shape[0], ''
-        plt.title(self.title)
-        for i, alpha in enumerate(alphas):
-            label = r'$\alpha = {:2.1f}$'.format(alpha)
-            plt.plot(X, Vs[i], '-', label=label)
         plt.xlabel('x', fontsize=16)
         plt.ylim(top=self.top, bottom=self.bottom)
+        plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
         plt.savefig(self.file_path)
@@ -251,5 +257,15 @@ class Plot:
         plt.ylim(bottom=-1.8)
         plt.ylim(top=1.8)
         plt.legend(loc='upper left', fontsize=8)
+        plt.savefig(self.file_path)
+        plt.close()
+
+    def potential_2d(self, X, V):
+        assert X.ndim == V.ndim == 2, ''
+        plt.title(self.title)
+        plt.plot(X, V, 'b-', label=r'$V(x)$')
+        plt.xlabel('x', fontsize=16)
+        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.grid(True)
         plt.savefig(self.file_path)
         plt.close()
