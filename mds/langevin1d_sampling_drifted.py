@@ -1,6 +1,8 @@
+from potentials_and_gradients import POTENTIAL_NAMES
 import sampling
 
 import argparse
+import numpy as np
 
 def get_parser():
     parser = argparse.ArgumentParser(description='drifted 1D overdamped Langevin')
@@ -13,16 +15,17 @@ def get_parser():
     parser.add_argument(
         '--potential',
         dest='potential_name',
-        choices=['sym_1well', 'sym_2well', 'asym_2well'],
-        default='sym_2well',
+        choices=POTENTIAL_NAMES,
+        default='1d_sym_2well',
         help='Set the potential for the 1D MD SDE. Default: symmetric double well',
     )
     parser.add_argument(
         '--alpha',
         dest='alpha',
+        nargs='+',
         type=float,
-        default=1,
-        help='Set the parameter alpha for the chosen potential. Default: 1',
+        default=[1],
+        help='Set the parameter alpha for the chosen potential. Default: [1]',
     )
     parser.add_argument(
         '--beta',
@@ -71,7 +74,7 @@ def get_parser():
         '--m',
         dest='m',
         type=int,
-        default=10,
+        default=30,
         help='Set the number of uniformly distributed ansatz functions \
               that you want to use. Default: 10',
     )
@@ -79,12 +82,12 @@ def get_parser():
         '--sigma',
         dest='sigma',
         type=float,
-        default=0.2,
-        help='Set the standard deviation of the ansatz functions. Default: 0.2',
+        default=1,
+        help='Set the standard deviation of the ansatz functions. Default: 1',
     )
     parser.add_argument(
-        '--a-init',
-        dest='a_init',
+        '--theta-init',
+        dest='theta_init',
         choices=['null', 'meta', 'optimal'],
         default='optimal',
         help='Type of initial control. Default: optimal',
@@ -104,21 +107,22 @@ def main():
     # initialize langevin_1d object
     sample = sampling.langevin_1d(
         potential_name=args.potential_name,
-        alpha=args.alpha,
+        alpha=np.array(args.alpha),
         beta=args.beta,
         target_set=args.target_set,
     )
 
     # set ansatz functions and a optimal
-    sample.set_ansatz_functions(m=args.m)
+    #sample.set_unif_dist_ansatz_functions(args.m, args.sigma)
+    sample.set_unif_dist_ansatz_functions_on_S(m=args.m)
     sample.set_a_optimal()
     print(sample.a_opt)
 
     # set a 
-    if args.a_init == 'optimal':
+    if args.theta_init == 'optimal':
         sample.is_drifted = True
         sample.a = sample.a_opt
-    elif args.a_init == 'meta':
+    elif args.theta_init == 'meta':
         sample.is_drifted = True
         sample.set_a_from_metadynamics()
 

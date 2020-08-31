@@ -1,6 +1,7 @@
-from potentials_and_gradients import get_potential_and_gradient, \
-                                     derivative_normal_pdf, \
-                                     bias_potential
+from ansatz_functions import derivative_normal_pdf, \
+                             bias_potential
+
+from potentials_and_gradients import get_potential_and_gradient
 from plotting import Plot
 from reference_solution import langevin_1d_reference_solution
 from utils import get_data_path, get_time_in_hms
@@ -120,20 +121,19 @@ class langevin_1d:
     def set_unif_dist_ansatz_functions(self, m, sigma):
         '''This method sets the number of ansatz functions and their mean
            and standard deviation. The means will be uniformly distributed
-           in the set J and the standard deviation is given.
+           in the domain and the standard deviation is given.
 
         Args:
             m (int): number of ansatz functions
             sigma (float) : standard deviation
         '''
-        J_min = -2.2
-        J_max = 0.8
-
+        mus_min, mus_max = (-3, 3)
         self.m = m
-        self.mus = np.around(np.linspace(J_min, J_max, m), decimals=2)
+        self.mus = np.around(np.linspace(mus_min, mus_max, m), decimals=2)
         self.sigmas = sigma * np.ones(m)
 
-    def set_ansatz_functions(self, m, mus_min=-3, mus_max=3):
+    def set_unif_dist_ansatz_functions_on_S(self, m):
+        mus_min, mus_max = (-3, 3)
         # assume target_set is connected and contained in [mus_min, mus_max]
         target_set_min, target_set_max = self.target_set
 
@@ -757,7 +757,7 @@ class langevin_1d:
 
         f.write('SDE parameters\n')
         f.write('potential: {}\n'.format(self.potential_name))
-        f.write('alpha: {:2.1f}\n'.format(self.alpha))
+        f.write('alpha: {}\n'.format(self.alpha))
         f.write('beta: {:2.1f}\n'.format(self.beta))
         f.write('drifted process: {}\n\n'.format(self.is_drifted))
 

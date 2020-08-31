@@ -1,6 +1,8 @@
+from potentials_and_gradients import POTENTIAL_NAMES
 import sampling
 
 import argparse
+import numpy as np
 
 def get_parser():
     parser = argparse.ArgumentParser(description='not drifted 1D overdamped Langevin')
@@ -13,16 +15,17 @@ def get_parser():
     parser.add_argument(
         '--potential',
         dest='potential_name',
-        choices=['sym_1well', 'sym_2well', 'asym_2well'],
-        default='sym_2well',
+        choices=POTENTIAL_NAMES,
+        default='1d_sym_2well',
         help='Set the potential for the 1D MD SDE. Default: symmetric double well',
     )
     parser.add_argument(
         '--alpha',
         dest='alpha',
+        nargs='+',
         type=float,
-        default=1,
-        help='Set the parameter alpha for the chosen potential. Default: 1',
+        default=[1],
+        help='Set the parameter alpha for the chosen potential. Default: [1]',
     )
     parser.add_argument(
         '--beta',
@@ -82,7 +85,7 @@ def main():
     # initialize langevin_1d object
     sample = sampling.langevin_1d(
         potential_name=args.potential_name,
-        alpha=args.alpha,
+        alpha=np.array(args.alpha),
         beta=args.beta,
         target_set=args.target_set,
     )

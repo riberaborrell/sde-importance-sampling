@@ -1,22 +1,25 @@
+from potentials_and_gradients import POTENTIAL_NAMES
 from reference_solution import langevin_1d_reference_solution
 
 import argparse
+import numpy as np
 
 def get_parser():
     parser = argparse.ArgumentParser(description='Computes the reference solution for the 1D overdamped Langevin')
     parser.add_argument(
         '--potential',
         dest='potential_name',
-        choices=['sym_1well', 'sym_2well', 'asym_2well'],
-        default='sym_2well',
+        choices=POTENTIAL_NAMES,
+        default='1d_sym_2well',
         help='Set the potential for the 1D MD SDE. Default: symmetric double well',
     )
     parser.add_argument(
         '--alpha',
         dest='alpha',
+        nargs='+',
         type=float,
-        default=1,
-        help='Set the parameter alpha for the chosen potential. Default: 1',
+        default=[1],
+        help='Set the parameter alpha for the chosen potentials. Default: [1]',
     )
     parser.add_argument(
         '--beta',
@@ -51,10 +54,11 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
+
     # compute reference solution
     sol = langevin_1d_reference_solution(
         potential_name=args.potential_name,
-        alpha=args.alpha,
+        alpha=np.array(args.alpha),
         beta=args.beta,
         target_set=args.target_set,
         h=args.h,
