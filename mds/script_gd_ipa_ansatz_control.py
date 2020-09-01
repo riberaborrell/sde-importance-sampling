@@ -1,4 +1,4 @@
-from potentials_and_gradients import get_potential_and_gradient
+from potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES
 from script_utils import get_reference_solution, \
                          get_F_opt_at_x, \
                          get_ansatz_functions, \
@@ -38,16 +38,17 @@ def get_parser():
     parser.add_argument(
         '--potential',
         dest='potential_name',
-        choices=['sym_1well', 'sym_2well', 'asym_2well'],
-        default='sym_2well',
+        choices=POTENTIAL_NAMES,
+        default='1d_sym_2well',
         help='Set the potential for the 1D MD SDE. Default: symmetric double well',
     )
     parser.add_argument(
         '--alpha',
         dest='alpha',
+        nargs='+',
         type=float,
-        default=1,
-        help='Set the parameter alpha for the chosen potential. Default: 1',
+        default=[1],
+        help='Set the parameter alpha for the chosen potential. Default: [1]',
     )
     parser.add_argument(
         '--beta',
@@ -132,6 +133,7 @@ def get_parser():
 
 def main():
     args = get_parser().parse_args()
+    alpha = np.array(args.alpha)
 
     # start timer
     t_initial = time.time()
@@ -142,18 +144,19 @@ def main():
 
     # set gd path
     gd_stamp = 'gd-ipa-ansatz-control-{}'.format(args.theta_init)
+    sigma_stamp = 'sigma_{}'.format(float(args.sigma))
     lr_stamp = 'lr_{}'.format(float(args.lr))
-    subdirectory = os.path.join(gd_stamp, lr_stamp)
-    gd_path = get_data_path(args.potential_name, args.alpha, args.beta,
+    subdirectory = os.path.join(gd_stamp, sigma_stamp, lr_stamp)
+    gd_path = get_data_path(args.potential_name, alpha, args.beta,
                             args.target_set, subdirectory)
     empty_dir(gd_path)
 
     # get ref sol path
-    ref_sol_path = get_data_path(args.potential_name, args.alpha, args.beta,
+    ref_sol_path = get_data_path(args.potential_name, alpha, args.beta,
                                  args.target_set, 'reference_solution')
 
     # set potential
-    potential, gradient = get_potential_and_gradient(args.potential_name, args.alpha)
+    potential, gradient = get_potential_and_gradient(args.potential_name, alpha)
 
     # sampling parameters
     beta = args.beta
@@ -182,7 +185,7 @@ def main():
     theta_opt = get_optimal_coefficients(omega_h, target_set, u_opt, mus, sigmas)
 
     # get meta coefficients
-    theta_meta = get_meta_coefficients(args.potential_name, args.alpha, args.beta,
+    theta_meta = get_meta_coefficients(args.potential_name, alpha, args.beta,
                                        args.target_set, omega_h, mus, sigmas)
 
     # set gd parameters
@@ -215,11 +218,14 @@ def main():
             plot_tilted_potential(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
 
         # get loss and its gradient 
-        loss[epoch], grad_loss = sample_loss(gradient, beta, xzero, target_set,
-                                             M, m, thetas[epoch], mus, sigmas)
+        succ, loss[epoch], grad_loss = sample_loss(gradient, beta, xzero, target_set,
+                                                   M, m, thetas[epoch], mus, sigmas)
+        # check if sample succeeded
+        if not succ:
+            break
 
-        # check if we are close enought to the optimal
         print('{:2.3f}, {:2.3f}'.format(value_f, loss[epoch]))
+        # check if we are close enought to the optimal
         if np.isclose(value_f, loss[epoch], atol=atol):
             break
 
@@ -278,6 +284,8 @@ def sample_loss(gradient, beta, xzero, target_set, M, m, theta, mus, sigmas):
         # control
         btemp = get_ansatz_functions(Xtemp, mus, sigmas)
         utemp = np.dot(btemp, theta)
+        if not is_valid_control(utemp, -10, 10):
+            return False, None, None
 
         # ipa statistics 
         cost_temp += 0.5 * (utemp ** 2) * dt
@@ -319,7 +327,7 @@ def sample_loss(gradient, beta, xzero, target_set, M, m, theta, mus, sigmas):
     mean_J = np.mean(J)
     mean_grad_J = np.mean(grad_J, axis=0)
 
-    return mean_J, mean_grad_J
+    return True, mean_J, mean_grad_J
 
 def sample_loss_not_vectorized(gradient, beta, xzero, target_set, M, m, theta, mus, sigmas):
 

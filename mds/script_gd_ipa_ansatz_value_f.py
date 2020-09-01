@@ -1,4 +1,5 @@
-from potentials_and_gradients import get_potential_and_gradient, derivative_normal_pdf
+from ansatz_functions import derivative_normal_pdf
+from potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES
 from script_utils import get_reference_solution, \
                          get_F_opt_at_x, \
                          get_derivative_ansatz_functions, \
@@ -20,6 +21,7 @@ from script_utils import get_reference_solution, \
                          write_gd_report
 
 from utils import empty_dir, get_data_path
+from validation import is_valid_control
 
 import argparse
 import numpy as np
@@ -39,16 +41,17 @@ def get_parser():
     parser.add_argument(
         '--potential',
         dest='potential_name',
-        choices=['sym_1well', 'sym_2well', 'asym_2well'],
-        default='sym_2well',
+        choices=POTENTIAL_NAMES,
+        default='1d_sym_2well',
         help='Set the potential for the 1D MD SDE. Default: symmetric double well',
     )
     parser.add_argument(
         '--alpha',
         dest='alpha',
+        nargs='+',
         type=float,
-        default=1,
-        help='Set the parameter alpha for the chosen potential. Default: 1',
+        default=[1],
+        help='Set the parameter alpha for the chosen potential. Default: [1]',
     )
     parser.add_argument(
         '--beta',
@@ -134,6 +137,8 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
+    alpha = np.array(args.alpha)
+
     # start timer
     t_initial = time.time()
 
@@ -142,19 +147,20 @@ def main():
         np.random.seed(args.seed)
 
     # set gd path
-    gd_stamp = 'gd-ipa-ansatz-value-f-{}'.format(args.theta_init)
+    gd_stamp = 'gd-ipa-ansatz-value_f-{}'.format(args.theta_init)
+    sigma_stamp = 'sigma_{}'.format(float(args.sigma))
     lr_stamp = 'lr_{}'.format(float(args.lr))
-    subdirectory = os.path.join(gd_stamp, lr_stamp)
-    gd_path = get_data_path(args.potential_name, args.alpha, args.beta,
+    subdirectory = os.path.join(gd_stamp, sigma_stamp, lr_stamp)
+    gd_path = get_data_path(args.potential_name, alpha, args.beta,
                             args.target_set, subdirectory)
     empty_dir(gd_path)
 
     # get ref sol path
-    ref_sol_path = get_data_path(args.potential_name, args.alpha, args.beta,
+    ref_sol_path = get_data_path(args.potential_name, alpha, args.beta,
                                  args.target_set, 'reference_solution')
 
     # set potential
-    potential, gradient = get_potential_and_gradient(args.potential_name, args.alpha)
+    potential, gradient = get_potential_and_gradient(args.potential_name, alpha)
 
     # sampling parameters
     beta = args.beta
@@ -184,7 +190,7 @@ def main():
     theta_opt = get_optimal_coefficients2(omega_h, target_set, F_opt, mus, sigmas)
 
     # get meta coefficients
-    theta_meta = get_meta_coefficients2(args.potential_name, args.alpha, args.beta,
+    theta_meta = get_meta_coefficients2(args.potential_name, alpha, args.beta,
                                        args.target_set, omega_h, mus, sigmas)
     # set gd parameters
     epochs_lim = args.epochs_lim
@@ -216,11 +222,15 @@ def main():
             plot_tilted_potential(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
 
         # get loss and its gradient 
-        loss[epoch], grad_loss = sample_loss(gradient, beta, xzero, target_set,
-                                             M, m, thetas[epoch], mus, sigmas)
+        succ, loss[epoch], grad_loss = sample_loss(gradient, beta, xzero, target_set,
+                                                   M, m, thetas[epoch], mus, sigmas)
+        # check if sample succeeded
+        if not succ:
+            break
+
+        print('{:2.3f}, {:2.3f}'.format(value_f, loss[epoch]))
 
         # check if we are close enought to the optimal
-        print('{:2.3f}, {:2.3f}'.format(value_f, loss[epoch]))
         if np.isclose(value_f, loss[epoch], atol=atol):
             break
 
@@ -234,18 +244,19 @@ def main():
         F[epoch+1:] = np.nan
 
     # plot titled potential and loss per epoch
-    if args.do_plots:
+    if args.do_plots and succ:
         plot_gd_tilted_potentials(gd_path, omega_h, potential, F_opt, F[:epoch+1])
         plot_gd_losses(gd_path, value_f, loss[:epoch+1])
 
     # save gd statistics
-    save_gd_statistics(gd_path, omega_h, u[:epoch+1], F[:epoch+1], loss[:epoch+1], value_f)
+    if succ:
+        save_gd_statistics(gd_path, omega_h, u[:epoch+1], F[:epoch+1], loss[:epoch+1], value_f)
 
     # end timer
     t_final = time.time()
 
     # write gd report
-    write_gd_report(gd_path, xzero, value_f, epochs_lim, epoch+1, lr, atol,
+    write_gd_report(gd_path, xzero, value_f, M, m, epochs_lim, epoch+1, lr, atol,
                     loss[epoch], t_final - t_initial)
 
 
@@ -280,6 +291,8 @@ def sample_loss(gradient, beta, xzero, target_set, M, m, theta, mus, sigmas):
         # control
         btemp = - np.sqrt(2) * get_derivative_ansatz_functions(Xtemp, mus, sigmas)
         utemp = np.dot(btemp, theta)
+        if not is_valid_control(utemp, -10, 10):
+            return False, None, None
 
         # ipa statistics 
         cost_temp += 0.5 * (utemp ** 2) * dt
@@ -321,7 +334,7 @@ def sample_loss(gradient, beta, xzero, target_set, M, m, theta, mus, sigmas):
     mean_J = np.mean(J)
     mean_grad_J = np.mean(grad_J, axis=0)
 
-    return mean_J, mean_grad_J
+    return True, mean_J, mean_grad_J
 
 
 if __name__ == "__main__":

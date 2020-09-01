@@ -1,4 +1,4 @@
-from potentials_and_gradients import derivative_normal_pdf
+from ansatz_functions import derivative_normal_pdf
 from utils import get_data_path, get_time_in_hms
 
 import numpy as np
@@ -273,7 +273,7 @@ def plot_tilted_potential(dir_path, epoch, X, potential, F_opt, F):
     plt.plot(X, V + 2 * F, label='approx potential')
     plt.plot(X, V + 2 * F_opt, label='optimal tilted potential')
     plt.xlim(left=-3, right=3)
-    plt.ylim(bottom=0, top=15)
+    plt.ylim(bottom=0, top=10)
     plt.grid(True)
     plt.legend()
 
@@ -297,7 +297,7 @@ def plot_gd_tilted_potentials(dir_path, X, potential, F_opt, F):
             label = r'epoch = {:d}'.format(epoch)
             plt.plot(X, V + 2 * F[epoch], linestyle='-', label=label)
     plt.xlim(left=-3, right=3)
-    plt.ylim(bottom=0, top=80)
+    plt.ylim(bottom=0, top=10)
     plt.grid(True)
     plt.legend()
 
