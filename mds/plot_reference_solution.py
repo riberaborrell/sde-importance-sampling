@@ -1,5 +1,5 @@
 from plotting import Plot
-from potentials_and_gradients import get_potential_and_gradient
+from potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES
 from utils import get_data_path
 
 import argparse
@@ -13,16 +13,17 @@ def get_parser():
     parser.add_argument(
         '--potential',
         dest='potential_name',
-        choices=['sym_1well', 'sym_2well', 'asym_2well'],
-        default='sym_2well',
+        choices=POTENTIAL_NAMES,
+        default='1d_sym_2well',
         help='Set the type of potential to plot. Default: symmetric double well',
     )
     parser.add_argument(
         '--alpha',
         dest='alpha',
+        nargs='+',
         type=float,
-        default=1,
-        help='Set the parameter alpha for the chosen potential. Default: 1',
+        default=[1],
+        help='Set the parameter alpha for the chosen potential. Default: [1]',
     )
     parser.add_argument(
         '--betas',
@@ -44,16 +45,17 @@ def get_parser():
 
 def main():
     args = get_parser().parse_args()
+    alpha = np.array(args.alpha)
     betas = np.array(args.betas)
 
     # get discretized grid
-    ref_sol_path = get_data_path(args.potential_name, args.alpha, betas[0],
+    ref_sol_path = get_data_path(args.potential_name, alpha, betas[0],
                                  args.target_set, 'reference_solution')
     ref_sol = np.load(os.path.join(ref_sol_path, 'reference_solution.npz'))
     X = ref_sol['omega_h']
 
     # get potential on grid
-    potential, gradient = get_potential_and_gradient(args.potential_name, args.alpha)
+    potential, gradient = get_potential_and_gradient(args.potential_name, alpha)
     V = potential(X)
     dV = gradient(X)
 
@@ -63,7 +65,7 @@ def main():
 
     # load F and u_opt
     for i, beta in enumerate(betas):
-        ref_sol_path = get_data_path(args.potential_name, args.alpha, beta,
+        ref_sol_path = get_data_path(args.potential_name, alpha, beta,
                                       args.target_set, 'reference_solution')
         ref_sol = np.load(os.path.join(ref_sol_path, 'reference_solution.npz'))
         F[i, :] = ref_sol['F']
@@ -75,25 +77,25 @@ def main():
     # plot free energy
     file_name = 'free_energy_wrt_betas'
     plot = Plot(dir_path, file_name)
-    plot.set_ylim(bottom=0, top=args.alpha * 2.5)
+    plot.set_ylim(bottom=0, top=alpha[0] * 2.5)
     plot.free_energy_wrt_betas(X, betas, F)
 
     # plot tilted potential
     file_name = 'optimal_tilted_potential_wrt_betas'
     plot = Plot(dir_path, file_name)
-    plot.set_ylim(bottom=0, top=args.alpha * 10)
+    plot.set_ylim(bottom=0, top=alpha[0] * 10)
     plot.tilted_potential_wrt_betas(X, V, betas, 2 * F)
 
     # plot tilted drift 
     file_name = 'optimal_tilted_drift_wrt_betas'
     plot = Plot(dir_path, file_name)
-    plot.set_ylim(bottom=-args.alpha * 5, top=args.alpha * 5)
+    plot.set_ylim(bottom=-alpha[0] * 5, top=alpha[0] * 5)
     plot.tilted_drift_wrt_betas(X, dV, betas, -np.sqrt(2) * u_opt)
 
     # plot control
     file_name = 'optimal_control_wrt_betas'
     plot = Plot(dir_path, file_name)
-    plot.set_ylim(bottom=-args.alpha * 5, top=args.alpha * 5)
+    plot.set_ylim(bottom=-alpha[0] * 5, top=alpha[0] * 5)
     plot.control_wrt_betas(X, betas, u_opt)
 
 
