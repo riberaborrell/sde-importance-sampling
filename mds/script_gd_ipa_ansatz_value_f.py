@@ -213,7 +213,7 @@ def main():
 
         # compute control and free energy on the grid
         u[epoch, :] = control_on_grid2(omega_h, thetas[epoch, :], mus, sigmas)
-        F[epoch, :] = free_energy_on_grid2(omega_h, thetas[epoch, :], mus, sigmas)
+        F[epoch, :] = free_energy_on_grid2(omega_h, target_set, thetas[epoch, :], mus, sigmas)
 
         # plot control, free_energy and tilted potential
         if args.do_plots:

@@ -227,10 +227,19 @@ def free_energy_on_grid(X, target_set, a, mus, sigmas):
 
     return F
 
-def free_energy_on_grid2(X, a, mus, sigmas):
+def free_energy_on_grid2(X, target_set, a, mus, sigmas):
+    # get indices where grid in the the target set
+    target_set_min, target_set_max = target_set
+    idx_ts = np.where((X >= target_set_min) & (X <= target_set_max))[0]
+
+    # evaluate value function on the grid up to a constant
     v = get_ansatz_functions(X, mus, sigmas)
     F = np.dot(a, v.T)
-    return F
+
+    # compute constant
+    const = - np.mean(F[idx_ts])
+
+    return F + const
 
 def control_on_grid(X, a, mus, sigmas):
     v = get_ansatz_functions(X, mus, sigmas)
