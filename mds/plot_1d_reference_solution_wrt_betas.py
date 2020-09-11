@@ -1,3 +1,4 @@
+from hjb_1d_solver import langevin_hjb_1d_solver
 from plotting import Plot
 from potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES
 from utils import get_data_path
@@ -34,6 +35,14 @@ def get_parser():
         help='Set list of betas for the 1D MD SDE. Default: [1.0]',
     )
     parser.add_argument(
+        '--domain',
+        nargs=2,
+        dest='domain',
+        type=float,
+        default=[-3, 3],
+        help='Set the domain interval. Default: [-3, 3]',
+    )
+    parser.add_argument(
         '--target-set',
         nargs=2,
         dest='target_set',
@@ -49,25 +58,33 @@ def main():
     betas = np.array(args.betas)
 
     # get discretized grid
-    ref_sol_path = get_data_path(args.potential_name, alpha, betas[0],
-                                 args.target_set, 'reference_solution')
-    ref_sol = np.load(os.path.join(ref_sol_path, 'reference_solution.npz'))
-    X = ref_sol['omega_h']
+    # get solver for the first beta
+    sol = langevin_hjb_1d_solver(
+        potential_name=args.potential_name,
+        alpha=alpha,
+        beta=betas[0],
+        target_set=np.array(args.target_set),
+    )
 
-    # get potential on grid
-    potential, gradient = get_potential_and_gradient(args.potential_name, alpha)
-    V = potential(X)
-    dV = gradient(X)
+    # get grid, potential and gradient
+    ref_sol = np.load(os.path.join(sol.dir_path, 'reference_solution.npz'))
+    X = ref_sol['domain_h']
+    V = sol.potential(X)
+    dV = sol.gradient(X)
 
     # initialize F and u_opt
     F = np.zeros((betas.shape[0], X.shape[0]))
     u_opt = np.zeros((betas.shape[0], X.shape[0]))
 
-    # load F and u_opt
+    # get F and u_opt for each beta
     for i, beta in enumerate(betas):
-        ref_sol_path = get_data_path(args.potential_name, alpha, beta,
-                                      args.target_set, 'reference_solution')
-        ref_sol = np.load(os.path.join(ref_sol_path, 'reference_solution.npz'))
+        sol = langevin_hjb_1d_solver(
+            potential_name=args.potential_name,
+            alpha=alpha,
+            beta=beta,
+            target_set=np.array(args.target_set),
+        )
+        ref_sol = np.load(os.path.join(sol.dir_path, 'reference_solution.npz'))
         F[i, :] = ref_sol['F']
         u_opt[i, :] = ref_sol['u_opt']
 
@@ -77,7 +94,7 @@ def main():
     # plot free energy
     file_name = 'free_energy_wrt_betas'
     plot = Plot(dir_path, file_name)
-    plot.set_ylim(bottom=0, top=alpha[0] * 2.5)
+    plot.set_ylim(bottom=0, top=alpha[0] * 3)
     plot.free_energy_wrt_betas(X, betas, F)
 
     # plot tilted potential

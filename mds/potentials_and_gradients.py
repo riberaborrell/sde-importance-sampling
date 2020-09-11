@@ -64,7 +64,7 @@ def get_potential_and_gradient(potential_name, alpha=None):
         a = alpha[:2]
         b = alpha[2:]
         potential = functools.partial(double_well_2d_potential, a=a, b=b)
-        gradient = None
+        gradient = functools.partial(double_well_2d_gradient, a=a, b=b)
 
     return potential, gradient
 
@@ -150,3 +150,16 @@ def double_well_2d_potential(x, y, a, b):
     assert a.ndim == b.ndim == 1, ''
     assert a.shape[0] == b.shape[0] == 2, ''
     return a[0] * (x**2 - b[0])**2 + a[1] * (y**2 - b[1])**2
+
+def double_well_2d_gradient(x, y, a, b):
+    ''' Gradient dV(x,y;a1,a2,b1,b2) evaluated at (x, y)
+        x (float or float array) : x posicion/s
+        y (float or float array) : y posicion/s
+        a (array) : barrier height
+        b (float) : center
+    '''
+    assert a.ndim == b.ndim == 1, ''
+    assert a.shape[0] == b.shape[0] == 2, ''
+    gradient_x = a[0] * 4 * x * (x**2 - b[0])
+    gradient_y = a[1] * 4 * y * (y**2 - b[0])
+    return gradient_x, gradient_y

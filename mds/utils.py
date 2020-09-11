@@ -1,5 +1,6 @@
 from datetime import datetime
 
+import numpy as np
 import os
 import shutil
 
@@ -29,7 +30,7 @@ def get_data_path(potential=None, alpha=None, beta=None, target_set=None, subdir
     ''' Get data path and create its directories
     '''
     # get dir path
-    if potential and alpha is not None and beta and target_set and subdirectory:
+    if potential and alpha is not None and beta and target_set is not None and subdirectory:
         target_set_min, target_set_max = target_set
         dir_path = os.path.join(
             MDS_PATH,
@@ -37,10 +38,10 @@ def get_data_path(potential=None, alpha=None, beta=None, target_set=None, subdir
             potential,
             get_alpha_stamp(alpha),
             get_beta_stamp(beta),
-            'target_set_{}_{}'.format(target_set_min, target_set_max),
+            get_target_set_stamp(target_set),
             subdirectory,
         )
-    elif potential and alpha is not None and beta and target_set:
+    elif potential and alpha is not None and beta and target_set is not None:
         target_set_min, target_set_max = target_set
         dir_path = os.path.join(
             MDS_PATH,
@@ -48,7 +49,7 @@ def get_data_path(potential=None, alpha=None, beta=None, target_set=None, subdir
             potential,
             get_alpha_stamp(alpha),
             get_beta_stamp(beta),
-            'target_set_{}_{}'.format(target_set_min, target_set_max),
+            get_target_set_stamp(target_set),
         )
     elif potential and alpha is not None:
         dir_path = os.path.join(
@@ -85,6 +86,18 @@ def get_sde_stamp(alpha, beta):
     sde_stamp = get_alpha_stamp(alpha)
     sde_stamp += get_beta_stamp(beta)
     return sde_stamp
+
+def get_target_set_stamp(target_set):
+    if type(target_set) == str:
+        return target_set
+    elif type(target_set) == np.ndarray:
+        if target_set.ndim == 2 and target_set.shape == (2, 2):
+            target_set = target_set.reshape((target_set.shape[0] * target_set.shape[1]))
+        assert target_set.ndim == 1, ''
+        target_set_stamp = 'target_set'
+        for entry in target_set:
+            target_set_stamp += '_{}'.format(float(entry))
+        return target_set_stamp
 
 def get_datetime_stamp():
     time_stamp = datetime.today().strftime('%Y%m%d_%H%M%S')
