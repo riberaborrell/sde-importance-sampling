@@ -159,7 +159,7 @@ class langevin_hjb_1d_solver():
         X = self.domain_h
         F = self.F
         pl = Plot(self.dir_path, 'free_energy')
-        pl.set_ylim(bottom=0, top=self.alpha * 2.5)
+        pl.set_ylim(bottom=0, top=self.alpha * 3)
         pl.free_energy(X, F)
 
     def plot_optimal_tilted_potential(self):
