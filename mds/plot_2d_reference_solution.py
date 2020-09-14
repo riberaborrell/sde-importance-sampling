@@ -52,21 +52,12 @@ def main():
     )
 
     # load already computed solution
-    ref_sol = np.load(
-        os.path.join(sol.dir_path, 'reference_solution.npz'),
-        allow_pickle=True,
-    )
-    sol.meshgrid = ref_sol['meshgrid']
-    sol.Psi = ref_sol['Psi']
-    sol.F = ref_sol['F']
-    sol.u_opt_x = ref_sol['u_opt_x']
-    sol.u_opt_y = ref_sol['u_opt_y']
+    sol.load_reference_solution()
 
     # plot solution
     sol.plot_psi()
     sol.plot_free_energy()
-    #sol.plot_optimal_tilted_potential()
-    #sol.plot_optimal_tilted_drift()
+    sol.plot_optimal_tilted_potential()
     sol.plot_optimal_control()
 
 if __name__ == "__main__":

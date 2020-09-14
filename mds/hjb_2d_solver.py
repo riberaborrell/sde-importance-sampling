@@ -1,5 +1,6 @@
 from potentials_and_gradients import get_potential_and_gradient
 from utils import get_data_path
+from numpy_utils import coarse_matrix
 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -238,7 +239,6 @@ class langevin_2d_hjb_solver():
         N = self.N
         Nx = self.Ny
         Ny = self.Ny
-
         assert F is not None, ''
         assert F.ndim == 2, ''
         assert F.shape == (Nx, Ny), ''
@@ -257,16 +257,28 @@ class langevin_2d_hjb_solver():
         self.u_opt_x = u_opt_x
         self.u_opt_y = u_opt_y
 
-
     def save_reference_solution(self):
         np.savez(
             os.path.join(self.dir_path, 'reference_solution.npz'),
+            h=self.h,
             meshgrid=self.meshgrid,
             Psi=self.Psi,
             F=self.F,
             u_opt_x=self.u_opt_x,
             u_opt_y=self.u_opt_y,
         )
+
+    def load_reference_solution(self):
+        ref_sol = np.load(
+            os.path.join(self.dir_path, 'reference_solution.npz'),
+            allow_pickle=True,
+        )
+        self.h = ref_sol['h']
+        self.meshgrid = ref_sol['meshgrid']
+        self.Psi = ref_sol['Psi']
+        self.F = ref_sol['F']
+        self.u_opt_x = ref_sol['u_opt_x']
+        self.u_opt_y = ref_sol['u_opt_y']
 
     def plot_psi(self):
         Psi = self.Psi
@@ -283,7 +295,11 @@ class langevin_2d_hjb_solver():
             antialiased=False,
         )
         fig.colorbar(surf, fraction=0.15, shrink=0.7, aspect=20)
-        plt.show()
+        ax.set_xlabel('x', fontsize=16)
+        ax.set_ylabel('y', fontsize=16)
+        file_path = os.path.join(self.dir_path, 'mgf.png')
+        plt.savefig(file_path)
+        plt.close()
 
     def plot_free_energy(self):
         F = self.F
@@ -300,28 +316,72 @@ class langevin_2d_hjb_solver():
             antialiased=False,
         )
         fig.colorbar(surf, fraction=0.15, shrink=0.7, aspect=20)
-        plt.show()
+        ax.set_xlabel('x', fontsize=16)
+        ax.set_ylabel('y', fontsize=16)
+        file_path = os.path.join(self.dir_path, 'free_energy.png')
+        plt.savefig(file_path)
+        plt.close()
+
+    def plot_optimal_tilted_potential(self):
+        F = self.F
+        xx, yy = self.meshgrid
+
+        label = r'$\tilde{V}(x, y), \, h = {}$'
+        fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+        surf = ax.plot_surface(
+            xx,
+            yy,
+            2 * F,
+            cmap=cm.coolwarm,
+            linewidth=0,
+            antialiased=False,
+        )
+        fig.colorbar(surf, fraction=0.15, shrink=0.7, aspect=20)
+        ax.set_xlabel('x', fontsize=16)
+        ax.set_ylabel('y', fontsize=16)
+        file_path = os.path.join(self.dir_path, 'optimal_tilted_potential.png')
+        plt.savefig(file_path)
+        plt.close()
 
     def plot_optimal_control(self):
+        h = self.h
+        xx, yy = self.meshgrid
         u_opt_x = self.u_opt_x
         u_opt_y = self.u_opt_y
         F = self.F
-        xx, yy = self.meshgrid
+
         X, Y = np.meshgrid(xx[0, :], yy[:, 0], sparse=False)
+        X_coa = coarse_matrix(X, 11, 11)
+        Y_coa = coarse_matrix(Y, 11, 11)
+        u_opt_x_coa = coarse_matrix(u_opt_x, 11, 11)
+        u_opt_y_coa = coarse_matrix(u_opt_y, 11, 11)
 
         label = r'$\u_opt(x, y), \, h = {}$'
         fig, ax = plt.subplots()
+        color_array = np.sqrt(u_opt_x**2 + u_opt_y**2)
+        #color_array = np.sqrt(u_opt_x_coa**2 + u_opt_y_coa**2)
         quiv = ax.quiver(
-            xx[0, :],
-            yy[:, 0],
-            #X,
-            #Y,
+            #xx[0, :],
+            #yy[:, 0],
+            X,
+            Y,
+            #X_coa,
+            #Y_coa,
             u_opt_x,
             u_opt_y,
-            width=0.001,
-            #scale=1,
-            units='xy',
+            #u_opt_x_coa,
+            #u_opt_y_coa,
+            color_array,
+            scale=10,
+            scale_units='xy',
         )
-        plt.show()
+        ax.set_aspect('equal')
+        ax.set_xlabel('x', fontsize=16)
+        ax.set_ylabel('y', fontsize=16)
+        ax.set_xlim(0.5, 1.5)
+        ax.set_ylim(0.5, 1.5)
+        file_path = os.path.join(self.dir_path, 'optimal_control')
+        plt.savefig(file_path)
+        plt.close()
 
 

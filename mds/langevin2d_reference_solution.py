@@ -18,7 +18,7 @@ def get_parser():
     )
     parser.add_argument(
         '--alpha',
-        nargs='2',
+        nargs='+',
         dest='alpha',
         type=float,
         default=[1, 1, 1, 1],
@@ -82,8 +82,7 @@ def main():
     if args.do_plots:
         sol.plot_psi()
         sol.plot_free_energy()
-        #sol.plot_optimal_tilted_potential()
-        #sol.plot_optimal_tilted_drift()
+        sol.plot_optimal_tilted_potential()
         sol.plot_optimal_control()
 
 
