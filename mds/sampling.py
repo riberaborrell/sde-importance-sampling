@@ -1,10 +1,10 @@
-from ansatz_functions import derivative_normal_pdf, \
+from ansatz_functions import gaussian_ansatz_functions, \
+                             derivative_normal_pdf, \
                              bias_potential
 
 from potentials_and_gradients import get_potential_and_gradient
 from plotting import Plot
-from reference_solution import langevin_1d_reference_solution
-from utils import get_data_path, get_time_in_hms
+from utils import get_example_data_path, get_time_in_hms
 from validation import is_valid_1d_target_set
 
 import numpy as np
@@ -16,11 +16,17 @@ class langevin_1d:
     '''
     '''
 
-    def __init__(self, potential_name, alpha, beta, target_set, is_drifted=False):
+    def __init__(self, potential_name, alpha, beta,
+                 target_set, domain=None, h=0.01, is_drifted=False):
         '''
         '''
         # get potential and gradient functions
         potential, gradient = get_potential_and_gradient(potential_name, alpha)
+
+        # TODO: general validators 
+        # validate domain and target set
+        if domain is None:
+            domain = np.array([-3, 3])
 
         # validate target set
         if not is_valid_1d_target_set(target_set):
@@ -29,7 +35,11 @@ class langevin_1d:
             return
 
         # dir_path
-        self.dir_path = get_data_path(potential_name, alpha, beta, target_set, 'sampling')
+        if not is_drifted:
+            self.dir_path = get_example_data_path(potential_name, alpha, beta,
+                                                  target_set, 'not-drifted-sampling')
+        else:
+            self.dir_path = get_example_data_path(potential_name, alpha, beta, target_set)
 
         #seed
         self.seed = None
@@ -43,20 +53,23 @@ class langevin_1d:
         self.is_drifted = is_drifted
 
         # sampling
+        self.domain = domain
         self.xzero = None
         self.target_set = target_set
         self.M = None
+
+        # domain discretization
+        self.h = h
+        self.discretize_domain()
 
         # Euler-Marujama
         self.dt = None
         self.N_lim = None
 
         # ansatz functions (gaussians) and coefficients
-        self.m = None
-        self.a = None
-        self.a_opt = None
-        self.mus = None
-        self.sigmas = None
+        self.ansatz = None
+        self.theta = None
+        self.theta_opt = None
 
         # variables
 
@@ -104,131 +117,99 @@ class langevin_1d:
         self.t_initial = None
         self.t_final = None
 
-    def set_given_ansatz_functions(self, mus, sigmas):
-        '''This method sets the mean and the standard deviation of the
-           ansatz functions
-
+    def discretize_domain(self, h=None):
+        ''' this method discretizes the domain interval uniformly with step-size h
         Args:
+            h (float): step-size 
+        '''
+        if h is None:
+            h = self.h
+
+        D_min, D_max = self.domain
+        self.N = int((D_max - D_min) / h) + 1
+        self.domain_h = np.around(np.linspace(D_min, D_max, self.N), decimals=3)
+
+    def set_gaussian_ansatz_functions(self, m, sigma):
+        '''
+        '''
+        # set ansatz functions
+        ansatz = gaussian_ansatz_functions(
+            domain=self.domain,
+            m=m,
+        )
+        ansatz.set_unif_dist_ansatz_functions(sigma)
+        #ansatz.set_unif_dist_ansatz_functions_on_S(m)
+        self.ansatz = ansatz
+
+    def set_bias_potential(self, theta, mus, sigmas):
+        '''
+        Args:
+            theta (ndarray): parameters
             mus (ndarray): mean of each gaussian
             sigmas (ndarray) : standard deviation of each gaussian
         '''
-        assert mus.shape == sigmas.shape
+        assert theta.shape == mus.shape == sigmas.shape, ''
 
-        self.m = mus.shape[0]
-        self.mus = mus
-        self.sigmas = sigmas
-
-    def set_unif_dist_ansatz_functions(self, m, sigma):
-        '''This method sets the number of ansatz functions and their mean
-           and standard deviation. The means will be uniformly distributed
-           in the domain and the standard deviation is given.
-
-        Args:
-            m (int): number of ansatz functions
-            sigma (float) : standard deviation
-        '''
-        mus_min, mus_max = (-3, 3)
-        self.m = m
-        self.mus = np.around(np.linspace(mus_min, mus_max, m), decimals=2)
-        self.sigmas = sigma * np.ones(m)
-
-    def set_unif_dist_ansatz_functions_on_S(self, m):
-        mus_min, mus_max = (-3, 3)
-        # assume target_set is connected and contained in [mus_min, mus_max]
-        target_set_min, target_set_max = self.target_set
-
-        # set grid 
-        h = 0.001
-        N = int((mus_max - mus_min) / h) + 1
-        X = np.around(np.linspace(mus_min, mus_max, N), decimals=3)
-
-        # get indexes for nodes in/out the target set
-        idx_ts = np.where((X >= target_set_min) & (X <= target_set_max))[0]
-        idx_nts = np.where((X < target_set_min) | (X > target_set_max))[0]
-        idx_l = np.where(X < target_set_min)[0]
-        idx_r = np.where(X > target_set_max)[0]
-
-        # compute ratio of nodes in the left/right side of the target set
-        ratio_left = idx_l.shape[0] / idx_nts.shape[0]
-        ratio_right = idx_r.shape[0] / idx_nts.shape[0]
-
-        # assigm number of ansatz functions in each side
-        m_left = int(np.round(m * ratio_left))
-        m_right = int(np.round(m * ratio_right))
-        assert m == m_left + m_right
-
-        # distribute ansatz functions unif (in each side)
-        mus_left = np.around(
-            np.linspace(X[idx_l][0], X[idx_l][-1], m_left + 2)[:-2],
-            decimals=3,
-        )
-        mus_right = np.around(
-            np.linspace(X[idx_r][0], X[idx_r][-1], m_right + 2)[2:],
-            decimals=3,
-        )
-        mus = np.concatenate((mus_left, mus_right), axis=0)
-
-        # compute sigmas
-        factor = 2
-        sigma_left = factor * np.around(mus_left[1] - mus_left[0], decimals=3)
-        sigma_right = factor * np.around(mus_right[1] - mus_right[0], decimals=3)
-        sigmas_left = sigma_left * np.ones(m_left)
-        sigmas_right = sigma_right * np.ones(m_right)
-        sigmas = np.concatenate((sigmas_left, sigmas_right), axis=0)
-        sigma_avg = np.around(np.mean(sigmas), decimals=3)
-
-        print(m_left, m_right, m)
-        print(mus_left[0], mus_left[-1])
-        print(mus_right[0], mus_right[-1])
-        print(sigma_left, sigma_right, sigma_avg)
-
-        self.m = m
-        self.mus = mus
-        self.sigmas = sigmas
-
-    def set_bias_potential(self, a, mus, sigmas):
-        '''
-        Args:
-            a (ndarray): parameters
-            mus (ndarray): mean of each gaussian
-            sigmas (ndarray) : standard deviation of each gaussian
-        '''
-        assert a.shape == mus.shape == sigmas.shape
+        ansatz = gaussian_ansatz_functions(domain=self.domain)
+        ansatz.set_given_ansatz_functions(mus, sigmas)
 
         self.is_drifted = True
-        self.m = a.shape[0]
-        self.a = a
-        self.mus = mus
-        self.sigmas = sigmas
+        self.ansatz = ansatz
+        self.theta = theta
 
     def set_bias_potential_from_metadynamics(self):
         # load metadynamics parameters
         dir_path = get_data_path(self.potential_name, self.alpha, self.beta,
                                  self.target_set, 'metadynamics')
         bias_pot = np.load(os.path.join(dir_path, 'bias_potential.npz'))
-        omegas = bias_pot['omegas']
+        meta_weights = bias_pot['omegas']
         meta_mus = bias_pot['mus']
         meta_sigmas = bias_pot['sigmas']
 
-        assert omegas.shape == meta_mus.shape == meta_sigmas.shape
+        assert meta_weights.shape == meta_mus.shape == meta_sigmas.shape, ''
 
-        a = omegas / 2
+        theta = theta_weights / 2
+        self.set_bias_potential(theta, meta_mus, meta_sigmas)
+
+
+    def set_theta_from_metadynamics(self):
+        '''
+        '''
+        # load metadynamics parameters
+        dir_path = get_data_path(self.potential_name, self.alpha, self.beta,
+                                 self.target_set, 'metadynamics')
+        bias_pot = np.load(os.path.join(dir_path, 'bias_potential.npz'))
+        meta_weights = bias_pot['omegas']
+        meta_mus = bias_pot['mus']
+        meta_sigmas = bias_pot['sigmas']
+        assert meta_weights.shape == meta_mus.shape == meta_sigmas.shape, ''
+
+        # get ansatz functions
+        assert self.ansatz is not None, ''
+        m = self.ansatz.m
+        mus = self.ansatz.mus
+        sigmas= self.ansatz.sigmas
+
+        # discretized interval domain
+        X = self.domain_h
+
+        # ansatz functions evaluated at the grid
+        v = self.ansatz.basis_value_f(X)
+
+        # value function evaluated at the grid
+        V_bias = bias_potential(X, meta_weights, meta_mus, meta_sigmas)
+        value_f = V_bias / 2
+
+        # solve theta V = \Phi
+        theta, _, _, _ = np.linalg.lstsq(v.T, value_f, rcond=None)
 
         self.is_drifted = True
-        self.m = a.shape[0]
-        self.a = a
-        self.mus = meta_mus
-        self.sigmas = meta_sigmas
+        self.theta = theta
 
-    def set_a_from_metadynamics(self):
+    def set_a_from_gd(self, ipa_type, sigma, lr):
         '''
         '''
-        #TODO assert self.m, self.mus, self.sigmas
-        m = self.m
-        mus = self.mus
-        sigmas= self.sigmas
-
-        # load metadynamics parameters
+        # load gd parameters
         dir_path = get_data_path(self.potential_name, self.alpha, self.beta,
                                  self.target_set, 'metadynamics')
         bias_pot = np.load(os.path.join(dir_path, 'bias_potential.npz'))
@@ -257,129 +238,64 @@ class langevin_1d:
         self.is_drifted = True
         self.a = a
 
-    def set_a_optimal(self):
-        #TODO assert self.m, self.mus, self.sigmas
+    def set_theta_optimal(self):
+        assert self.ansatz is not None, ''
         dir_path = get_data_path(self.potential_name, self.alpha, self.beta,
                                  self.target_set, 'reference_solution')
         ref_sol = np.load(os.path.join(dir_path, 'reference_solution.npz'))
 
         # compute the optimal a given a basis of ansatz functions
-        X = ref_sol['omega_h']
-        a = self.ansatz_functions(X).T
+        X = ref_sol['domain_h']
+        a = self.ansatz.basis_value_f(X).T
         b = ref_sol['F']
         x, residuals, rank, s = np.linalg.lstsq(a, b, rcond=None)
 
-        self.a_opt = x
+        self.theta_opt = x
 
-    def ansatz_functions(self, x, mus=None, sigmas=None):
-        '''This method computes the ansatz functions evaluated at x
-
-        Args:
-            x (float or ndarray) : position/s
-            mus (ndarray): mean of each gaussian
-            sigmas (ndarray) : standard deviation of each gaussian
-        '''
-        if mus is None and sigmas is None:
-            mus = self.mus
-            sigmas = self.sigmas
-
-        assert mus.shape == sigmas.shape
-
-        if type(x) == np.ndarray:
-            mus = mus.reshape(mus.shape[0], 1)
-            sigmas = sigmas.reshape(sigmas.shape[0], 1)
-
-        return stats.norm.pdf(x, mus, sigmas)
-
-    def value_function(self, x, a=None, mus=None, sigmas=None):
+    def value_function(self, x, theta=None):
         '''This method computes the value function evaluated at x
 
         Args:
             x (float or ndarray) : position/s
-            a (ndarray): parameters
-            mus (ndarray): mean of each gaussian
-            sigmas (ndarray) : standard deviation of each gaussian
+            theta (ndarray): parameters
 
         Return:
-            b ((m,)-ndarray or (m, M)-ndarray)
         '''
-        if mus is None and sigmas is None:
-            mus = self.mus
-            sigmas = self.sigmas
+        ansatz = self.ansatz
+        if theta is not None:
+            mus = ansatz.mus
+            sigmas = ansatz.sigmas
+            assert theta.shape == mus.shape == sigmas.shape, ''
+        else:
+            theta = self.theta
 
-        if a is None:
-            a = self.a
+        return np.dot(theta, ansatz.basis_value_f(x))
 
-        assert a.shape == mus.shape == sigmas.shape
-
-        # ansatz functions
-        v = self.ansatz_functions(x, mus, sigmas)
-
-        return np.dot(a, v)
-
-    def control_basis_functions(self, x, mus=None, sigmas=None):
-        '''This method computes the control basis functions evaluated at x
-
-        Args:
-            x (float or ndarray) : position/s
-            mus (ndarray): mean of each gaussian
-            sigmas (ndarray) : standard deviation of each gaussian
-
-        Return:
-            b ((m,)-ndarray or (m, M)-ndarray)
-        '''
-        if mus is None and sigmas is None:
-            mus = self.mus
-            sigmas = self.sigmas
-
-        assert mus.shape == sigmas.shape
-
-        if type(x) == np.ndarray:
-            mus = mus.reshape(mus.shape[0], 1)
-            sigmas = sigmas.reshape(sigmas.shape[0], 1)
-
-        return - np.sqrt(2) * derivative_normal_pdf(x, mus, sigmas)
-
-    def control(self, x, a=None, mus=None, sigmas=None):
+    def control(self, x, theta=None):
         '''This method computes the control evaluated at x
 
         Args:
-            X (float or ndarray) : position/s
-            a (ndarray): parameters
-            mus (ndarray): mean of each gaussian
-            sigmas (ndarray) : standard deviation of each gaussian
+            x (float or ndarray) : position/s
+            theta (ndarray): parameters
         '''
-        if mus is None and sigmas is None:
-            mus = self.mus
-            sigmas = self.sigmas
+        ansatz = self.ansatz
+        if theta is not None:
+            mus = ansatz.mus
+            sigmas = ansatz.sigmas
+            assert theta.shape == mus.shape == sigmas.shape, ''
+        else:
+            theta = self.theta
 
-        if a is None:
-            a = self.a
+        return np.dot(theta, ansatz.basis_control(x))
 
-        assert a.shape == mus.shape == sigmas.shape
-
-        # control basis functions at x
-        b = self.control_basis_functions(x, mus, sigmas)
-
-        return np.dot(a, b)
-
-    def bias_potential(self, x, a=None, mus=None, sigmas=None):
+    def bias_potential(self, x, theta=None):
         '''This method computes the bias potential at x
 
         Args:
-            x (float or ndarray) : position
-            a (ndarray): parameters
-            mus (ndarray): mean of each gaussian
-            sigmas (ndarray) : standard deviation of each gaussian
+            x (float or ndarray) : position/s
+            theta (ndarray): parameters
         '''
-        if mus is None and sigmas is None:
-            mus = self.mus
-            sigmas = self.sigmas
-
-        if a is None:
-            a = self.a
-
-        return 2 * self.value_function(x, a, mus, sigmas)
+        return 2 * self.value_function(x, theta)
 
     def bias_gradient(self, u):
         '''This method computes the bias gradient at x
@@ -393,9 +309,10 @@ class langevin_1d:
         '''This method computes the tilted potential at x
 
         Args:
-            x (float or ndarray) : position
+            x (float or ndarray) : position/s
+            theta (ndarray): parameters
         '''
-        return self.potential(x) + self.bias_potential(x)
+        return self.potential(x) + self.bias_potential(x, theta)
 
     def tilted_gradient(self, x, u):
         '''This method computes the tilted gradient at x
@@ -432,12 +349,8 @@ class langevin_1d:
                                       is_soc_problem=False):
         '''
         '''
-        #TODO
-        #assert self.M is not None, "Error"
-        #assert self.m is not None, "Error"
-
+        assert self.M is not None, ''
         M = self.M
-        m = self.m
 
         self.fht = np.empty(M)
         self.fht[:] = np.NaN
@@ -456,6 +369,8 @@ class langevin_1d:
             self.Psi_rew[:] = np.NaN
 
         if is_soc_problem:
+            assert self.ansatz is not None, ''
+            m = self.ansatz.m
             self.J = np.empty(M)
             self.J[:] = np.NaN
             self.cost = np.empty(M)
@@ -775,12 +690,7 @@ class langevin_1d:
         f.write('time steps last trajectory: {:,d}\n\n'.format(int(self.last_fht / self.dt)))
 
         if self.is_drifted:
-            f.write('Control parametrization (unif distr ansatz functions)\n')
-            f.write('m: {:d}\n'.format(self.m))
-            f.write('smallest mu: {:2.2f}\n'.format(np.min(self.mus)))
-            f.write('biggest mu: {:2.2f}\n'.format(np.max(self.mus)))
-            f.write('sigma: {:2.2f}\n\n'.format(self.sigmas[0]))
-
+            self.ansatz.write_ansatz_report(f)
 
         f.write('First hitting time statistics\n')
         f.write('first fht = {:2.3f}\n'.format(self.first_fht))
@@ -821,7 +731,8 @@ class langevin_1d:
         f.close()
 
     def plot_tilted_potential(self, file_name):
-        X = np.linspace(-3, 3, 1000)
+        D_min, D_max = self.domain
+        X = np.linspace(D_min, D_max, 1000)
         V = self.potential(X)
         if self.is_drifted:
             Vbias = self.bias_potential(X)
@@ -830,15 +741,16 @@ class langevin_1d:
 
         pl = Plot(dir_path=self.dir_path, file_name=file_name)
         pl.set_ylim(bottom=0, top=self.alpha * 10)
-        if self.a_opt is not None:
-            Vopt = V + self.bias_potential(X, self.a_opt)
+        if self.theta_opt is not None:
+            Vopt = V + self.bias_potential(X, self.theta_opt)
             pl.potential_and_tilted_potential(X, V, Vbias, Vopt)
         else:
             pl.potential_and_tilted_potential(X, V, Vbias)
 
 
     def plot_tilted_drift(self, file_name):
-        X = np.linspace(-3, 3, 1000)
+        D_min, D_max = self.domain
+        X = np.linspace(D_min, D_max, 1000)
         dV = self.gradient(X)
         if self.is_drifted:
             U = self.control(X)
@@ -848,8 +760,8 @@ class langevin_1d:
 
         pl = Plot(dir_path=self.dir_path, file_name=file_name)
         pl.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
-        if self.a_opt is not None:
-            U = self.control(X, self.a_opt)
+        if self.theta_opt is not None:
+            U = self.control(X, self.theta_opt)
             dVopt = dV - np.sqrt(2) * U
             pl.drift_and_tilted_drift(X, dV, dVbias, dVopt)
         else:
@@ -857,7 +769,8 @@ class langevin_1d:
 
     #TODO: revise it
     def plot_optimal_potential_and_gradient(self):
-        X = np.linspace(-2, 2, 1000)
+        D_min, D_max = self.domain
+        X = np.linspace(D_min, D_max, 1000)
         V = self.potential(X)
         dV = self.gradient(X)
         Vbias = self.bias_potential(X, self.a_opt)
@@ -867,14 +780,16 @@ class langevin_1d:
         pl.tilted_potential_and_gradient(X, V, dV, Vbias, dVbias)
 
     def plot_ansatz_functions(self):
-        X = np.linspace(-3, 3, 1000)
-        v = self.ansatz_functions(X)
+        D_min, D_max = self.domain
+        X = np.linspace(D_min, D_max, 1000)
+        v = self.ansatz.basis_value_f(X)
         pl = Plot(dir_path=self.dir_path, file_name='gaussian_ansatz_functions')
         pl.ansatz_functions(X, v)
 
     def plot_control_basis_functions(self):
-        X = np.linspace(-3, 3, 1000)
-        b = self.control_basis_functions(X)
+        D_min, D_max = self.domain
+        X = np.linspace(D_min, D_max, 1000)
+        b = self.ansatz.basis_control(X)
         pl = Plot(dir_path=self.dir_path, file_name='control_basis_functions')
         pl.control_basis_functions(X, b)
 

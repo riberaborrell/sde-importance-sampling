@@ -1,4 +1,4 @@
-from utils import get_data_path
+from utils import get_example_data_path
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import os
 
 class Plot:
-    dir_path = get_data_path()
+    dir_path = get_example_data_path()
     def __init__(self, dir_path=dir_path, file_name=None, file_type='png'):
         self.file_name = file_name
         self.file_type = file_type

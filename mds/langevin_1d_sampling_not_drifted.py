@@ -5,7 +5,7 @@ import argparse
 import numpy as np
 
 def get_parser():
-    parser = argparse.ArgumentParser(description='not drifted 1D overdamped Langevin')
+    parser = argparse.ArgumentParser(description='sample not drifted 1D overdamped Langevin SDE')
     parser.add_argument(
         '--seed',
         dest='seed',
@@ -42,6 +42,14 @@ def get_parser():
         help='Set the value of the process at time t=0. Default: -1',
     )
     parser.add_argument(
+        '--domain',
+        nargs=2,
+        dest='domain',
+        type=float,
+        default=[-3, 3],
+        help='Set the interval domain. Default: [-3, 3]',
+    )
+    parser.add_argument(
         '--target-set',
         nargs=2,
         dest='target_set',
@@ -53,8 +61,8 @@ def get_parser():
         '--M',
         dest='M',
         type=int,
-        default=10**3,
-        help='Set number of trajectories to sample. Default: 1.000',
+        default=10**4,
+        help='Set number of trajectories to sample. Default: 10.000',
     )
     parser.add_argument(
         '--dt',
@@ -87,7 +95,8 @@ def main():
         potential_name=args.potential_name,
         alpha=np.array(args.alpha),
         beta=args.beta,
-        target_set=args.target_set,
+        domain=np.array(args.domain),
+        target_set=np.array(args.target_set),
     )
 
     # set sampling and Euler-Marujama parameters
@@ -100,8 +109,8 @@ def main():
     )
     # plot potential and gradient
     if args.do_plots:
-        sample.plot_tilted_potential(file_name='sampling_drifted_potential')
-        sample.plot_tilted_drift(file_name='sampling_drifted_drift')
+        sample.plot_tilted_potential(file_name='sampling_not_drifted_potential')
+        sample.plot_tilted_drift(file_name='sampling_not_drifted_drift')
 
     # sample
     sample.sample_not_drifted()
