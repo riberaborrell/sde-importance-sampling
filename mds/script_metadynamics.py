@@ -3,7 +3,7 @@ from potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES
 from ansatz_functions import bias_potential, \
                              bias_gradient
 import sampling
-from utils import empty_dir, get_data_path, get_time_in_hms
+from utils import empty_dir, get_example_data_path, get_time_in_hms
 
 import argparse
 import numpy as np
@@ -104,6 +104,7 @@ def main():
     args = get_parser().parse_args()
 
     alpha = np.array(args.alpha)
+    target_set = np.array(args.target_set)
 
     # start timer
     t_initial = time.time()
@@ -129,6 +130,7 @@ def main():
             alpha=alpha,
             beta=args.beta,
             xzero=xzero,
+            target_set=target_set,
             well_set=args.well_set,
             k=k,
             dt=args.dt,
@@ -149,7 +151,7 @@ def main():
         potential_name=args.potential_name,
         alpha=alpha,
         beta=args.beta,
-        target_set=args.target_set,
+        target_set=target_set,
     )
 
     # set bias potential
@@ -162,8 +164,8 @@ def main():
         sample.plot_tilted_drift(file_name='metadynamics_tilted_drift')
 
     # save bias
-    meta_path = get_data_path(args.potential_name, alpha,
-                              args.beta, args.target_set, 'metadynamics')
+    meta_path = get_example_data_path(args.potential_name, alpha,
+                              args.beta, target_set, 'metadynamics')
     np.savez(
         os.path.join(meta_path, 'bias_potential.npz'),
         omegas=meta_omegas,
@@ -188,7 +190,7 @@ def metadynamics_algorithm(potential_name, alpha, beta, xzero, well_set, k, dt, 
         np.random.seed(seed)
 
     if do_plots:
-        dir_path = get_data_path(potential_name, alpha, beta, target_set, 'metadynamics')
+        dir_path = get_example_data_path(potential_name, alpha, beta, target_set, 'metadynamics')
         empty_dir(dir_path)
         pl = Plot(dir_path=dir_path)
 
