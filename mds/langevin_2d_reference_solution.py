@@ -13,8 +13,8 @@ def get_parser():
         '--potential',
         dest='potential_name',
         choices=POTENTIAL_NAMES,
-        default='2d_2well',
-        help='Set the potential for the 2D MD SDE. Default: symmetric double well',
+        default='2d_4well',
+        help='Set the potential for the 2D MD SDE. Default: symmetric quadruple well',
     )
     parser.add_argument(
         '--alpha',

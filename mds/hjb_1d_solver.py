@@ -1,6 +1,6 @@
 from potentials_and_gradients import get_potential_and_gradient
 from plotting import Plot
-from utils import get_data_path
+from utils import get_example_data_path
 
 import numpy as np
 
@@ -22,7 +22,7 @@ class langevin_hjb_1d_solver():
     '''
 
     def __init__(self, potential_name, alpha, beta, target_set, domain=None, h=0.001):
-
+        #TODO: use general validators
         # validate domain
         if domain is None:
             domain = np.array([-3, 3])
@@ -38,8 +38,8 @@ class langevin_hjb_1d_solver():
         assert domain[1] > target_set[1], ''
 
         # dir_path
-        self.dir_path = get_data_path(potential_name, alpha, beta,
-                                      target_set, 'reference_solution')
+        self.dir_path = get_example_data_path(potential_name, alpha, beta,
+                                              target_set, 'reference_solution')
 
         # get potential and gradient functions
         potential, gradient = get_potential_and_gradient(potential_name, alpha)

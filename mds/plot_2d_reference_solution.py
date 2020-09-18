@@ -12,8 +12,8 @@ def get_parser():
         '--potential',
         dest='potential_name',
         choices=POTENTIAL_NAMES,
-        default='2d_2well',
-        help='Set the type of potential to plot. Default: symmetric double well',
+        default='2d_4well',
+        help='Set the type of potential to plot. Default: symmetric quadruple well',
     )
     parser.add_argument(
         '--alpha',

@@ -7,7 +7,7 @@ POTENTIAL_NAMES = [
     #'1d_sym_3well',
     #'1d_asym_3well',
     '2d_1well',
-    '2d_2well',
+    '2d_4well',
 ]
 
 POTENTIAL_TITLES = {
@@ -17,7 +17,7 @@ POTENTIAL_TITLES = {
     #'1d_sym_3well': '',
     #'1d_asym_3well': '',
     '2d_1well': r'$V(x;a,b) = a_1(x - b_1)^2 + a_2(y - b_2)^2$',
-    '2d_2well': r'$V(x;a,b) = a_1(x^2 - b_1)^2 + a_2(y^2 - b_2)^2$',
+    '2d_4well': r'$V(x;a,b) = a_1(x^2 - b_1)^2 + a_2(y^2 - b_2)^2$',
 }
 
 POTENTIAL_LABELS = {
@@ -25,7 +25,7 @@ POTENTIAL_LABELS = {
     '1d_sym_2well': r'a = {}',
     '1d_asym_2well': '',
     '2d_1well': r'$a_1={}, a_2={}, b_1={}, b_2={}$',
-    '2d_2well': r'$a_1={}, a_2={}, b_1={}, b_2={}$',
+    '2d_3well': r'$a_1={}, a_2={}, b_1={}, b_2={}$',
 }
 
 def get_potential_and_gradient(potential_name, alpha=None):
@@ -60,11 +60,11 @@ def get_potential_and_gradient(potential_name, alpha=None):
         b = alpha[2:]
         potential = functools.partial(one_well_2d_potential, a=a, b=b)
         gradient = None
-    elif potential_name == '2d_2well':
+    elif potential_name == '2d_4well':
         a = alpha[:2]
         b = alpha[2:]
-        potential = functools.partial(double_well_2d_potential, a=a, b=b)
-        gradient = functools.partial(double_well_2d_gradient, a=a, b=b)
+        potential = functools.partial(quadruple_well_2d_potential, a=a, b=b)
+        gradient = functools.partial(quadruple_well_2d_gradient, a=a, b=b)
 
     return potential, gradient
 
@@ -140,7 +140,7 @@ def one_well_2d_potential(x, y, a, b):
     assert a.shape[0] == b.shape[0] == 2, ''
     return a[0] * (x - b[0])**2 + a[1] * (y - b[1])**2
 
-def double_well_2d_potential(x, y, a, b):
+def quadruple_well_2d_potential(x, y, a, b):
     ''' Potential V(x,y;a1,a2,b1,b2) evaluated at (x, y)
         x (float or float array) : x posicion/s
         y (float or float array) : y posicion/s
@@ -151,7 +151,7 @@ def double_well_2d_potential(x, y, a, b):
     assert a.shape[0] == b.shape[0] == 2, ''
     return a[0] * (x**2 - b[0])**2 + a[1] * (y**2 - b[1])**2
 
-def double_well_2d_gradient(x, y, a, b):
+def quadruple_well_2d_gradient(x, y, a, b):
     ''' Gradient dV(x,y;a1,a2,b1,b2) evaluated at (x, y)
         x (float or float array) : x posicion/s
         y (float or float array) : y posicion/s

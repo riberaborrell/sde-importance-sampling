@@ -1,3 +1,4 @@
+from ansatz_functions import gaussian_ansatz_functions
 from potentials_and_gradients import POTENTIAL_NAMES
 import sampling
 
@@ -5,7 +6,7 @@ import argparse
 import numpy as np
 
 def get_parser():
-    parser = argparse.ArgumentParser(description='drifted 1D overdamped Langevin')
+    parser = argparse.ArgumentParser(description='sample drifted 1D overdamped Langevin SDE')
     parser.add_argument(
         '--seed',
         dest='seed',
@@ -42,6 +43,14 @@ def get_parser():
         help='Set the value of the process at time t=0. Default: -1',
     )
     parser.add_argument(
+        '--domain',
+        nargs=2,
+        dest='domain',
+        type=float,
+        default=[-3, 3],
+        help='Set the interval domain. Default: [-3, 3]',
+    )
+    parser.add_argument(
         '--target-set',
         nargs=2,
         dest='target_set',
@@ -76,7 +85,7 @@ def get_parser():
         type=int,
         default=30,
         help='Set the number of uniformly distributed ansatz functions \
-              that you want to use. Default: 10',
+              that you want to use. Default: 30',
     )
     parser.add_argument(
         '--sigma',
@@ -88,7 +97,7 @@ def get_parser():
     parser.add_argument(
         '--theta-init',
         dest='theta_init',
-        choices=['null', 'meta', 'optimal'],
+        choices=['null', 'meta', 'optimal', 'gd'],
         default='optimal',
         help='Type of initial control. Default: optimal',
     )
@@ -109,27 +118,30 @@ def main():
         potential_name=args.potential_name,
         alpha=np.array(args.alpha),
         beta=args.beta,
-        target_set=args.target_set,
+        domain=np.array(args.domain),
+        target_set=np.array(args.target_set),
+        is_drifted=True,
     )
 
-    # set ansatz functions and a optimal
-    #sample.set_unif_dist_ansatz_functions(args.m, args.sigma)
-    sample.set_unif_dist_ansatz_functions_on_S(m=args.m)
-    sample.set_a_optimal()
-    print(sample.a_opt)
+    # set gaussian ansatz functions
+    sample.set_gaussian_ansatz_functions(args.m, args.sigma)
 
-    # set a 
+    # set load optimal coefficients and chosen coefficients
+    sample.compute_theta_optimal()
     if args.theta_init == 'optimal':
-        sample.is_drifted = True
-        sample.a = sample.a_opt
+        sample.set_theta_optimal()
     elif args.theta_init == 'meta':
-        sample.is_drifted = True
-        sample.set_a_from_metadynamics()
+        sample.set_theta_from_metadynamics()
+    elif args.theta_init == 'gd':
+        sample.set_theta_from_gd()
+    else:
+        sample.set_theta_null()
 
     # plot potential and gradient
     if args.do_plots:
-        sample.plot_tilted_potential(file_name='sampling_drifted_potential')
-        sample.plot_tilted_drift(file_name='sampling_drifted_drift')
+        theta_stamp = 'theta-{}'.format(args.theta_init)
+        sample.plot_tilted_potential(file_name=theta_stamp+'_drifted_potential')
+        sample.plot_tilted_drift(file_name=theta_stamp+'_drifted_drift')
         sample.plot_ansatz_functions()
         sample.plot_control_basis_functions()
 
@@ -147,7 +159,7 @@ def main():
 
     # compute and print statistics
     sample.compute_statistics()
-    sample.save_statistics()
+    sample.write_report()
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 from potentials_and_gradients import get_potential_and_gradient
-from utils import get_data_path
+from utils import get_example_data_path
 from numpy_utils import coarse_matrix
 
 import matplotlib.pyplot as plt
@@ -39,8 +39,8 @@ class langevin_2d_hjb_solver():
         assert target_set[1][0] < target_set[1][1], ''
 
         # dir_path
-        self.dir_path = get_data_path(potential_name, alpha, beta,
-                                      target_set, 'reference_solution')
+        self.dir_path = get_example_data_path(potential_name, alpha, beta,
+                                              target_set, 'reference_solution')
 
         # get potential and gradient functions
         potential, gradient = get_potential_and_gradient(potential_name, alpha)
@@ -351,10 +351,10 @@ class langevin_2d_hjb_solver():
         F = self.F
 
         X, Y = np.meshgrid(xx[0, :], yy[:, 0], sparse=False)
-        X_coa = coarse_matrix(X, 11, 11)
-        Y_coa = coarse_matrix(Y, 11, 11)
-        u_opt_x_coa = coarse_matrix(u_opt_x, 11, 11)
-        u_opt_y_coa = coarse_matrix(u_opt_y, 11, 11)
+        X_coa = coarse_matrix(X, 5, 5)
+        Y_coa = coarse_matrix(Y, 5, 5)
+        u_opt_x_coa = coarse_matrix(u_opt_x, 5, 5)
+        u_opt_y_coa = coarse_matrix(u_opt_y, 5, 5)
 
         label = r'$\u_opt(x, y), \, h = {}$'
         fig, ax = plt.subplots()
