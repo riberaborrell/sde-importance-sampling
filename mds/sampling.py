@@ -4,7 +4,7 @@ from ansatz_functions import gaussian_ansatz_functions, \
 
 from potentials_and_gradients import get_potential_and_gradient
 from plotting import Plot
-from utils import get_example_data_path, get_time_in_hms
+from utils import get_example_data_path, get_ansatz_data_path, get_gd_data_path, get_time_in_hms
 from validation import is_valid_1d_target_set
 
 import numpy as np
@@ -39,7 +39,10 @@ class langevin_1d:
             self.dir_path = get_example_data_path(potential_name, alpha, beta,
                                                   target_set, 'not-drifted-sampling')
         else:
-            self.dir_path = get_example_data_path(potential_name, alpha, beta, target_set)
+            self.dir_path = None
+        self.example_dir_path = None
+        self.ansatz_dir_path = None
+        self.gd_dir_path = None
 
         #seed
         self.seed = None
@@ -68,8 +71,9 @@ class langevin_1d:
 
         # ansatz functions (gaussians) and coefficients
         self.ansatz = None
-        self.theta = None
         self.theta_opt = None
+        self.theta_type = None
+        self.theta = None
 
         # variables
 
@@ -120,7 +124,7 @@ class langevin_1d:
     def discretize_domain(self, h=None):
         ''' this method discretizes the domain interval uniformly with step-size h
         Args:
-            h (float): step-size 
+            h (float): step-size
         '''
         if h is None:
             h = self.h
@@ -128,6 +132,30 @@ class langevin_1d:
         D_min, D_max = self.domain
         self.N = int((D_max - D_min) / h) + 1
         self.domain_h = np.around(np.linspace(D_min, D_max, self.N), decimals=3)
+
+    def set_example_dir_path(self):
+        potential_name = self.potential_name
+        alpha = self.alpha
+        beta = self.beta
+        target_set = self.target_set
+        self.example_dir_path = get_example_data_path(potential_name, alpha, beta, target_set)
+        return self.example_dir_path
+
+    def set_ansatz_dir_path(self):
+        example_dir_path = self.example_dir_path
+        if example_dir_path is None:
+            example_dir_path = self.set_example_dir_path()
+        m = self.ansatz.m
+        sigma = self.ansatz.sigmas[0]
+        self.ansatz_dir_path = get_ansatz_data_path(example_dir_path, 'gaussian-ansatz', m, sigma)
+        return self.ansatz_dir_path
+
+    def set_gd_dir_path(self, gd_type, lr):
+        ansatz_dir_path = self.ansatz_dir_path
+        if ansatz_dir_path is None:
+            ansatz_dir_path = self.set_ansatz_dir_path()
+        self.gd_dir_path = get_gd_data_path(ansatz_dir_path, gd_type, lr)
+        return self.gd_dir_path
 
     def set_gaussian_ansatz_functions(self, m, sigma):
         '''
@@ -141,8 +169,14 @@ class langevin_1d:
         #ansatz.set_unif_dist_ansatz_functions_on_S(m)
         self.ansatz = ansatz
 
+        # set dir path
+        example_dir_path = get_example_data_path(self.potential_name, self.alpha,
+                                                 self.beta, self.target_set)
+        self.dir_path = get_ansatz_data_path(example_dir_path, 'gaussian-ansatz',
+                                             m, sigma, 'drifted-sampling')
+
     def set_bias_potential(self, theta, mus, sigmas):
-        '''
+        ''' set the gaussian ansatz functions and the coefficients theta
         Args:
             theta (ndarray): parameters
             mus (ndarray): mean of each gaussian
@@ -158,27 +192,52 @@ class langevin_1d:
         self.theta = theta
 
     def set_bias_potential_from_metadynamics(self):
+        ''' set the gaussian ansatz functions and the coefficients from metadynamics
+        '''
         # load metadynamics parameters
-        dir_path = get_data_path(self.potential_name, self.alpha, self.beta,
-                                 self.target_set, 'metadynamics')
-        bias_pot = np.load(os.path.join(dir_path, 'bias_potential.npz'))
+        meta_dir_path = get_example_data_path(self.potential_name, self.alpha, self.beta,
+                                              self.target_set, 'metadynamics')
+        bias_pot = np.load(os.path.join(meta_dir_path, 'bias_potential.npz'))
         meta_weights = bias_pot['omegas']
         meta_mus = bias_pot['mus']
         meta_sigmas = bias_pot['sigmas']
-
         assert meta_weights.shape == meta_mus.shape == meta_sigmas.shape, ''
 
         theta = theta_weights / 2
         self.set_bias_potential(theta, meta_mus, meta_sigmas)
 
+    def compute_theta_optimal(self):
+        assert self.ansatz is not None, ''
+
+        # load reference solution
+        ref_sol_dir_path = get_example_data_path(self.potential_name, self.alpha, self.beta,
+                                                 self.target_set, 'reference_solution')
+        ref_sol = np.load(os.path.join(ref_sol_dir_path, 'reference_solution.npz'))
+        x = ref_sol['domain_h']
+        F = ref_sol['F']
+
+        # compute the optimal theta given a basis of ansatz functions
+        v = self.ansatz.basis_value_f(x)
+        self.theta_opt, _, _, _ = np.linalg.lstsq(v.T, F, rcond=None)
+
+    def set_theta_optimal(self):
+        assert self.theta_opt is not None, ''
+        self.theta = self.theta_opt
+        self.theta_type = 'optimal'
+
+    def set_theta_null(self):
+        assert self.ansatz is not None, ''
+        m = self.ansatz.m
+        self.theta = np.zeros(m)
+        self.theta_type = 'null'
 
     def set_theta_from_metadynamics(self):
         '''
         '''
         # load metadynamics parameters
-        dir_path = get_data_path(self.potential_name, self.alpha, self.beta,
-                                 self.target_set, 'metadynamics')
-        bias_pot = np.load(os.path.join(dir_path, 'bias_potential.npz'))
+        meta_dir_path = get_example_data_path(self.potential_name, self.alpha, self.beta,
+                                              self.target_set, 'metadynamics')
+        bias_pot = np.load(os.path.join(meta_dir_path, 'bias_potential.npz'))
         meta_weights = bias_pot['omegas']
         meta_mus = bias_pot['mus']
         meta_sigmas = bias_pot['sigmas']
@@ -191,66 +250,35 @@ class langevin_1d:
         sigmas= self.ansatz.sigmas
 
         # discretized interval domain
-        X = self.domain_h
+        x = self.domain_h
 
         # ansatz functions evaluated at the grid
-        v = self.ansatz.basis_value_f(X)
+        v = self.ansatz.basis_value_f(x)
 
         # value function evaluated at the grid
-        V_bias = bias_potential(X, meta_weights, meta_mus, meta_sigmas)
+        V_bias = bias_potential(x, meta_weights, meta_mus, meta_sigmas)
         value_f = V_bias / 2
 
         # solve theta V = \Phi
-        theta, _, _, _ = np.linalg.lstsq(v.T, value_f, rcond=None)
+        self.theta, _, _, _ = np.linalg.lstsq(v.T, value_f, rcond=None)
+        self.theta_type = 'meta'
 
-        self.is_drifted = True
-        self.theta = theta
-
-    def set_a_from_gd(self, ipa_type, sigma, lr):
+    def set_theta_from_gd(self, gd_type, lr):
         '''
         '''
         # load gd parameters
-        dir_path = get_data_path(self.potential_name, self.alpha, self.beta,
-                                 self.target_set, 'metadynamics')
-        bias_pot = np.load(os.path.join(dir_path, 'bias_potential.npz'))
-        omegas = bias_pot['omegas']
-        meta_mus = bias_pot['mus']
-        meta_sigmas = bias_pot['sigmas']
-
-        assert omegas.shape == meta_mus.shape == meta_sigmas.shape
-
-        # define a coefficients 
-        a = np.zeros(m)
-
-        # grid on the interval J = [J_min, J_max].
-        X = mus
+        gd_dir_path = self.set_gd_dir_path(gd_type, lr)
+        gd = np.load(os.path.join(gd_dir_path, 'gd.npz'))
+        x = gd['domain_h']
+        idx_last_epoch = gd['epochs'][-1]
+        u = gd['u'][idx_last_epoch]
 
         # ansatz functions evaluated at the grid
-        ansatz_functions = self.ansatz_functions(X, mus, sigmas)
-
-        # value function evaluated at the grid
-        V_bias = bias_potential(X, omegas, meta_mus, meta_sigmas)
-        phi = V_bias / 2
+        b = self.ansatz.basis_control(x)
 
         # solve a V = \Phi
-        a = np.linalg.solve(ansatz_functions, phi)
-
-        self.is_drifted = True
-        self.a = a
-
-    def set_theta_optimal(self):
-        assert self.ansatz is not None, ''
-        dir_path = get_data_path(self.potential_name, self.alpha, self.beta,
-                                 self.target_set, 'reference_solution')
-        ref_sol = np.load(os.path.join(dir_path, 'reference_solution.npz'))
-
-        # compute the optimal a given a basis of ansatz functions
-        X = ref_sol['domain_h']
-        a = self.ansatz.basis_value_f(X).T
-        b = ref_sol['F']
-        x, residuals, rank, s = np.linalg.lstsq(a, b, rcond=None)
-
-        self.theta_opt = x
+        self.theta, _, _, _ = np.linalg.lstsq(b.T, u, rcond=None)
+        self.theta_type = 'gd'
 
     def value_function(self, x, theta=None):
         '''This method computes the value function evaluated at x
@@ -655,16 +683,16 @@ class langevin_1d:
         self.t_final = time.time()
 
 
-    def save_statistics(self):
+    def write_report(self):
         '''
         '''
         # set path
-        if not self.is_drifted:
-            sampling_stamp = 'report_not_drifted'
+        if self.is_drifted:
+            theta_stamp = 'theta-{}_'.format(self.theta_type)
         else:
-            sampling_stamp = 'report_drifted'
+            theta_stamp = ''
         trajectories_stamp = 'M{:.0e}'.format(self.M)
-        file_name = sampling_stamp + '_' + trajectories_stamp + '.txt'
+        file_name = 'report_' + theta_stamp + trajectories_stamp + '.txt'
         file_path = os.path.join(self.dir_path, file_name)
 
         # write in file

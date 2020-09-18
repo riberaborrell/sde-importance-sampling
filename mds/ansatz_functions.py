@@ -26,6 +26,156 @@ def derivative_normal_pdf(x, mu=0, sigma=1):
     '''
     return stats.norm.pdf(x, mu, sigma) * (mu - x) / sigma**2
 
+class gaussian_ansatz_functions:
+    '''
+    '''
+
+    def __init__(self, domain, m=None, mus=None, sigmas=None):
+        '''
+        '''
+        #TODO: validate domain
+        if domain is None:
+            domain = np.array([-3, 3])
+        if mus is not None and sigmas is not None:
+            assert mus.ndim == sigmas.ndim == 1, ''
+            assert mus.shape == sigmas.shape, ''
+        self.domain = domain
+        self.m = m
+        self.mus = mus
+        self.sigmas = sigmas
+
+    def set_given_ansatz_functions(self, mus, sigmas):
+        '''This method sets the number of ansatz functions, the mean and
+           the standard deviation of the ansatz functions
+
+        Args:
+            mus (ndarray): mean of each gaussian
+            sigmas (ndarray) : standard deviation of each gaussian
+        '''
+        assert mus.shape == sigmas.shape
+
+        self.m = mus.shape[0]
+        self.mus = mus
+        self.sigmas = sigmas
+
+    def set_unif_dist_ansatz_functions(self, sigma=None):
+        '''This method sets the mean and standard deviation of the m
+           Gaussian ansatz functions. The means will be uniformly distributed
+           in the domain and the standard deviation is given.
+
+        Args:
+            sigma (float) : standard deviation
+        '''
+        mus_min, mus_max = self.domain
+        m = self.m
+
+        #TODO: case sigma is None
+        self.mus = np.around(np.linspace(mus_min, mus_max, m), decimals=2)
+        self.sigmas = sigma * np.ones(m)
+
+    #TODO: test
+    def set_unif_dist_ansatz_functions_on_S(self, sigma, target_set):
+        '''This method sets the mean and standard deviation of the m
+           Gaussian ansatz functions. The means will be uniformly distributed
+           in the domain and the standard deviation is given.
+
+        Args:
+            sigma (float) : standard deviation
+        '''
+        mus_min, mus_max = self.domain 
+        # assume target_set is connected and contained in [mus_min, mus_max]
+        target_set_min, target_set_max = target_set
+
+        # set grid 
+        h = 0.001
+        N = int((mus_max - mus_min) / h) + 1
+        X = np.around(np.linspace(mus_min, mus_max, N), decimals=3)
+
+        # get indexes for nodes in/out the target set
+        idx_ts = np.where((X >= target_set_min) & (X <= target_set_max))[0]
+        idx_nts = np.where((X < target_set_min) | (X > target_set_max))[0]
+        idx_l = np.where(X < target_set_min)[0]
+        idx_r = np.where(X > target_set_max)[0]
+
+        # compute ratio of nodes in the left/right side of the target set
+        ratio_left = idx_l.shape[0] / idx_nts.shape[0]
+        ratio_right = idx_r.shape[0] / idx_nts.shape[0]
+
+        # assigm number of ansatz functions in each side
+        m_left = int(np.round(m * ratio_left))
+        m_right = int(np.round(m * ratio_right))
+        assert m == m_left + m_right
+
+        # distribute ansatz functions unif (in each side)
+        mus_left = np.around(
+            np.linspace(X[idx_l][0], X[idx_l][-1], m_left + 2)[:-2],
+            decimals=3,
+        )
+        mus_right = np.around(
+            np.linspace(X[idx_r][0], X[idx_r][-1], m_right + 2)[2:],
+            decimals=3,
+        )
+        mus = np.concatenate((mus_left, mus_right), axis=0)
+
+        # compute sigmas
+        factor = 2
+        sigma_left = factor * np.around(mus_left[1] - mus_left[0], decimals=3)
+        sigma_right = factor * np.around(mus_right[1] - mus_right[0], decimals=3)
+        sigmas_left = sigma_left * np.ones(m_left)
+        sigmas_right = sigma_right * np.ones(m_right)
+        sigmas = np.concatenate((sigmas_left, sigmas_right), axis=0)
+        sigma_avg = np.around(np.mean(sigmas), decimals=3)
+
+        print(m_left, m_right, m)
+        print(mus_left[0], mus_left[-1])
+        print(mus_right[0], mus_right[-1])
+        print(sigma_left, sigma_right, sigma_avg)
+
+        self.m = m
+        self.mus = mus
+        self.sigmas = sigmas
+
+    def basis_value_f(self, x):
+        '''This method computes the ansatz functions for the value function evaluated at x
+
+        Args:
+            x (float or ndarray) : position/s
+        '''
+        mus = self.mus
+        sigmas = self.sigmas
+
+        if type(x) == np.ndarray:
+            mus = mus.reshape(mus.shape[0], 1)
+            sigmas = sigmas.reshape(sigmas.shape[0], 1)
+
+        return stats.norm.pdf(x, mus, sigmas)
+
+    def basis_control(self, x):
+        '''This method computes the control basis functions evaluated at x
+
+        Args:
+            x (float or ndarray) : position/s
+
+        Return:
+        '''
+        mus = self.mus
+        sigmas = self.sigmas
+
+        if type(x) == np.ndarray:
+            mus = mus.reshape(mus.shape[0], 1)
+            sigmas = sigmas.reshape(sigmas.shape[0], 1)
+
+        return - np.sqrt(2) * derivative_normal_pdf(x, mus, sigmas)
+
+    def write_ansatz_report(self, f):
+        '''
+        '''
+        f.write('Control parametrization (unif distr ansatz functions)\n')
+        f.write('m: {:d}\n'.format(self.m))
+        f.write('smallest mu: {:2.2f}\n'.format(np.min(self.mus)))
+        f.write('biggest mu: {:2.2f}\n'.format(np.max(self.mus)))
+        f.write('sigma: {:2.2f}\n\n'.format(self.sigmas[0]))
+
 
 def bias_potential(x, omegas, mus, sigmas):
     '''This method computes the bias potential evaluated at the point x

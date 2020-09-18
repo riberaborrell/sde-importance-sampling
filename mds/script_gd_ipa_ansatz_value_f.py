@@ -20,7 +20,7 @@ from script_utils import get_reference_solution, \
                          save_gd_statistics, \
                          write_gd_report
 
-from utils import empty_dir, get_data_path
+from utils import empty_dir, get_example_data_path, get_ansatz_data_path, get_gd_data_path
 from validation import is_valid_control
 
 import argparse
@@ -137,8 +137,6 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
-    alpha = np.array(args.alpha)
-
     # start timer
     t_initial = time.time()
 
@@ -146,30 +144,27 @@ def main():
     if args.seed:
         np.random.seed(args.seed)
 
-    # set gd path
-    gd_stamp = 'gd-ipa-ansatz-value_f-{}'.format(args.theta_init)
-    sigma_stamp = 'sigma_{}'.format(float(args.sigma))
-    lr_stamp = 'lr_{}'.format(float(args.lr))
-    subdirectory = os.path.join(gd_stamp, sigma_stamp, lr_stamp)
-    gd_path = get_data_path(args.potential_name, alpha, args.beta,
-                            args.target_set, subdirectory)
-    empty_dir(gd_path)
-
-    # get ref sol path
-    ref_sol_path = get_data_path(args.potential_name, alpha, args.beta,
-                                 args.target_set, 'reference_solution')
-
     # set potential
+    alpha = np.array(args.alpha)
     potential, gradient = get_potential_and_gradient(args.potential_name, alpha)
 
     # sampling parameters
     beta = args.beta
     xzero = args.xzero
-    target_set = args.target_set
+    target_set = np.array(args.target_set)
     M = args.M
 
+    # set gd path
+    example_dir_path = get_example_data_path(args.potential_name, alpha, beta, target_set)
+    ansatz_dir_path = get_ansatz_data_path(example_dir_path, 'gaussian-ansatz', args.m, args.sigma)
+    gd_dir_path = get_gd_data_path(ansatz_dir_path, 'ipa-value-f', args.lr)
+
+    # get ref sol path
+    ref_sol_dir_path = get_example_data_path(args.potential_name, alpha, beta,
+                                             target_set, 'reference_solution')
+
     # get reference solution
-    omega_h, F_opt, u_opt = get_reference_solution(ref_sol_path)
+    omega_h, F_opt, u_opt = get_reference_solution(ref_sol_dir_path)
 
     # get value function at xzero
     value_f = get_F_opt_at_x(omega_h, F_opt, xzero)
@@ -183,15 +178,15 @@ def main():
 
     # plot basis functions
     if args.do_plots:
-        plot_ansatz_functions(gd_path, omega_h, mus, sigmas)
-        plot_basis_functions(gd_path, omega_h, mus, sigmas)
+        plot_ansatz_functions(gd_dir_path, omega_h, mus, sigmas)
+        plot_basis_functions(gd_dir_path, omega_h, mus, sigmas)
 
     # get optimal coefficients
     theta_opt = get_optimal_coefficients2(omega_h, target_set, F_opt, mus, sigmas)
 
     # get meta coefficients
-    theta_meta = get_meta_coefficients2(args.potential_name, alpha, args.beta,
-                                       args.target_set, omega_h, mus, sigmas)
+    theta_meta = get_meta_coefficients2(args.potential_name, alpha, beta,
+                                        target_set, omega_h, mus, sigmas)
     # set gd parameters
     epochs_lim = args.epochs_lim
     lr = args.lr
@@ -217,9 +212,9 @@ def main():
 
         # plot control, free_energy and tilted potential
         if args.do_plots:
-            plot_control(gd_path, epoch, omega_h, u_opt, u[epoch])
-            plot_free_energy(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
-            plot_tilted_potential(gd_path, epoch, omega_h, potential, F_opt, F[epoch])
+            plot_control(gd_dir_path, epoch, omega_h, u_opt, u[epoch])
+            plot_free_energy(gd_dir_path, epoch, omega_h, potential, F_opt, F[epoch])
+            plot_tilted_potential(gd_dir_path, epoch, omega_h, potential, F_opt, F[epoch])
 
         # get loss and its gradient 
         succ, loss[epoch], grad_loss = sample_loss(gradient, beta, xzero, target_set,
@@ -245,18 +240,18 @@ def main():
 
     # plot titled potential and loss per epoch
     if args.do_plots and succ:
-        plot_gd_tilted_potentials(gd_path, omega_h, potential, F_opt, F[:epoch+1])
-        plot_gd_losses(gd_path, value_f, loss[:epoch+1])
+        plot_gd_tilted_potentials(gd_dir_path, omega_h, potential, F_opt, F[:epoch+1])
+        plot_gd_losses(gd_dir_path, value_f, loss[:epoch+1])
 
     # save gd statistics
     if succ:
-        save_gd_statistics(gd_path, omega_h, u[:epoch+1], F[:epoch+1], loss[:epoch+1], value_f)
+        save_gd_statistics(gd_dir_path, omega_h, u[:epoch+1], F[:epoch+1], loss[:epoch+1], value_f)
 
     # end timer
     t_final = time.time()
 
     # write gd report
-    write_gd_report(gd_path, xzero, value_f, M, m, epochs_lim, epoch+1, lr, atol,
+    write_gd_report(gd_dir_path, xzero, value_f, M, m, epochs_lim, epoch+1, lr, atol,
                     loss[epoch], t_final - t_initial)
 
 

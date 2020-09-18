@@ -1,5 +1,5 @@
 from ansatz_functions import derivative_normal_pdf
-from utils import get_data_path, get_time_in_hms
+from utils import get_example_data_path, get_time_in_hms
 
 import numpy as np
 from scipy import stats
@@ -14,11 +14,11 @@ GD_FIGURES_PATH = os.path.join(MDS_PATH, 'figures/gradient_descent_greedy')
 
 def get_reference_solution(data_path):
     ref_sol = np.load(os.path.join(data_path, 'reference_solution.npz'))
-    omega_h = ref_sol['omega_h']
+    domain_h = ref_sol['domain_h']
     F_opt = ref_sol['F']
     u_opt = ref_sol['u_opt']
 
-    return omega_h, F_opt, u_opt
+    return domain_h, F_opt, u_opt
 
 
 def get_F_opt_at_x(omega_h, F_opt, x):
@@ -118,7 +118,7 @@ def get_optimal_coefficients(X, target_set, u_opt, mus, sigmas):
     b = u_opt
 
     # solve lin system of equations by using least squares
-    x, residuals, rank, s = np.linalg.lstsq(a, b, rcond=None)
+    x, _, _, _ = np.linalg.lstsq(a, b, rcond=None)
     print(x)
     return x
 
@@ -126,14 +126,14 @@ def get_optimal_coefficients(X, target_set, u_opt, mus, sigmas):
 def get_optimal_coefficients2(X, target_set, F_opt, mus, sigmas):
     a = get_ansatz_functions(X, mus, sigmas)
     b = F_opt
-    x, residuals, rank, s = np.linalg.lstsq(a, b, rcond=None)
+    x, _, _, _ = np.linalg.lstsq(a, b, rcond=None)
     print(x)
     return x
 
 
 def get_meta_coefficients(potential_name, alpha, beta, target_set, X, mus, sigmas):
     # load metadynamics parameters
-    meta_path = get_data_path(potential_name, alpha, beta, target_set, 'metadynamics')
+    meta_path = get_example_data_path(potential_name, alpha, beta, target_set, 'metadynamics')
     bias_pot = np.load(os.path.join(meta_path, 'bias_potential.npz'))
     meta_omegas = bias_pot['omegas']
     meta_mus = bias_pot['mus']
@@ -158,7 +158,7 @@ def get_meta_coefficients(potential_name, alpha, beta, target_set, X, mus, sigma
 
 def get_meta_coefficients2(potential_name, alpha, beta, target_set, X, mus, sigmas):
     # load metadynamics parameters
-    meta_path = get_data_path(potential_name, alpha, beta, target_set, 'metadynamics')
+    meta_path = get_example_data_path(potential_name, alpha, beta, target_set, 'metadynamics')
     bias_pot = np.load(os.path.join(meta_path, 'bias_potential.npz'))
     meta_omegas = bias_pot['omegas']
     meta_mus = bias_pot['mus']
@@ -374,11 +374,11 @@ def plot_basis_functions(dir_path, X, mus, sigmas):
     plt.savefig(file_path)
     plt.close()
 
-def save_gd_statistics(dir_path, omega_h, u, F, loss, value_f):
+def save_gd_statistics(dir_path, domain_h, u, F, loss, value_f):
     epochs_needed = u.shape[0]
     np.savez(
-        os.path.join(dir_path, 'gd-ipa.npz'),
-        omega_h=omega_h,
+        os.path.join(dir_path, 'gd.npz'),
+        domain_h=domain_h,
         epochs=np.arange(epochs_needed),
         u=u,
         F=F,
