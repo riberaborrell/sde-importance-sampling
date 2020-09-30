@@ -1,4 +1,3 @@
-from ansatz_functions import gaussian_ansatz_functions
 from potentials_and_gradients import POTENTIAL_NAMES
 import sampling
 
@@ -150,10 +149,12 @@ def main():
     # plot potential and gradient
     if args.do_plots:
         theta_stamp = 'theta-{}'.format(args.theta_init)
-        sample.plot_tilted_potential(file_name=theta_stamp+'_drifted_potential')
-        sample.plot_tilted_drift(file_name=theta_stamp+'_drifted_drift')
-        sample.plot_ansatz_functions()
-        sample.plot_control_basis_functions()
+        sample.ansatz.plot_gaussian_ansatz_functions()
+        sample.plot_appr_mgf(file_name=theta_stamp+'_appr_mgf')
+        sample.plot_appr_free_energy(file_name=theta_stamp+'_appr_free_energy')
+        sample.plot_control(file_name=theta_stamp+'_control')
+        sample.plot_tilted_potential(file_name=theta_stamp+'_tilted_potential')
+        sample.plot_tilted_drift(file_name=theta_stamp+'_tilted_drift')
 
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(

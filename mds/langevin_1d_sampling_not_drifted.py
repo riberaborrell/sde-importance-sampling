@@ -109,8 +109,8 @@ def main():
     )
     # plot potential and gradient
     if args.do_plots:
-        sample.plot_tilted_potential(file_name='drifted_potential')
-        sample.plot_tilted_drift(file_name='drifted_drift')
+        sample.plot_tilted_potential(file_name='tilted_potential')
+        sample.plot_tilted_drift(file_name='tilted_drift')
 
     # sample
     sample.sample_not_drifted()

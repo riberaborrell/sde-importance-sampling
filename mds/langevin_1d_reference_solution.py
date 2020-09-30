@@ -80,6 +80,7 @@ def main():
     sol.save_reference_solution()
 
     if args.do_plots:
+        sol.plot_mgf()
         sol.plot_free_energy()
         sol.plot_optimal_tilted_potential()
         sol.plot_optimal_tilted_drift()

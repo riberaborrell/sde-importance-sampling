@@ -155,32 +155,39 @@ class langevin_hjb_1d_solver():
             u_opt=self.u_opt,
         )
 
+    def plot_mgf(self):
+        x = self.domain_h
+        Psi = self.Psi
+        pl = Plot(self.dir_path, 'mgf')
+        pl.set_ylim(bottom=0, top=self.alpha * 2)
+        pl.mgf(x, Psi)
+
     def plot_free_energy(self):
-        X = self.domain_h
+        x = self.domain_h
         F = self.F
         pl = Plot(self.dir_path, 'free_energy')
         pl.set_ylim(bottom=0, top=self.alpha * 3)
-        pl.free_energy(X, F)
-
-    def plot_optimal_tilted_potential(self):
-        X = self.domain_h
-        V = self.potential(X)
-        Vb = 2 * self.F
-        pl = Plot(self.dir_path, 'optimal_tilted_potential')
-        pl.set_ylim(bottom=0, top=self.alpha * 10)
-        pl.potential_and_tilted_potential(X, V, Vb)
-
-    def plot_optimal_tilted_drift(self):
-        X = self.domain_h
-        dV = self.gradient(X)
-        dVb = - np.sqrt(2) * self.u_opt
-        pl = Plot(self.dir_path, 'optimal_tilted_drift')
-        pl.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
-        pl.drift_and_tilted_drift(X, dV, dVb)
+        pl.free_energy(x, F)
 
     def plot_optimal_control(self):
-        X = self.domain_h
+        x = self.domain_h
         u = self.u_opt
         pl = Plot(self.dir_path, 'optimal_control')
         pl.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
-        pl.control(X, u)
+        pl.control(x, u)
+
+    def plot_optimal_tilted_potential(self):
+        x = self.domain_h
+        V = self.potential(x)
+        Vb_opt = 2 * self.F
+        pl = Plot(self.dir_path, 'optimal_tilted_potential')
+        pl.set_ylim(bottom=0, top=self.alpha * 10)
+        pl.potential_and_tilted_potential(x, V, Vbias_opt=Vb_opt)
+
+    def plot_optimal_tilted_drift(self):
+        x = self.domain_h
+        dV = self.gradient(x)
+        dVb_opt = - np.sqrt(2) * self.u_opt
+        pl = Plot(self.dir_path, 'optimal_tilted_drift')
+        pl.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
+        pl.drift_and_tilted_drift(x, dV, dVbias_opt=dVb_opt)

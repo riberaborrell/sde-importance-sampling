@@ -1,10 +1,9 @@
 from ansatz_functions import gaussian_ansatz_functions, \
-                             derivative_normal_pdf, \
                              bias_potential
 
 from potentials_and_gradients import get_potential_and_gradient
 from plotting import Plot
-from utils import get_example_data_path, get_ansatz_data_path, get_gd_data_path, get_time_in_hms
+from utils import get_example_data_path, get_gd_data_path, get_time_in_hms, make_dir_path
 from validation import is_valid_1d_target_set
 
 import numpy as np
@@ -141,39 +140,35 @@ class langevin_1d:
         self.example_dir_path = get_example_data_path(potential_name, alpha, beta, target_set)
         return self.example_dir_path
 
-    def set_ansatz_dir_path(self):
-        example_dir_path = self.example_dir_path
-        if example_dir_path is None:
-            example_dir_path = self.set_example_dir_path()
-        m = self.ansatz.m
-        sigma = self.ansatz.sigmas[0]
-        self.ansatz_dir_path = get_ansatz_data_path(example_dir_path, 'gaussian-ansatz', m, sigma)
-        return self.ansatz_dir_path
-
     def set_gd_dir_path(self, gd_type, lr):
-        ansatz_dir_path = self.ansatz_dir_path
-        if ansatz_dir_path is None:
-            ansatz_dir_path = self.set_ansatz_dir_path()
+        ansatz_dir_path = self.ansatz.dir_path
         self.gd_dir_path = get_gd_data_path(ansatz_dir_path, gd_type, lr)
         return self.gd_dir_path
 
     def set_gaussian_ansatz_functions(self, m, sigma):
         '''
         '''
-        # set ansatz functions
+        assert self.is_drifted, ''
+
+        # set gaussian ansatz functions
         ansatz = gaussian_ansatz_functions(
             domain=self.domain,
             m=m,
         )
         ansatz.set_unif_dist_ansatz_functions(sigma)
         #ansatz.set_unif_dist_ansatz_functions_on_S(m)
+
+        # set ansatz dir path
+        if self.example_dir_path is None:
+            self.set_example_dir_path()
+        ansatz.set_dir_path(self.example_dir_path)
         self.ansatz = ansatz
 
-        # set dir path
-        example_dir_path = get_example_data_path(self.potential_name, self.alpha,
-                                                 self.beta, self.target_set)
-        self.dir_path = get_ansatz_data_path(example_dir_path, 'gaussian-ansatz',
-                                             m, sigma, 'drifted-sampling')
+        # set drifted sampling dir path
+        self.dir_path = os.path.join(ansatz.dir_path, 'drifted-sampling')
+
+        # create dir path if not exists
+        make_dir_path(self.dir_path)
 
     def set_bias_potential(self, theta, mus, sigmas):
         ''' set the gaussian ansatz functions and the coefficients theta
@@ -182,12 +177,13 @@ class langevin_1d:
             mus (ndarray): mean of each gaussian
             sigmas (ndarray) : standard deviation of each gaussian
         '''
+        assert self.is_drifted, ''
         assert theta.shape == mus.shape == sigmas.shape, ''
 
+        # set gaussian ansatz functions
         ansatz = gaussian_ansatz_functions(domain=self.domain)
         ansatz.set_given_ansatz_functions(mus, sigmas)
 
-        self.is_drifted = True
         self.ansatz = ansatz
         self.theta = theta
 
@@ -729,95 +725,145 @@ class langevin_1d:
 
         if self.is_sampling_problem and not self.is_drifted:
             f.write('Moment generation function statistics\n')
-            f.write('E[exp(-beta * fht)] = {:2.2e}\n'.format(self.mean_Psi))
-            f.write('Var[exp(-beta * fht)] = {:2.2e}\n'.format(self.var_Psi))
-            f.write('RE[exp(-beta * fht)] = {:2.2e}\n\n'.format(self.re_Psi))
+            f.write('E[exp(-beta * fht)] = {:2.3e}\n'.format(self.mean_Psi))
+            f.write('Var[exp(-beta * fht)] = {:2.3e}\n'.format(self.var_Psi))
+            f.write('RE[exp(-beta * fht)] = {:2.3e}\n\n'.format(self.re_Psi))
 
         elif self.is_sampling_problem and self.is_drifted:
             f.write('Girsanov Martingale\n')
-            f.write('E[M_fht] = {:2.2e}\n'.format(self.mean_G_fht))
-            f.write('E[M_N]: {:2.2e}\n\n'.format(self.mean_G_N))
+            f.write('E[M_fht] = {:2.3e}\n'.format(self.mean_G_fht))
+            f.write('E[M_N]: {:2.3e}\n\n'.format(self.mean_G_N))
 
             f.write('Reweighted Moment generation function statistics\n')
-            f.write('E[exp(-beta * fht) * M_fht] = {:2.2e}\n'
+            f.write('E[exp(-beta * fht) * M_fht] = {:2.3e}\n'
                     ''.format(self.mean_Psi_rew))
-            f.write('Var[exp(-beta * fht) * M_fht] = {:2.2e}\n'
+            f.write('Var[exp(-beta * fht) * M_fht] = {:2.3e}\n'
                     ''.format(self.var_Psi_rew))
-            f.write('RE[exp(-beta * fht) * M_fht] = {:2.2e}\n\n'
+            f.write('RE[exp(-beta * fht) * M_fht] = {:2.3e}\n\n'
                     ''.format(self.re_Psi_rew))
 
         if self.is_soc_problem:
             f.write('Gradient descent\n')
-            f.write('E[Jh] = {:2.2e}\n'.format(self.mean_J))
+            f.write('E[Jh] = {:2.3e}\n'.format(self.mean_J))
             if self.do_ipa:
                 for j in np.arange(self.m):
-                    f.write('E[(grad_Jh)j] = {:2.2e}\n\n'.format(self.mean_gradJ[j]))
+                    f.write('E[(grad_Jh)j] = {:2.3e}\n\n'.format(self.mean_gradJ[j]))
 
         h, m, s = get_time_in_hms(self.t_final - self.t_initial)
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
 
         f.close()
 
-    def plot_tilted_potential(self, file_name):
-        D_min, D_max = self.domain
-        X = np.linspace(D_min, D_max, 1000)
-        V = self.potential(X)
-        if self.is_drifted:
-            Vbias = self.bias_potential(X)
-        else:
-            Vbias = np.zeros(X.shape[0])
+    def plot_appr_mgf(self, file_name, dir_path=None):
+        assert self.is_drifted, ''
 
-        pl = Plot(dir_path=self.dir_path, file_name=file_name)
-        pl.set_ylim(bottom=0, top=self.alpha * 10)
+        beta = self.beta
+
+        D_min, D_max = self.domain
+        x = np.linspace(D_min, D_max, 1000)
+
+        Vbias = self.bias_potential(x)
+        appr_F = Vbias / 2
+        appr_Psi = np.exp(- beta * appr_F)
+
         if self.theta_opt is not None:
-            Vopt = V + self.bias_potential(X, self.theta_opt)
-            pl.potential_and_tilted_potential(X, V, Vbias, Vopt)
+            Vbiasopt = self.bias_potential(x, self.theta_opt)
+            F = Vbiasopt / 2
+            Psi = np.exp(- beta * F)
         else:
-            pl.potential_and_tilted_potential(X, V, Vbias)
+            Psi = None
 
+        if dir_path is None:
+            dir_path = self.dir_path
 
-    def plot_tilted_drift(self, file_name):
+        pl = Plot(dir_path, file_name)
+        pl.set_ylim(bottom=0, top=self.alpha * 2)
+        pl.mgf(x, Psi, appr_Psi)
+
+    def plot_appr_free_energy(self, file_name, dir_path=None):
+        assert self.is_drifted, ''
+
         D_min, D_max = self.domain
-        X = np.linspace(D_min, D_max, 1000)
-        dV = self.gradient(X)
-        if self.is_drifted:
-            U = self.control(X)
-            dVbias = self.bias_gradient(U)
-        else:
-            dVbias = np.zeros(X.shape[0])
+        x = np.linspace(D_min, D_max, 1000)
 
-        pl = Plot(dir_path=self.dir_path, file_name=file_name)
+        Vbias = self.bias_potential(x)
+        appr_F = Vbias / 2
+
+        if self.theta_opt is not None:
+            Vbias_opt = self.bias_potential(x, self.theta_opt)
+            F = Vbias_opt / 2
+        else:
+            F = None
+
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        pl = Plot(dir_path, file_name)
+        pl.set_ylim(bottom=0, top=self.alpha * 3)
+        pl.free_energy(x, F, appr_F)
+
+    def plot_control(self, file_name, dir_path=None):
+        assert self.is_drifted, ''
+
+        D_min, D_max = self.domain
+        x = np.linspace(D_min, D_max, 1000)
+
+        u = self.control(x)
+
+        if self.theta_opt is not None:
+            u_opt = self.control(x, self.theta_opt)
+        else:
+            u_opt = None
+
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        pl = Plot(dir_path, file_name)
         pl.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
-        if self.theta_opt is not None:
-            U = self.control(X, self.theta_opt)
-            dVopt = dV - np.sqrt(2) * U
-            pl.drift_and_tilted_drift(X, dV, dVbias, dVopt)
+        pl.control(x, u_opt, u)
+
+    def plot_tilted_potential(self, file_name, dir_path=None):
+        D_min, D_max = self.domain
+        x = np.linspace(D_min, D_max, 1000)
+        V = self.potential(x)
+
+        if self.is_drifted:
+            Vb = self.bias_potential(x)
         else:
-            pl.drift_and_tilted_drift(X, dV, dVbias)
+            Vb = np.zeros(x.shape[0])
 
-    #TODO: revise it
-    def plot_optimal_potential_and_gradient(self):
+        if self.theta_opt is not None:
+            Vb_opt = self.bias_potential(x, self.theta_opt)
+        else:
+            Vb_opt = None
+
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        pl = Plot(dir_path, file_name)
+        pl.set_ylim(bottom=0, top=self.alpha * 10)
+        pl.potential_and_tilted_potential(x, V, Vb, Vb_opt)
+
+    def plot_tilted_drift(self, file_name, dir_path=None):
         D_min, D_max = self.domain
-        X = np.linspace(D_min, D_max, 1000)
-        V = self.potential(X)
-        dV = self.gradient(X)
-        Vbias = self.bias_potential(X, self.a_opt)
-        U = self.control(X, self.a_opt)
-        dVbias = - np.sqrt(2) * U
-        pl = Plot(file_name='potential_and_gradient_optimal')
-        pl.tilted_potential_and_gradient(X, V, dV, Vbias, dVbias)
+        x = np.linspace(D_min, D_max, 1000)
+        dV = self.gradient(x)
 
-    def plot_ansatz_functions(self):
-        D_min, D_max = self.domain
-        X = np.linspace(D_min, D_max, 1000)
-        v = self.ansatz.basis_value_f(X)
-        pl = Plot(dir_path=self.dir_path, file_name='gaussian_ansatz_functions')
-        pl.ansatz_functions(X, v)
+        if self.is_drifted:
+            U = self.control(x)
+            dVb = self.bias_gradient(U)
+        else:
+            dVb = np.zeros(x.shape[0])
 
-    def plot_control_basis_functions(self):
-        D_min, D_max = self.domain
-        X = np.linspace(D_min, D_max, 1000)
-        b = self.ansatz.basis_control(X)
-        pl = Plot(dir_path=self.dir_path, file_name='control_basis_functions')
-        pl.control_basis_functions(X, b)
+        if self.theta_opt is not None:
+            U = self.control(x, self.theta_opt)
+            dVb_opt = - np.sqrt(2) * U
+        else:
+            dVb_opt = None
 
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        pl = Plot(dir_path, file_name)
+        pl.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
+        pl.drift_and_tilted_drift(x, dV, dVb, dVb_opt)

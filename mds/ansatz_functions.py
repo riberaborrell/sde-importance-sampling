@@ -1,3 +1,6 @@
+from utils import get_ansatz_data_path
+from plotting import Plot
+
 import numpy as np
 import scipy.stats as stats
 
@@ -43,6 +46,16 @@ class gaussian_ansatz_functions:
         self.m = m
         self.mus = mus
         self.sigmas = sigmas
+        self.dir_path = None
+
+    def set_dir_path(self, example_dir_path):
+        assert self.m is not None, ''
+        assert self.sigmas is not None, ''
+
+        m = self.m
+        sigma = self.sigmas[0]
+        self.dir_path = get_ansatz_data_path(example_dir_path, 'gaussian-ansatz', m, sigma)
+        return self.dir_path
 
     def set_given_ansatz_functions(self, mus, sigmas):
         '''This method sets the number of ansatz functions, the mean and
@@ -175,6 +188,22 @@ class gaussian_ansatz_functions:
         f.write('smallest mu: {:2.2f}\n'.format(np.min(self.mus)))
         f.write('biggest mu: {:2.2f}\n'.format(np.max(self.mus)))
         f.write('sigma: {:2.2f}\n\n'.format(self.sigmas[0]))
+
+    def plot_gaussian_ansatz_functions(self):
+        D_min, D_max = self.domain
+        x = np.linspace(D_min, D_max, 1000)
+
+        # basis value function
+        v = self.basis_value_f(x)
+        pl = Plot(dir_path=self.dir_path, file_name='basis_value_f')
+        pl.set_title(r'$v_{j}(x; \mu, \sigma)$')
+        pl.ansatz_value_f(x, v)
+
+        # basis control
+        b = self.basis_control(x)
+        pl = Plot(dir_path=self.dir_path, file_name='basis_control')
+        pl.set_title(r'$b_{j}(x; \mu, \sigma)$')
+        pl.ansatz_control(x, b)
 
 
 def bias_potential(x, omegas, mus, sigmas):

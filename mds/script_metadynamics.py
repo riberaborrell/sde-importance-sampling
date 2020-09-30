@@ -146,22 +146,6 @@ def main():
     # normalize
     meta_omegas /= M
 
-    # initialize langevin_1d object
-    sample = sampling.langevin_1d(
-        potential_name=args.potential_name,
-        alpha=alpha,
-        beta=args.beta,
-        target_set=target_set,
-    )
-
-    # set bias potential
-    a = meta_omegas / 2
-    sample.set_bias_potential(a, meta_mus, meta_sigmas)
-
-    # plot potential and gradient
-    if args.do_plots:
-        sample.plot_tilted_potential(file_name='metadynamics_tilted_potential')
-        sample.plot_tilted_drift(file_name='metadynamics_tilted_drift')
 
     # save bias
     meta_path = get_example_data_path(args.potential_name, alpha,
@@ -179,6 +163,30 @@ def main():
     # write report
     write_meta_report(meta_path, args.seed, args.xzero, M, k,
                       omegas.shape[0], meta_steps, t_final - t_initial)
+
+    # plot potential and gradient
+    if args.do_plots:
+        # initialize langevin_1d object
+        sample = sampling.langevin_1d(
+            potential_name=args.potential_name,
+            alpha=alpha,
+            beta=args.beta,
+            target_set=target_set,
+            is_drifted=True,
+        )
+
+        # set bias potential
+        theta = meta_omegas / 2
+        sample.set_bias_potential(theta, meta_mus, meta_sigmas)
+
+        sample.plot_tilted_potential(
+            file_name='tilted_potential',
+            dir_path=meta_path,
+        )
+        sample.plot_tilted_drift(
+            file_name='tilted_drift',
+            dir_path=meta_path,
+        )
 
 
 def metadynamics_algorithm(potential_name, alpha, beta, xzero, well_set, k, dt, N_lim,

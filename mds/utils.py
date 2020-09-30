@@ -69,26 +69,16 @@ def get_example_data_path(potential=None, alpha=None, beta=None, target_set=None
 
     return dir_path
 
-
-def get_ansatz_data_path(example_data_path, ansatz_type, m, sigma, subdirectory=None):
+def get_ansatz_data_path(example_data_path, ansatz_type, m, sigma):
     ''' Get ansatz data path and create its directories
     '''
     # get dir path
-    if example_data_path is not None and ansatz_type and m and sigma and subdirectory:
-        dir_path = os.path.join(
-            example_data_path,
-            ansatz_type,
-            get_m_stamp(m),
-            get_sigma_stamp(sigma),
-            subdirectory,
-        )
-    elif example_data_path is not None and ansatz_type and m and sigma:
-        dir_path = os.path.join(
-            example_data_path,
-            ansatz_type,
-            get_m_stamp(m),
-            get_sigma_stamp(sigma),
-        )
+    dir_path = os.path.join(
+        example_data_path,
+        ansatz_type,
+        get_m_stamp(m),
+        get_sigma_stamp(sigma),
+    )
 
     # create dir path if not exists
     make_dir_path(dir_path)
@@ -99,12 +89,11 @@ def get_gd_data_path(ansatz_data_path, gd_type, lr):
     ''' Get gd data path and create its directories
     '''
     # get dir path
-    if ansatz_data_path is not None and gd_type and lr:
-        dir_path = os.path.join(
-            ansatz_data_path,
-            gd_type,
-            get_lr_stamp(lr),
-        )
+    dir_path = os.path.join(
+        ansatz_data_path,
+        gd_type,
+        get_lr_stamp(lr),
+    )
 
     # create dir path if not exists
     make_dir_path(dir_path)
