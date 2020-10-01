@@ -78,6 +78,7 @@ def main():
     sol.solve_bvp()
     sol.compute_optimal_control()
     sol.save_reference_solution()
+    sol.write_report(x=-1)
 
     if args.do_plots:
         sol.plot_mgf()

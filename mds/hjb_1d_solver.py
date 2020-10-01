@@ -147,13 +147,30 @@ class langevin_hjb_1d_solver():
         self.u_opt = u_opt
 
     def save_reference_solution(self):
+        file_path = os.path.join(self.dir_path, 'reference_solution.npz')
         np.savez(
-            os.path.join(self.dir_path, 'reference_solution.npz'),
+            file_path,
             domain_h=self.domain_h,
             Psi=self.Psi,
             F=self.F,
             u_opt=self.u_opt,
         )
+
+    def write_report(self, x):
+        domain_h = self.domain_h
+
+        # mgf at x
+        idx_x = np.where(domain_h == x)[0]
+        if idx_x.shape[0] != 1:
+            return
+        mgf = self.Psi[idx_x[0]]
+
+        # write file
+        file_path = os.path.join(self.dir_path, 'report.txt')
+        f = open(file_path, "w")
+        f.write('x = {:2.1f}\n'.format(x))
+        f.write('mgf at x = {:2.3e}\n'.format(mgf))
+        f.close()
 
     def plot_mgf(self):
         x = self.domain_h
