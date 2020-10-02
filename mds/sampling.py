@@ -140,9 +140,9 @@ class langevin_1d:
         self.example_dir_path = get_example_data_path(potential_name, alpha, beta, target_set)
         return self.example_dir_path
 
-    def set_gd_dir_path(self, gd_type, lr):
+    def set_gd_dir_path(self, gd_type, theta_init, lr):
         ansatz_dir_path = self.ansatz.dir_path
-        self.gd_dir_path = get_gd_data_path(ansatz_dir_path, gd_type, lr)
+        self.gd_dir_path = get_gd_data_path(ansatz_dir_path, gd_type, theta_init, lr)
         return self.gd_dir_path
 
     def set_gaussian_ansatz_functions(self, m, sigma):
@@ -259,11 +259,11 @@ class langevin_1d:
         self.theta, _, _, _ = np.linalg.lstsq(v.T, value_f, rcond=None)
         self.theta_type = 'meta'
 
-    def set_theta_from_gd(self, gd_type, lr):
+    def set_theta_from_gd(self, gd_type, gd_theta_init, gd_lr):
         '''
         '''
         # load gd parameters
-        gd_dir_path = self.set_gd_dir_path(gd_type, lr)
+        gd_dir_path = self.set_gd_dir_path(gd_type, gd_theta_init, gd_lr)
         gd = np.load(os.path.join(gd_dir_path, 'gd.npz'))
         x = gd['domain_h']
         idx_last_epoch = gd['epochs'][-1]

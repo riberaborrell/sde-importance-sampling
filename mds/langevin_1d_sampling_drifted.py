@@ -101,11 +101,18 @@ def get_parser():
         help='Type of initial control. Default: optimal',
     )
     parser.add_argument(
-        '--lr',
-        dest='lr',
+        '--gd-theta-init',
+        dest='gd_theta_init',
+        choices=['null', 'meta', 'optimal'],
+        default='null',
+        help='Type of initial control in the gd. Default: null',
+    )
+    parser.add_argument(
+        '--gd-lr',
+        dest='gd_lr',
         type=float,
         default=1,
-        help='Set learning rate for the gd. Default: 1',
+        help='Set learning rate used in the gd. Default: 1',
     )
     parser.add_argument(
         '--do-plots',
@@ -141,7 +148,8 @@ def main():
     elif args.theta_init == 'gd':
         sample.set_theta_from_gd(
             gd_type='ipa-value-f',
-            lr=args.lr,
+            gd_theta_init=args.gd_theta_init,
+            gd_lr=args.gd_lr,
         )
     else:
         sample.set_theta_null()

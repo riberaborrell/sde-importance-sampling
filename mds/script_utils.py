@@ -348,32 +348,6 @@ def plot_gd_losses(dir_path, value_f, losses):
     plt.savefig(file_path)
     plt.close()
 
-def plot_ansatz_functions(dir_path, X, mus, sigmas):
-    v = get_ansatz_functions(X, mus, sigmas)
-    m = v.shape[1]
-    for j in range(m):
-        plt.plot(X, v[:, j])
-    plt.title(r'$v_{j}(x; \mu, \sigma)$')
-    plt.xlabel('x', fontsize=16)
-
-    file_name = 'ansatz_functions.png'
-    file_path = os.path.join(dir_path, file_name)
-    plt.savefig(file_path)
-    plt.close()
-
-def plot_basis_functions(dir_path, X, mus, sigmas):
-    b = - np.sqrt(2) * get_derivative_ansatz_functions(X, mus, sigmas)
-    m = b.shape[1]
-    for j in range(m):
-        plt.plot(X, b[:, j])
-    plt.title(r'$b_{j}(x; \mu, \sigma)$')
-    plt.xlabel('x', fontsize=16)
-
-    file_name = 'basis_functions.png'
-    file_path = os.path.join(dir_path, file_name)
-    plt.savefig(file_path)
-    plt.close()
-
 def save_gd_statistics(dir_path, domain_h, u, F, loss, value_f):
     epochs_needed = u.shape[0]
     np.savez(

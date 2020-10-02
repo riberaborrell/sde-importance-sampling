@@ -10,8 +10,6 @@ from script_utils import get_reference_solution, \
                          set_initial_coefficients, \
                          control_on_grid2, \
                          free_energy_on_grid2, \
-                         plot_ansatz_functions, \
-                         plot_basis_functions, \
                          plot_control, \
                          plot_free_energy, \
                          plot_tilted_potential, \
@@ -157,7 +155,7 @@ def main():
     # set gd path
     example_dir_path = get_example_data_path(args.potential_name, alpha, beta, target_set)
     ansatz_dir_path = get_ansatz_data_path(example_dir_path, 'gaussian-ansatz', args.m, args.sigma)
-    gd_dir_path = get_gd_data_path(ansatz_dir_path, 'ipa-value-f', args.lr)
+    gd_dir_path = get_gd_data_path(ansatz_dir_path, 'ipa-value-f', args.theta_init, args.lr)
 
     # get ref sol path
     ref_sol_dir_path = get_example_data_path(args.potential_name, alpha, beta,
@@ -175,11 +173,6 @@ def main():
     mus_min, mus_max = (-3, 3)
     mus, sigmas = set_unif_dist_ansatz_functions(mus_min, mus_max, m, sigma)
     #mus, sigmas = set_unif_dist_ansatz_functions_on_S(mus_min, mus_max, target_set, m)
-
-    # plot basis functions
-    if args.do_plots:
-        plot_ansatz_functions(gd_dir_path, omega_h, mus, sigmas)
-        plot_basis_functions(gd_dir_path, omega_h, mus, sigmas)
 
     # get optimal coefficients
     theta_opt = get_optimal_coefficients2(omega_h, target_set, F_opt, mus, sigmas)

@@ -85,13 +85,14 @@ def get_ansatz_data_path(example_data_path, ansatz_type, m, sigma):
 
     return dir_path
 
-def get_gd_data_path(ansatz_data_path, gd_type, lr):
+def get_gd_data_path(ansatz_data_path, gd_type, theta_init, lr):
     ''' Get gd data path and create its directories
     '''
     # get dir path
     dir_path = os.path.join(
         ansatz_data_path,
         gd_type,
+        'theta_init_{}'.format(theta_init),
         get_lr_stamp(lr),
     )
 

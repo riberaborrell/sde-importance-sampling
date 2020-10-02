@@ -49,7 +49,7 @@ def get_parser():
     parser.add_argument(
         '--m',
         dest='m',
-        type=float,
+        type=int,
         default=30,
         help='Set number of ansatz functions. Default: 30',
     )
@@ -92,7 +92,7 @@ def main():
     # set gd path
     example_dir_path = get_example_data_path(args.potential_name, alpha, args.beta, target_set)
     ansatz_dir_path = get_ansatz_data_path(example_dir_path, 'gaussian-ansatz', args.m, args.sigma)
-    gd_dir_path = get_gd_data_path(ansatz_dir_path, 'ipa-value-f', args.lr)
+    gd_dir_path = get_gd_data_path(ansatz_dir_path, 'ipa-value-f', args.theta_init, args.lr)
 
     # get reference solution
     omega_h, F_opt, u_opt = get_reference_solution(ref_sol_path)
