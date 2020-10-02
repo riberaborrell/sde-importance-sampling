@@ -18,7 +18,7 @@ for sigma in $sigmas
 do
   for lr in $lrs
   do
-    echo $sigma $lr
+    echo $alpha $beta $theta_init $m $sigma $lr $epochs $M
     python mds/script_gd_ipa_ansatz_value_f.py --alpha $alpha \
                                                --beta $beta \
                                                --theta-init $theta_init \
