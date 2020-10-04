@@ -64,14 +64,6 @@ def get_parser():
         help='Set number of trajectories to sample. Default: 1',
     )
     parser.add_argument(
-        '--well-set',
-        nargs=2,
-        dest='well_set',
-        type=float,
-        default=[-1.7, 0],
-        help='Set the well set interval. Default: [-1.7, -0.0]',
-    )
-    parser.add_argument(
         '--k',
         dest='k',
         type=int,
@@ -131,7 +123,6 @@ def main():
             beta=args.beta,
             xzero=xzero,
             target_set=target_set,
-            well_set=args.well_set,
             k=k,
             dt=args.dt,
             N_lim=args.N_lim,
@@ -162,7 +153,7 @@ def main():
 
     # write report
     write_meta_report(meta_path, args.seed, args.xzero, M, k,
-                      omegas.shape[0], meta_steps, t_final - t_initial)
+                      meta_omegas.shape[0], meta_steps, t_final - t_initial)
 
     # plot potential and gradient
     if args.do_plots:
@@ -189,7 +180,7 @@ def main():
         )
 
 
-def metadynamics_algorithm(potential_name, alpha, beta, xzero, well_set, k, dt, N_lim,
+def metadynamics_algorithm(potential_name, alpha, beta, xzero, k, dt, N_lim,
                            target_set=[0.9, 1.1], seed=None, do_plots=False):
     '''
     '''
@@ -204,13 +195,6 @@ def metadynamics_algorithm(potential_name, alpha, beta, xzero, well_set, k, dt, 
 
     # target set
     target_set_min, target_set_max = target_set
-
-    # check well set
-    well_set_min, well_set_max = well_set
-    if well_set_min >= well_set_max:
-        #TODO raise error
-        print("The well set interval is not valid")
-        exit()
 
     # grid x coordinate
     X = np.linspace(-3, 3, 1000)

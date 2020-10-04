@@ -388,17 +388,17 @@ class langevin_2d_hjb_solver():
         fig, ax = plt.subplots()
         # show every k arrow
         X, Y = np.meshgrid(xx[:, 0], yy[0, :], sparse=False, indexing='ij')
-        k = 1
+        k = 2
         X = X[::k, ::k]
         Y = Y[::k, ::k]
-        U = u_opt_x[::k, ::k].T
-        V = u_opt_y[::k, ::k].T
+        U = u_opt_x[::k, ::k]
+        V = u_opt_y[::k, ::k]
         C = np.sqrt(U**2 + V**2)
         quiv = ax.quiver(X, Y, U, V, C, angles='xy', scale_units='xy')
         ax.set_xlabel('x', fontsize=16)
         ax.set_ylabel('y', fontsize=16)
-        ax.set_xlim(0.5, 1.5)
-        ax.set_ylim(0.5, 1.5)
+        ax.set_xlim(0, 2)
+        ax.set_ylim(0, 2)
         file_path = os.path.join(self.dir_path, 'optimal_control_zoom_ts')
         plt.savefig(file_path)
         plt.close()
