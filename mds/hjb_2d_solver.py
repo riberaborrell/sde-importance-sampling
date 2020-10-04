@@ -72,7 +72,7 @@ class langevin_2d_hjb_solver():
 
         x = np.arange(D_xmin, D_xmax + h, h)
         y = np.arange(D_ymin, D_ymax + h, h)
-        self.meshgrid = np.meshgrid(x, y, sparse=True)
+        self.meshgrid = np.meshgrid(x, y, sparse=True, indexing='ij')
         self.Nx = x.shape[0]
         self.Ny = y.shape[0]
         self.N = x.shape[0] * y.shape[0]
@@ -85,7 +85,7 @@ class langevin_2d_hjb_solver():
         xx, _ = self.meshgrid
         assert k in np.arange(N), ''
 
-        return xx[0, np.mod(k, Nx)]
+        return xx[np.mod(k, Nx), 0]
 
     def get_y(self, k):
         ''' returns the y-coordinate of the node k
@@ -95,7 +95,7 @@ class langevin_2d_hjb_solver():
         _ , yy = self.meshgrid
         assert k in np.arange(N), ''
 
-        return yy[np.floor_divide(k, Ny), 0]
+        return yy[0, np.floor_divide(k, Ny)]
 
     def is_on_domain_boundary(self, k):
         ''' returns True if the node k is on the rectangular
@@ -227,8 +227,8 @@ class langevin_2d_hjb_solver():
         F =  - np.log(Psi) / beta
 
         # save MGF and free energy
-        self.Psi = Psi.reshape((Nx, Ny))
-        self.F = F.reshape((Nx, Ny))
+        self.Psi = Psi.reshape((Nx, Ny)).T
+        self.F = F.reshape((Nx, Ny)).T
 
     def compute_optimal_control(self):
         ''' this method computes by finite differences the optimal control vector field
@@ -237,7 +237,7 @@ class langevin_2d_hjb_solver():
         F = self.F
         h = self.h
         N = self.N
-        Nx = self.Ny
+        Nx = self.Nx
         Ny = self.Ny
         assert F is not None, ''
         assert F.ndim == 2, ''
@@ -247,10 +247,10 @@ class langevin_2d_hjb_solver():
         u_opt_y = np.zeros((Nx, Ny))
 
         u_opt_x[1: -1, :] = - np.sqrt(2) * (F[2:, :] - F[:-2, :]) / (2 * h)
-        u_opt_y[:, 1: -1] = - np.sqrt(2) * (F[:, 2:] - F[:, :-2]) / (2 * h)
-
         u_opt_x[0, :] = u_opt_x[1, :]
         u_opt_x[Nx-1, :] = u_opt_x[Nx-2, :]
+
+        u_opt_y[:, 1: -1] = - np.sqrt(2) * (F[:, 2:] - F[:, :-2]) / (2 * h)
         u_opt_y[:, 0] = u_opt_y[:, 1]
         u_opt_y[:, Ny-1] = u_opt_y[:, Ny-2]
 
@@ -318,9 +318,27 @@ class langevin_2d_hjb_solver():
         fig.colorbar(surf, fraction=0.15, shrink=0.7, aspect=20)
         ax.set_xlabel('x', fontsize=16)
         ax.set_ylabel('y', fontsize=16)
-        file_path = os.path.join(self.dir_path, 'free_energy.png')
+        file_path = os.path.join(self.dir_path, 'free_energy_surface.png')
         plt.savefig(file_path)
         plt.close()
+
+        fig, ax = plt.subplots()
+        levels = np.linspace(-0.5, 3.5, 21)
+        X, Y = np.meshgrid(xx[:, 0], yy[0, :], sparse=False, indexing='ij')
+        cs = ax.contourf(
+            X,
+            Y,
+            F,
+            vmin=0,
+            vmax=3,
+            levels=levels,
+            cmap=cm.coolwarm,
+        )
+        cbar = fig.colorbar(cs)
+        file_path = os.path.join(self.dir_path, 'free_energy_contour.png')
+        plt.savefig(file_path)
+        plt.close()
+
 
     def plot_optimal_tilted_potential(self):
         F = self.F
@@ -348,40 +366,39 @@ class langevin_2d_hjb_solver():
         xx, yy = self.meshgrid
         u_opt_x = self.u_opt_x
         u_opt_y = self.u_opt_y
-        F = self.F
 
-        X, Y = np.meshgrid(xx[0, :], yy[:, 0], sparse=False)
-        X_coa = coarse_matrix(X, 5, 5)
-        Y_coa = coarse_matrix(Y, 5, 5)
-        u_opt_x_coa = coarse_matrix(u_opt_x, 5, 5)
-        u_opt_y_coa = coarse_matrix(u_opt_y, 5, 5)
-
-        label = r'$\u_opt(x, y), \, h = {}$'
         fig, ax = plt.subplots()
-        color_array = np.sqrt(u_opt_x**2 + u_opt_y**2)
-        #color_array = np.sqrt(u_opt_x_coa**2 + u_opt_y_coa**2)
-        quiv = ax.quiver(
-            #xx[0, :],
-            #yy[:, 0],
-            X,
-            Y,
-            #X_coa,
-            #Y_coa,
-            u_opt_x,
-            u_opt_y,
-            #u_opt_x_coa,
-            #u_opt_y_coa,
-            color_array,
-            scale=10,
-            scale_units='xy',
-        )
-        ax.set_aspect('equal')
+        label = r'$\u_opt(x, y), \, h = {}$'
+
+        # show every k arrow
+        X, Y = np.meshgrid(xx[:, 0], yy[0, :], sparse=False, indexing='ij')
+        k = int(X.shape[0] / 20)
+        X = X[::k, ::k]
+        Y = Y[::k, ::k]
+        U = u_opt_x[::k, ::k]
+        V = u_opt_y[::k, ::k]
+        C = np.sqrt(U**2 + V**2)
+        quiv = ax.quiver(X, Y, U, V, C, angles='xy', scale_units='xy')
         ax.set_xlabel('x', fontsize=16)
         ax.set_ylabel('y', fontsize=16)
-        ax.set_xlim(0.5, 1.5)
-        ax.set_ylim(0.5, 1.5)
         file_path = os.path.join(self.dir_path, 'optimal_control')
         plt.savefig(file_path)
         plt.close()
 
-
+        fig, ax = plt.subplots()
+        # show every k arrow
+        X, Y = np.meshgrid(xx[:, 0], yy[0, :], sparse=False, indexing='ij')
+        k = 1
+        X = X[::k, ::k]
+        Y = Y[::k, ::k]
+        U = u_opt_x[::k, ::k].T
+        V = u_opt_y[::k, ::k].T
+        C = np.sqrt(U**2 + V**2)
+        quiv = ax.quiver(X, Y, U, V, C, angles='xy', scale_units='xy')
+        ax.set_xlabel('x', fontsize=16)
+        ax.set_ylabel('y', fontsize=16)
+        ax.set_xlim(0.5, 1.5)
+        ax.set_ylim(0.5, 1.5)
+        file_path = os.path.join(self.dir_path, 'optimal_control_zoom_ts')
+        plt.savefig(file_path)
+        plt.close()

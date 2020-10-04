@@ -1,6 +1,6 @@
 from plotting import Plot
 from potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES, POTENTIAL_TITLES, POTENTIAL_LABELS
-from utils import get_data_path
+from utils import get_example_data_path
 
 import argparse
 import numpy as np
@@ -52,7 +52,7 @@ def main():
         V = potential(X)
 
         # get plot path
-        dir_path = get_data_path(potential_name, alpha)
+        dir_path = get_example_data_path(potential_name, alpha)
         file_name = 'potential'
 
         #label = POTENTIAL_LABELS[potential_name].format(tuple(alpha))
@@ -75,7 +75,7 @@ def main():
             Vs[i] = potential(X)
 
         # get plot path
-        dir_path = get_data_path(potential_name)
+        dir_path = get_example_data_path(potential_name)
         file_name = 'potentials'
 
         #labels = None
