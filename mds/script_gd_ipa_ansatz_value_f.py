@@ -210,7 +210,7 @@ def main():
             plot_tilted_potential(gd_dir_path, epoch, omega_h, potential, F_opt, F[epoch])
 
         # get loss and its gradient 
-        succ, loss[epoch], grad_loss = sample_loss(gradient, beta, xzero, target_set,
+        succ, loss[epoch], grad_loss = sample_loss(gradient, alpha, beta, xzero, target_set,
                                                    M, m, thetas[epoch], mus, sigmas)
         # check if sample succeeded
         if not succ:
@@ -248,7 +248,7 @@ def main():
                     loss[epoch], t_final - t_initial)
 
 
-def sample_loss(gradient, beta, xzero, target_set, M, m, theta, mus, sigmas):
+def sample_loss(gradient, alpha, beta, xzero, target_set, M, m, theta, mus, sigmas):
 
     # sampling parameters
     target_set_min, target_set_max = target_set
@@ -279,7 +279,7 @@ def sample_loss(gradient, beta, xzero, target_set, M, m, theta, mus, sigmas):
         # control
         btemp = - np.sqrt(2) * get_derivative_ansatz_functions(Xtemp, mus, sigmas)
         utemp = np.dot(btemp, theta)
-        if not is_valid_control(utemp, -10, 10):
+        if not is_valid_control(utemp, -alpha * 10, alpha * 10):
             return False, None, None
 
         # ipa statistics 
