@@ -166,8 +166,6 @@ class langevin_1d:
 
         # set drifted sampling dir path
         self.dir_path = os.path.join(ansatz.dir_path, 'drifted-sampling')
-
-        # create dir path if not exists
         make_dir_path(self.dir_path)
 
     def set_bias_potential(self, theta, mus, sigmas):
@@ -275,6 +273,10 @@ class langevin_1d:
         # solve a V = \Phi
         self.theta, _, _, _ = np.linalg.lstsq(b.T, u, rcond=None)
         self.theta_type = 'gd'
+
+        # set drifted sampling dir path
+        self.dir_path = os.path.join(gd_dir_path, 'drifted-sampling')
+        make_dir_path(self.dir_path)
 
     def value_function(self, x, theta=None):
         '''This method computes the value function evaluated at x
@@ -682,11 +684,12 @@ class langevin_1d:
     def write_report(self):
         '''
         '''
-        # set path
+        # set file path
         if self.is_drifted:
             theta_stamp = 'theta-{}_'.format(self.theta_type)
         else:
             theta_stamp = ''
+
         trajectories_stamp = 'M{:.0e}'.format(self.M)
         file_name = 'report_' + theta_stamp + trajectories_stamp + '.txt'
         file_path = os.path.join(self.dir_path, file_name)
