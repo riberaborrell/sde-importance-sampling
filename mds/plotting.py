@@ -66,6 +66,20 @@ class Plot:
         plt.grid(True)
         plt.savefig(self.file_path)
 
+    def exp_fht(self, x, exp_fht=None, appr_exp_fht=None):
+        plt.title('Expected first hitting time')
+        if exp_fht is not None:
+            plt.plot(x, exp_fht, 'c-', label=r'$E^x[\tau]$')
+        if appr_exp_fht is not None:
+            #todo
+            pass
+        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.yticks(self.yticks)
+        plt.legend(loc='upper left', fontsize=8)
+        plt.grid(True)
+        plt.savefig(self.file_path)
+        plt.close()
+
     def mgf(self, x, Psi=None, appr_Psi=None):
         plt.title('Moment generating function')
         if Psi is not None:

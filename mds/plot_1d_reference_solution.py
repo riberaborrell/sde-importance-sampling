@@ -60,12 +60,15 @@ def main():
     sol.Psi = ref_sol['Psi']
     sol.F = ref_sol['F']
     sol.u_opt = ref_sol['u_opt']
+    sol.exp_fht = ref_sol['exp_fht']
 
     # plot
+    sol.plot_mgf()
     sol.plot_free_energy()
     sol.plot_optimal_tilted_potential()
     sol.plot_optimal_tilted_drift()
     sol.plot_optimal_control()
+    sol.plot_exp_fht()
 
 if __name__ == "__main__":
     main()
