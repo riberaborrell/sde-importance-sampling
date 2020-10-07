@@ -50,7 +50,7 @@ class langevin_hjb_1d_solver():
         self.Psi = None
         self.F = None
         self.u_opt = None
-        self.fht = None
+        self.exp_fht = None
 
     def discretize_domain(self):
         ''' this method discretizes the domain interval uniformly with step-size h
@@ -112,16 +112,18 @@ class langevin_hjb_1d_solver():
         A[N - 1 , N - 2] = -1
         b[N - 1] = 0
 
-        # solve the linear system 
-        Psi = np.linalg.solve(A, b)
-        #Psi, _, _, _ =  np.linalg.lstsq(A, b, rcond=None)
+        # solve the linear system and save the mgf
+        self.Psi = np.linalg.solve(A, b)
+        #self.Psi, _, _, _ =  np.linalg.lstsq(A, b, rcond=None)
 
-        # compute free energy
-        F =  - np.log(Psi) / beta
+    def compute_free_energy(self):
+        ''' this methos computes the free energy
+                F = - epsilon log (Psi)
+        '''
+        beta = self.beta
+        Psi = self.Psi
 
-        # save MGF and free energy
-        self.Psi = Psi
-        self.F = F
+        self.F =  - np.log(Psi) / beta
 
     def compute_optimal_control(self):
         ''' this method computes by finite differences the optimal control
@@ -188,18 +190,18 @@ class langevin_hjb_1d_solver():
     def write_report(self, x):
         domain_h = self.domain_h
 
-        # mgf at x
+        # exp fht and mgf at x
         idx_x = np.where(domain_h == x)[0]
         if idx_x.shape[0] != 1:
             return
-        mgf = self.Psi[idx_x[0]]
-        exp_fht = self.exp_fht[idx_x[0]]
+        mgf = self.Psi[idx_x[0]] if self.Psi is not None else np.nan
+        exp_fht = self.exp_fht[idx_x[0]] if self.exp_fht is not None else np.nan
 
         # write file
         file_path = os.path.join(self.dir_path, 'report.txt')
         f = open(file_path, "w")
         f.write('x = {:2.1f}\n'.format(x))
-        f.write('E[fht] at x = {:2.3e}\n'.format(exp_fht))
+        f.write('E[fht] at x = {:2.3f}\n'.format(exp_fht))
         f.write('mgf at x = {:2.3e}\n'.format(mgf))
         f.close()
 

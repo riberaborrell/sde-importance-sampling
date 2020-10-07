@@ -251,11 +251,24 @@ def control_on_grid2(X, a, mus, sigmas):
     u = np.dot(a, basis.T)
     return u
 
-def plot_control(dir_path, epoch, X, u_opt, u):
+def plot_appr_free_energy(dir_path, alpha, epoch, X, potential, F_opt, F):
+    plt.plot(X, F, label='approx free energy')
+    plt.plot(X, F_opt, label='ref solution free energy')
+    plt.xlim(left=-3, right=3)
+    plt.ylim(bottom=0, top=3 * alpha)
+    plt.grid(True)
+    plt.legend()
+
+    file_name = 'appr_free_energy_epoch{}.png'.format(epoch)
+    file_path = os.path.join(dir_path, file_name)
+    plt.savefig(file_path)
+    plt.close()
+
+def plot_control(dir_path, alpha, epoch, X, u_opt, u):
     plt.plot(X, u, label='control')
     plt.plot(X, u_opt, label='optimal control')
     plt.xlim(left=-3, right=3)
-    plt.ylim(bottom=-5, top=5)
+    plt.ylim(bottom=-5 * alpha, top=5 * alpha)
     plt.grid(True)
     plt.legend()
 
@@ -264,34 +277,67 @@ def plot_control(dir_path, epoch, X, u_opt, u):
     plt.savefig(file_path)
     plt.close()
 
-def plot_free_energy(dir_path, epoch, X, potential, F_opt, F):
-    plt.plot(X, F, label='approx free energy')
-    plt.plot(X, F_opt, label='ref solution free energy')
-    plt.xlim(left=-3, right=3)
-    plt.ylim(bottom=0, top=5)
-    plt.grid(True)
-    plt.legend()
-
-    file_name = 'free_energy_epoch{}.png'.format(epoch)
-    file_path = os.path.join(dir_path, file_name)
-    plt.savefig(file_path)
-    plt.close()
-
-def plot_tilted_potential(dir_path, epoch, X, potential, F_opt, F):
+def plot_tilted_potential(dir_path, alpha, epoch, X, potential, F_opt, F):
     V = potential(X)
-    plt.plot(X, V + 2 * F, label='approx potential')
+    plt.plot(X, V + 2 * F, label='tilted potential')
     plt.plot(X, V + 2 * F_opt, label='optimal tilted potential')
     plt.xlim(left=-3, right=3)
-    plt.ylim(bottom=0, top=10)
+    plt.ylim(bottom=0, top=10 * alpha)
     plt.grid(True)
     plt.legend()
 
-    file_name = 'approx_tilted_potential_epoch{}.png'.format(epoch)
+    file_name = 'tilted_potential_epoch{}.png'.format(epoch)
     file_path = os.path.join(dir_path, file_name)
     plt.savefig(file_path)
     plt.close()
 
-def plot_gd_tilted_potentials(dir_path, X, potential, F_opt, F):
+def plot_gd_appr_free_energies(dir_path, alpha, X, potential, F_opt, F):
+    num_epochs = F.shape[0]
+    num_epochs_to_show = 10
+    k = num_epochs // num_epochs_to_show
+    epochs = np.arange(num_epochs)
+    epochs_to_show = np.where(epochs % k == 0)[0]
+    if epochs[-1] != epochs_to_show[-1]:
+        epochs_to_show = np.append(epochs_to_show, epochs[-1])
+    plt.plot(X, F_opt, linestyle='dashed', label='ref solution free energy')
+    for epoch in epochs:
+        if epoch in epochs_to_show:
+            label = r'epoch = {:d}'.format(epoch)
+            plt.plot(X, F[epoch], linestyle='-', label=label)
+    plt.xlim(left=-3, right=3)
+    plt.ylim(bottom=0, top=3 * alpha)
+    plt.grid(True)
+    plt.legend()
+
+    file_name = 'appr_free_energies.png'
+    file_path = os.path.join(dir_path, file_name)
+    plt.savefig(file_path)
+    plt.close()
+
+def plot_gd_controls(dir_path, alpha, X, potential, u_opt, u):
+    num_epochs = u.shape[0]
+    num_epochs_to_show = 10
+    k = num_epochs // num_epochs_to_show
+    epochs = np.arange(num_epochs)
+    epochs_to_show = np.where(epochs % k == 0)[0]
+    if epochs[-1] != epochs_to_show[-1]:
+        epochs_to_show = np.append(epochs_to_show, epochs[-1])
+    plt.plot(X, u_opt, linestyle='dashed', label='optimal control')
+    for epoch in epochs:
+        if epoch in epochs_to_show:
+            label = r'epoch = {:d}'.format(epoch)
+            plt.plot(X, u[epoch], linestyle='-', label=label)
+    plt.xlim(left=-3, right=3)
+    plt.ylim(bottom=-5 * alpha, top=5 * alpha)
+    plt.grid(True)
+    plt.legend()
+
+    file_name = 'controls.png'
+    file_path = os.path.join(dir_path, file_name)
+    plt.savefig(file_path)
+    plt.close()
+
+def plot_gd_tilted_potentials(dir_path, alpha, X, potential, F_opt, F):
     num_epochs = F.shape[0]
     num_epochs_to_show = 10
     k = num_epochs // num_epochs_to_show
@@ -306,11 +352,11 @@ def plot_gd_tilted_potentials(dir_path, X, potential, F_opt, F):
             label = r'epoch = {:d}'.format(epoch)
             plt.plot(X, V + 2 * F[epoch], linestyle='-', label=label)
     plt.xlim(left=-3, right=3)
-    plt.ylim(bottom=0, top=10)
+    plt.ylim(bottom=0, top=10 * alpha)
     plt.grid(True)
     plt.legend()
 
-    file_name = 'approx_tilted_potentials_gd.png'
+    file_name = 'tilted_potentials.png'
     file_path = os.path.join(dir_path, file_name)
     plt.savefig(file_path)
     plt.close()
@@ -360,7 +406,7 @@ def save_gd_statistics(dir_path, domain_h, u, F, loss, value_f):
         value_f=value_f,
     )
 
-def write_gd_report(dir_path, xzero, value_f, M, m, epochs_lim, epochs_needed, lr, atol, last_loss, c_time):
+def write_gd_report(dir_path, xzero, value_f, M, m, sigma, epochs_lim, epochs_needed, lr, atol, last_loss, c_time):
     file_path = os.path.join(dir_path, 'report.txt')
 
     # write in file
@@ -371,7 +417,8 @@ def write_gd_report(dir_path, xzero, value_f, M, m, epochs_lim, epochs_needed, l
     f.write('sampled trajectories: {:,d}\n\n'.format(M))
 
     f.write('Control parametrization (unif distr ansatz functions)\n')
-    f.write('m: {:d}\n\n'.format(m))
+    f.write('m: {:d}\n'.format(m))
+    f.write('sigma: {:f}\n\n'.format(sigma))
 
     f.write('GD parameters\n')
     f.write('epochs lim: {}\n'.format(epochs_lim))

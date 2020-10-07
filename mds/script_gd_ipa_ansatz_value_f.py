@@ -10,16 +10,19 @@ from script_utils import get_reference_solution, \
                          set_initial_coefficients, \
                          control_on_grid2, \
                          free_energy_on_grid2, \
+                         plot_appr_free_energy, \
                          plot_control, \
-                         plot_free_energy, \
                          plot_tilted_potential, \
+                         plot_gd_appr_free_energies, \
+                         plot_gd_controls, \
                          plot_gd_tilted_potentials, \
                          plot_gd_losses, \
+                         plot_gd_losses_bar, \
                          save_gd_statistics, \
                          write_gd_report
 
-from utils import empty_dir, get_example_data_path, get_ansatz_data_path, get_gd_data_path
-from validation import is_valid_control
+from utils import empty_dir, get_example_data_path, get_ansatz_data_path, get_gd_data_path, make_dir_path
+from validation import is_1d_valid_control
 
 import argparse
 import numpy as np
@@ -84,8 +87,8 @@ def get_parser():
         '--epochs-lim',
         dest='epochs_lim',
         type=int,
-        default=50,
-        help='Set maximal number of epochs. Default: 10',
+        default=100,
+        help='Set maximal number of epochs. Default: 100',
     )
     parser.add_argument(
         '--lr',
@@ -105,17 +108,17 @@ def get_parser():
         '--m',
         dest='m',
         type=int,
-        default=20,
+        default=50,
         help='Set the number of uniformly distributed ansatz functions \
-              that you want to use. Default: 20',
+              that you want to use. Default: 50',
     )
     parser.add_argument(
         '--sigma',
         dest='sigma',
         type=float,
-        default=0.1,
+        default=0.5,
         help='Set the standard deviation of the gaussian ansatz functions \
-              that you want to use. Default: 0.1',
+              that you want to use. Default: 0.5',
     )
     parser.add_argument(
         '--theta-init',
@@ -129,6 +132,12 @@ def get_parser():
         dest='do_plots',
         action='store_true',
         help='Do plots. Default: False',
+    )
+    parser.add_argument(
+        '--do-epoch-plots',
+        dest='do_epoch_plots',
+        action='store_true',
+        help='Do plots for each epoch. Default: False',
     )
     return parser
 
@@ -187,9 +196,9 @@ def main():
 
     # coefficients, performance function, control and free energy
     thetas = np.zeros((epochs_lim + 1, m))
-    loss = np.zeros(epochs_lim + 1)
     u = np.zeros((epochs_lim + 1, len(omega_h)))
     F = np.zeros((epochs_lim + 1, len(omega_h)))
+    loss = np.zeros(epochs_lim)
 
     # set initial coefficients
     thetas[0, :] = set_initial_coefficients(m, np.mean(sigmas), theta_opt,
@@ -204,10 +213,12 @@ def main():
         F[epoch, :] = free_energy_on_grid2(omega_h, target_set, thetas[epoch, :], mus, sigmas)
 
         # plot control, free_energy and tilted potential
-        if args.do_plots:
-            plot_control(gd_dir_path, epoch, omega_h, u_opt, u[epoch])
-            plot_free_energy(gd_dir_path, epoch, omega_h, potential, F_opt, F[epoch])
-            plot_tilted_potential(gd_dir_path, epoch, omega_h, potential, F_opt, F[epoch])
+        if args.do_epoch_plots:
+            gd_epochs_dir_path = os.path.join(gd_dir_path, 'epochs')
+            make_dir_path(gd_epochs_dir_path)
+            plot_control(gd_epochs_dir_path, alpha, epoch, omega_h, u_opt, u[epoch])
+            plot_appr_free_energy(gd_epochs_dir_path, alpha, epoch, omega_h, potential, F_opt, F[epoch])
+            plot_tilted_potential(gd_epochs_dir_path, alpha, epoch, omega_h, potential, F_opt, F[epoch])
 
         # get loss and its gradient 
         succ, loss[epoch], grad_loss = sample_loss(gradient, alpha, beta, xzero, target_set,
@@ -226,26 +237,35 @@ def main():
         thetas[epoch + 1, :] = thetas[epoch, :] - lr * grad_loss
 
     # if num of max epochs not reached
-    if epoch < epochs_lim - 1:
-        loss[epoch+1:] = np.nan
-        u[epoch+1:] = np.nan
-        F[epoch+1:] = np.nan
+    if succ and epoch < epochs_lim - 1:
+        u = u[:epoch+1]
+        F = F[:epoch+1]
+        loss = loss[:epoch+1]
+    elif succ and epoch == epochs_lim - 1:
+        u[epoch+1, :] = control_on_grid2(omega_h, thetas[epoch+1, :], mus, sigmas)
+        F[epoch+1, :] = free_energy_on_grid2(omega_h, target_set, thetas[epoch+1, :], mus, sigmas)
+    else:
+        u = u[:epoch+1]
+        F = F[:epoch+1]
+        loss = loss[:epoch]
 
     # plot titled potential and loss per epoch
-    if args.do_plots and succ:
-        plot_gd_tilted_potentials(gd_dir_path, omega_h, potential, F_opt, F[:epoch+1])
-        plot_gd_losses(gd_dir_path, value_f, loss[:epoch+1])
+    if args.do_plots:
+        plot_gd_appr_free_energies(gd_dir_path, alpha, omega_h, potential, F_opt, F)
+        plot_gd_controls(gd_dir_path, alpha, omega_h, potential, u_opt, u)
+        plot_gd_tilted_potentials(gd_dir_path, alpha, omega_h, potential, F_opt, F)
+        plot_gd_losses(gd_dir_path, value_f, loss)
+        plot_gd_losses_bar(gd_dir_path, value_f, loss)
 
     # save gd statistics
-    if succ:
-        save_gd_statistics(gd_dir_path, omega_h, u[:epoch+1], F[:epoch+1], loss[:epoch+1], value_f)
+    save_gd_statistics(gd_dir_path, omega_h, u, F, loss, value_f)
 
     # end timer
     t_final = time.time()
 
     # write gd report
-    write_gd_report(gd_dir_path, xzero, value_f, M, m, epochs_lim, epoch+1, lr, atol,
-                    loss[epoch], t_final - t_initial)
+    write_gd_report(gd_dir_path, xzero, value_f, M, m, sigma, epochs_lim, epoch+1, lr, atol,
+                    loss[-1], t_final - t_initial)
 
 
 def sample_loss(gradient, alpha, beta, xzero, target_set, M, m, theta, mus, sigmas):
@@ -279,7 +299,7 @@ def sample_loss(gradient, alpha, beta, xzero, target_set, M, m, theta, mus, sigm
         # control
         btemp = - np.sqrt(2) * get_derivative_ansatz_functions(Xtemp, mus, sigmas)
         utemp = np.dot(btemp, theta)
-        if not is_valid_control(utemp, -alpha * 10, alpha * 10):
+        if not is_1d_valid_control(utemp, -alpha * 10, alpha * 10):
             return False, None, None
 
         # ipa statistics 

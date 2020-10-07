@@ -7,7 +7,7 @@ from script_utils import get_reference_solution, \
                          plot_gd_losses, \
                          plot_gd_losses_bar
 
-from utils import get_example_data_path, get_ansatz_data_path, get_gd_data_path
+from utils import get_example_data_path, get_ansatz_data_path, get_gd_data_path, make_dir_path
 
 import argparse
 import numpy as np
@@ -75,6 +75,12 @@ def get_parser():
         default='optimal',
         help='Type of initial control. Default: optimal',
     )
+    parser.add_argument(
+        '--do-epoch-plots',
+        dest='do_epoch_plots',
+        action='store_true',
+        help='Do plots for each epoch. Default: False',
+    )
     return parser
 
 def main():
@@ -107,14 +113,16 @@ def main():
     value_f = gd['value_f']
 
     # plot each epoch
-    for epoch in range(epochs):
-        plot_control(gd_dir_path, epoch, omega_h, u_opt, u[epoch])
-        plot_free_energy(gd_dir_path, epoch, omega_h, potential, F_opt, F[epoch])
-        plot_tilted_potential(gd_dir_path, epoch, omega_h, potential, F_opt, F[epoch])
-        pass
+    if args.do_epoch_plots:
+        gd_epochs_dir_path = os.path.join(gd_dir_path, 'epochs')
+        make_dir_path(gd_epochs_dir_path)
+        for epoch in range(epochs):
+            plot_control(gd_epochs_dir_path, alpha, epoch, omega_h, u_opt, u[epoch])
+            plot_free_energy(gd_epochs_dir_path, alpha, epoch, omega_h, potential, F_opt, F[epoch])
+            plot_tilted_potential(gd_epochs_dir_path, alpha, epoch, omega_h, potential, F_opt, F[epoch])
 
     # plot all epochs
-    plot_gd_tilted_potentials(gd_dir_path, omega_h, potential, F_opt, F)
+    plot_gd_tilted_potentials(gd_dir_path, alpha, omega_h, potential, F_opt, F)
     plot_gd_losses(gd_dir_path, value_f, loss)
     plot_gd_losses_bar(gd_dir_path, value_f, loss)
 

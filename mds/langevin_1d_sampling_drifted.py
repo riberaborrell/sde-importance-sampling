@@ -94,11 +94,11 @@ def get_parser():
         help='Set the standard deviation of the ansatz functions. Default: 1',
     )
     parser.add_argument(
-        '--theta-init',
-        dest='theta_init',
-        choices=['null', 'meta', 'optimal', 'gd'],
+        '--theta',
+        dest='theta',
+        choices=['optimal', 'meta', 'gd', 'null'],
         default='optimal',
-        help='Type of initial control. Default: optimal',
+        help='Type of control. Default: optimal',
     )
     parser.add_argument(
         '--gd-theta-init',
@@ -141,11 +141,11 @@ def main():
 
     # set load optimal coefficients and chosen coefficients
     sample.compute_theta_optimal()
-    if args.theta_init == 'optimal':
+    if args.theta == 'optimal':
         sample.set_theta_optimal()
-    elif args.theta_init == 'meta':
+    elif args.theta == 'meta':
         sample.set_theta_from_metadynamics()
-    elif args.theta_init == 'gd':
+    elif args.theta == 'gd':
         sample.set_theta_from_gd(
             gd_type='ipa-value-f',
             gd_theta_init=args.gd_theta_init,
@@ -156,7 +156,7 @@ def main():
 
     # plot potential and gradient
     if args.do_plots:
-        theta_stamp = 'theta-{}'.format(args.theta_init)
+        theta_stamp = 'theta-{}'.format(args.theta)
         sample.ansatz.plot_gaussian_ansatz_functions()
         sample.plot_appr_mgf(file_name=theta_stamp+'_appr_mgf')
         sample.plot_appr_free_energy(file_name=theta_stamp+'_appr_free_energy')

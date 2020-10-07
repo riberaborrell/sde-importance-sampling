@@ -4,7 +4,7 @@ from ansatz_functions import gaussian_ansatz_functions, \
 from potentials_and_gradients import get_potential_and_gradient
 from plotting import Plot
 from utils import get_example_data_path, get_gd_data_path, get_time_in_hms, make_dir_path
-from validation import is_valid_1d_target_set
+from validation import is_1d_valid_domain, is_1d_valid_target_set
 
 import numpy as np
 from scipy import stats
@@ -22,16 +22,11 @@ class langevin_1d:
         # get potential and gradient functions
         potential, gradient = get_potential_and_gradient(potential_name, alpha)
 
-        # TODO: general validators 
         # validate domain and target set
         if domain is None:
             domain = np.array([-3, 3])
-
-        # validate target set
-        if not is_valid_1d_target_set(target_set):
-            #TODO raise error
-            print('invalid target set')
-            return
+        is_1d_valid_domain(domain)
+        is_1d_valid_target_set(domain, target_set)
 
         # dir_path
         if not is_drifted:

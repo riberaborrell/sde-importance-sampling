@@ -51,8 +51,8 @@ def get_parser():
         '--h',
         dest='h',
         type=float,
-        default=0.01,
-        help='Set the discretization step size. Default: 0.01',
+        default=0.001,
+        help='Set the discretization step size. Default: 0.001',
     )
     parser.add_argument(
         '--do-plots',
@@ -84,6 +84,7 @@ def main():
     )
     sol.discretize_domain()
     sol.solve_bvp()
+    sol.compute_free_energy()
     sol.compute_optimal_control()
     sol.compute_exp_fht()
     sol.save_reference_solution()
