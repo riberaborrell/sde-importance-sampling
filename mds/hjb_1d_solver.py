@@ -194,15 +194,17 @@ class langevin_hjb_1d_solver():
         idx_x = np.where(domain_h == x)[0]
         if idx_x.shape[0] != 1:
             return
-        mgf = self.Psi[idx_x[0]] if self.Psi is not None else np.nan
         exp_fht = self.exp_fht[idx_x[0]] if self.exp_fht is not None else np.nan
+        Psi = self.Psi[idx_x[0]] if self.Psi is not None else np.nan
+        F = self.F[idx_x[0]] if self.F is not None else np.nan
 
         # write file
         file_path = os.path.join(self.dir_path, 'report.txt')
         f = open(file_path, "w")
         f.write('x = {:2.1f}\n'.format(x))
         f.write('E[fht] at x = {:2.3f}\n'.format(exp_fht))
-        f.write('mgf at x = {:2.3e}\n'.format(mgf))
+        f.write('Psi at x = {:2.3e}\n'.format(Psi))
+        f.write('F at x = {:2.3e}\n'.format(F))
         f.close()
 
     def plot_mgf(self):

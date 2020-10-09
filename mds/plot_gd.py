@@ -1,8 +1,10 @@
 from potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES
 from script_utils import get_reference_solution, \
+                         plot_appr_free_energy, \
                          plot_control, \
-                         plot_free_energy, \
                          plot_tilted_potential, \
+                         plot_gd_appr_free_energies, \
+                         plot_gd_controls, \
                          plot_gd_tilted_potentials, \
                          plot_gd_losses, \
                          plot_gd_losses_bar
@@ -118,10 +120,12 @@ def main():
         make_dir_path(gd_epochs_dir_path)
         for epoch in range(epochs):
             plot_control(gd_epochs_dir_path, alpha, epoch, omega_h, u_opt, u[epoch])
-            plot_free_energy(gd_epochs_dir_path, alpha, epoch, omega_h, potential, F_opt, F[epoch])
+            plot_appr_free_energy(gd_epochs_dir_path, alpha, epoch, omega_h, potential, F_opt, F[epoch])
             plot_tilted_potential(gd_epochs_dir_path, alpha, epoch, omega_h, potential, F_opt, F[epoch])
 
     # plot all epochs
+    plot_gd_controls(gd_dir_path, alpha, omega_h, potential, u_opt, u)
+    plot_gd_appr_free_energies(gd_dir_path, alpha, omega_h, potential, F_opt, F)
     plot_gd_tilted_potentials(gd_dir_path, alpha, omega_h, potential, F_opt, F)
     plot_gd_losses(gd_dir_path, value_f, loss)
     plot_gd_losses_bar(gd_dir_path, value_f, loss)
