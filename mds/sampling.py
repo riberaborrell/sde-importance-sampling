@@ -216,9 +216,10 @@ class langevin_1d:
         '''
         x = self.domain_h
 
-        meta_theta = bias_pot['omegas'] / 2
-        meta_mus = bias_pot['mus']
-        meta_sigmas = bias_pot['sigmas']
+        self.load_meta_bias_potential()
+        meta_theta = self.meta_bias_pot['omegas'] / 2
+        meta_mus = self.meta_bias_pot['mus']
+        meta_sigmas = self.meta_bias_pot['sigmas']
         assert meta_theta.shape == meta_mus.shape == meta_sigmas.shape, ''
 
         # create ansatz functions from meta
