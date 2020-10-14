@@ -187,6 +187,15 @@ class langevin_hjb_1d_solver():
             exp_fht=self.exp_fht,
         )
 
+    def load_reference_solution(self):
+        file_path = os.path.join(self.dir_path, 'reference_solution.npz')
+        ref_sol = np.load(file_path)
+        self.domain_h = ref_sol['domain_h']
+        self.Psi = ref_sol['Psi']
+        self.F = ref_sol['F']
+        self.u_opt = ref_sol['u_opt']
+        self.exp_fht = ref_sol['exp_fht']
+
     def write_report(self, x):
         domain_h = self.domain_h
 

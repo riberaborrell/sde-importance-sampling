@@ -1,5 +1,6 @@
 from utils import get_ansatz_data_path
 from plotting import Plot
+from validation import is_1d_valid_domain
 
 import numpy as np
 import scipy.stats as stats
@@ -36,9 +37,9 @@ class gaussian_ansatz_functions:
     def __init__(self, domain, m=None, mus=None, sigmas=None):
         '''
         '''
-        #TODO: validate domain
         if domain is None:
             domain = np.array([-3, 3])
+        is_1d_valid_domain(domain)
         if mus is not None and sigmas is not None:
             assert mus.ndim == sigmas.ndim == 1, ''
             assert mus.shape == sigmas.shape, ''
@@ -82,11 +83,12 @@ class gaussian_ansatz_functions:
         mus_min, mus_max = self.domain
         m = self.m
 
-        #TODO: case sigma is None
         self.mus = np.around(np.linspace(mus_min, mus_max, m), decimals=2)
+        if sigma is None:
+            sigma = np.around(mus[1] - mus[0], decimals=2)
         self.sigmas = sigma * np.ones(m)
 
-    #TODO: test
+    # deprecated method
     def set_unif_dist_ansatz_functions_on_S(self, sigma, target_set):
         '''This method sets the mean and standard deviation of the m
            Gaussian ansatz functions. The means will be uniformly distributed
@@ -158,8 +160,7 @@ class gaussian_ansatz_functions:
         sigmas = self.sigmas
 
         if type(x) == np.ndarray:
-            mus = mus.reshape(mus.shape[0], 1)
-            sigmas = sigmas.reshape(sigmas.shape[0], 1)
+            x = x.reshape(x.shape[0], 1)
 
         return stats.norm.pdf(x, mus, sigmas)
 
@@ -168,19 +169,16 @@ class gaussian_ansatz_functions:
 
         Args:
             x (float or ndarray) : position/s
-
-        Return:
         '''
         mus = self.mus
         sigmas = self.sigmas
 
         if type(x) == np.ndarray:
-            mus = mus.reshape(mus.shape[0], 1)
-            sigmas = sigmas.reshape(sigmas.shape[0], 1)
+            x = x.reshape(x.shape[0], 1)
 
         return - np.sqrt(2) * derivative_normal_pdf(x, mus, sigmas)
 
-    def write_ansatz_report(self, f):
+    def write_ansatz_parameters(self, f):
         '''
         '''
         f.write('Control parametrization (unif distr ansatz functions)\n')

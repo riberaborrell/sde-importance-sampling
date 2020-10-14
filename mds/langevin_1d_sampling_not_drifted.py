@@ -97,7 +97,11 @@ def main():
         beta=args.beta,
         domain=np.array(args.domain),
         target_set=np.array(args.target_set),
+        is_drifted=False,
     )
+
+    # set path
+    sample.set_not_drifted_dir_path()
 
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(
@@ -107,6 +111,7 @@ def main():
         dt=args.dt,
         N_lim=args.N_lim,
     )
+
     # plot potential and gradient
     if args.do_plots:
         sample.plot_tilted_potential(file_name='tilted_potential')

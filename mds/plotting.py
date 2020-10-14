@@ -66,6 +66,26 @@ class Plot:
         plt.grid(True)
         plt.savefig(self.file_path)
 
+    def ansatz_value_f(self, x, v):
+        assert v.ndim == 2, ''
+        m = v.shape[1]
+        for j in range(m):
+            plt.plot(x, v[:, j])
+        plt.title(self.title)
+        plt.xlabel('x', fontsize=16)
+        plt.savefig(self.file_path)
+        plt.close()
+
+    def ansatz_control(self, x, b):
+        assert b.ndim == 2, ''
+        m = b.shape[1]
+        for j in range(m):
+            plt.plot(x, b[:, j])
+        plt.title(self.title)
+        plt.xlabel('x', fontsize=16)
+        plt.savefig(self.file_path)
+        plt.close()
+
     def exp_fht(self, x, exp_fht=None, appr_exp_fht=None):
         plt.title('Expected first hitting time')
         if exp_fht is not None:
@@ -112,6 +132,20 @@ class Plot:
             plt.plot(x, u_opt, 'c-', label=r'$u^*(x)$')
         if u is not None:
             plt.plot(x, u, 'm-', label=r'u(x)')
+        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.yticks(self.yticks)
+        plt.legend(loc='upper left', fontsize=8)
+        plt.grid(True)
+        plt.savefig(self.file_path)
+        plt.close()
+
+    def tilted_potential(self, x, V, Vbias=None, Vbias_opt=None):
+        plt.title('Tilted potential')
+        if Vbias is not None:
+            plt.plot(x, V + Vbias, 'm-', label=r'$\tilde{V}(x)$')
+        if Vbias_opt is not None:
+            plt.plot(x, V + Vbias_opt, 'c-', label=r'$\tilde{V}^*(x)$')
+        plt.xlabel('x', fontsize=16)
         plt.ylim(top=self.top, bottom=self.bottom)
         plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
@@ -242,48 +276,76 @@ class Plot:
         fig.savefig(self.file_path)
         plt.close()
 
-    def gradient_descent_tilted_potentials(self, x, Vs, Vopt):
-        for i, V in enumerate(Vs):
-            label = r'epoch = {:d}'.format(i)
-            plt.plot(x, V, linestyle='-', label=label)
-        plt.plot(x, Vopt, linestyle='dashed', label='optimal')
+    def gd_appr_free_energies(self, x, epochs, F_appr, F=None):
+        plt.title('Free energies / Performance functions')
+        for i, epoch in enumerate(epochs):
+            label = r'epoch = {:d}'.format(epoch)
+            plt.plot(x, F_appr[i], linestyle='-', label=label)
+        if F is not None:
+            plt.plot(x, F, color='c', linestyle='dashed', label=r'$F(x)$')
 
         plt.xlabel('x', fontsize=16)
-        plt.xlim(left=-1.8, right=1.8)
-        plt.ylim(top=8, bottom=0)
+        plt.ylim(top=self.top, bottom=self.bottom)
         plt.legend(loc='upper left', fontsize=8)
+        plt.grid(True)
         plt.savefig(self.file_path)
         plt.close()
 
-    def ansatz_value_f(self, x, v):
-        m = v.shape[0]
-        for j in range(m):
-            plt.plot(x, v[j])
-        plt.title(self.title)
+    def gd_controls(self, x, epochs, u, u_opt=None):
+        plt.title('Controls')
+        for i, epoch in enumerate(epochs):
+            label = r'epoch = {:d}'.format(epoch)
+            plt.plot(x, u[i], linestyle='-', label=label)
+        if u_opt is not None:
+            plt.plot(x, u_opt, color='c', linestyle='dashed', label=r'$u^*(x)$')
+
         plt.xlabel('x', fontsize=16)
+        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.legend(loc='upper left', fontsize=8)
+        plt.grid(True)
         plt.savefig(self.file_path)
         plt.close()
 
-    def ansatz_control(self, x, b):
-        m = b.shape[0]
-        for j in range(m):
-            plt.plot(x, b[j])
-        plt.title(self.title)
+    def gd_tilted_potentials(self, x, V, epochs, Vbias, Vbias_opt=None):
+        plt.title('Tilted potentials')
+        for i, epoch in enumerate(epochs):
+            label = r'epoch = {:d}'.format(epoch)
+            plt.plot(x, V + Vbias[i], linestyle='-', label=label)
+        if Vbias_opt is not None:
+            plt.plot(x, V + Vbias_opt, color='c', linestyle='dashed', label=r'$\tilde{V}^*(x)$')
+
         plt.xlabel('x', fontsize=16)
+        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.legend(loc='upper left', fontsize=8)
+        plt.grid(True)
         plt.savefig(self.file_path)
         plt.close()
 
-    #def ansatz_functions(self, X, ans, weig_ans, V, Vbias):
-    #plt.plot(X, weig_ans[j], 'g-', label=r'$a_j v_j(x)$')
-    #plt.plot(X, V, 'b-', label=r'$V(x)$')
-    #plt.plot(X, Vbias, 'r-', label=r'$V_{bias}(x)$')
-    #plt.plot(X, V + Vbias, 'm-', label=r'$\tilde{V}(x)$')
-    #plt.ylim(top=4, bottom=0)
+    def gd_losses_bar(self, epochs, losses, value_f):
+        plt.title('Loss function per epoch')
+        plt.bar(x=epochs, height=losses, width=0.8, color='b', align='center', label=r'$J(x_0)$')
+        plt.plot([epochs[0]-0.4, epochs[-1] + 0.4], [value_f, value_f],
+                 'k--', label=r'$F(x_0)$')
+        plt.xlabel('epochs', fontsize=16)
+        plt.xlim(left=epochs[0] -0.8, right=epochs[-1] + 0.8)
+        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.legend(loc='upper left', fontsize=8)
+        plt.grid(True)
+        plt.savefig(self.file_path)
+        plt.close()
 
-    #TODO plot potential and gradient in 1D.
-
-    #TODO plot tilted potential and basis functions
-
+    def gd_losses_line(self, epochs, losses, value_f):
+        plt.title('Loss function per epoch')
+        plt.plot(epochs, losses, 'b-', label=r'$J(x_0)$')
+        plt.plot([epochs[0], epochs[-1]], [value_f, value_f], 'k--', label=r'$F(x_0)$')
+        plt.xlabel('epochs', fontsize=16)
+        #plt.xlim(left=epochs[0], right=epochs[-1])
+        #plt.xticks(epochs)
+        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.legend(loc='upper left', fontsize=8)
+        plt.grid(True)
+        plt.savefig(self.file_path)
+        plt.close()
 
     def trajectory(self, x, y):
         plt.plot(x, y, 'r', label='EM solution path')

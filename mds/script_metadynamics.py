@@ -1,9 +1,9 @@
-from plotting import Plot
-from potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES
 from ansatz_functions import bias_potential, \
                              bias_gradient
+from plotting import Plot
+from potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES
 import sampling
-from utils import empty_dir, get_example_data_path, get_time_in_hms
+from utils import make_dir_path, empty_dir, get_example_data_path, get_time_in_hms
 
 import argparse
 import numpy as np
@@ -105,8 +105,24 @@ def main():
     if args.seed:
         np.random.seed(args.seed)
 
-    xzero = args.xzero
-    M = args.M
+    # initialize langevin_1d object
+    sample = sampling.langevin_1d(
+        potential_name=args.potential_name,
+        alpha=alpha,
+        beta=args.beta,
+        target_set=target_set,
+        is_drifted=True,
+    )
+
+    # set sampling and Euler-Marujama parameters
+    sample.set_sampling_parameters(
+        #seed=args.seed,
+        xzero=args.xzero,
+        M=args.M,
+        dt=args.dt,
+        N_lim=args.N_lim,
+    )
+
     k = args.k
 
     # initialize bias potentials coefficients
@@ -116,18 +132,8 @@ def main():
     meta_steps = 0
 
     # metadynamics algorythm for M trajectories 
-    for i in range(M):
-        omegas, mus, sigmas, steps = metadynamics_algorithm(
-            potential_name=args.potential_name,
-            alpha=alpha,
-            beta=args.beta,
-            xzero=xzero,
-            target_set=target_set,
-            k=k,
-            dt=args.dt,
-            N_lim=args.N_lim,
-            do_plots=args.do_plots,
-        )
+    for i in range(sample.M):
+        omegas, mus, sigmas, steps = metadynamics_algorithm(sample, k, do_plots=args.do_plots)
         # add coefficients
         meta_omegas = np.concatenate((meta_omegas, omegas))
         meta_mus= np.concatenate((meta_mus, mus))
@@ -135,8 +141,7 @@ def main():
         meta_steps += steps
 
     # normalize
-    meta_omegas /= M
-
+    meta_omegas /= sample.M
 
     # save bias
     meta_path = get_example_data_path(args.potential_name, alpha,
@@ -152,19 +157,11 @@ def main():
     t_final = time.time()
 
     # write report
-    write_meta_report(meta_path, args.seed, args.xzero, M, k,
-                      meta_omegas.shape[0], meta_steps, t_final - t_initial)
+    write_meta_report(sample, meta_path, args.seed, k, meta_omegas.shape[0],
+                      meta_steps, t_final - t_initial)
 
     # plot potential and gradient
     if args.do_plots:
-        # initialize langevin_1d object
-        sample = sampling.langevin_1d(
-            potential_name=args.potential_name,
-            alpha=alpha,
-            beta=args.beta,
-            target_set=target_set,
-            is_drifted=True,
-        )
 
         # set bias potential
         theta = meta_omegas / 2
@@ -180,29 +177,35 @@ def main():
         )
 
 
-def metadynamics_algorithm(potential_name, alpha, beta, xzero, k, dt, N_lim,
-                           target_set=[0.9, 1.1], seed=None, do_plots=False):
+def metadynamics_algorithm(sample, k, seed=None, do_plots=False):
     '''
     '''
+    alpha = sample.alpha
+    beta = sample.beta
+    M = sample.M
+    xzero = sample.xzero
+    dt = sample.dt
+    N_lim = sample.N_lim
+
     # set random seed
     if seed:
         np.random.seed(seed)
 
     if do_plots:
-        dir_path = get_example_data_path(potential_name, alpha, beta, target_set, 'metadynamics')
+        dir_path = os.path.join(sample.example_dir_path, 'metadynamics')
+        make_dir_path(dir_path)
         empty_dir(dir_path)
         pl = Plot(dir_path=dir_path)
 
     # target set
-    target_set_min, target_set_max = target_set
+    target_set_min, target_set_max = sample.target_set
 
     # grid x coordinate
-    X = np.linspace(-3, 3, 1000)
+    x = np.linspace(-3, 3, 1000)
 
     # potential and gradient at the grid
-    potential, gradient = get_potential_and_gradient(potential_name, alpha)
-    V = potential(X)
-    dV = gradient(X)
+    V = sample.potential(x)
+    dV = sample.gradient(x)
 
     # maximal time interval, time steps and number of time steps
     T = N_lim * dt
@@ -265,23 +268,23 @@ def metadynamics_algorithm(potential_name, alpha, beta, xzero, k, dt, N_lim,
 
             if do_plots:
                 # plot tilted potential
-                Vbias = bias_potential(X, omegas[:i], mus[:i], sigmas[:i])
+                Vbias = bias_potential(x, omegas[:i], mus[:i], sigmas[:i])
                 pl.file_name = 'tilted_potential_i_' + str(i)
                 pl.set_ylim(bottom=0, top=alpha * 10)
-                #pl.potential_and_tilted_potential(X, V, Vbias)
+                #pl.potential_and_tilted_potential(x, V, Vbias)
 
                 # plot tilted gradient
-                dVbias = bias_gradient(X, omegas[:i], mus[:i], sigmas[:i])
+                dVbias = bias_gradient(x, omegas[:i], mus[:i], sigmas[:i])
                 pl.file_name = 'tilted_drift_i_' + str(i)
                 pl.set_ylim(bottom=-alpha * 5, top=alpha * 5)
-                #pl.drift_and_tilted_drift(X, dV, dVbias)
+                #pl.drift_and_tilted_drift(x, dV, dVbias)
 
         # compute drift and diffusion coefficients
         if i == 0:
-            drift = - gradient(Xtemp) * dt
+            drift = - sample.gradient(Xtemp) * dt
         else:
             dVbias = bias_gradient(Xtemp, omegas[:i], mus[:i], sigmas[:i])
-            drift = - (gradient(Xtemp) + dVbias) * dt
+            drift = - (sample.gradient(Xtemp) + dVbias) * dt
 
         diffusion = np.sqrt(2 / beta) * dB[n-1]
 
@@ -304,21 +307,25 @@ def metadynamics_algorithm(potential_name, alpha, beta, xzero, k, dt, N_lim,
 
     return omegas[:i], mus[:i], sigmas[:i], n
 
-def write_meta_report(dir_path, seed, xzero, M, k, m, N, c_time):
+def write_meta_report(sample, dir_path, seed, k, m, N, c_time):
     file_path = os.path.join(dir_path, 'report.txt')
 
     # write in file
     f = open(file_path, "w")
 
+    sample.write_sde_parameters(f)
+    sample.write_euler_maruyama_parameters(f)
+    sample.write_sampling_parameters(f)
+
     f.write('Metadynamics parameters and statistics\n')
     f.write('seed: {:2.1f}\n'.format(seed))
-    f.write('xzero: {:2.1f}\n'.format(xzero))
-    f.write('sampled trajectories: {:,d}\n'.format(M))
     f.write('k: {:d}\n'.format(k))
     f.write('m: {:d}\n'.format(m))
-    f.write('N: {:d}\n'.format(N))
+    f.write('N: {:d}\n\n'.format(N))
+
     h, m, s = get_time_in_hms(c_time)
     f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
+    f.close()
 
 
 if __name__ == "__main__":

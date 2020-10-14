@@ -46,8 +46,16 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
+    def f(x):
+        return 1
+
+    def g(x):
+        return 0
+
     # get hjb solver
     sol = langevin_hjb_1d_solver(
+        f=f,
+        g=g,
         potential_name=args.potential_name,
         alpha=np.array(args.alpha),
         beta=args.beta,
@@ -55,12 +63,7 @@ def main():
     )
 
     # load already computed solution
-    ref_sol = np.load(os.path.join(sol.dir_path, 'reference_solution.npz'))
-    sol.domain_h = ref_sol['domain_h']
-    sol.Psi = ref_sol['Psi']
-    sol.F = ref_sol['F']
-    sol.u_opt = ref_sol['u_opt']
-    sol.exp_fht = ref_sol['exp_fht']
+    sol.load_reference_solution()
 
     # plot
     sol.plot_mgf()
