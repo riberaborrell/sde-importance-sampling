@@ -1,7 +1,6 @@
 from plotting import Plot
 import sampling
 from utils import get_gd_data_path, make_dir_path, get_time_in_hms
-from script_gd_ipa_ansatz_value_f import sample_loss
 
 import time
 import numpy as np
