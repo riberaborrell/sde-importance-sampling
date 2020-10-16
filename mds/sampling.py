@@ -30,7 +30,6 @@ class langevin_1d:
         self.example_dir_path = get_example_data_path(potential_name, alpha,
                                                       beta, target_set)
         self.dir_path = None
-        self.gd_dir_path = None
 
         #seed
         self.seed = None
@@ -124,11 +123,6 @@ class langevin_1d:
 
         self.dir_path = os.path.join(self.ansatz.dir_path, 'drifted-sampling')
         make_dir_path(self.dir_path)
-
-    def set_gd_dir_path(self, gd_type, theta_init, lr):
-        ansatz_dir_path = self.ansatz.dir_path
-        self.gd_dir_path = get_gd_data_path(ansatz_dir_path, gd_type, theta_init, lr)
-        return self.gd_dir_path
 
     def set_gaussian_ansatz_functions(self, m, sigma):
         '''
@@ -240,18 +234,19 @@ class langevin_1d:
     def set_theta_from_gd(self, gd_type, gd_theta_init, gd_lr):
         '''
         '''
-        # load gd parameters
-        gd_dir_path = self.set_gd_dir_path(gd_type, gd_theta_init, gd_lr)
-        gd = np.load(os.path.join(gd_dir_path, 'gd.npz'))
-        x = gd['domain_h']
-        idx_last_epoch = gd['epochs'][-1]
-        u = gd['u'][idx_last_epoch]
+        assert self.ansatz, ''
 
-        # ansatz functions evaluated at the grid
-        b = self.ansatz.basis_control(x)
+        # get gd dir path
+        ansatz_dir_path = self.ansatz.dir_path
+        gd_dir_path = get_gd_data_path(ansatz_dir_path, gd_type, gd_theta_init, gd_lr)
 
-        # solve a V = \Phi
-        self.theta, _, _, _ = np.linalg.lstsq(b, u, rcond=None)
+        # load gd
+        file_path = os.path.join(gd_dir_path, 'gd.npz')
+        gd = np.load(file_path)
+
+        # get last theta
+        last_epoch = gd['epochs'] - 1
+        self.theta = gd['thetas'][last_epoch, :]
         self.theta_type = 'gd'
 
         # set drifted sampling dir path
