@@ -132,9 +132,7 @@ class gradient_descent:
         # coefficients, performance function, control and free energy
         thetas = np.zeros((epochs_lim + 1, m))
         losses = np.zeros(epochs_lim)
-        grad_losses = np.zeros((epochs_lim + 1, m))
-        u = np.zeros((epochs_lim + 1, x.shape[0]))
-        F = np.zeros((epochs_lim + 1, x.shape[0]))
+        #grad_losses = np.zeros((epochs_lim + 1, m))
 
         # set initial coefficients
         thetas[0, :] = sample.theta
@@ -148,17 +146,14 @@ class gradient_descent:
             # plot control, free_energy and tilted potential
             if self.do_epoch_plots:
                 epochs_dir_path = self.epochs_dir_path
-                sample.theta = thetas[epoch, :]
                 epoch_stamp = '_epoch{}'.format(epoch)
-
-                #sample.plot_appr_mgf('appr_mgf' + epoch_stamp, epochs_dir_path)
                 sample.plot_appr_free_energy('appr_free_energy' + epoch_stamp, epochs_dir_path)
                 sample.plot_control('control' + epoch_stamp, epochs_dir_path)
                 sample.plot_tilted_potential('tilted_potential' + epoch_stamp, epochs_dir_path)
-                #sample.plot_tilted_drift('tilted_drift' + epoch_stamp, epochs_dir_path)
 
             # get loss and its gradient 
-            sample_succ, losses[epoch], grad_losses[epoch, :] = sample.sample_loss()
+            #sample_succ, losses[epoch], grad_losses[epoch, :] = sample.sample_loss()
+            sample_succ, losses[epoch], grad_losses = sample.sample_loss()
             # check if sample succeeded
             if not sample_succ:
                 break
@@ -170,7 +165,9 @@ class gradient_descent:
                 break
 
             # update coefficients
-            thetas[epoch + 1, :] = thetas[epoch, :] - lr * grad_losses[epoch, :]
+            #thetas[epoch + 1, :] = thetas[epoch, :] - lr * grad_losses[epoch, :]
+            thetas[epoch + 1, :] = thetas[epoch, :] - lr * grad_losses
+            sample.theta = thetas[epoch + 1, :]
 
 
         # save thetas, losses and grad_losses
@@ -178,17 +175,17 @@ class gradient_descent:
             self.epochs = epoch + 1
             self.thetas = thetas[:epoch+1]
             self.losses = losses[:epoch+1]
-            self.grad_losses = grad_losses[:epoch+1]
+            #self.grad_losses = grad_losses[:epoch+1]
         elif not grad_succ and sample_succ:
             self.epochs = epoch + 1
             self.thetas = thetas
             self.losses = losses
-            self.grad_losses = grad_losses
+            #self.grad_losses = grad_losses
         else:
             self.epochs = epoch
             self.thetas = thetas[:epoch]
             self.losses = losses[:epoch]
-            self.grad_losses = grad_losses[:epoch]
+            #self.grad_losses = grad_losses[:epoch]
 
         # compute eucl dist between thetas and thetas opt
         #self.a_dif = np.linalg.norm(self.a_s - self.sample.a_opt, axis=1)
@@ -196,10 +193,8 @@ class gradient_descent:
         # stop timer
         self.t_final = time.time()
 
-
-
     def save_gd(self):
-        file_path = os.path.join(self.dir_path, 'gd2.npz')
+        file_path = os.path.join(self.dir_path, 'gd.npz')
         np.savez(
             file_path,
             epochs=self.epochs,
@@ -209,7 +204,7 @@ class gradient_descent:
         )
 
     def load_gd(self):
-        file_path = os.path.join(self.dir_path, 'gd2.npz')
+        file_path = os.path.join(self.dir_path, 'gd.npz')
         gd = np.load(file_path, allow_pickle=True)
         self.epochs = gd['epochs']
         self.thetas = gd['thetas']
@@ -243,6 +238,7 @@ class gradient_descent:
         h, m, s = get_time_in_hms(self.t_final - self.t_initial)
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
 
+    #TODO: 
     def write_epoch_report(self):
         for epoch in np.arange(self.epochs):
             f.write('epoch = {:d}\n'.format(epoch))

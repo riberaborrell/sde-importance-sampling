@@ -64,6 +64,9 @@ class langevin_1d:
 
         # variables
 
+        # trajectories which arrived
+        self.M_arrived = None
+
         # first hitting time
         self.fht = None
         self.first_fht = None
@@ -72,21 +75,21 @@ class langevin_1d:
         self.var_fht = None
         self.re_fht = None
 
-        self.Psi = None
-        self.mean_Psi = None
-        self.var_Psi = None
-        self.re_Psi = None
+        self.mean_I = None
+        self.var_I = None
+        self.re_I = None
 
         # reweighting
-        self.G_fht = None
-        self.mean_G_fht = None
-        self.G_N = None
-        self.mean_G_N= None
+        self.M1_fht = None
+        self.M2_fht = None
+        self.k = None
+        self.M1_k = None
+        self.M2_k = None
+        self.mean_M_k= None
 
-        self.Psi_rew = None
-        self.mean_Psi_rew = None
-        self.var_Psi_rew = None
-        self.re_Psi_rew = None
+        self.mean_I_u = None
+        self.var_I_u = None
+        self.re_I_u = None
 
         # computational time
         self.t_initial = None
@@ -195,10 +198,8 @@ class langevin_1d:
         assert self.ansatz is not None, ''
 
         self.load_reference_solution()
-        ref_sol = self.ref_sol
-
-        x = ref_sol['domain_h']
-        F = ref_sol['F']
+        x = self.ref_sol['domain_h']
+        F = self.ref_sol['F']
 
         # compute the optimal theta given a basis of ansatz functions
         v = self.ansatz.basis_value_f(x)
@@ -273,7 +274,17 @@ class langevin_1d:
             ansatz = self.ansatz
         assert theta.shape == ansatz.mus.shape == ansatz.sigmas.shape, ''
 
-        return np.dot(ansatz.basis_value_f(x), theta)
+        # value function with constant K=0
+        value_f =  np.dot(ansatz.basis_value_f(x), theta)
+
+        # compute K
+        target_set_min, target_set_max = self.target_set
+        idx_ts = np.where((x >= target_set_min) & (x <= target_set_max))[0]
+        #K = - np.mean(value_f[idx_ts])
+        K = - value_f[idx_ts[0]]
+
+        return value_f + K
+
 
     def control(self, x, theta=None, ansatz=None):
         '''This method computes the control evaluated at x
@@ -357,18 +368,15 @@ class langevin_1d:
         self.fht = np.empty(M)
         self.fht[:] = np.NaN
 
-        if not self.is_drifted:
-            self.Psi = np.empty(M)
-            self.Psi[:] = np.NaN
-
-        else:
-            self.G_fht = np.empty(M)
-            self.G_fht[:] = np.NaN
-            self.G_N = np.empty(M)
-            self.G_N[:] = np.NaN
-
-            self.Psi_rew = np.empty(M)
-            self.Psi_rew[:] = np.NaN
+        if self.is_drifted:
+            self.M1_fht = np.empty(M)
+            self.M1_fht[:] = np.NaN
+            self.M2_fht = np.empty(M)
+            self.M2_fht[:] = np.NaN
+            self.M1_k = np.empty((M, 10))
+            self.M1_k[:, :] = np.NaN
+            self.M2_k = np.empty((M, 10))
+            self.M2_k[:, :] = np.NaN
 
     def sample_not_drifted(self):
         beta = self.beta
@@ -406,7 +414,7 @@ class langevin_1d:
                 (is_in_target_set == True) & (been_in_target_set == False)
             )[0]
 
-            # update trajectories which have been in the target set
+            # update list of indices whose trajectories have been in the target set
             been_in_target_set[new_idx] = True
 
             # save first hitting time
@@ -415,9 +423,6 @@ class langevin_1d:
             # check if all trajectories have arrived to the target set
             if been_in_target_set.all() == True:
                 break
-
-        # save quantity of interest at the fht
-        self.Psi = np.exp(-beta * self.fht)
 
 
     def sample_drifted(self):
@@ -433,9 +438,10 @@ class langevin_1d:
         # initialize Xtemp
         Xtemp = xzero * np.ones(M)
 
-        # initialize Girsanov Martingale terms, G_t = e^(G1_t + G2_t)
-        G1temp = np.zeros(M)
-        G2temp = np.zeros(M)
+        # initialize Girsanov Martingale terms, M_t = e^(M1_t + M2_t)
+        M1temp = np.zeros(M)
+        M2temp = np.zeros(M)
+        k = np.array([])
 
         # has arrived in target set
         been_in_target_set = np.repeat([False], M)
@@ -456,8 +462,8 @@ class langevin_1d:
             Xtemp += drift + diffusion
 
             # Girsanov Martingale terms
-            G1temp = G1temp - np.sqrt(beta) * utemp * dB
-            G2temp = G2temp - beta * 0.5 * (utemp ** 2) * dt
+            M1temp -= np.sqrt(beta) * utemp * dB
+            M2temp -= beta * 0.5 * (utemp ** 2) * dt
 
             # trajectories in the target set
             is_in_target_set = ((Xtemp >= target_set_min) & (Xtemp <= target_set_max))
@@ -474,17 +480,24 @@ class langevin_1d:
             self.fht[new_idx] = n * dt
 
             # save Girsanov Martingale
-            self.G_fht[new_idx] = np.exp(G1temp[new_idx] + G2temp[new_idx])
+            self.M1_fht[new_idx] = M1temp[new_idx]
+            self.M2_fht[new_idx] = M2temp[new_idx]
+
+            if n % 1000 == 0:
+                print(n, np.mean(np.exp(M1temp + M2temp)))
+                k = np.append(k, n)
+                self.M1_k[:, k.shape[0]-1] = M1temp
+                self.M2_k[:, k.shape[0]-1] = M2temp
 
             # check if all trajectories have arrived to the target set
             if been_in_target_set.all() == True:
                 # save Girsanov Martingale at the time when 
                 # the last trajectory arrive
-                self.G_N = np.exp(G1temp + G2temp)
+                k = np.append(k, n)
+                self.M1_k[:, k.shape[0]-1] = M1temp
+                self.M2_k[:, k.shape[0]-1] = M2temp
+                self.k = k
                 break
-
-        # save reweighted quantity of interest
-        self.Psi_rew = np.exp(-beta * self.fht) * self.G_fht
 
     def sample_loss(self):
         alpha = self.alpha
@@ -561,11 +574,6 @@ class langevin_1d:
 
         return True, mean_J, mean_grad_J
 
-    def save_variables(self, i, n, x):
-        # TODO: deprecated method!
-        dt = self.dt
-        beta = self.beta
-        is_drifted = self.is_drifted
 
     def compute_mean_variance_and_rel_error(self, x):
         '''This method computes the mean, the variance and the relative
@@ -587,39 +595,61 @@ class langevin_1d:
         return mean, var, re
 
     def compute_statistics(self):
+        beta = self.beta
+
         # sort out trajectories which have not arrived
-        self.fht = self.fht[np.where(np.isnan(self.fht) != True)]
+        fht = self.fht[np.where(np.isnan(self.fht) != True)]
+        self.M_arrived = fht.shape[0]
+        if self.M_arrived == 0:
+            return
 
         # first and last fht
-        self.first_fht = np.min(self.fht)
-        self.last_fht = np.max(self.fht)
+        self.first_fht = np.min(fht)
+        self.last_fht = np.max(fht)
 
         # compute mean and variance of fht
         self.mean_fht, \
         self.var_fht, \
-        self.re_fht = self.compute_mean_variance_and_rel_error(self.fht)
+        self.re_fht = self.compute_mean_variance_and_rel_error(fht)
 
         if not self.is_drifted:
-            # compute mean and variance of Psi
-            self.Psi = self.Psi[np.where(np.isnan(self.Psi) != True)]
-            self.mean_Psi, \
-            self.var_Psi, \
-            self.re_Psi = self.compute_mean_variance_and_rel_error(self.Psi)
+            # compute mean and variance of I
+            I = np.exp(-beta * fht)
+            self.mean_I, \
+            self.var_I, \
+            self.re_I = self.compute_mean_variance_and_rel_error(I)
+
+            #k = np.max(-self.beta * fht)
+            #a = np.mean(np.exp(-self.beta * fht -k))
+            #print('{:2.3e}'.format(np.exp(k) * a))
 
         else:
             # compute mean of M_fht
-            self.G_fht = self.G_fht[np.where(np.isnan(self.G_fht) != True)]
-            self.mean_G_fht = np.mean(self.G_fht)
+            M1_fht = self.M1_fht[np.where(np.isnan(self.M1_fht) != True)]
+            M2_fht = self.M2_fht[np.where(np.isnan(self.M2_fht) != True)]
+            M_fht = np.exp(M1_fht + M2_fht)
 
-            # compute mean of M_N
-            self.G_N = self.G_N[np.where(np.isnan(self.G_N) != True)]
-            self.mean_G_N= np.mean(self.G_N)
+            #print('{:2.3e}'.format(np.mean(self.M1_fht + self.M2_fht)))
+            #k = np.max(self.M1_fht + self.M2_fht)
+            #a = np.mean(np.exp(self.M1_fht + self.M2_fht -k))
+            #l = np.min(self.M1_fht + self.M2_fht)
+            #b = np.mean(np.exp(self.M1_fht + self.M2_fht -l))
+            #print('{:2.3e}'.format(np.exp(k) * a))
+            #print('{:2.3e}'.format(np.exp(l) * b))
 
-            # compute mean and variance of Psi re_weighted
-            self.Psi_rew = self.Psi_rew[np.where(np.isnan(self.Psi_rew) != True)]
-            self.mean_Psi_rew, \
-            self.var_Psi_rew, \
-            self.re_Psi_rew = self.compute_mean_variance_and_rel_error(self.Psi_rew)
+            # compute mean of M_k
+            M1_k = self.M1_k[:, :self.k.shape[0]]
+            M2_k = self.M2_k[:, :self.k.shape[0]]
+            #M1_k = M1_k[np.where(np.isnan(M1_k) != True), :]
+            #M2_k = M2_k[np.where(np.isnan(M2_k) != True), :]
+            M_k = np.exp(M1_k + M2_k)
+            self.mean_M_k = np.mean(M_k, axis=0)
+
+            # compute mean and variance of I_u
+            I_u = np.exp(-beta * fht) * M_fht
+            self.mean_I_u, \
+            self.var_I_u, \
+            self.re_I_u = self.compute_mean_variance_and_rel_error(I_u)
 
         # stop timer
         self.t_final = time.time()
@@ -671,8 +701,10 @@ class langevin_1d:
         f.write('Statistics\n\n')
 
         f.write('trajectories which arrived: {:2.2f} %\n'
-                ''.format(100 * len(self.fht) / self.M))
-        f.write('time steps last trajectory: {:,d}\n\n'.format(int(self.last_fht / self.dt)))
+                ''.format(100 * self.M_arrived / self.M))
+        if self.M_arrived == 0:
+            f.close
+            return
 
         f.write('First hitting time\n')
         f.write('first fht = {:2.3f}\n'.format(self.first_fht))
@@ -682,23 +714,23 @@ class langevin_1d:
         f.write('RE[fht] = {:2.3f}\n\n'.format(self.re_fht))
 
         if not self.is_drifted:
-            f.write('Moment generation function\n')
-            f.write('E[exp(-beta * fht)] = {:2.3e}\n'.format(self.mean_Psi))
-            f.write('Var[exp(-beta * fht)] = {:2.3e}\n'.format(self.var_Psi))
-            f.write('RE[exp(-beta * fht)] = {:2.3e}\n\n'.format(self.re_Psi))
+            f.write('Quantity of interest\n')
+            f.write('E[exp(-beta * fht)] = {:2.3e}\n'.format(self.mean_I))
+            f.write('Var[exp(-beta * fht)] = {:2.3e}\n'.format(self.var_I))
+            f.write('RE[exp(-beta * fht)] = {:2.3e}\n\n'.format(self.re_I))
 
         else:
             f.write('Girsanov Martingale\n')
-            f.write('E[M_fht] = {:2.3e}\n'.format(self.mean_G_fht))
-            f.write('E[M_N]: {:2.3e}\n\n'.format(self.mean_G_N))
+            for i, n in enumerate(self.k):
+                f.write('E[M_k] = {:2.3e}, k = {:d}\n'.format(self.mean_M_k[i], int(n)))
 
-            f.write('Reweighted Moment generation function\n')
+            f.write('\nReweighted Quantity of interest\n')
             f.write('E[exp(-beta * fht) * M_fht] = {:2.3e}\n'
-                    ''.format(self.mean_Psi_rew))
+                    ''.format(self.mean_I_u))
             f.write('Var[exp(-beta * fht) * M_fht] = {:2.3e}\n'
-                    ''.format(self.var_Psi_rew))
+                    ''.format(self.var_I_u))
             f.write('RE[exp(-beta * fht) * M_fht] = {:2.3e}\n\n'
-                    ''.format(self.re_Psi_rew))
+                    ''.format(self.re_I_u))
 
         h, m, s = get_time_in_hms(self.t_final - self.t_initial)
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
