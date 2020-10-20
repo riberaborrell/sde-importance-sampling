@@ -1,5 +1,5 @@
+from langevin_1d_importance_sampling import Sampling
 from potentials_and_gradients import POTENTIAL_NAMES
-import sampling
 
 import argparse
 import numpy as np
@@ -126,8 +126,8 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
-    # initialize langevin_1d object
-    sample = sampling.langevin_1d(
+    # initialize Sampling object
+    sample = Sampling(
         potential_name=args.potential_name,
         alpha=np.array(args.alpha),
         beta=args.beta,

@@ -1,5 +1,5 @@
 from potentials_and_gradients import get_potential_and_gradient
-from plotting import Plot
+from plots_1d import Plot1d
 from utils import get_example_data_path
 from validation import is_1d_valid_domain, is_1d_valid_target_set
 
@@ -8,7 +8,7 @@ import numpy as np
 
 import os
 
-class langevin_hjb_1d_solver():
+class Solver():
     ''' This class provides a solver of the following BVP by using a
         finite differences method:
             0 = LΨ − β f Ψ in S
@@ -149,7 +149,7 @@ class langevin_hjb_1d_solver():
             return c
 
         l = 0.001
-        sol_plus = langevin_hjb_1d_solver(
+        sol_plus = Solver(
             f=functools.partial(f, c=l),
             g=self.g,
             potential_name=self.potential_name,
@@ -161,7 +161,7 @@ class langevin_hjb_1d_solver():
         )
         sol_plus.discretize_domain()
         sol_plus.solve_bvp()
-        sol_minus = langevin_hjb_1d_solver(
+        sol_minus = Solver(
             f=functools.partial(f, c=-l),
             g=self.g,
             potential_name=self.potential_name,
@@ -219,21 +219,21 @@ class langevin_hjb_1d_solver():
     def plot_mgf(self):
         x = self.domain_h
         Psi = self.Psi
-        pl = Plot(self.dir_path, 'mgf')
+        pl = Plot1d(self.dir_path, 'mgf')
         pl.set_ylim(bottom=0, top=self.alpha * 2)
         pl.mgf(x, Psi)
 
     def plot_free_energy(self):
         x = self.domain_h
         F = self.F
-        pl = Plot(self.dir_path, 'free_energy')
+        pl = Plot1d(self.dir_path, 'free_energy')
         pl.set_ylim(bottom=0, top=self.alpha * 3)
         pl.free_energy(x, F)
 
     def plot_optimal_control(self):
         x = self.domain_h
         u = self.u_opt
-        pl = Plot(self.dir_path, 'optimal_control')
+        pl = Plot1d(self.dir_path, 'optimal_control')
         pl.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
         pl.control(x, u)
 
@@ -241,7 +241,7 @@ class langevin_hjb_1d_solver():
         x = self.domain_h
         V = self.potential(x)
         Vb_opt = 2 * self.F
-        pl = Plot(self.dir_path, 'optimal_tilted_potential')
+        pl = Plot1d(self.dir_path, 'optimal_tilted_potential')
         pl.set_ylim(bottom=0, top=self.alpha * 10)
         pl.potential_and_tilted_potential(x, V, Vbias_opt=Vb_opt)
 
@@ -249,13 +249,13 @@ class langevin_hjb_1d_solver():
         x = self.domain_h
         dV = self.gradient(x)
         dVb_opt = - np.sqrt(2) * self.u_opt
-        pl = Plot(self.dir_path, 'optimal_tilted_drift')
+        pl = Plot1d(self.dir_path, 'optimal_tilted_drift')
         pl.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
         pl.drift_and_tilted_drift(x, dV, dVbias_opt=dVb_opt)
 
     def plot_exp_fht(self):
         x = self.domain_h
         exp_fht = self.exp_fht
-        pl = Plot(self.dir_path, 'exp_fht')
+        pl = Plot1d(self.dir_path, 'exp_fht')
         pl.set_ylim(bottom=0, top=self.alpha * 5)
         pl.exp_fht(x, exp_fht)

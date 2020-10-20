@@ -1,5 +1,5 @@
+from langevin_1d_hjb_solver import Solver
 from potentials_and_gradients import POTENTIAL_NAMES
-from hjb_1d_solver import langevin_hjb_1d_solver
 
 import argparse
 import numpy as np
@@ -53,7 +53,7 @@ def main():
         return 0
 
     # get hjb solver
-    sol = langevin_hjb_1d_solver(
+    sol = Solver(
         f=f,
         g=g,
         potential_name=args.potential_name,

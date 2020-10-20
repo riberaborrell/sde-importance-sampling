@@ -1,4 +1,4 @@
-from hjb_2d_solver import langevin_2d_hjb_solver
+from langevin_2d_hjb_solver import Solver
 from potentials_and_gradients import POTENTIAL_NAMES
 
 import argparse
@@ -44,7 +44,7 @@ def main():
     args = get_parser().parse_args()
 
     # get solver
-    sol = langevin_2d_hjb_solver(
+    sol = Solver(
         potential_name=args.potential_name,
         alpha=np.array(args.alpha),
         beta=args.beta,

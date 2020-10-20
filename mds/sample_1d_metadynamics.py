@@ -1,8 +1,8 @@
-from ansatz_functions import bias_potential, \
-                             bias_gradient
-from plotting import Plot
+from gaussian_ansatz_functions import bias_potential, \
+                                      bias_gradient
+from langevin_1d_importance_sampling import Sampling
+from plots_1d import Plot1d
 from potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES
-import sampling
 from utils import make_dir_path, empty_dir, get_example_data_path, get_time_in_hms
 
 import argparse
@@ -106,7 +106,7 @@ def main():
         np.random.seed(args.seed)
 
     # initialize langevin_1d object
-    sample = sampling.langevin_1d(
+    sample = Sampling(
         potential_name=args.potential_name,
         alpha=alpha,
         beta=args.beta,
@@ -145,7 +145,7 @@ def main():
 
     # save bias
     meta_path = get_example_data_path(args.potential_name, alpha,
-                              args.beta, target_set, 'metadynamics')
+                                      args.beta, target_set, 'metadynamics')
     np.savez(
         os.path.join(meta_path, 'bias_potential.npz'),
         omegas=meta_omegas,

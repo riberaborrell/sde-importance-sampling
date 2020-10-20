@@ -1,6 +1,6 @@
-from ansatz_functions import gaussian_ansatz_functions
+from gaussian_1d_ansatz_functions import gaussian_ansatz_functions
 from potentials_and_gradients import get_potential_and_gradient
-from plotting import Plot
+from plots_1d import Plot1d
 from utils import get_example_data_path, get_gd_data_path, get_time_in_hms, make_dir_path
 from validation import is_1d_valid_domain, is_1d_valid_target_set, is_1d_valid_control
 
@@ -9,7 +9,7 @@ from scipy import stats
 import time
 import os
 
-class langevin_1d:
+class Sampling:
     '''
     '''
 
@@ -479,7 +479,6 @@ class langevin_1d:
             self.M2_fht[new_idx] = M2temp[new_idx]
 
             if n % 1000 == 0:
-                print(n, np.mean(np.exp(M1temp + M2temp)))
                 k = np.append(k, n)
                 self.M1_k[:, k.shape[0]-1] = M1temp
                 self.M2_k[:, k.shape[0]-1] = M2temp
@@ -746,7 +745,7 @@ class langevin_1d:
         if dir_path is None:
             dir_path = self.dir_path
 
-        pl = Plot(dir_path, file_name)
+        pl = Plot1d(dir_path, file_name)
         pl.set_ylim(bottom=0, top=self.alpha * 2)
         pl.mgf(x, Psi, appr_Psi)
 
@@ -762,7 +761,7 @@ class langevin_1d:
         if dir_path is None:
             dir_path = self.dir_path
 
-        pl = Plot(dir_path, file_name)
+        pl = Plot1d(dir_path, file_name)
         pl.set_ylim(bottom=0, top=self.alpha * 3)
         pl.free_energy(x, F, appr_F)
 
@@ -777,7 +776,7 @@ class langevin_1d:
         if dir_path is None:
             dir_path = self.dir_path
 
-        pl = Plot(dir_path, file_name)
+        pl = Plot1d(dir_path, file_name)
         pl.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
         pl.control(x, u_opt, u)
 
@@ -798,7 +797,7 @@ class langevin_1d:
         if dir_path is None:
             dir_path = self.dir_path
 
-        pl = Plot(dir_path, file_name)
+        pl = Plot1d(dir_path, file_name)
         pl.set_ylim(bottom=0, top=self.alpha * 10)
         pl.potential_and_tilted_potential(x, V, Vb, Vb_opt)
 
@@ -819,7 +818,7 @@ class langevin_1d:
         if dir_path is None:
             dir_path = self.dir_path
 
-        pl = Plot(dir_path, file_name)
+        pl = Plot1d(dir_path, file_name)
         pl.set_ylim(bottom=0, top=self.alpha * 10)
         pl.tilted_potential(x, V, Vb, Vb_opt)
 
@@ -841,6 +840,6 @@ class langevin_1d:
         if dir_path is None:
             dir_path = self.dir_path
 
-        pl = Plot(dir_path, file_name)
+        pl = Plot1d(dir_path, file_name)
         pl.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
         pl.drift_and_tilted_drift(x, dV, dVb, dVb_opt)

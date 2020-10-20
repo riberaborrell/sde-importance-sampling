@@ -32,7 +32,7 @@ def main():
     potential_name = args.potential_name
     alpha = np.array(args.alpha)
 
-    potential, _ = get_potential_and_gradient(potential_name, alpha)
+    potential, gradient = get_potential_and_gradient(potential_name, alpha)
 
     dir_path = get_example_data_path(potential_name, alpha)
 
@@ -47,7 +47,8 @@ def main():
     # surface plot
     # create potential
     xx, yy = np.meshgrid(x, y, sparse=True, indexing='ij')
-    V = potential(xx, yy)
+    Z = np.array([[xx, yy]])
+    V = potential(Z)[0]
 
     # clip data outside zlims
     idx_x, idx_y = np.where((V < zlim_bottom) | (V > zlim_top))
@@ -72,10 +73,8 @@ def main():
     plt.savefig(file_path)
 
     # contour plot
-    # create potential
-    xx, yy = np.meshgrid(x, y, sparse=False, indexing='ij')
-    V = potential(xx, yy)
 
+    X, Y = np.meshgrid(x, y, sparse=False, indexing='ij')
     # clip data outside zlims
     zlim_bottom, zlim_top = (0, 10)
     idx_x, idx_y = np.where((V < zlim_bottom) | (V > zlim_top))
@@ -84,8 +83,8 @@ def main():
     fig, ax = plt.subplots()
     levels = np.logspace(-2, 1, 20, endpoint=True)
     cs = ax.contourf(
-        xx,
-        yy,
+        X,
+        Y,
         V,
         vmin=0,
         vmax=10,
@@ -97,6 +96,33 @@ def main():
     ax.set_ylabel('y', fontsize=16)
     file_path = os.path.join(dir_path, 'potential_contour.png')
     plt.savefig(file_path)
+
+
+    #gradient plot
+    grad_x = np.zeros_like((X))
+    grad_y = np.zeros_like((Y))
+    for i, _ in enumerate(x):
+        for j, _ in enumerate(y):
+            Z = np.array([[x[i], y[j]]])
+            grad_x[i, j] = gradient(Z)[0, 0]
+            grad_y[i, j] = gradient(Z)[0, 1]
+
+    #grad_x = gradient(Z)[:, :, 0, 0]
+    #grad_y = gradient(Z)[:, :, 0, 1]
+
+    fig, ax = plt.subplots()
+    k = int(xx.shape[0] / 20)
+    X = X[::k, ::k]
+    Y = Y[::k, ::k]
+    U = grad_x[::k, ::k]
+    V = grad_y[::k, ::k]
+    C = np.sqrt(U**2 + V**2)
+    quiv = ax.quiver(X, Y, U, V, C, angles='xy', scale_units='xy')
+    ax.set_xlabel('x', fontsize=16)
+    ax.set_ylabel('y', fontsize=16)
+    file_path = os.path.join(dir_path, 'gradient_vector_field.png')
+    plt.savefig(file_path)
+    plt.close()
 
 
 if __name__ == "__main__":

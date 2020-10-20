@@ -1,5 +1,5 @@
+from plots_1d import Plot1d
 from utils import get_ansatz_data_path
-from plotting import Plot
 from validation import is_1d_valid_domain
 
 import numpy as np
@@ -82,6 +82,7 @@ class gaussian_ansatz_functions:
         '''
         mus_min, mus_max = self.domain
         m = self.m
+        assert m >= 2, ''
 
         self.mus = np.around(np.linspace(mus_min, mus_max, m), decimals=2)
         if sigma is None:
@@ -193,13 +194,13 @@ class gaussian_ansatz_functions:
 
         # basis value function
         v = self.basis_value_f(x)
-        pl = Plot(dir_path=self.dir_path, file_name='basis_value_f')
+        pl = Plot1d(dir_path=self.dir_path, file_name='basis_value_f')
         pl.set_title(r'$v_{j}(x; \mu, \sigma)$')
         pl.ansatz_value_f(x, v)
 
         # basis control
         b = self.basis_control(x)
-        pl = Plot(dir_path=self.dir_path, file_name='basis_control')
+        pl = Plot1d(dir_path=self.dir_path, file_name='basis_control')
         pl.set_title(r'$b_{j}(x; \mu, \sigma)$')
         pl.ansatz_control(x, b)
 

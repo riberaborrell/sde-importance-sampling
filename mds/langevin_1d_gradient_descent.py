@@ -1,12 +1,11 @@
-from plotting import Plot
-import sampling
+from plots_1d import Plot1d
 from utils import get_gd_data_path, make_dir_path, get_time_in_hms
 
 import time
 import numpy as np
 import os
 
-class gradient_descent:
+class GradientDescent:
     '''
     '''
     def __init__(self, sample, grad_type, theta_init,

@@ -1,6 +1,6 @@
+from langevin_1d_gradient_descent import GradientDescent
+from langevin_1d_importance_sampling import Sampling
 from potentials_and_gradients import POTENTIAL_NAMES
-import gradient_descent
-import sampling
 from utils import make_dir_path
 
 import argparse
@@ -80,8 +80,8 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
-    # initialize langevin_1d object
-    sample = sampling.langevin_1d(
+    # initialize Sampling object
+    sample = Sampling(
         potential_name=args.potential_name,
         alpha=np.array(args.alpha),
         beta=args.beta,
@@ -93,7 +93,7 @@ def main():
     sample.set_gaussian_ansatz_functions(args.m, args.sigma)
 
     # initialize gradient descent object
-    gd = gradient_descent.gradient_descent(
+    gd = GradientDescent(
         sample=sample,
         grad_type='ipa-value-f',
         theta_init=args.theta_init,

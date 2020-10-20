@@ -10,7 +10,7 @@ from inspect import isfunction
 
 import os
 
-class langevin_2d_hjb_solver():
+class Solver():
     ''' This class provides a solver of the following BVP by using a
         finite differences method:
             0 = LΨ − β f Ψ in S
@@ -27,16 +27,9 @@ class langevin_2d_hjb_solver():
         # validate domain
         if domain is None:
             domain = np.array([[-3, 3], [-3, 3]])
-        assert domain.ndim == 2, ''
-        assert domain.shape == (2, 2), ''
-        assert domain[0][0] < domain[0][1], ''
-        assert domain[1][0] < domain[1][1], ''
+        #is_2d_valid_domain(domain)
 
         # validate target set
-        assert target_set.ndim == 2, ''
-        assert target_set.shape == (2, 2), ''
-        assert target_set[0][0] < target_set[0][1], ''
-        assert target_set[1][0] < target_set[1][1], ''
 
         # dir_path
         self.dir_path = get_example_data_path(potential_name, alpha, beta,
@@ -174,7 +167,10 @@ class langevin_2d_hjb_solver():
             if k not in idx_ts and k not in idx_boundary:
                 x = self.get_x(k)
                 y = self.get_y(k)
-                dVx, dVy = gradient(x, y)
+                #dVx, dVy = gradient(x, y)
+                z = np.array([[x, y]])
+                dVx = gradient(z)[0, 0]
+                dVy = gradient(z)[0, 1]
                 A[k, k] = - 4 / (beta**2 * h**2) - 1
                 A[k, k -1] = 1 / (beta**2 * h**2) + dVx / (beta * 2 * h)
                 A[k, k +1] = 1 / (beta**2 * h**2) - dVx / (beta * 2 * h)

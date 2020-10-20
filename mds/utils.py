@@ -119,14 +119,13 @@ def get_sde_stamp(alpha, beta):
 def get_target_set_stamp(target_set):
     if type(target_set) == str:
         return target_set
-    elif type(target_set) == np.ndarray:
+    if type(target_set) == np.ndarray and target_set.ndim > 1:
         if target_set.ndim == 2 and target_set.shape == (2, 2):
             target_set = target_set.reshape((target_set.shape[0] * target_set.shape[1]))
-        assert target_set.ndim == 1, ''
-        target_set_stamp = 'target_set'
-        for entry in target_set:
-            target_set_stamp += '_{}'.format(float(entry))
-        return target_set_stamp
+    target_set_stamp = 'target_set'
+    for entry in target_set:
+        target_set_stamp += '_{}'.format(float(entry))
+    return target_set_stamp
 
 def get_m_stamp(m):
     return 'm_{}'.format(m)

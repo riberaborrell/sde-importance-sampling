@@ -1,4 +1,4 @@
-from hjb_2d_solver import langevin_2d_hjb_solver
+from langevin_2d_hjb_solver import Solver
 from potentials_and_gradients import POTENTIAL_NAMES
 
 import argparse
@@ -14,7 +14,7 @@ def get_parser():
         dest='potential_name',
         choices=POTENTIAL_NAMES,
         default='2d_4well',
-        help='Set the potential for the 2D MD SDE. Default: symmetric quadruple well',
+        help='Set the potential for the 2D MD SDE. Default: quadruple well',
     )
     parser.add_argument(
         '--alpha',
@@ -45,7 +45,7 @@ def get_parser():
         dest='target_set',
         type=float,
         default=[0.9, 1.1, 0.9, 1.1],
-        help='Set the target set interval. Default: [[0.9, 1.1],[0.9, 1.1]]',
+        help='Set the target set interval. Default: [[0.9, 1.1], [0.9, 1.1]]',
     )
     parser.add_argument(
         '--h',
@@ -66,7 +66,7 @@ def main():
     args = get_parser().parse_args()
 
     # compute reference solution
-    sol = langevin_2d_hjb_solver(
+    sol = Solver(
         potential_name=args.potential_name,
         alpha=np.array(args.alpha),
         beta=args.beta,

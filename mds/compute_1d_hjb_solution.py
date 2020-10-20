@@ -1,5 +1,5 @@
+from langevin_1d_hjb_solver import Solver
 from potentials_and_gradients import POTENTIAL_NAMES
-from hjb_1d_solver import langevin_hjb_1d_solver
 
 import argparse
 import numpy as np
@@ -51,8 +51,8 @@ def get_parser():
         '--h',
         dest='h',
         type=float,
-        default=0.001,
-        help='Set the discretization step size. Default: 0.001',
+        default=0.01,
+        help='Set the discretization step size. Default: 0.01',
     )
     parser.add_argument(
         '--do-plots',
@@ -72,7 +72,7 @@ def main():
         return 0
 
     # compute reference solution
-    sol = langevin_hjb_1d_solver(
+    sol = Solver(
         f=f,
         g=g,
         potential_name=args.potential_name,

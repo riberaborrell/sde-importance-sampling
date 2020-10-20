@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 import os
 
-class Plot:
+class Plot1d:
     dir_path = get_example_data_path()
     def __init__(self, dir_path=dir_path, file_name=None, file_type='png'):
         self.file_name = file_name
