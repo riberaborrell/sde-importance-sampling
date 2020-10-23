@@ -1,9 +1,9 @@
-from gaussian_ansatz_functions import bias_potential, \
+from mds.gaussian_ansatz_functions import bias_potential, \
                                       bias_gradient
-from langevin_1d_importance_sampling import Sampling
-from plots_1d import Plot1d
-from potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES
-from utils import make_dir_path, empty_dir, get_example_data_path, get_time_in_hms
+from mds.langevin_1d_importance_sampling import Sampling
+from mds.plots_1d import Plot1d
+from mds.potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES
+from mds.utils import make_dir_path, empty_dir, get_example_data_path, get_time_in_hms
 
 import argparse
 import numpy as np

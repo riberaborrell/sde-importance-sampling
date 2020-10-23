@@ -1,7 +1,7 @@
-from langevin_1d_gradient_descent import GradientDescent
-from langevin_1d_importance_sampling import Sampling
-from plots_1d import Plot1d
-from potentials_and_gradients import POTENTIAL_NAMES
+from mds.langevin_1d_gradient_descent import GradientDescent
+from mds.langevin_1d_importance_sampling import Sampling
+from mds.plots_1d import Plot1d
+from mds.potentials_and_gradients import POTENTIAL_NAMES
 
 import argparse
 import numpy as np

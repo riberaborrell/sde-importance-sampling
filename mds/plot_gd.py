@@ -1,5 +1,5 @@
-from potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES
-from script_utils import get_reference_solution, \
+from mds.potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES
+from mds.script_utils import get_reference_solution, \
                          plot_appr_free_energy, \
                          plot_control, \
                          plot_tilted_potential, \
@@ -9,7 +9,7 @@ from script_utils import get_reference_solution, \
                          plot_gd_losses, \
                          plot_gd_losses_bar
 
-from utils import get_example_data_path, get_ansatz_data_path, get_gd_data_path, make_dir_path
+from mds.utils import get_example_data_path, get_ansatz_data_path, get_gd_data_path, make_dir_path
 
 import argparse
 import numpy as np

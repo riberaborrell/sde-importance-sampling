@@ -1,4 +1,4 @@
-from utils import get_example_data_path
+from mds.utils import get_example_data_path
 
 import numpy as np
 import matplotlib.pyplot as plt

@@ -1,6 +1,6 @@
-from plotting import Plot
-from potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES, POTENTIAL_TITLES, POTENTIAL_LABELS
-from utils import get_example_data_path
+from mds.plots_1d import Plot1d
+from mds.potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES, POTENTIAL_TITLES, POTENTIAL_LABELS
+from mds.utils import get_example_data_path
 
 import argparse
 import numpy as np

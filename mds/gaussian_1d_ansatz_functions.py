@@ -1,6 +1,6 @@
-from plots_1d import Plot1d
-from utils import get_ansatz_data_path
-from validation import is_1d_valid_domain
+from mds.plots_1d import Plot1d
+from mds.utils import get_ansatz_data_path
+from mds.validation import is_1d_valid_domain
 
 import numpy as np
 import scipy.stats as stats

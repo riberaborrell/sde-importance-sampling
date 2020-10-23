@@ -1,6 +1,6 @@
-from potentials_and_gradients import get_potential_and_gradient
-from utils import get_example_data_path
-from numpy_utils import coarse_matrix
+from mds.potentials_and_gradients import get_potential_and_gradient
+from mds.utils import get_example_data_path
+from mds.numpy_utils import coarse_matrix
 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm

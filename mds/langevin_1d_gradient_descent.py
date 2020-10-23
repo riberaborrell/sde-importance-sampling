@@ -1,5 +1,5 @@
-from plots_1d import Plot1d
-from utils import get_gd_data_path, make_dir_path, get_time_in_hms
+from mds.plots_1d import Plot1d
+from mds.utils import get_gd_data_path, make_dir_path, get_time_in_hms
 
 import time
 import numpy as np

@@ -1,7 +1,7 @@
-from potentials_and_gradients import get_potential_and_gradient
-from plots_1d import Plot1d
-from utils import get_example_data_path
-from validation import is_1d_valid_domain, is_1d_valid_target_set
+from mds.potentials_and_gradients import get_potential_and_gradient
+from mds.plots_1d import Plot1d
+from mds.utils import get_example_data_path
+from mds.validation import is_1d_valid_domain, is_1d_valid_target_set
 
 import functools
 import numpy as np

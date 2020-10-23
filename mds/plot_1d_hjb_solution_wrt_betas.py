@@ -1,7 +1,7 @@
-from hjb_1d_solver import langevin_hjb_1d_solver
-from plotting import Plot
-from potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES
-from utils import get_data_path
+from mds.hjb_1d_solver import langevin_hjb_1d_solver
+from mds.plots_1d import Plot1d
+from mds.potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES
+from mds.utils import get_data_path
 
 import argparse
 import numpy as np

@@ -1,8 +1,7 @@
-from mds.gaussian_1d_ansatz_functions import gaussian_ansatz_functions
+from mds.gaussian_2d_ansatz_functions import gaussian_ansatz_functions
 from mds.potentials_and_gradients import get_potential_and_gradient
-from mds.plots_1d import Plot1d
 from mds.utils import get_example_data_path, get_gd_data_path, get_time_in_hms, make_dir_path
-from mds.validation import is_1d_valid_domain, is_1d_valid_target_set, is_1d_valid_control
+#from mds.validation import is_1d_valid_domain, is_1d_valid_target_set, is_1d_valid_control
 
 import numpy as np
 from scipy import stats
@@ -22,9 +21,9 @@ class Sampling:
 
         # validate domain and target set
         if domain is None:
-            domain = np.array([-3, 3])
-        is_1d_valid_domain(domain)
-        is_1d_valid_target_set(domain, target_set)
+            domain = np.array([[-3, 3], [-3, 3]])
+        #is_1d_valid_domain(domain)
+        #is_1d_valid_target_set(domain, target_set)
 
         # dir_path
         self.example_dir_path = get_example_data_path(potential_name, alpha,
@@ -50,6 +49,10 @@ class Sampling:
 
         # domain discretization
         self.h = h
+        self.meshgrid = None
+        self.Nx = None
+        self.Ny = None
+        self.N = None
         self.discretize_domain()
 
         # Euler-Marujama
@@ -102,16 +105,22 @@ class Sampling:
 
 
     def discretize_domain(self, h=None):
-        ''' this method discretizes the domain interval uniformly with step-size h
+        ''' this method discretizes the rectangular domain uniformly with step-size h
         Args:
             h (float): step-size
         '''
         if h is None:
             h = self.h
 
-        D_min, D_max = self.domain
-        self.N = int((D_max - D_min) / h) + 1
-        self.domain_h = np.around(np.linspace(D_min, D_max, self.N), decimals=3)
+        D_xmin, D_xmax = self.domain[0]
+        D_ymin, D_ymax = self.domain[1]
+
+        x = np.arange(D_xmin, D_xmax + h, h)
+        y = np.arange(D_ymin, D_ymax + h, h)
+        self.meshgrid = np.meshgrid(x, y, sparse=True, indexing='ij')
+        self.Nx = x.shape[0]
+        self.Ny = y.shape[0]
+        self.N = x.shape[0] * y.shape[0]
 
     def set_not_drifted_dir_path(self):
         self.dir_path = os.path.join(self.example_dir_path, 'not-drifted-sampling')
@@ -379,19 +388,23 @@ class Sampling:
         N_lim = self.N_lim
         xzero = self.xzero
         M = self.M
-        target_set_min, target_set_max = self.target_set
+        target_set_x, target_set_y = self.target_set
+        target_set_x_min, target_set_x_max = target_set_x
+        target_set_y_min, target_set_y_max = target_set_y
 
         self.initialize_sampling_variables()
 
         # initialize Xtemp
-        Xtemp = xzero * np.ones(M)
+        Xtemp = np.ones((M, 2))
+        Xtemp[:, 0] *= xzero[0]
+        Xtemp[:, 1] *= xzero[1]
 
         # has arrived in target set
         been_in_target_set = np.repeat([False], M)
 
         for n in np.arange(1, N_lim +1):
             # Brownian increment
-            dB = np.sqrt(dt) * np.random.normal(0, 1, M)
+            dB = (np.sqrt(dt) * np.random.normal(0, 1, M)).reshape((M, 1))
 
             # compute gradient
             gradient = self.gradient(Xtemp)
@@ -402,7 +415,12 @@ class Sampling:
             Xtemp += drift + diffusion
 
             # trajectories in the target set
-            is_in_target_set = ((Xtemp >= target_set_min) & (Xtemp <= target_set_max))
+            is_in_target_set = (
+                (Xtemp[:, 0] >= target_set_x_min) &
+                (Xtemp[:, 0] <= target_set_x_max) &
+                (Xtemp[:, 1] >= target_set_y_min) &
+                (Xtemp[:, 1] <= target_set_y_max)
+            )
 
             # indices of trajectories new in the target set
             new_idx = np.where(
@@ -479,6 +497,7 @@ class Sampling:
             self.M2_fht[new_idx] = M2temp[new_idx]
 
             if n % 1000 == 0:
+                print(n, np.mean(np.exp(M1temp + M2temp)))
                 k = np.append(k, n)
                 self.M1_k[:, k.shape[0]-1] = M1temp
                 self.M2_k[:, k.shape[0]-1] = M2temp
@@ -664,9 +683,13 @@ class Sampling:
 
     def write_sampling_parameters(self, f):
         f.write('Sampling parameters\n')
-        f.write('xzero: {:2.1f}\n'.format(self.xzero))
-        f.write('target set: [{:2.1f}, {:2.1f}]\n'
-                ''.format(self.target_set[0], self.target_set[1]))
+        f.write('xzero: ({:2.1f}, {:2.1f})\n'.format(self.xzero[0], self.xzero[1]))
+        f.write('target set: [[{:2.1f}, {:2.1f}], [{:2.1f}, {:2.1f}]]\n'.format(
+            self.target_set[0, 0],
+            self.target_set[0, 1],
+            self.target_set[1, 0],
+            self.target_set[1, 1],
+        ))
         f.write('sampled trajectories: {:,d}\n\n'.format(self.M))
 
     def write_report(self):
@@ -679,7 +702,7 @@ class Sampling:
             theta_stamp = ''
 
         trajectories_stamp = 'M{:.0e}'.format(self.M)
-        file_name = 'report_' + theta_stamp + trajectories_stamp + '.txt'
+        file_name = 'report_2d_' + theta_stamp + trajectories_stamp + '.txt'
         file_path = os.path.join(self.dir_path, file_name)
 
         # write in file
@@ -745,7 +768,7 @@ class Sampling:
         if dir_path is None:
             dir_path = self.dir_path
 
-        pl = Plot1d(dir_path, file_name)
+        pl = Plot(dir_path, file_name)
         pl.set_ylim(bottom=0, top=self.alpha * 2)
         pl.mgf(x, Psi, appr_Psi)
 
@@ -761,7 +784,7 @@ class Sampling:
         if dir_path is None:
             dir_path = self.dir_path
 
-        pl = Plot1d(dir_path, file_name)
+        pl = Plot(dir_path, file_name)
         pl.set_ylim(bottom=0, top=self.alpha * 3)
         pl.free_energy(x, F, appr_F)
 
@@ -776,7 +799,7 @@ class Sampling:
         if dir_path is None:
             dir_path = self.dir_path
 
-        pl = Plot1d(dir_path, file_name)
+        pl = Plot(dir_path, file_name)
         pl.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
         pl.control(x, u_opt, u)
 
@@ -797,7 +820,7 @@ class Sampling:
         if dir_path is None:
             dir_path = self.dir_path
 
-        pl = Plot1d(dir_path, file_name)
+        pl = Plot(dir_path, file_name)
         pl.set_ylim(bottom=0, top=self.alpha * 10)
         pl.potential_and_tilted_potential(x, V, Vb, Vb_opt)
 
@@ -818,7 +841,7 @@ class Sampling:
         if dir_path is None:
             dir_path = self.dir_path
 
-        pl = Plot1d(dir_path, file_name)
+        pl = Plot(dir_path, file_name)
         pl.set_ylim(bottom=0, top=self.alpha * 10)
         pl.tilted_potential(x, V, Vb, Vb_opt)
 
@@ -840,6 +863,6 @@ class Sampling:
         if dir_path is None:
             dir_path = self.dir_path
 
-        pl = Plot1d(dir_path, file_name)
+        pl = Plot(dir_path, file_name)
         pl.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
         pl.drift_and_tilted_drift(x, dV, dVb, dVb_opt)

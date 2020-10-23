@@ -1,5 +1,5 @@
-from potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES
-from utils import get_example_data_path
+from mds.potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES
+from mds.utils import get_example_data_path
 
 import argparse
 import numpy as np

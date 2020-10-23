@@ -1,5 +1,5 @@
-from langevin_2d_hjb_solver import Solver
-from potentials_and_gradients import POTENTIAL_NAMES
+from mds.langevin_2d_hjb_solver import Solver
+from mds.potentials_and_gradients import POTENTIAL_NAMES
 
 import argparse
 import numpy as np
