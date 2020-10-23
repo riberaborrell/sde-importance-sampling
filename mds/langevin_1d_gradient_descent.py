@@ -277,9 +277,9 @@ class GradientDescent:
         sample.load_reference_solution()
         F = sample.ref_sol['F']
 
-        pl = Plot(self.dir_path, 'gd_appr_free_energy')
-        pl.set_ylim(bottom= 0, top=sample.alpha * 3)
-        pl.gd_appr_free_energies(x, epochs_to_show, F_appr, F)
+        plt1d = Plot1d(self.dir_path, 'gd_appr_free_energy')
+        plt1d.set_ylim(bottom= 0, top=sample.alpha * 3)
+        plt1d.gd_appr_free_energies(x, epochs_to_show, F_appr, F)
 
     def plot_gd_controls(self):
         sample = self.sample
@@ -295,9 +295,9 @@ class GradientDescent:
         sample.load_reference_solution()
         u_opt = sample.ref_sol['u_opt']
 
-        pl = Plot(self.dir_path, 'gd_controls')
-        pl.set_ylim(bottom=-sample.alpha * 5, top=sample.alpha * 5)
-        pl.gd_controls(x, epochs_to_show, u, u_opt)
+        plt1d = Plot1d(self.dir_path, 'gd_controls')
+        plt1d.set_ylim(bottom=-sample.alpha * 5, top=sample.alpha * 5)
+        plt1d.gd_controls(x, epochs_to_show, u, u_opt)
 
     def plot_gd_tilted_potentials(self):
         sample = self.sample
@@ -315,9 +315,9 @@ class GradientDescent:
         F = sample.ref_sol['F']
         Vbias_opt = 2 * F
 
-        pl = Plot(self.dir_path, 'gd_tilted_potentials')
-        pl.set_ylim(bottom= 0, top=sample.alpha * 10)
-        pl.gd_tilted_potentials(x, V, epochs_to_show, Vbias, Vbias_opt)
+        plt1d = Plot1d(self.dir_path, 'gd_tilted_potentials')
+        plt1d.set_ylim(bottom= 0, top=sample.alpha * 10)
+        plt1d.gd_tilted_potentials(x, V, epochs_to_show, Vbias, Vbias_opt)
 
     def plot_gd_losses(self):
         losses = self.losses
@@ -325,10 +325,10 @@ class GradientDescent:
         max_loss = np.max(losses)
         value_f = 1.7
 
-        pl = Plot(self.dir_path, 'gd_losses_bar')
-        pl.set_ylim(bottom=0, top=max_loss * 1.2)
-        pl.gd_losses_bar(epochs, losses, value_f)
+        plt1d = Plot1d(self.dir_path, 'gd_losses_bar')
+        plt1d.set_ylim(bottom=0, top=max_loss * 1.2)
+        plt1d.gd_losses_bar(epochs, losses, value_f)
 
-        pl = Plot(self.dir_path, 'gd_losses_line')
-        pl.set_ylim(bottom=0, top=max_loss * 1.2)
-        pl.gd_losses_line(epochs, losses, value_f)
+        plt1d = Plot1d(self.dir_path, 'gd_losses_line')
+        plt1d.set_ylim(bottom=0, top=max_loss * 1.2)
+        plt1d.gd_losses_line(epochs, losses, value_f)

@@ -93,27 +93,27 @@ def main():
 
     # plot free energy
     file_name = 'free_energy_wrt_betas'
-    plot = Plot(dir_path, file_name)
-    plot.set_ylim(bottom=0, top=alpha[0] * 3)
-    plot.free_energy_wrt_betas(X, betas, F)
+    plt1d = Plot1d(dir_path, file_name)
+    plt1d.set_ylim(bottom=0, top=alpha[0] * 3)
+    plt1d.free_energy_wrt_betas(X, betas, F)
 
     # plot tilted potential
     file_name = 'optimal_tilted_potential_wrt_betas'
-    plot = Plot(dir_path, file_name)
-    plot.set_ylim(bottom=0, top=alpha[0] * 10)
-    plot.tilted_potential_wrt_betas(X, V, betas, 2 * F)
+    plt1d = Plot1d(dir_path, file_name)
+    plt1d.set_ylim(bottom=0, top=alpha[0] * 10)
+    plt1d.tilted_potential_wrt_betas(X, V, betas, 2 * F)
 
     # plot tilted drift 
     file_name = 'optimal_tilted_drift_wrt_betas'
-    plot = Plot(dir_path, file_name)
-    plot.set_ylim(bottom=-alpha[0] * 5, top=alpha[0] * 5)
-    plot.tilted_drift_wrt_betas(X, dV, betas, -np.sqrt(2) * u_opt)
+    plt1d = Plot1d(dir_path, file_name)
+    plt1d.set_ylim(bottom=-alpha[0] * 5, top=alpha[0] * 5)
+    plt1d.tilted_drift_wrt_betas(X, dV, betas, -np.sqrt(2) * u_opt)
 
     # plot control
     file_name = 'optimal_control_wrt_betas'
-    plot = Plot(dir_path, file_name)
-    plot.set_ylim(bottom=-alpha[0] * 5, top=alpha[0] * 5)
-    plot.control_wrt_betas(X, betas, u_opt)
+    plt1d = Plot1d(dir_path, file_name)
+    plt1d.set_ylim(bottom=-alpha[0] * 5, top=alpha[0] * 5)
+    plt1d.control_wrt_betas(X, betas, u_opt)
 
 
 if __name__ == "__main__":

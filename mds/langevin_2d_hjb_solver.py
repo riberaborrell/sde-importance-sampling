@@ -58,13 +58,13 @@ class Solver():
     def discretize_domain(self):
         ''' this method discretizes the rectangular domain uniformly with step-size h
         '''
-        D_xmin, D_xmax = self.domain[0]
-        D_ymin, D_ymax = self.domain[1]
+        d_xmin, d_xmax = self.domain[0]
+        d_ymin, d_ymax = self.domain[1]
         h = self.h
         assert h is not None, ''
 
-        x = np.arange(D_xmin, D_xmax + h, h)
-        y = np.arange(D_ymin, D_ymax + h, h)
+        x = np.arange(d_xmin, d_xmax + h, h)
+        y = np.arange(d_ymin, d_ymax + h, h)
         self.meshgrid = np.meshgrid(x, y, sparse=True, indexing='ij')
         self.Nx = x.shape[0]
         self.Ny = y.shape[0]

@@ -1,5 +1,5 @@
-from mds.gaussian_2d_ansatz_functions import gaussian_ansatz_functions
-from mds.potentials_and_gradients import get_potential_and_gradient
+from mds.gaussian_2d_ansatz_functions import GaussianAnsatz
+from mds.potentials_and_gradients_2d import get_potential_and_gradient
 from mds.utils import get_example_data_path, get_gd_data_path, get_time_in_hms, make_dir_path
 #from mds.validation import is_1d_valid_domain, is_1d_valid_target_set, is_1d_valid_control
 
@@ -17,7 +17,7 @@ class Sampling:
         '''
         '''
         # get potential and gradient functions
-        potential, gradient = get_potential_and_gradient(potential_name, alpha)
+        potential, gradient, _, _, _ = get_potential_and_gradient(potential_name, alpha)
 
         # validate domain and target set
         if domain is None:
@@ -112,11 +112,11 @@ class Sampling:
         if h is None:
             h = self.h
 
-        D_xmin, D_xmax = self.domain[0]
-        D_ymin, D_ymax = self.domain[1]
+        d_xmin, d_xmax = self.domain[0]
+        d_ymin, d_ymax = self.domain[1]
 
-        x = np.arange(D_xmin, D_xmax + h, h)
-        y = np.arange(D_ymin, D_ymax + h, h)
+        x = np.arange(d_xmin, d_xmax + h, h)
+        y = np.arange(d_ymin, d_ymax + h, h)
         self.meshgrid = np.meshgrid(x, y, sparse=True, indexing='ij')
         self.Nx = x.shape[0]
         self.Ny = y.shape[0]
@@ -133,39 +133,20 @@ class Sampling:
         self.dir_path = os.path.join(self.ansatz.dir_path, 'drifted-sampling')
         make_dir_path(self.dir_path)
 
-    def set_gaussian_ansatz_functions(self, m, sigma):
+    def set_gaussian_ansatz_functions(self, m_x, m_y, sigma_x=None, sigma_y=None):
         '''
         '''
         assert self.is_drifted, ''
 
         # set gaussian ansatz functions
-        ansatz = gaussian_ansatz_functions(
+        ansatz = GaussianAnsatz(
             domain=self.domain,
-            m=m,
         )
-        ansatz.set_unif_dist_ansatz_functions(sigma)
-        #ansatz.set_unif_dist_ansatz_functions_on_S(m)
+        ansatz.set_unif_dist_ansatz_functions(m_x, m_y, sigma_x, sigma_y)
 
         # set ansatz dir path
         ansatz.set_dir_path(self.example_dir_path)
         self.ansatz = ansatz
-
-    def set_bias_potential(self, theta, mus, sigmas):
-        ''' set the gaussian ansatz functions and the coefficients theta
-        Args:
-            theta (ndarray): parameters
-            mus (ndarray): mean of each gaussian
-            sigmas (ndarray) : standard deviation of each gaussian
-        '''
-        assert self.is_drifted, ''
-        assert theta.shape == mus.shape == sigmas.shape, ''
-
-        # set gaussian ansatz functions
-        ansatz = gaussian_ansatz_functions(domain=self.domain)
-        ansatz.set_given_ansatz_functions(mus, sigmas)
-
-        self.ansatz = ansatz
-        self.theta = theta
 
     def load_meta_bias_potential(self):
         if not self.meta_bias_pot:
@@ -227,7 +208,7 @@ class Sampling:
         assert meta_theta.shape == meta_mus.shape == meta_sigmas.shape, ''
 
         # create ansatz functions from meta
-        meta_ansatz = gaussian_ansatz_functions(domain=self.domain)
+        meta_ansatz = GaussianAnsatz(domain=self.domain)
         meta_ansatz.set_given_ansatz_functions(meta_mus, meta_sigmas)
 
         # meta value function evaluated at the grid

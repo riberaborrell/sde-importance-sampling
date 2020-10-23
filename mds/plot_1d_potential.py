@@ -1,5 +1,6 @@
 from mds.plots_1d import Plot1d
-from mds.potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES, POTENTIAL_TITLES, POTENTIAL_LABELS
+#from mds.potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES, POTENTIAL_TITLES, POTENTIAL_LABELS
+from mds.potentials_and_gradients_1d import get_potential_and_gradient, POTENTIAL_NAMES
 from mds.utils import get_example_data_path
 
 import argparse
@@ -40,30 +41,26 @@ def main():
     alphas = np.array(args.alphas)
     num_plots = args.num_plots
 
-    # plot title
-    title = POTENTIAL_TITLES[potential_name]
-    title = r'$V(x; \alpha) = \alpha (x^2 - 1)^2$'
-
     # plot potentials
     x = np.linspace(-3, 3, 1000)
     if num_plots == 1:
         # compute potential
         alpha = alphas
-        potential, gradient = get_potential_and_gradient(potential_name, alpha)
+        potential, \
+        gradient, \
+        pot_formula, \
+        grad_formula, \
+        parameters = get_potential_and_gradient(potential_name, alpha)
         V = potential(x)
 
         # get plot path
         dir_path = get_example_data_path(potential_name, alpha)
-        file_name = 'potential'
-
-        #label = POTENTIAL_LABELS[potential_name].format(tuple(alpha))
-        label = r'$\alpha = {:2.1f}$'.format(alpha[0])
 
         # plot
-        plot = Plot(dir_path, file_name)
-        plot.set_ylim(bottom=0, top=alphas[0] * 10)
-        plot.set_title(title)
-        plot.potential(x, V, label)
+        plt1d = Plot1d(dir_path, 'potential')
+        plt1d.set_ylim(bottom=0, top=alphas[0] * 10)
+        plt1d.set_title(pot_formula)
+        plt1d.potential(x, V, parameters)
     else:
         # compute potential
         assert alphas.shape[0] % num_plots == 0, ''
@@ -71,22 +68,24 @@ def main():
         Vs = np.zeros((num_plots, x.shape[0]))
         alpha_dim = int(alphas.shape[0] / num_plots)
         alphas = alphas.reshape((num_plots, alpha_dim))
+        labels = []
         for i in range(num_plots):
-            potential, gradient = get_potential_and_gradient(potential_name, alphas[i])
+            potential, \
+            gradient, \
+            pot_formula, \
+            grad_formula, \
+            parameters = get_potential_and_gradient(potential_name, alphas[i])
+            labels.append(parameters)
             Vs[i] = potential(x)
 
         # get plot path
         dir_path = get_example_data_path(potential_name)
-        file_name = 'potentials'
-
-        #labels = None
-        labels = [r'$\alpha = {:2.1f}$'.format(float(alpha)) for alpha in alphas]
 
         # plot
-        plot = Plot(dir_path, file_name)
-        plot.set_ylim(bottom=0, top=alphas.max() * 2)
-        plot.set_title(title)
-        plot.potentials(x, Vs, labels)
+        plt1d = Plot1d(dir_path, 'potentials')
+        plt1d.set_ylim(bottom=0, top=alphas.max() * 2)
+        plt1d.set_title(pot_formula)
+        plt1d.potentials(x, Vs, labels)
 
 if __name__ == "__main__":
     main()

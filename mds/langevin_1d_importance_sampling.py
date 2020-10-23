@@ -1,5 +1,5 @@
-from mds.gaussian_1d_ansatz_functions import gaussian_ansatz_functions
-from mds.potentials_and_gradients import get_potential_and_gradient
+from mds.gaussian_1d_ansatz_functions import GaussianAnsatz
+from mds.potentials_and_gradients_1d import get_potential_and_gradient
 from mds.plots_1d import Plot1d
 from mds.utils import get_example_data_path, get_gd_data_path, get_time_in_hms, make_dir_path
 from mds.validation import is_1d_valid_domain, is_1d_valid_target_set, is_1d_valid_control
@@ -124,17 +124,16 @@ class Sampling:
         self.dir_path = os.path.join(self.ansatz.dir_path, 'drifted-sampling')
         make_dir_path(self.dir_path)
 
-    def set_gaussian_ansatz_functions(self, m, sigma):
+    def set_gaussian_ansatz_functions(self, m, sigma=None):
         '''
         '''
         assert self.is_drifted, ''
 
         # set gaussian ansatz functions
-        ansatz = gaussian_ansatz_functions(
+        ansatz = GaussianAnsatz(
             domain=self.domain,
-            m=m,
         )
-        ansatz.set_unif_dist_ansatz_functions(sigma)
+        ansatz.set_unif_dist_ansatz_functions(m, sigma)
         #ansatz.set_unif_dist_ansatz_functions_on_S(m)
 
         # set ansatz dir path
@@ -152,7 +151,7 @@ class Sampling:
         assert theta.shape == mus.shape == sigmas.shape, ''
 
         # set gaussian ansatz functions
-        ansatz = gaussian_ansatz_functions(domain=self.domain)
+        ansatz = GaussianAnsatz(domain=self.domain)
         ansatz.set_given_ansatz_functions(mus, sigmas)
 
         self.ansatz = ansatz
@@ -218,7 +217,7 @@ class Sampling:
         assert meta_theta.shape == meta_mus.shape == meta_sigmas.shape, ''
 
         # create ansatz functions from meta
-        meta_ansatz = gaussian_ansatz_functions(domain=self.domain)
+        meta_ansatz = GaussianAnsatz(domain=self.domain)
         meta_ansatz.set_given_ansatz_functions(meta_mus, meta_sigmas)
 
         # meta value function evaluated at the grid
@@ -279,7 +278,6 @@ class Sampling:
         K = - value_f[idx_ts[0]]
 
         return value_f + K
-
 
     def control(self, x, theta=None, ansatz=None):
         '''This method computes the control evaluated at x
@@ -745,9 +743,9 @@ class Sampling:
         if dir_path is None:
             dir_path = self.dir_path
 
-        pl = Plot1d(dir_path, file_name)
-        pl.set_ylim(bottom=0, top=self.alpha * 2)
-        pl.mgf(x, Psi, appr_Psi)
+        plt1d = Plot1d(dir_path, file_name)
+        plt1d.set_ylim(bottom=0, top=self.alpha * 2)
+        plt1d.mgf(x, Psi, appr_Psi)
 
     def plot_appr_free_energy(self, file_name, dir_path=None):
         x = self.domain_h
@@ -761,9 +759,9 @@ class Sampling:
         if dir_path is None:
             dir_path = self.dir_path
 
-        pl = Plot1d(dir_path, file_name)
-        pl.set_ylim(bottom=0, top=self.alpha * 3)
-        pl.free_energy(x, F, appr_F)
+        plt1d = Plot1d(dir_path, file_name)
+        plt1d.set_ylim(bottom=0, top=self.alpha * 3)
+        plt1d.free_energy(x, F, appr_F)
 
     def plot_control(self, file_name, dir_path=None):
         x = self.domain_h
@@ -776,9 +774,9 @@ class Sampling:
         if dir_path is None:
             dir_path = self.dir_path
 
-        pl = Plot1d(dir_path, file_name)
-        pl.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
-        pl.control(x, u_opt, u)
+        plt1d = Plot1d(dir_path, file_name)
+        plt1d.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
+        plt1d.control(x, u_opt, u)
 
     def plot_potential_and_tilted_potential(self, file_name, dir_path=None):
         x = self.domain_h
@@ -797,9 +795,9 @@ class Sampling:
         if dir_path is None:
             dir_path = self.dir_path
 
-        pl = Plot1d(dir_path, file_name)
-        pl.set_ylim(bottom=0, top=self.alpha * 10)
-        pl.potential_and_tilted_potential(x, V, Vb, Vb_opt)
+        plt1d = Plot1d(dir_path, file_name)
+        plt1d.set_ylim(bottom=0, top=self.alpha * 10)
+        plt1d.potential_and_tilted_potential(x, V, Vb, Vb_opt)
 
     def plot_tilted_potential(self, file_name, dir_path=None):
         x = self.domain_h
@@ -818,9 +816,9 @@ class Sampling:
         if dir_path is None:
             dir_path = self.dir_path
 
-        pl = Plot1d(dir_path, file_name)
-        pl.set_ylim(bottom=0, top=self.alpha * 10)
-        pl.tilted_potential(x, V, Vb, Vb_opt)
+        plt1d = Plot1d(dir_path, file_name)
+        plt1d.set_ylim(bottom=0, top=self.alpha * 10)
+        plt1d.tilted_potential(x, V, Vb, Vb_opt)
 
     def plot_tilted_drift(self, file_name, dir_path=None):
         x = self.domain_h
@@ -840,6 +838,6 @@ class Sampling:
         if dir_path is None:
             dir_path = self.dir_path
 
-        pl = Plot1d(dir_path, file_name)
-        pl.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
-        pl.drift_and_tilted_drift(x, dV, dVb, dVb_opt)
+        plt1d = Plot1d(dir_path, file_name)
+        plt1d.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
+        plt1d.drift_and_tilted_drift(x, dV, dVb, dVb_opt)

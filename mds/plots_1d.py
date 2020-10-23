@@ -50,11 +50,11 @@ class Plot1d:
         plt.close()
 
     def potentials(self, x, Vs, labels=None):
-        if labels is not None:
+        if labels:
             assert Vs.shape[0] == len(labels), ''
         plt.title(self.title)
         for i in range(Vs.shape[0]):
-            if labels is not None:
+            if labels:
                 plt.plot(x, Vs[i], '-', label=labels[i])
             else:
                 plt.plot(x, Vs[i], '-')

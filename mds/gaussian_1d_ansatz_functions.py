@@ -5,32 +5,7 @@ from mds.validation import is_1d_valid_domain
 import numpy as np
 import scipy.stats as stats
 
-#TODO deprecated. Use stats.norm.pdf(x, mu, sigma)
-def normal_pdf(x, mu=0, sigma=1):
-    '''This method evaluates the normal probability density with mean
-    mu and standard deviation sigma at the point x.
-
-    Args:
-        x (float or ndarray) : posision
-        mu (float or ndarray): mean
-        sigma (float or ndarray) : standard deviation
-    '''
-    norm_factor = np.sqrt(2 * np.pi) * sigma
-    return np.exp(-0.5 * ((x - mu) / sigma) **2 ) / norm_factor
-
-def derivative_normal_pdf(x, mu=0, sigma=1):
-    '''This method evaluates the derivative of the normal probability
-       density function with mean mu and standard deviation sigma at
-       the point x.
-
-    Args:
-        x (float or ndarray) : posision
-        mu (float or ndarray): mean
-        sigma (float or ndarray) : standard deviation
-    '''
-    return stats.norm.pdf(x, mu, sigma) * (mu - x) / sigma**2
-
-class gaussian_ansatz_functions:
+class GaussianAnsatz:
     '''
     '''
 
@@ -72,7 +47,7 @@ class gaussian_ansatz_functions:
         self.mus = mus
         self.sigmas = sigmas
 
-    def set_unif_dist_ansatz_functions(self, sigma=None):
+    def set_unif_dist_ansatz_functions(self, m=None, sigma=None):
         '''This method sets the mean and standard deviation of the m
            Gaussian ansatz functions. The means will be uniformly distributed
            in the domain and the standard deviation is given.
@@ -81,12 +56,16 @@ class gaussian_ansatz_functions:
             sigma (float) : standard deviation
         '''
         mus_min, mus_max = self.domain
-        m = self.m
+        if m is None:
+            m = self.m
         assert m >= 2, ''
 
-        self.mus = np.around(np.linspace(mus_min, mus_max, m), decimals=2)
+        mus = np.around(np.linspace(mus_min, mus_max, m), decimals=2)
         if sigma is None:
             sigma = np.around(mus[1] - mus[0], decimals=2)
+
+        self.m = m
+        self.mus = mus
         self.sigmas = sigma * np.ones(m)
 
     # deprecated method
@@ -151,6 +130,31 @@ class gaussian_ansatz_functions:
         self.mus = mus
         self.sigmas = sigmas
 
+    #TODO deprecated. Use stats.norm.pdf(x, mu, sigma)
+    def normal_pdf(self, x, mu=0, sigma=1):
+        '''This method evaluates the normal probability density with mean
+        mu and standard deviation sigma at the point x.
+
+        Args:
+            x (float or ndarray) : posision
+            mu (float or ndarray): mean
+            sigma (float or ndarray) : standard deviation
+        '''
+        norm_factor = np.sqrt(2 * np.pi) * sigma
+        return np.exp(-0.5 * ((x - mu) / sigma) **2 ) / norm_factor
+
+    def derivative_normal_pdf(self, x, mu=0, sigma=1):
+        '''This method evaluates the derivative of the normal probability
+           density function with mean mu and standard deviation sigma at
+           the point x.
+
+        Args:
+            x (float or ndarray) : posision
+            mu (float or ndarray): mean
+            sigma (float or ndarray) : standard deviation
+        '''
+        return stats.norm.pdf(x, mu, sigma) * (mu - x) / sigma**2
+
     def basis_value_f(self, x):
         '''This method computes the ansatz functions for the value function evaluated at x
 
@@ -177,7 +181,7 @@ class gaussian_ansatz_functions:
         if type(x) == np.ndarray:
             x = x.reshape(x.shape[0], 1)
 
-        return - np.sqrt(2) * derivative_normal_pdf(x, mus, sigmas)
+        return - np.sqrt(2) * self.derivative_normal_pdf(x, mus, sigmas)
 
     def write_ansatz_parameters(self, f):
         '''
@@ -194,15 +198,15 @@ class gaussian_ansatz_functions:
 
         # basis value function
         v = self.basis_value_f(x)
-        pl = Plot1d(dir_path=self.dir_path, file_name='basis_value_f')
-        pl.set_title(r'$v_{j}(x; \mu, \sigma)$')
-        pl.ansatz_value_f(x, v)
+        plt1d = Plot1d(dir_path=self.dir_path, file_name='basis_value_f')
+        plt1d.set_title(r'$v_{j}(x; \mu, \sigma)$')
+        plt1d.ansatz_value_f(x, v)
 
         # basis control
         b = self.basis_control(x)
-        pl = Plot1d(dir_path=self.dir_path, file_name='basis_control')
-        pl.set_title(r'$b_{j}(x; \mu, \sigma)$')
-        pl.ansatz_control(x, b)
+        plt1d = Plot1d(dir_path=self.dir_path, file_name='basis_control')
+        plt1d.set_title(r'$b_{j}(x; \mu, \sigma)$')
+        plt1d.ansatz_control(x, b)
 
 
 def bias_potential(x, omegas, mus, sigmas):

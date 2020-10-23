@@ -219,43 +219,43 @@ class Solver():
     def plot_mgf(self):
         x = self.domain_h
         Psi = self.Psi
-        pl = Plot1d(self.dir_path, 'mgf')
-        pl.set_ylim(bottom=0, top=self.alpha * 2)
-        pl.mgf(x, Psi)
+        plt1d = Plot1d(self.dir_path, 'mgf')
+        plt1d.set_ylim(bottom=0, top=self.alpha * 2)
+        plt1d.mgf(x, Psi)
 
     def plot_free_energy(self):
         x = self.domain_h
         F = self.F
-        pl = Plot1d(self.dir_path, 'free_energy')
-        pl.set_ylim(bottom=0, top=self.alpha * 3)
-        pl.free_energy(x, F)
+        plt1d = Plot1d(self.dir_path, 'free_energy')
+        plt1d.set_ylim(bottom=0, top=self.alpha * 3)
+        plt1d.free_energy(x, F)
 
     def plot_optimal_control(self):
         x = self.domain_h
         u = self.u_opt
-        pl = Plot1d(self.dir_path, 'optimal_control')
-        pl.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
-        pl.control(x, u)
+        plt1d = Plot1d(self.dir_path, 'optimal_control')
+        plt1d.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
+        plt1d.control(x, u)
 
     def plot_optimal_tilted_potential(self):
         x = self.domain_h
         V = self.potential(x)
         Vb_opt = 2 * self.F
-        pl = Plot1d(self.dir_path, 'optimal_tilted_potential')
-        pl.set_ylim(bottom=0, top=self.alpha * 10)
-        pl.potential_and_tilted_potential(x, V, Vbias_opt=Vb_opt)
+        plt1d = Plot1d(self.dir_path, 'optimal_tilted_potential')
+        plt1d.set_ylim(bottom=0, top=self.alpha * 10)
+        plt1d.potential_and_tilted_potential(x, V, Vbias_opt=Vb_opt)
 
     def plot_optimal_tilted_drift(self):
         x = self.domain_h
         dV = self.gradient(x)
         dVb_opt = - np.sqrt(2) * self.u_opt
-        pl = Plot1d(self.dir_path, 'optimal_tilted_drift')
-        pl.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
-        pl.drift_and_tilted_drift(x, dV, dVbias_opt=dVb_opt)
+        plt1d = Plot1d(self.dir_path, 'optimal_tilted_drift')
+        plt1d.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
+        plt1d.drift_and_tilted_drift(x, dV, dVbias_opt=dVb_opt)
 
     def plot_exp_fht(self):
         x = self.domain_h
         exp_fht = self.exp_fht
-        pl = Plot1d(self.dir_path, 'exp_fht')
-        pl.set_ylim(bottom=0, top=self.alpha * 5)
-        pl.exp_fht(x, exp_fht)
+        plt1d = Plot1d(self.dir_path, 'exp_fht')
+        plt1d.set_ylim(bottom=0, top=self.alpha * 5)
+        plt1d.exp_fht(x, exp_fht)

@@ -195,7 +195,7 @@ def metadynamics_algorithm(sample, k, seed=None, do_plots=False):
         dir_path = os.path.join(sample.example_dir_path, 'metadynamics')
         make_dir_path(dir_path)
         empty_dir(dir_path)
-        pl = Plot(dir_path=dir_path)
+        plt1d = Plot1d(dir_path=dir_path)
 
     # target set
     target_set_min, target_set_max = sample.target_set
