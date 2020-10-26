@@ -181,11 +181,14 @@ class Sampling:
 
     def set_theta_optimal(self):
         assert self.ansatz is not None, ''
+        self.load_reference_solution()
+
+        h = self.ref_sol['h']
+        self.discretize_domain(h)
+
         Nx = self.Nx
         Ny = self.Ny
         N = self.N
-
-        self.load_reference_solution()
         domain_h = self.ref_sol['domain_h'].reshape((N, 2))
         F = self.ref_sol['F'].reshape((N, 1))
 
