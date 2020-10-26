@@ -1,5 +1,5 @@
 from mds.langevin_2d_hjb_solver import Solver
-from mds.potentials_and_gradients import POTENTIAL_NAMES
+from mds.potentials_and_gradients_2d import POTENTIAL_NAMES
 
 import argparse
 import numpy as np
@@ -65,8 +65,16 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
+    def f(x):
+        return 1
+
+    def g(x):
+        return 0
+
     # compute reference solution
     sol = Solver(
+        f=f,
+        g=g,
         potential_name=args.potential_name,
         alpha=np.array(args.alpha),
         beta=args.beta,
@@ -76,8 +84,11 @@ def main():
     )
     sol.discretize_domain()
     sol.solve_bvp()
+    sol.compute_free_energy()
     sol.compute_optimal_control()
+    #sol.compute_exp_fht()
     sol.save_reference_solution()
+    sol.write_report(x=np.array([-1, -1]))
 
     if args.do_plots:
         sol.plot_psi()

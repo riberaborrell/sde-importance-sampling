@@ -1,4 +1,4 @@
-from mds.potentials_and_gradients import get_potential_and_gradient
+from mds.potentials_and_gradients_1d import get_potential_and_gradient
 from mds.plots_1d import Plot1d
 from mds.utils import get_example_data_path
 from mds.validation import is_1d_valid_domain, is_1d_valid_target_set
@@ -32,7 +32,7 @@ class Solver():
                                               target_set, 'reference_solution')
 
         # get potential and gradient functions
-        potential, gradient = get_potential_and_gradient(potential_name, alpha)
+        potential, gradient, _, _, _ = get_potential_and_gradient(potential_name, alpha)
 
         self.f = f
         self.g = g
@@ -55,12 +55,12 @@ class Solver():
     def discretize_domain(self):
         ''' this method discretizes the domain interval uniformly with step-size h
         '''
-        D_min, D_max = self.domain
+        d_min, d_max = self.domain
         h = self.h
         assert h is not None, ''
 
-        self.N = int((D_max - D_min) / h) + 1
-        self.domain_h = np.around(np.linspace(D_min, D_max, self.N), decimals=3)
+        self.N = int((d_max - d_min) / h) + 1
+        self.domain_h = np.around(np.linspace(d_min, d_max, self.N), decimals=3)
 
     def get_x(self, k):
         ''' returns the x-coordinate of the node k

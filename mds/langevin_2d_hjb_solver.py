@@ -1,4 +1,4 @@
-from mds.potentials_and_gradients import get_potential_and_gradient
+from mds.potentials_and_gradients_2d import get_potential_and_gradient
 from mds.utils import get_example_data_path
 from mds.numpy_utils import coarse_matrix
 
@@ -22,7 +22,7 @@ class Solver():
         to the overdamped langevin sde.
    '''
 
-    def __init__(self, potential_name, alpha, beta, target_set, domain=None, h=0.1):
+    def __init__(self, f, g, potential_name, alpha, beta, target_set, domain=None, h=0.1):
 
         # validate domain
         if domain is None:
@@ -36,8 +36,10 @@ class Solver():
                                               target_set, 'reference_solution')
 
         # get potential and gradient functions
-        potential, gradient = get_potential_and_gradient(potential_name, alpha)
+        potential, gradient, _, _, _ = get_potential_and_gradient(potential_name, alpha)
 
+        self.f = f
+        self.g = g
         self.potential = potential
         self.gradient = gradient
         self.alpha = alpha
@@ -46,7 +48,7 @@ class Solver():
         self.target_set = target_set
         self.h = h
 
-        self.meshgrid = None
+        self.domain_h = None
         self.N = None
         self.Nx = None
         self.Ny = None
@@ -63,32 +65,36 @@ class Solver():
         h = self.h
         assert h is not None, ''
 
-        x = np.arange(d_xmin, d_xmax + h, h)
-        y = np.arange(d_ymin, d_ymax + h, h)
-        self.meshgrid = np.meshgrid(x, y, sparse=True, indexing='ij')
-        self.Nx = x.shape[0]
-        self.Ny = y.shape[0]
-        self.N = x.shape[0] * y.shape[0]
+        Nx = int((d_xmax - d_xmin) / h) + 1
+        Ny = int((d_ymax - d_ymin) / h) + 1
+        x = np.around(np.linspace(d_xmin, d_xmax, Nx), decimals=3)
+        y = np.around(np.linspace(d_ymin, d_ymax, Ny), decimals=3)
+        X, Y = np.meshgrid(x, y, sparse=False, indexing='ij')
+
+        self.Nx = Nx
+        self.Ny = Ny
+        self.N = Nx * Ny
+        self.domain_h = np.dstack((X, Y))
 
     def get_x(self, k):
         ''' returns the x-coordinate of the node k
         '''
         N = self.N
         Nx = self.Nx
-        xx, _ = self.meshgrid
+        X = self.domain_h[:, :, 0]
         assert k in np.arange(N), ''
 
-        return xx[np.mod(k, Nx), 0]
+        return X[np.mod(k, Nx), 0]
 
     def get_y(self, k):
         ''' returns the y-coordinate of the node k
         '''
         N = self.N
         Ny = self.Ny
-        _ , yy = self.meshgrid
+        Y = self.domain_h[:, :, 1]
         assert k in np.arange(N), ''
 
-        return yy[0, np.floor_divide(k, Ny)]
+        return Y[0, np.floor_divide(k, Ny)]
 
     def is_on_domain_boundary(self, k):
         ''' returns True if the node k is on the rectangular
@@ -141,6 +147,8 @@ class Solver():
         return False
 
     def solve_bvp(self):
+        f = self.f
+        g = self.g
         gradient = self.gradient
         beta = self.beta
         target_set_x_min = self.target_set[0][0]
@@ -216,15 +224,17 @@ class Solver():
         b[N -1] = 0
 
         # solve the linear system
-        Psi = np.linalg.solve(A, b)
-        #Psi, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
+        self.Psi = np.linalg.solve(A, b).reshape((Nx, Ny)).T
+        #self.Psi, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
 
-        # compute the free energy
-        F =  - np.log(Psi) / beta
+    def compute_free_energy(self):
+        ''' this methos computes the free energy
+                F = - epsilon log (Psi)
+        '''
+        beta = self.beta
+        Psi = self.Psi
 
-        # save MGF and free energy
-        self.Psi = Psi.reshape((Nx, Ny)).T
-        self.F = F.reshape((Nx, Ny)).T
+        self.F =  - np.log(Psi) / beta
 
     def compute_optimal_control(self):
         ''' this method computes by finite differences the optimal control vector field
@@ -239,29 +249,31 @@ class Solver():
         assert F.ndim == 2, ''
         assert F.shape == (Nx, Ny), ''
 
+        u_opt = np.zeros((Nx, Ny, 2))
         u_opt_x = np.zeros((Nx, Ny))
         u_opt_y = np.zeros((Nx, Ny))
 
         u_opt_x[1: -1, :] = - np.sqrt(2) * (F[2:, :] - F[:-2, :]) / (2 * h)
         u_opt_x[0, :] = u_opt_x[1, :]
         u_opt_x[Nx-1, :] = u_opt_x[Nx-2, :]
+        u_opt[:, :, 0] = u_opt_x
 
         u_opt_y[:, 1: -1] = - np.sqrt(2) * (F[:, 2:] - F[:, :-2]) / (2 * h)
         u_opt_y[:, 0] = u_opt_y[:, 1]
         u_opt_y[:, Ny-1] = u_opt_y[:, Ny-2]
+        u_opt[:, :, 1] = u_opt_y
 
-        self.u_opt_x = u_opt_x
-        self.u_opt_y = u_opt_y
+        self.u_opt = u_opt
 
     def save_reference_solution(self):
         np.savez(
             os.path.join(self.dir_path, 'reference_solution.npz'),
             h=self.h,
-            meshgrid=self.meshgrid,
+            domain_h=self.domain_h,
             Psi=self.Psi,
             F=self.F,
-            u_opt_x=self.u_opt_x,
-            u_opt_y=self.u_opt_y,
+            u_opt=self.u_opt,
+            #exp_fht=self.exp_fht,
         )
 
     def load_reference_solution(self):
@@ -270,21 +282,47 @@ class Solver():
             allow_pickle=True,
         )
         self.h = ref_sol['h']
-        self.meshgrid = ref_sol['meshgrid']
+        self.domain_h = ref_sol['domain_h']
         self.Psi = ref_sol['Psi']
         self.F = ref_sol['F']
-        self.u_opt_x = ref_sol['u_opt_x']
-        self.u_opt_y = ref_sol['u_opt_y']
+        self.u_opt = ref_sol['u_opt']
+        #self.exp_fht = ref_sol['exp_fht']
 
+    def write_report(self, x):
+        domain_h = self.domain_h
+
+        # exp fht and mgf at x
+        idx_x = np.where(
+            (domain_h[:, :, 0] == x[0]) &
+            (domain_h[:, :, 1] == x[1])
+        )
+        idx_x1, idx_x2 = idx_x
+        if idx_x1.shape[0] != 1 or idx_x2.shape[0] != 1:
+            return
+        #exp_fht = self.exp_fht[idx_x1[0], idx_x2[0]] if self.exp_fht is not None else np.nan
+        Psi = self.Psi[idx_x1[0], idx_x2[0]] if self.Psi is not None else np.nan
+        F = self.F[idx_x1[0], idx_x2[0]] if self.F is not None else np.nan
+
+        # write file
+        file_path = os.path.join(self.dir_path, 'report.txt')
+        f = open(file_path, "w")
+        f.write('(x, y) = ({:2.1f}, {:2.1f})\n'.format(x[0], x[1]))
+        #f.write('E[fht] at x = {:2.3f}\n'.format(exp_fht))
+        f.write('Psi at x = {:2.3e}\n'.format(Psi))
+        f.write('F at x = {:2.3e}\n'.format(F))
+        f.close()
+
+    #TODO: use plots_2d module
     def plot_psi(self):
         Psi = self.Psi
-        xx, yy = self.meshgrid
+        X = self.domain_h[:, : 0]
+        Y = self.domain_h[:, : 1]
 
         label = r'$\Psi(x, y), \, h = {}$'
         fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
         surf = ax.plot_surface(
-            xx,
-            yy,
+            X,
+            Y,
             Psi,
             cmap=cm.coolwarm,
             linewidth=0,
@@ -299,13 +337,14 @@ class Solver():
 
     def plot_free_energy(self):
         F = self.F
-        xx, yy = self.meshgrid
+        X = self.domain_h[:, : 0]
+        Y = self.domain_h[:, : 1]
 
         label = r'$\F(x, y), \, h = {}$'
         fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
         surf = ax.plot_surface(
-            xx,
-            yy,
+            X,
+            Y,
             F,
             cmap=cm.coolwarm,
             linewidth=0,
@@ -320,7 +359,6 @@ class Solver():
 
         fig, ax = plt.subplots()
         levels = np.linspace(-0.5, 3.5, 21)
-        X, Y = np.meshgrid(xx[:, 0], yy[0, :], sparse=False, indexing='ij')
         cs = ax.contourf(
             X,
             Y,
@@ -338,13 +376,14 @@ class Solver():
 
     def plot_optimal_tilted_potential(self):
         F = self.F
-        xx, yy = self.meshgrid
+        X = self.domain_h[:, : 0]
+        Y = self.domain_h[:, : 1]
 
         label = r'$\tilde{V}(x, y), \, h = {}$'
         fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
         surf = ax.plot_surface(
-            xx,
-            yy,
+            X,
+            Y,
             2 * F,
             cmap=cm.coolwarm,
             linewidth=0,
@@ -359,15 +398,15 @@ class Solver():
 
     def plot_optimal_control(self):
         h = self.h
-        xx, yy = self.meshgrid
-        u_opt_x = self.u_opt_x
-        u_opt_y = self.u_opt_y
+        X = self.domain_h[:, :, 0]
+        Y = self.domain_h[:, :, 1]
+        u_opt_x = self.u_opt[:, :, 0]
+        u_opt_y = self.u_opt[:, :, 1]
 
         fig, ax = plt.subplots()
         label = r'$\u_opt(x, y), \, h = {}$'
 
         # show every k arrow
-        X, Y = np.meshgrid(xx[:, 0], yy[0, :], sparse=False, indexing='ij')
         k = int(X.shape[0] / 20)
         X = X[::k, ::k]
         Y = Y[::k, ::k]
@@ -383,7 +422,8 @@ class Solver():
 
         fig, ax = plt.subplots()
         # show every k arrow
-        X, Y = np.meshgrid(xx[:, 0], yy[0, :], sparse=False, indexing='ij')
+        X = self.domain_h[:, :, 0]
+        Y = self.domain_h[:, :, 1]
         k = 2
         X = X[::k, ::k]
         Y = Y[::k, ::k]
