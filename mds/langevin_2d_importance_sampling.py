@@ -49,7 +49,7 @@ class Sampling:
 
         # domain discretization
         self.h = h
-        self.meshgrid = None
+        self.domain_h = None
         self.Nx = None
         self.Ny = None
         self.N = None
@@ -117,7 +117,8 @@ class Sampling:
 
         x = np.arange(d_xmin, d_xmax + h, h)
         y = np.arange(d_ymin, d_ymax + h, h)
-        self.meshgrid = np.meshgrid(x, y, sparse=True, indexing='ij')
+        X, Y = np.meshgrid(x, y, sparse=False, indexing='ij')
+        self.domain_h = np.dstack((X, Y))
         self.Nx = x.shape[0]
         self.Ny = y.shape[0]
         self.N = x.shape[0] * y.shape[0]
@@ -180,13 +181,16 @@ class Sampling:
 
     def set_theta_optimal(self):
         assert self.ansatz is not None, ''
+        Nx = self.Nx
+        Ny = self.Ny
+        N = self.N
 
         self.load_reference_solution()
-        x = self.ref_sol['domain_h']
-        F = self.ref_sol['F']
+        domain_h = self.ref_sol['domain_h'].reshape((N, 2))
+        F = self.ref_sol['F'].reshape((N, 1))
 
         # compute the optimal theta given a basis of ansatz functions
-        v = self.ansatz.basis_value_f(x)
+        v = self.ansatz.basis_value_f(domain_h)
         self.theta, _, _, _ = np.linalg.lstsq(v, F, rcond=None)
         self.theta_type = 'optimal'
 
@@ -247,8 +251,8 @@ class Sampling:
         '''This method computes the value function evaluated at x
 
         Args:
-            x (float or ndarray) : position/s
-            theta (ndarray): parameters
+            x ((M,2)-array) : position
+            theta ((m,)-array): parameters
             ansatz (object): ansatz functions
 
         Return:
@@ -275,24 +279,29 @@ class Sampling:
         '''This method computes the control evaluated at x
 
         Args:
-            x (float or ndarray) : position/s
-            theta (ndarray): parameters
+            x ((M,2)-array) : position
+            theta ((m,)-array): parameters
             ansatz (object): ansatz functions
         '''
+        M = self.M
         if theta is None:
             theta = self.theta
         if ansatz is None:
             ansatz = self.ansatz
-        assert theta.shape == ansatz.mus.shape == ansatz.sigmas.shape, ''
 
-        return np.dot(ansatz.basis_control(x), theta)
+        basis_control = ansatz.basis_control(x)
+        control = np.empty((M, 2))
+        control[:, 0] = np.dot(basis_control[:, :, 0], theta).reshape((M,))
+        control[:, 1] = np.dot(basis_control[:, :, 1], theta).reshape((M,))
+
+        return control
 
     def bias_potential(self, x, theta=None):
         '''This method computes the bias potential at x
 
         Args:
-            x (float or ndarray) : position/s
-            theta (ndarray): parameters
+            x ((M,2)-array) : position
+            theta ((m,)-array): parameters
         '''
         return 2 * self.value_function(x, theta)
 
@@ -300,7 +309,7 @@ class Sampling:
         '''This method computes the bias gradient at x
 
         Args:
-            u (float or ndarray) : control at x
+            u ((M,2)-array) : control at x
         '''
         return - np.sqrt(2) * u
 
@@ -308,8 +317,8 @@ class Sampling:
         '''This method computes the tilted potential at x
 
         Args:
-            x (float or ndarray) : position/s
-            theta (ndarray): parameters
+            x ((M,2)-array) : position/s
+            theta ((m,)-array): parameters
         '''
         return self.potential(x) + self.bias_potential(x, theta)
 
@@ -317,12 +326,10 @@ class Sampling:
         '''This method computes the tilted gradient at x
 
         Args:
-            x (float or ndarray) : position
-            u (float or ndarray) : control at x
+            x ((M,2)-array) : position/s
+            u ((M,2)-array) : control at x
         '''
-        assert type(x) == type(u)
-        if type(x) == np.ndarray:
-            assert x.shape == u.shape
+        assert x.shape == u.shape
 
         return self.gradient(x) + self.bias_gradient(u)
 
@@ -354,14 +361,14 @@ class Sampling:
         self.fht[:] = np.NaN
 
         if self.is_drifted:
-            self.M1_fht = np.empty(M)
-            self.M1_fht[:] = np.NaN
-            self.M2_fht = np.empty(M)
-            self.M2_fht[:] = np.NaN
-            self.M1_k = np.empty((M, 10))
-            self.M1_k[:, :] = np.NaN
-            self.M2_k = np.empty((M, 10))
-            self.M2_k[:, :] = np.NaN
+            self.M1_fht = np.empty((M, 2))
+            self.M1_fht[:, :] = np.NaN
+            self.M2_fht = np.empty((M, 2))
+            self.M2_fht[:, :] = np.NaN
+            #self.M1_k = np.empty((M, 2, 10))
+            #self.M1_k[:, :, :] = np.NaN
+            #self.M2_k = np.empty((M, 2, 10))
+            #self.M2_k[:, :, :] = np.NaN
 
     def sample_not_drifted(self):
         beta = self.beta
@@ -385,7 +392,7 @@ class Sampling:
 
         for n in np.arange(1, N_lim +1):
             # Brownian increment
-            dB = (np.sqrt(dt) * np.random.normal(0, 1, M)).reshape((M, 1))
+            dB = (np.sqrt(dt) * np.random.normal(0, 1, 2 * M)).reshape((M, 2))
 
             # compute gradient
             gradient = self.gradient(Xtemp)
@@ -425,16 +432,20 @@ class Sampling:
         N_lim = self.N_lim
         xzero = self.xzero
         M = self.M
-        target_set_min, target_set_max = self.target_set
+        target_set_x, target_set_y = self.target_set
+        target_set_x_min, target_set_x_max = target_set_x
+        target_set_y_min, target_set_y_max = target_set_y
 
         self.initialize_sampling_variables()
 
         # initialize Xtemp
-        Xtemp = xzero * np.ones(M)
+        Xtemp = np.ones((M, 2))
+        Xtemp[:, 0] *= xzero[0]
+        Xtemp[:, 1] *= xzero[1]
 
         # initialize Girsanov Martingale terms, M_t = e^(M1_t + M2_t)
-        M1temp = np.zeros(M)
-        M2temp = np.zeros(M)
+        M1temp = np.zeros((M, 2))
+        M2temp = np.zeros((M, 2))
         k = np.array([])
 
         # has arrived in target set
@@ -442,7 +453,7 @@ class Sampling:
 
         for n in np.arange(1, N_lim +1):
             # Brownian increment
-            dB = np.sqrt(dt) * np.random.normal(0, 1, M)
+            dB = (np.sqrt(dt) * np.random.normal(0, 1, 2 * M)).reshape((M, 2))
 
             # control at Xtemp
             utemp = self.control(Xtemp)
@@ -460,7 +471,12 @@ class Sampling:
             M2temp -= beta * 0.5 * (utemp ** 2) * dt
 
             # trajectories in the target set
-            is_in_target_set = ((Xtemp >= target_set_min) & (Xtemp <= target_set_max))
+            is_in_target_set = (
+                (Xtemp[:, 0] >= target_set_x_min) &
+                (Xtemp[:, 0] <= target_set_x_max) &
+                (Xtemp[:, 0] >= target_set_y_min) &
+                (Xtemp[:, 0] <= target_set_y_max)
+            )
 
             # indices of trajectories new in the target set
             new_idx = np.where(
@@ -478,19 +494,20 @@ class Sampling:
             self.M2_fht[new_idx] = M2temp[new_idx]
 
             if n % 1000 == 0:
-                print(n, np.mean(np.exp(M1temp + M2temp)))
-                k = np.append(k, n)
-                self.M1_k[:, k.shape[0]-1] = M1temp
-                self.M2_k[:, k.shape[0]-1] = M2temp
+                pass
+                #print(n, np.mean(np.exp(M1temp + M2temp)))
+                #k = np.append(k, n)
+                #self.M1_k[:, k.shape[0]-1] = M1temp
+                #self.M2_k[:, k.shape[0]-1] = M2temp
 
             # check if all trajectories have arrived to the target set
             if been_in_target_set.all() == True:
                 # save Girsanov Martingale at the time when 
                 # the last trajectory arrive
-                k = np.append(k, n)
-                self.M1_k[:, k.shape[0]-1] = M1temp
-                self.M2_k[:, k.shape[0]-1] = M2temp
-                self.k = k
+                #k = np.append(k, n)
+                #self.M1_k[:, k.shape[0]-1] = M1temp
+                #self.M2_k[:, k.shape[0]-1] = M2temp
+                #self.k = k
                 break
 
     def sample_loss(self):
@@ -613,31 +630,19 @@ class Sampling:
             self.var_I, \
             self.re_I = self.compute_mean_variance_and_rel_error(I)
 
-            #k = np.max(-self.beta * fht)
-            #a = np.mean(np.exp(-self.beta * fht -k))
-            #print('{:2.3e}'.format(np.exp(k) * a))
-
         else:
             # compute mean of M_fht
             M1_fht = self.M1_fht[np.where(np.isnan(self.M1_fht) != True)]
             M2_fht = self.M2_fht[np.where(np.isnan(self.M2_fht) != True)]
             M_fht = np.exp(M1_fht + M2_fht)
 
-            #print('{:2.3e}'.format(np.mean(self.M1_fht + self.M2_fht)))
-            #k = np.max(self.M1_fht + self.M2_fht)
-            #a = np.mean(np.exp(self.M1_fht + self.M2_fht -k))
-            #l = np.min(self.M1_fht + self.M2_fht)
-            #b = np.mean(np.exp(self.M1_fht + self.M2_fht -l))
-            #print('{:2.3e}'.format(np.exp(k) * a))
-            #print('{:2.3e}'.format(np.exp(l) * b))
-
             # compute mean of M_k
-            M1_k = self.M1_k[:, :self.k.shape[0]]
-            M2_k = self.M2_k[:, :self.k.shape[0]]
+            #M1_k = self.M1_k[:, :self.k.shape[0]]
+            #M2_k = self.M2_k[:, :self.k.shape[0]]
             #M1_k = M1_k[np.where(np.isnan(M1_k) != True), :]
             #M2_k = M2_k[np.where(np.isnan(M2_k) != True), :]
-            M_k = np.exp(M1_k + M2_k)
-            self.mean_M_k = np.mean(M_k, axis=0)
+            #M_k = np.exp(M1_k + M2_k)
+            #self.mean_M_k = np.mean(M_k, axis=0)
 
             # compute mean and variance of I_u
             I_u = np.exp(-beta * fht) * M_fht
@@ -718,9 +723,9 @@ class Sampling:
             f.write('RE[exp(-beta * fht)] = {:2.3e}\n\n'.format(self.re_I))
 
         else:
-            f.write('Girsanov Martingale\n')
-            for i, n in enumerate(self.k):
-                f.write('E[M_k] = {:2.3e}, k = {:d}\n'.format(self.mean_M_k[i], int(n)))
+            #f.write('Girsanov Martingale\n')
+            #for i, n in enumerate(self.k):
+            #    f.write('E[M_k] = {:2.3e}, k = {:d}\n'.format(self.mean_M_k[i], int(n)))
 
             f.write('\nReweighted Quantity of interest\n')
             f.write('E[exp(-beta * fht) * M_fht] = {:2.3e}\n'

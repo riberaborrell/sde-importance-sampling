@@ -82,16 +82,18 @@ def get_parser():
     parser.add_argument(
         '--m',
         dest='m',
+        nargs=2,
         type=int,
-        default=50,
+        default=[50, 50],
         help='Set the number of uniformly distributed ansatz functions \
               that you want to use. Default: 50',
     )
     parser.add_argument(
         '--sigma',
+        nargs=2,
         dest='sigma',
         type=float,
-        default=1,
+        default=[1, 1],
         help='Set the standard deviation of the ansatz functions. Default: 1',
     )
     parser.add_argument(
@@ -146,12 +148,13 @@ def main():
     )
 
     # set gaussian ansatz functions
-    sample.set_gaussian_ansatz_functions(50, 50, 0.2, 0.2)
+    m_x, m_y = args.m
+    sigma_x, sigma_y = args.sigma
+    sample.set_gaussian_ansatz_functions(m_x, m_y, sigma_x, sigma_y)
 
     if args.do_plots:
         sample.ansatz.plot_multivariate_normal_pdf(j=12)
         sample.ansatz.plot_gaussian_ansatz_functions(omega=None)
-    return
 
     # set path
     sample.set_drifted_dir_path()
@@ -174,11 +177,12 @@ def main():
     if args.do_plots:
         theta_stamp = 'theta-{}'.format(args.theta)
         sample.ansatz.plot_gaussian_ansatz_functions()
-        sample.plot_appr_mgf(file_name=theta_stamp+'_appr_mgf')
-        sample.plot_appr_free_energy(file_name=theta_stamp+'_appr_free_energy')
-        sample.plot_control(file_name=theta_stamp+'_control')
-        sample.plot_tilted_potential(file_name=theta_stamp+'_tilted_potential')
-        sample.plot_tilted_drift(file_name=theta_stamp+'_tilted_drift')
+        #TODO: 2d plots
+        #sample.plot_appr_mgf(file_name=theta_stamp+'_appr_mgf')
+        #sample.plot_appr_free_energy(file_name=theta_stamp+'_appr_free_energy')
+        #sample.plot_control(file_name=theta_stamp+'_control')
+        #sample.plot_tilted_potential(file_name=theta_stamp+'_tilted_potential')
+        #sample.plot_tilted_drift(file_name=theta_stamp+'_tilted_drift')
 
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(

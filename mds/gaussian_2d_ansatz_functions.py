@@ -115,10 +115,8 @@ class GaussianAnsatz:
             + (x[:, 0] - mean[0]) * (inv_cov[1, 0] + inv_cov[0, 1])
             + 2 * (x[:, 1] - mean[1]) * inv_cov[0, 0]
         ) / 2
-        grad_x = rv.pdf(x) * exp_grad_x
-        grad_y = rv.pdf(x) * exp_grad_y
-        grad_x = grad_x.reshape((M, 1))
-        grad_y = grad_y.reshape((M, 1))
+        grad_x = (rv.pdf(x) * exp_grad_x).reshape((M, 1))
+        grad_y = (rv.pdf(x) * exp_grad_y).reshape((M, 1))
         grad = np.hstack((grad_x, grad_y))
         return grad
 
