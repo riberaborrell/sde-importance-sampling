@@ -1,8 +1,8 @@
+from mds.base_parser_2d import get_base_parser
 from mds.plots_2d import Plot2d
-from mds.potentials_and_gradients_2d import get_potential_and_gradient, POTENTIAL_NAMES
+from mds.potentials_and_gradients_2d import get_potential_and_gradient
 from mds.utils import get_example_data_path
 
-import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import ticker, cm
@@ -10,22 +10,9 @@ from matplotlib import ticker, cm
 import os
 
 def get_parser():
-    parser = argparse.ArgumentParser(description='3D Plot of the potential landscape')
-    parser.add_argument(
-        '--potential',
-        dest='potential_name',
-        choices=POTENTIAL_NAMES,
-        default='2d_4well',
-        help='Set the type of potential to plot. Default: symmetric quadruple well',
-    )
-    parser.add_argument(
-        '--alpha',
-        dest='alpha',
-        nargs='+',
-        type=float,
-        default=[1, 1, 1, 1],
-        help='Set the parameter alpha for the chosen potentials. Default: [1, 1, 1, 1]',
-    )
+    parser = get_base_parser()
+    parser.description = 'Plots the potential landscape surface and contour and' \
+                         'the gradient vector field'
     return parser
 
 def main():

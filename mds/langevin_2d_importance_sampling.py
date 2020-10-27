@@ -615,7 +615,7 @@ class Sampling:
         # count trajectories which have arrived
         idx_arrived = np.where(np.isnan(fht) == False)
         self.M_arrived = fht[idx_arrived].shape[0]
-        if self.M_arrived == M:
+        if self.M_arrived == self.M:
             return
 
         # replace trajectories which have not arrived

@@ -1,65 +1,12 @@
+from mds.base_parser_2d import get_base_parser
 from mds.langevin_2d_hjb_solver import Solver
-from mds.potentials_and_gradients_2d import POTENTIAL_NAMES
 
-import argparse
 import numpy as np
 
 def get_parser():
-    parser = argparse.ArgumentParser(
-        description='Computes the numerical solution of the HJB equation associated to the'
-                    ' overdamped Langevin SDE'
-    )
-    parser.add_argument(
-        '--potential',
-        dest='potential_name',
-        choices=POTENTIAL_NAMES,
-        default='2d_4well',
-        help='Set the potential for the 2D MD SDE. Default: quadruple well',
-    )
-    parser.add_argument(
-        '--alpha',
-        nargs='+',
-        dest='alpha',
-        type=float,
-        default=[1, 1, 1, 1],
-        help='Set the parameters for the 2D MD SDE potential. Default: [1, 1, 1, 1]',
-    )
-    parser.add_argument(
-        '--beta',
-        dest='beta',
-        type=float,
-        default=1,
-        help='Set the parameter beta for the 2D MD SDE. Default: 1',
-    )
-    parser.add_argument(
-        '--domain',
-        nargs=4,
-        dest='domain',
-        type=float,
-        default=[-3, 3, -3, 3],
-        help='Set the domain set. Default: [[-3, 3],[-3, 3]]',
-    )
-    parser.add_argument(
-        '--target-set',
-        nargs=4,
-        dest='target_set',
-        type=float,
-        default=[0.9, 1.1, 0.9, 1.1],
-        help='Set the target set interval. Default: [[0.9, 1.1], [0.9, 1.1]]',
-    )
-    parser.add_argument(
-        '--h',
-        dest='h',
-        type=float,
-        default=0.1,
-        help='Set the discretization step size. Default: 0.1',
-    )
-    parser.add_argument(
-        '--do-plots',
-        dest='do_plots',
-        action='store_true',
-        help='Do plots. Default: False',
-    )
+    parser = get_base_parser()
+    parser.description = 'Computes the numerical solution of the HJB equation associated to' \
+                         'the overdamped Langevin SDE'
     return parser
 
 def main():
