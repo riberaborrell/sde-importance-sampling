@@ -1,46 +1,14 @@
+from mds.base_parser_1d import get_base_parser
 from mds.langevin_1d_hjb_solver import Solver
-from mds.potentials_and_gradients import POTENTIAL_NAMES
 
-import argparse
 import numpy as np
 
 import os
 
 def get_parser():
-    parser = argparse.ArgumentParser(
-        description='Plot the numerical solution of the HJB equation associated to the'
-                    'overdamped Langevin SDE'
-    )
-    parser.add_argument(
-        '--potential',
-        dest='potential_name',
-        choices=POTENTIAL_NAMES,
-        default='1d_sym_2well',
-        help='Set the potential for the 1D MD SDE. Default: symmetric double well',
-    )
-    parser.add_argument(
-        '--alpha',
-        dest='alpha',
-        nargs='+',
-        type=float,
-        default=[1],
-        help='Set the parameter alpha for the chosen potentials. Default: [1]',
-    )
-    parser.add_argument(
-        '--beta',
-        dest='beta',
-        type=float,
-        default=1,
-        help='Set the parameter beta for the 1D MD SDE. Default: 1',
-    )
-    parser.add_argument(
-        '--target-set',
-        nargs=2,
-        dest='target_set',
-        type=float,
-        default=[0.9, 1.1],
-        help='Set the target set interval. Default: [0.9, 1.1]',
-    )
+    parser = get_base_parser()
+    parser.description = 'Plot the numerical solution of the HJB equation associated to the' \
+                         'overdamped Langevin SDE'
     return parser
 
 def main():

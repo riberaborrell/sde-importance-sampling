@@ -1,68 +1,16 @@
-from mds.gaussian_1d_ansatz_functions import bias_potential, \
-                                             bias_gradient
+from mds.base_parser_1d import get_base_parser
 from mds.langevin_1d_importance_sampling import Sampling
 from mds.plots_1d import Plot1d
-from mds.potentials_and_gradients_1d import get_potential_and_gradient, POTENTIAL_NAMES
 from mds.utils import make_dir_path, empty_dir, get_example_data_path, get_time_in_hms
 
-import argparse
 import numpy as np
 import time
 
 import os
 
 def get_parser():
-    parser = argparse.ArgumentParser(description='Metadynamics')
-    parser.add_argument(
-        '--seed',
-        dest='seed',
-        type=int,
-        help='Set the seed for RandomState',
-    )
-    parser.add_argument(
-        '--potential',
-        dest='potential_name',
-        default='1d_sym_2well',
-        choices=POTENTIAL_NAMES,
-        help='Set the potential for the 1D MD SDE. Default: symmetric double well',
-    )
-    parser.add_argument(
-        '--alpha',
-        dest='alpha',
-        nargs='+',
-        type=float,
-        default=[1],
-        help='Set the parameter alpha for the chosen potentials. Default: [1]',
-    )
-    parser.add_argument(
-        '--beta',
-        dest='beta',
-        type=float,
-        default=1,
-        help='Set the parameter beta for the 1D MD SDE. Default: 1',
-    )
-    parser.add_argument(
-        '--xzero',
-        dest='xzero',
-        type=float,
-        default=-1.,
-        help='Set the value of the process at time t=0. Default: -1',
-    )
-    parser.add_argument(
-        '--target-set',
-        nargs=2,
-        dest='target_set',
-        type=float,
-        default=[0.9, 1.1],
-        help='Set the target set interval. Default: [0.9, 1.1]',
-    )
-    parser.add_argument(
-        '--M',
-        dest='M',
-        type=int,
-        default=1,
-        help='Set number of trajectories to sample. Default: 1',
-    )
+    parser = get_base_parser()
+    parser.description = 'Metadynamics for the 1D overdamped Langevin SDE'
     parser.add_argument(
         '--k',
         dest='k',
@@ -70,30 +18,11 @@ def get_parser():
         default=100,
         help='Steps before adding a bias function. Default: 100',
     )
-    parser.add_argument(
-        '--dt',
-        dest='dt',
-        type=float,
-        default=0.001,
-        help='Set dt. Default: 0.001',
-    )
-    parser.add_argument(
-        '--N-lim',
-        dest='N_lim',
-        type=int,
-        default=10**5,
-        help='Set maximal number of time steps. Default: 100,000',
-    )
-    parser.add_argument(
-        '--do-plots',
-        dest='do_plots',
-        action='store_true',
-        help='Do plots. Default: False',
-    )
     return parser
 
 def main():
     args = get_parser().parse_args()
+    breakpoint()
 
     alpha = np.array(args.alpha)
     target_set = np.array(args.target_set)
@@ -116,7 +45,6 @@ def main():
 
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(
-        #seed=args.seed,
         xzero=args.xzero,
         M=args.M,
         dt=args.dt,

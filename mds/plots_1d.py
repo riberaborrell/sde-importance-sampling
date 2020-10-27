@@ -233,7 +233,7 @@ class Plot1d:
         plt.title(r'Control $u(x)$')
         for i, beta in enumerate(betas):
             label = r'$\beta={:2.1f}$'.format(beta)
-            plt.plot(X, u[i, :], '-', label=label)
+            plt.plot(x, u[i, :], '-', label=label)
         plt.ylim(top=self.top, bottom=self.bottom)
         plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)

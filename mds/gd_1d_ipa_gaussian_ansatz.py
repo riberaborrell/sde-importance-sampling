@@ -1,63 +1,13 @@
+from mds.base_parser_1d import get_base_parser
 from mds.langevin_1d_gradient_descent import GradientDescent
 from mds.langevin_1d_importance_sampling import Sampling
-from mds.potentials_and_gradients import POTENTIAL_NAMES
 
-import argparse
 import numpy as np
 
 def get_parser():
-    parser = argparse.ArgumentParser(description='gd ipa')
-    parser.add_argument(
-        '--seed',
-        dest='seed',
-        type=int,
-        default=None,
-        help='Set seed. Default: None',
-    )
-    parser.add_argument(
-        '--potential',
-        dest='potential_name',
-        choices=POTENTIAL_NAMES,
-        default='1d_sym_2well',
-        help='Set the potential for the 1D MD SDE. Default: symmetric double well',
-    )
-    parser.add_argument(
-        '--alpha',
-        dest='alpha',
-        nargs='+',
-        type=float,
-        default=[1],
-        help='Set the parameter alpha for the chosen potential. Default: [1]',
-    )
-    parser.add_argument(
-        '--beta',
-        dest='beta',
-        type=float,
-        default=1,
-        help='Set the parameter beta for the 1D MD SDE. Default: 1',
-    )
-    parser.add_argument(
-        '--target-set',
-        nargs=2,
-        dest='target_set',
-        type=float,
-        default=[0.9, 1.1],
-        help='Set the target set interval. Default: [0.9, 1.1]',
-    )
-    parser.add_argument(
-        '--xzero',
-        dest='xzero',
-        type=float,
-        default=-1,
-        help='Set the initial position. Default: -1',
-    )
-    parser.add_argument(
-        '--M',
-        dest='M',
-        type=int,
-        default=500,
-        help='Set number of trajectories to sample. Default: 500',
-    )
+    parser = get_base_parser()
+    parser.description = 'Performs GD method using ipa estimator for the gradient of the loss' \
+                         'function'
     parser.add_argument(
         '--epochs-lim',
         dest='epochs_lim',
@@ -66,47 +16,11 @@ def get_parser():
         help='Set maximal number of epochs. Default: 100',
     )
     parser.add_argument(
-        '--lr',
-        dest='lr',
-        type=float,
-        default=0.1,
-        help='Set learning rate. Default: 0.1',
-    )
-    parser.add_argument(
         '--atol',
         dest='atol',
         type=float,
         default=0.01,
         help='Set absolute tolerance between value funtion and loss at xinit. Default: 0.01',
-    )
-    parser.add_argument(
-        '--m',
-        dest='m',
-        type=int,
-        default=50,
-        help='Set the number of uniformly distributed ansatz functions \
-              that you want to use. Default: 50',
-    )
-    parser.add_argument(
-        '--sigma',
-        dest='sigma',
-        type=float,
-        default=1,
-        help='Set the standard deviation of the gaussian ansatz functions \
-              that you want to use. Default: 1',
-    )
-    parser.add_argument(
-        '--theta-init',
-        dest='theta_init',
-        choices=['null', 'meta', 'optimal'],
-        default='null',
-        help='Type of initial control. Default: null',
-    )
-    parser.add_argument(
-        '--do-plots',
-        dest='do_plots',
-        action='store_true',
-        help='Do plots. Default: False',
     )
     parser.add_argument(
         '--do-epoch-plots',

@@ -1,31 +1,16 @@
-from mds.hjb_1d_solver import langevin_hjb_1d_solver
+from mds.base_parser_1d import get_base_parser
+from mds.langevin_1d_hjb_solver import Solver
 from mds.plots_1d import Plot1d
-from mds.potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES
-from mds.utils import get_data_path
+from mds.utils import get_example_data_path
 
-import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 
 import os
 
 def get_parser():
-    parser = argparse.ArgumentParser(description='Plots the potential landscape')
-    parser.add_argument(
-        '--potential',
-        dest='potential_name',
-        choices=POTENTIAL_NAMES,
-        default='1d_sym_2well',
-        help='Set the type of potential to plot. Default: symmetric double well',
-    )
-    parser.add_argument(
-        '--alpha',
-        dest='alpha',
-        nargs='+',
-        type=float,
-        default=[1],
-        help='Set the parameter alpha for the chosen potential. Default: [1]',
-    )
+    parser = get_base_parser()
+    parser.description = 'Plot the potential landscape'
     parser.add_argument(
         '--betas',
         dest='betas',
@@ -34,22 +19,6 @@ def get_parser():
         default=[1.0],
         help='Set list of betas for the 1D MD SDE. Default: [1.0]',
     )
-    parser.add_argument(
-        '--domain',
-        nargs=2,
-        dest='domain',
-        type=float,
-        default=[-3, 3],
-        help='Set the domain interval. Default: [-3, 3]',
-    )
-    parser.add_argument(
-        '--target-set',
-        nargs=2,
-        dest='target_set',
-        type=float,
-        default=[0.9, 1.1],
-        help='Set the target set interval. Default: [0.9, 1.1]',
-    )
     return parser
 
 def main():
@@ -57,9 +26,16 @@ def main():
     alpha = np.array(args.alpha)
     betas = np.array(args.betas)
 
-    # get discretized grid
+    def f(x):
+        return 1
+
+    def g(x):
+        return 0
+
     # get solver for the first beta
-    sol = langevin_hjb_1d_solver(
+    sol = Solver(
+        f=f,
+        g=g,
         potential_name=args.potential_name,
         alpha=alpha,
         beta=betas[0],
@@ -78,7 +54,9 @@ def main():
 
     # get F and u_opt for each beta
     for i, beta in enumerate(betas):
-        sol = langevin_hjb_1d_solver(
+        sol = Solver(
+            f=f,
+            g=g,
             potential_name=args.potential_name,
             alpha=alpha,
             beta=beta,
@@ -89,7 +67,7 @@ def main():
         u_opt[i, :] = ref_sol['u_opt']
 
     # get path
-    dir_path = get_data_path(args.potential_name)
+    dir_path = get_example_data_path(args.potential_name)
 
     # plot free energy
     file_name = 'free_energy_wrt_betas'
