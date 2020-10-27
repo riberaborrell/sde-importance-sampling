@@ -610,12 +610,17 @@ class Sampling:
 
     def compute_statistics(self):
         beta = self.beta
+        fht = self.fht
 
-        # sort out trajectories which have not arrived
-        fht = self.fht[np.where(np.isnan(self.fht) != True)]
-        self.M_arrived = fht.shape[0]
-        if self.M_arrived == 0:
+        # count trajectories which have arrived
+        idx_arrived = np.where(np.isnan(fht) == False)
+        self.M_arrived = fht[idx_arrived].shape[0]
+        if self.M_arrived == M:
             return
+
+        # replace trajectories which have not arrived
+        idx_not_arrived = np.where(np.isnan(fht) == True)
+        fht[idx_not_arrived] = self.N_lim
 
         # first and last fht
         self.first_fht = np.min(fht)
@@ -635,17 +640,7 @@ class Sampling:
 
         else:
             # compute mean of M_fht
-            M1_fht = self.M1_fht[np.where(np.isnan(self.M1_fht) != True)]
-            M2_fht = self.M2_fht[np.where(np.isnan(self.M2_fht) != True)]
             M_fht = np.exp(M1_fht + M2_fht)
-
-            # compute mean of M_k
-            #M1_k = self.M1_k[:, :self.k.shape[0]]
-            #M2_k = self.M2_k[:, :self.k.shape[0]]
-            #M1_k = M1_k[np.where(np.isnan(M1_k) != True), :]
-            #M2_k = M2_k[np.where(np.isnan(M2_k) != True), :]
-            #M_k = np.exp(M1_k + M2_k)
-            #self.mean_M_k = np.mean(M_k, axis=0)
 
             # compute mean and variance of I_u
             I_u = np.exp(-beta * fht) * M_fht
