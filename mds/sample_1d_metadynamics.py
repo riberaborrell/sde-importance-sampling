@@ -1,8 +1,8 @@
-from mds.gaussian_ansatz_functions import bias_potential, \
-                                      bias_gradient
+from mds.gaussian_1d_ansatz_functions import bias_potential, \
+                                             bias_gradient
 from mds.langevin_1d_importance_sampling import Sampling
 from mds.plots_1d import Plot1d
-from mds.potentials_and_gradients import get_potential_and_gradient, POTENTIAL_NAMES
+from mds.potentials_and_gradients_1d import get_potential_and_gradient, POTENTIAL_NAMES
 from mds.utils import make_dir_path, empty_dir, get_example_data_path, get_time_in_hms
 
 import argparse
@@ -266,25 +266,30 @@ def metadynamics_algorithm(sample, k, seed=None, do_plots=False):
             Xhelp = np.zeros(k+1)
             i += 1
 
+            theta = omegas[:i] / 2
+            sample.set_bias_potential(theta, mus[:i], sigmas[:i])
+
             if do_plots:
+                pass
                 # plot tilted potential
-                Vbias = bias_potential(x, omegas[:i], mus[:i], sigmas[:i])
-                pl.file_name = 'tilted_potential_i_' + str(i)
-                pl.set_ylim(bottom=0, top=alpha * 10)
-                #pl.potential_and_tilted_potential(x, V, Vbias)
+                #sample.plot_tilted_potential(
+                #    file_name='tilted_potential_i_' + str(i),
+                #    dir_path=meta_path,
+                #)
 
                 # plot tilted gradient
-                dVbias = bias_gradient(x, omegas[:i], mus[:i], sigmas[:i])
-                pl.file_name = 'tilted_drift_i_' + str(i)
-                pl.set_ylim(bottom=-alpha * 5, top=alpha * 5)
-                #pl.drift_and_tilted_drift(x, dV, dVbias)
+                #sample.plot_tilted_drift(
+                #    file_name='tilted_drift_i_' + str(i),
+                #    dir_path=meta_path,
+                #)
 
         # compute drift and diffusion coefficients
         if i == 0:
             drift = - sample.gradient(Xtemp) * dt
         else:
-            dVbias = bias_gradient(Xtemp, omegas[:i], mus[:i], sigmas[:i])
-            drift = - (sample.gradient(Xtemp) + dVbias) * dt
+            utemp = sample.control(Xtemp)
+            gradient = sample.tilted_gradient(Xtemp, utemp)
+            drift = - gradient * dt
 
         diffusion = np.sqrt(2 / beta) * dB[n-1]
 

@@ -77,7 +77,7 @@ class GaussianAnsatz:
         Args:
             sigma (float) : standard deviation
         '''
-        mus_min, mus_max = self.domain 
+        mus_min, mus_max = self.domain
         # assume target_set is connected and contained in [mus_min, mus_max]
         target_set_min, target_set_max = target_set
 

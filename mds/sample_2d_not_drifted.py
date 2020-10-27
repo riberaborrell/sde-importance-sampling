@@ -1,5 +1,5 @@
 from mds.langevin_2d_importance_sampling import Sampling
-from mds.potentials_and_gradients import POTENTIAL_NAMES
+from mds.potentials_and_gradients_2d import POTENTIAL_NAMES
 
 import argparse
 import numpy as np

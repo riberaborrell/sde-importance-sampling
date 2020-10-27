@@ -18,7 +18,7 @@ class Sampling:
         '''
         '''
         # get potential and gradient functions
-        potential, gradient = get_potential_and_gradient(potential_name, alpha)
+        potential, gradient, _, _, _ = get_potential_and_gradient(potential_name, alpha)
 
         # validate domain and target set
         if domain is None:
