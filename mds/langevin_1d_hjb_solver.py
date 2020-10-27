@@ -1,7 +1,7 @@
 from mds.potentials_and_gradients_1d import get_potential_and_gradient
 from mds.plots_1d import Plot1d
 from mds.utils import get_example_data_path
-from mds.validation import is_1d_valid_domain, is_1d_valid_target_set
+from mds.validation import is_1d_valid_interval, is_1d_valid_target_set
 
 import functools
 import numpy as np
@@ -24,7 +24,7 @@ class Solver():
         # validate domain and target set
         if domain is None:
             domain = np.array([-3, 3])
-        is_1d_valid_domain(domain)
+        is_1d_valid_interval(domain)
         is_1d_valid_target_set(domain, target_set)
 
         # dir_path

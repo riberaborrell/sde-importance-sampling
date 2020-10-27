@@ -1,7 +1,7 @@
 from mds.gaussian_2d_ansatz_functions import GaussianAnsatz
 from mds.potentials_and_gradients_2d import get_potential_and_gradient
 from mds.utils import get_example_data_path, get_gd_data_path, get_time_in_hms, make_dir_path
-#from mds.validation import is_1d_valid_domain, is_1d_valid_target_set, is_1d_valid_control
+from mds.validation import is_2d_valid_interval, is_2d_valid_target_set, is_2d_valid_control
 
 import numpy as np
 from scipy import stats
@@ -22,8 +22,8 @@ class Sampling:
         # validate domain and target set
         if domain is None:
             domain = np.array([[-3, 3], [-3, 3]])
-        #is_1d_valid_domain(domain)
-        #is_1d_valid_target_set(domain, target_set)
+        is_2d_valid_interval(domain)
+        is_2d_valid_target_set(domain, target_set)
 
         # dir_path
         self.example_dir_path = get_example_data_path(potential_name, alpha,

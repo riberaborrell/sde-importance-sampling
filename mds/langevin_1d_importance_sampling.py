@@ -2,7 +2,7 @@ from mds.gaussian_1d_ansatz_functions import GaussianAnsatz
 from mds.potentials_and_gradients_1d import get_potential_and_gradient
 from mds.plots_1d import Plot1d
 from mds.utils import get_example_data_path, get_gd_data_path, get_time_in_hms, make_dir_path
-from mds.validation import is_1d_valid_domain, is_1d_valid_target_set, is_1d_valid_control
+from mds.validation import is_1d_valid_interval, is_1d_valid_target_set, is_1d_valid_control
 
 import numpy as np
 from scipy import stats
@@ -23,7 +23,7 @@ class Sampling:
         # validate domain and target set
         if domain is None:
             domain = np.array([-3, 3])
-        is_1d_valid_domain(domain)
+        is_1d_valid_interval(domain)
         is_1d_valid_target_set(domain, target_set)
 
         # dir_path
@@ -588,12 +588,21 @@ class Sampling:
 
     def compute_statistics(self):
         beta = self.beta
+        fht = self.fht
+        M1_fht = self.M1_fht
+        M2_fht = self.M2_fht
+        M1_k = self.M1_k
+        M2_k = self.M2_k
 
-        # sort out trajectories which have not arrived
-        fht = self.fht[np.where(np.isnan(self.fht) != True)]
-        self.M_arrived = fht.shape[0]
+        # count trajectories which have arrived
+        idx_arrived = np.where(np.isnan(fht) == False)
+        self.M_arrived = fht[idx_arrived].shape[0]
         if self.M_arrived == 0:
             return
+
+        # replace trajectories which have not arrived
+        idx_not_arrived = np.where(np.isnan(fht) == True)
+        fht[idx_not_arrived] = self.N_lim
 
         # first and last fht
         self.first_fht = np.min(fht)
@@ -616,9 +625,16 @@ class Sampling:
             #print('{:2.3e}'.format(np.exp(k) * a))
 
         else:
+            # compute mean of M_k
+            breakpoint()
+            M1_k = M1_k[:, :self.k.shape[0]]
+            M2_k = M2_k[:, :self.k.shape[0]]
+            M_k = np.exp(M1_k + M2_k)
+            self.mean_M_k = np.mean(M_k, axis=0)
+
             # compute mean of M_fht
-            M1_fht = self.M1_fht[np.where(np.isnan(self.M1_fht) != True)]
-            M2_fht = self.M2_fht[np.where(np.isnan(self.M2_fht) != True)]
+            M1_fht[idx_not_arrived] = M1_k[idx_not_arrived, -1]
+            M2_fht[idx_not_arrived] = M2_k[idx_not_arrived, -1]
             M_fht = np.exp(M1_fht + M2_fht)
 
             #print('{:2.3e}'.format(np.mean(self.M1_fht + self.M2_fht)))
@@ -628,14 +644,6 @@ class Sampling:
             #b = np.mean(np.exp(self.M1_fht + self.M2_fht -l))
             #print('{:2.3e}'.format(np.exp(k) * a))
             #print('{:2.3e}'.format(np.exp(l) * b))
-
-            # compute mean of M_k
-            M1_k = self.M1_k[:, :self.k.shape[0]]
-            M2_k = self.M2_k[:, :self.k.shape[0]]
-            #M1_k = M1_k[np.where(np.isnan(M1_k) != True), :]
-            #M2_k = M2_k[np.where(np.isnan(M2_k) != True), :]
-            M_k = np.exp(M1_k + M2_k)
-            self.mean_M_k = np.mean(M_k, axis=0)
 
             # compute mean and variance of I_u
             I_u = np.exp(-beta * fht) * M_fht

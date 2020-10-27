@@ -24,12 +24,11 @@ class Solver():
 
     def __init__(self, f, g, potential_name, alpha, beta, target_set, domain=None, h=0.1):
 
-        # validate domain
+        # validate domain and target set
         if domain is None:
             domain = np.array([[-3, 3], [-3, 3]])
-        #is_2d_valid_domain(domain)
-
-        # validate target set
+        is_2d_valid_interval(domain)
+        is_2d_valid_target_set(domain, target_set)
 
         # dir_path
         self.dir_path = get_example_data_path(potential_name, alpha, beta,

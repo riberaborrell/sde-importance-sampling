@@ -1,6 +1,6 @@
 from mds.plots_1d import Plot1d
 from mds.utils import get_ansatz_data_path
-from mds.validation import is_1d_valid_domain
+from mds.validation import is_1d_valid_interval
 
 import numpy as np
 import scipy.stats as stats
@@ -14,7 +14,7 @@ class GaussianAnsatz:
         '''
         if domain is None:
             domain = np.array([-3, 3])
-        is_1d_valid_domain(domain)
+        is_1d_valid_interval(domain)
         if mus is not None and sigmas is not None:
             assert mus.ndim == sigmas.ndim == 1, ''
             assert mus.shape == sigmas.shape, ''
