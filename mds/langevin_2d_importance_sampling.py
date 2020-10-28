@@ -364,10 +364,8 @@ class Sampling:
         self.fht[:] = np.NaN
 
         if self.is_drifted:
-            self.M1_fht = np.empty((M, 2))
-            self.M1_fht[:, :] = np.NaN
-            self.M2_fht = np.empty((M, 2))
-            self.M2_fht[:, :] = np.NaN
+            self.M1_fht = np.empty(M)
+            self.M2_fht = np.empty(M)
             #self.M1_k = np.empty((M, 2, 10))
             #self.M1_k[:, :, :] = np.NaN
             #self.M2_k = np.empty((M, 2, 10))
@@ -402,7 +400,7 @@ class Sampling:
 
             # SDE iteration
             drift = - gradient * dt
-            diffusion = np.sqrt(2 / beta) * dB
+            diffusion = np.dot(dB, np.sqrt(2 / beta) * np.ones((2, 2)))
             Xtemp += drift + diffusion
 
             # trajectories in the target set
@@ -447,8 +445,8 @@ class Sampling:
         Xtemp[:, 1] *= xzero[1]
 
         # initialize Girsanov Martingale terms, M_t = e^(M1_t + M2_t)
-        M1temp = np.zeros((M, 2))
-        M2temp = np.zeros((M, 2))
+        M1temp = np.zeros(M)
+        M2temp = np.zeros(M)
         k = np.array([])
 
         # has arrived in target set
@@ -466,12 +464,12 @@ class Sampling:
 
             # SDE iteration
             drift = - gradient * dt
-            diffusion = np.sqrt(2 / beta) * dB
+            diffusion = np.dot(dB, np.sqrt(2 / beta) * np.ones((2, 2)))
             Xtemp += drift + diffusion
 
             # Girsanov Martingale terms
-            M1temp -= np.sqrt(beta) * utemp * dB
-            M2temp -= beta * 0.5 * (utemp ** 2) * dt
+            M1temp -= np.sqrt(beta) * np.matmul(utemp, dB.T).diagonal()
+            M2temp -= beta * 0.5 * (np.linalg.norm(utemp, axis=1) ** 2) * dt
 
             # trajectories in the target set
             is_in_target_set = (
@@ -640,7 +638,7 @@ class Sampling:
 
         else:
             # compute mean of M_fht
-            M_fht = np.exp(M1_fht + M2_fht)
+            M_fht = np.exp(self.M1_fht + self.M2_fht)
 
             # compute mean and variance of I_u
             I_u = np.exp(-beta * fht) * M_fht

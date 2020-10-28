@@ -289,6 +289,7 @@ class Solver():
         #self.exp_fht = ref_sol['exp_fht']
 
     def write_report(self, x):
+        h = self.h
         domain_h = self.domain_h
 
         # exp fht and mgf at x
@@ -306,6 +307,7 @@ class Solver():
         # write file
         file_path = os.path.join(self.dir_path, 'report.txt')
         f = open(file_path, "w")
+        f.write('h = {:2.4f}\n'.format(h))
         f.write('(x, y) = ({:2.1f}, {:2.1f})\n'.format(x[0], x[1]))
         #f.write('E[fht] at x = {:2.3f}\n'.format(exp_fht))
         f.write('Psi at x = {:2.3e}\n'.format(Psi))
