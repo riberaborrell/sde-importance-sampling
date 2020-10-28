@@ -1,10 +1,9 @@
 from mds.gaussian_2d_ansatz_functions import GaussianAnsatz
 from mds.potentials_and_gradients_2d import get_potential_and_gradient
 from mds.utils import get_example_data_path, get_gd_data_path, get_time_in_hms, make_dir_path
-from mds.validation import is_2d_valid_interval, is_2d_valid_target_set, is_2d_valid_control
+from mds.validation import is_2d_valid_interval, is_2d_valid_target_set
 
 import numpy as np
-from scipy import stats
 import time
 import os
 
@@ -400,7 +399,7 @@ class Sampling:
 
             # SDE iteration
             drift = - gradient * dt
-            diffusion = np.dot(dB, np.sqrt(2 / beta) * np.ones((2, 2)))
+            diffusion = np.dot(dB, np.sqrt(2 / beta) * np.eye(2))
             Xtemp += drift + diffusion
 
             # trajectories in the target set
@@ -464,7 +463,7 @@ class Sampling:
 
             # SDE iteration
             drift = - gradient * dt
-            diffusion = np.dot(dB, np.sqrt(2 / beta) * np.ones((2, 2)))
+            diffusion = np.dot(dB, np.sqrt(2 / beta) * np.eye(2))
             Xtemp += drift + diffusion
 
             # Girsanov Martingale terms

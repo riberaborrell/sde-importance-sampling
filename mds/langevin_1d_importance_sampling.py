@@ -713,6 +713,8 @@ class Sampling:
 
         f.write('trajectories which arrived: {:2.2f} %\n'
                 ''.format(100 * self.M_arrived / self.M))
+        f.write('used time steps: {:,d}\n\n'.format(int(self.last_fht / self.dt)))
+
         if self.M_arrived == 0:
             f.close()
             return
