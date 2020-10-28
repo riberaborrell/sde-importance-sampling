@@ -5,7 +5,7 @@ import numpy as np
 
 def get_parser():
     parser = get_base_parser()
-    parser.description = 'sample not drifted 1D overdamped Langevin SDE'
+    parser.description = 'Samples not drifted 1D overdamped Langevin SDE'
     return parser
 
 def main():
@@ -38,11 +38,10 @@ def main():
         sample.plot_tilted_potential(file_name='tilted_potential')
         sample.plot_tilted_drift(file_name='tilted_drift')
 
-    # sample
+    # sample and compute statistics
     sample.sample_not_drifted()
 
-    # compute and print statistics
-    sample.compute_statistics()
+    # print statistics
     sample.write_report()
 
 

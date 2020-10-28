@@ -60,11 +60,10 @@ def main():
         N_lim=args.N_lim,
     )
 
-    # sample
+    # sample and compute statistics
     sample.sample_drifted()
 
-    # compute and print statistics
-    sample.compute_statistics()
+    # print statistics
     sample.write_report()
 
 

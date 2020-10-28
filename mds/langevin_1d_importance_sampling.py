@@ -67,6 +67,7 @@ class Sampling:
         self.M_arrived = None
 
         # first hitting time
+        self.been_in_target_set = None
         self.fht = None
         self.first_fht = None
         self.last_fht = None
@@ -346,8 +347,11 @@ class Sampling:
         self.dt = dt
         self.N_lim = N_lim
 
-        # initialize timer
-        self.t_initial = time.time()
+    def start_timer(self):
+        self.t_initial = time.perf_counter()
+
+    def stop_timer(self):
+        self.t_final = time.perf_counter()
 
     def initialize_fht(self):
         '''
@@ -355,8 +359,8 @@ class Sampling:
         assert self.M is not None, ''
         M = self.M
 
+        self.been_in_target_set = np.repeat([False], M)
         self.fht = np.empty(M)
-        self.fht[:] = np.NaN
 
     def initialize_girsanov_martingale_terms(self):
         '''
@@ -399,18 +403,17 @@ class Sampling:
         return idx_new
 
     def sample_not_drifted(self):
+        self.start_timer()
+        self.initialize_fht()
+
         dt = self.dt
         N_lim = self.N_lim
         xzero = self.xzero
         M = self.M
-
-        self.initialize_fht()
+        been_in_target_set = self.been_in_target_set
 
         # initialize Xtemp
         xtemp = xzero * np.ones(M)
-
-        # has arrived in target set
-        been_in_target_set = np.repeat([False], M)
 
         for n in np.arange(1, N_lim +1):
             # Brownian increment
@@ -432,16 +435,22 @@ class Sampling:
             if been_in_target_set.all() == True:
                 break
 
+        self.been_in_target_set = been_in_target_set
+        self.compute_fht_statistics()
+        self.compute_I_statistics()
+        self.stop_timer()
 
     def sample_drifted(self):
+        self.start_timer()
+        self.initialize_fht()
+        self.initialize_girsanov_martingale_terms()
+
         beta = self.beta
         dt = self.dt
         N_lim = self.N_lim
         xzero = self.xzero
         M = self.M
-
-        self.initialize_fht()
-        self.initialize_girsanov_martingale_terms()
+        been_in_target_set = self.been_in_target_set
 
         # initialize Xtemp
         xtemp = xzero * np.ones(M)
@@ -450,9 +459,6 @@ class Sampling:
         M1temp = np.zeros(M)
         M2temp = np.zeros(M)
         k = np.array([])
-
-        # has arrived in target set
-        been_in_target_set = np.repeat([False], M)
 
         for n in np.arange(1, N_lim +1):
             # Brownian increment
@@ -494,7 +500,14 @@ class Sampling:
                 self.k = k
                 break
 
+        self.been_in_target_set = been_in_target_set
+        self.compute_fht_statistics()
+        self.compute_I_u_statistics()
+        self.stop_timer()
+
     def sample_loss(self):
+        self.initialize_fht()
+
         alpha = self.alpha
         beta = self.beta
         dt = self.dt
@@ -502,6 +515,7 @@ class Sampling:
         xzero = self.xzero
         M = self.M
         m = self.ansatz.m
+        been_in_target_set = self.been_in_target_set
 
         # initialize loss and its gradient 
         J = np.zeros(M)
@@ -512,9 +526,6 @@ class Sampling:
         cost_temp = np.zeros(M)
         grad_phi_temp = np.zeros((M, m))
         grad_S_temp = np.zeros((M, m))
-
-        # has arrived in target set
-        been_in_target_set = np.repeat([False], M)
 
         for n in np.arange(1, N_lim+1):
             # Brownian increment
@@ -540,6 +551,9 @@ class Sampling:
             # get indices from the trajectories which are new in target set
             idx_new = self.get_idx_new_in_target_set(xtemp, been_in_target_set)
 
+            # save first hitting time
+            self.fht[idx_new] = n * dt
+
             # save ipa statistics
             J[idx_new] = n * dt + cost_temp[idx_new]
             grad_J[idx_new, :] = grad_phi_temp[idx_new, :] \
@@ -554,7 +568,7 @@ class Sampling:
         mean_J = np.mean(J)
         mean_grad_J = np.mean(grad_J, axis=0)
 
-        return True, mean_J, mean_grad_J
+        return True, mean_J, mean_grad_J, n
 
 
     def compute_mean_variance_and_rel_error(self, x):
@@ -576,23 +590,20 @@ class Sampling:
 
         return mean, var, re
 
-    def compute_statistics(self):
-        beta = self.beta
+    def compute_fht_statistics(self):
+        been_in_target_set = self.been_in_target_set
         fht = self.fht
-        M1_fht = self.M1_fht
-        M2_fht = self.M2_fht
-        M1_k = self.M1_k
-        M2_k = self.M2_k
 
         # count trajectories which have arrived
-        idx_arrived = np.where(np.isnan(fht) == False)
+        idx_arrived = np.where(been_in_target_set == True)
         self.M_arrived = fht[idx_arrived].shape[0]
         if self.M_arrived == 0:
             return
 
         # replace trajectories which have not arrived
-        idx_not_arrived = np.where(np.isnan(fht) == True)
+        idx_not_arrived = np.where(been_in_target_set == False)
         fht[idx_not_arrived] = self.N_lim
+        self.fht = fht
 
         # first and last fht
         self.first_fht = np.min(fht)
@@ -603,45 +614,56 @@ class Sampling:
         self.var_fht, \
         self.re_fht = self.compute_mean_variance_and_rel_error(fht)
 
-        if not self.is_drifted:
-            # compute mean and variance of I
-            I = np.exp(-beta * fht)
-            self.mean_I, \
-            self.var_I, \
-            self.re_I = self.compute_mean_variance_and_rel_error(I)
+    def compute_I_statistics(self):
+        beta = self.beta
+        fht = self.fht
 
-            #k = np.max(-self.beta * fht)
-            #a = np.mean(np.exp(-self.beta * fht -k))
-            #print('{:2.3e}'.format(np.exp(k) * a))
+        # compute mean and variance of I
+        I = np.exp(-beta * fht)
+        self.mean_I, \
+        self.var_I, \
+        self.re_I = self.compute_mean_variance_and_rel_error(I)
 
-        else:
-            # compute mean of M_k
-            M1_k = M1_k[:, :self.k.shape[0]]
-            M2_k = M2_k[:, :self.k.shape[0]]
-            M_k = np.exp(M1_k + M2_k)
-            self.mean_M_k = np.mean(M_k, axis=0)
+        #TODO: implement method to stabilize the exponential mean
+        #k = np.max(-self.beta * fht)
+        #a = np.mean(np.exp(-self.beta * fht -k))
+        #print('{:2.3e}'.format(np.exp(k) * a))
 
-            # compute mean of M_fht
-            M1_fht[idx_not_arrived] = M1_k[idx_not_arrived, -1]
-            M2_fht[idx_not_arrived] = M2_k[idx_not_arrived, -1]
-            M_fht = np.exp(M1_fht + M2_fht)
+    def compute_I_u_statistics(self):
+        beta = self.beta
+        fht = self.fht
+        been_in_target_set = self.been_in_target_set
+        M1_fht = self.M1_fht
+        M2_fht = self.M2_fht
+        M1_k = self.M1_k
+        M2_k = self.M2_k
 
-            #print('{:2.3e}'.format(np.mean(self.M1_fht + self.M2_fht)))
-            #k = np.max(self.M1_fht + self.M2_fht)
-            #a = np.mean(np.exp(self.M1_fht + self.M2_fht -k))
-            #l = np.min(self.M1_fht + self.M2_fht)
-            #b = np.mean(np.exp(self.M1_fht + self.M2_fht -l))
-            #print('{:2.3e}'.format(np.exp(k) * a))
-            #print('{:2.3e}'.format(np.exp(l) * b))
+        # compute mean of M_k
+        M1_k = M1_k[:, :self.k.shape[0]]
+        M2_k = M2_k[:, :self.k.shape[0]]
+        M_k = np.exp(M1_k + M2_k)
+        self.mean_M_k = np.mean(M_k, axis=0)
 
-            # compute mean and variance of I_u
-            I_u = np.exp(-beta * fht) * M_fht
-            self.mean_I_u, \
-            self.var_I_u, \
-            self.re_I_u = self.compute_mean_variance_and_rel_error(I_u)
+        # compute mean of M_fht
+        idx_not_arrived = np.where(been_in_target_set == False)
+        M1_fht[idx_not_arrived] = M1_k[idx_not_arrived, -1]
+        M2_fht[idx_not_arrived] = M2_k[idx_not_arrived, -1]
+        M_fht = np.exp(M1_fht + M2_fht)
 
-        # stop timer
-        self.t_final = time.time()
+        #TODO: implement method to stabilize the exponential mean
+        #print('{:2.3e}'.format(np.mean(self.M1_fht + self.M2_fht)))
+        #k = np.max(self.M1_fht + self.M2_fht)
+        #a = np.mean(np.exp(self.M1_fht + self.M2_fht -k))
+        #l = np.min(self.M1_fht + self.M2_fht)
+        #b = np.mean(np.exp(self.M1_fht + self.M2_fht -l))
+        #print('{:2.3e}'.format(np.exp(k) * a))
+        #print('{:2.3e}'.format(np.exp(l) * b))
+
+        # compute mean and variance of I_u
+        I_u = np.exp(-beta * fht) * M_fht
+        self.mean_I_u, \
+        self.var_I_u, \
+        self.re_I_u = self.compute_mean_variance_and_rel_error(I_u)
 
     def write_sde_parameters(self, f):
         '''
@@ -692,7 +714,7 @@ class Sampling:
         f.write('trajectories which arrived: {:2.2f} %\n'
                 ''.format(100 * self.M_arrived / self.M))
         if self.M_arrived == 0:
-            f.close
+            f.close()
             return
 
         f.write('First hitting time\n')
