@@ -155,7 +155,7 @@ class GaussianAnsatz:
 
         basis_control = np.zeros((M, m, 2))
         for j in np.arange(m):
-            basis_control[:, j, :] = self.gradient_multivariate_normal_pdf(x, means[j], covs[j])
+            basis_control[:, j, :] = - np.sqrt(2) *  self.gradient_multivariate_normal_pdf(x, means[j], covs[j])
         return basis_control
 
     def write_ansatz_parameters(self, f):

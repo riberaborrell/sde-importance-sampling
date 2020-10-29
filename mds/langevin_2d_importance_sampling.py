@@ -1,4 +1,5 @@
 from mds.gaussian_2d_ansatz_functions import GaussianAnsatz
+from mds.plots_2d import Plot2d
 from mds.potentials_and_gradients_2d import get_potential_and_gradient
 from mds.utils import get_example_data_path, get_gd_data_path, get_time_in_hms, make_dir_path
 from mds.validation import is_2d_valid_interval, is_2d_valid_target_set
@@ -67,6 +68,7 @@ class Sampling:
 
         # trajectories which arrived
         self.M_arrived = None
+        self.been_in_target_set = None
 
         # first hitting time
         self.fht = None
@@ -76,6 +78,7 @@ class Sampling:
         self.var_fht = None
         self.re_fht = None
 
+        # quantity of interest
         self.mean_I = None
         self.var_I = None
         self.re_I = None
@@ -263,16 +266,28 @@ class Sampling:
             theta = self.theta
         if ansatz is None:
             ansatz = self.ansatz
-        assert theta.shape == ansatz.mus.shape == ansatz.sigmas.shape, ''
+
+        target_set_x, target_set_y = self.target_set
+        target_set_x_min, target_set_x_max = target_set_x
+        target_set_y_min, target_set_y_max = target_set_y
 
         # value function with constant K=0
-        value_f =  np.dot(ansatz.basis_value_f(x), theta)
+        basis_value_f =  ansatz.basis_value_f(x)
+        value_f =  np.dot(basis_value_f, theta)
 
-        # compute K
-        target_set_min, target_set_max = self.target_set
-        idx_ts = np.where((x >= target_set_min) & (x <= target_set_max))[0]
-        #K = - np.mean(value_f[idx_ts])
-        K = - value_f[idx_ts[0]]
+        # compute constant
+
+        # x in the target set
+        is_in_target_set = (
+            (x[:, 0] >= target_set_x_min) &
+            (x[:, 0] <= target_set_x_max) &
+            (x[:, 1] >= target_set_y_min) &
+            (x[:, 1] <= target_set_y_max)
+        )
+        idx_ts = np.where(is_in_target_set == True)[0]
+
+        # impose value function in the target set is null
+        K = - np.mean(value_f[idx_ts])
 
         return value_f + K
 
@@ -285,7 +300,7 @@ class Sampling:
             theta ((m,)-array): parameters
             ansatz (object): ansatz functions
         '''
-        M = self.M
+        M = x.shape[0]
         if theta is None:
             theta = self.theta
         if ansatz is None:
@@ -350,165 +365,158 @@ class Sampling:
         self.dt = dt
         self.N_lim = N_lim
 
-        # initialize timer
-        self.t_initial = time.time()
+    def start_timer(self):
+        self.t_initial = time.perf_counter()
 
-    def initialize_sampling_variables(self):
+    def stop_timer(self):
+        self.t_final = time.perf_counter()
+
+    def initialize_fht(self):
+        '''
+        '''
+        assert self.M is not None, ''
+        M = self.M
+        self.been_in_target_set = np.repeat([False], M)
+        self.fht = np.empty(M)
+
+    def initialize_girsanov_martingale_terms(self):
         '''
         '''
         assert self.M is not None, ''
         M = self.M
 
-        self.fht = np.empty(M)
-        self.fht[:] = np.NaN
+        self.M1_fht = np.empty(M)
+        self.M2_fht = np.empty(M)
+        self.M1_k = np.empty((M, 10))
+        self.M2_k = np.empty((M, 10))
 
-        if self.is_drifted:
-            self.M1_fht = np.empty(M)
-            self.M2_fht = np.empty(M)
-            #self.M1_k = np.empty((M, 2, 10))
-            #self.M1_k[:, :, :] = np.NaN
-            #self.M2_k = np.empty((M, 2, 10))
-            #self.M2_k[:, :, :] = np.NaN
-
-    def sample_not_drifted(self):
+    def sde_update(self, x, gradient, dB):
         beta = self.beta
         dt = self.dt
-        N_lim = self.N_lim
-        xzero = self.xzero
-        M = self.M
+
+        drift = - gradient * dt
+        diffusion = np.dot(dB, np.sqrt(2 / beta) * np.eye(2))
+        return x + drift + diffusion
+
+    def get_idx_new_in_target_set(self, x, been_in_target_set):
         target_set_x, target_set_y = self.target_set
         target_set_x_min, target_set_x_max = target_set_x
         target_set_y_min, target_set_y_max = target_set_y
 
-        self.initialize_sampling_variables()
+        # trajectories in the target set
+        is_in_target_set = (
+            (x[:, 0] >= target_set_x_min) &
+            (x[:, 0] <= target_set_x_max) &
+            (x[:, 1] >= target_set_y_min) &
+            (x[:, 1] <= target_set_y_max)
+        )
+
+        # indices of trajectories new in the target set
+        idx_new = np.where(
+            (is_in_target_set == True) &
+            (been_in_target_set == False)
+        )[0]
+
+        # update list of indices whose trajectories have been in the target set
+        been_in_target_set[idx_new] = True
+
+        return idx_new
+
+    def sample_not_drifted(self):
+        self.start_timer()
+        self.initialize_fht()
+
+        dt = self.dt
+        N_lim = self.N_lim
+        xzero = self.xzero
+        M = self.M
+        been_in_target_set = self.been_in_target_set
 
         # initialize Xtemp
-        Xtemp = np.ones((M, 2))
-        Xtemp[:, 0] *= xzero[0]
-        Xtemp[:, 1] *= xzero[1]
-
-        # has arrived in target set
-        been_in_target_set = np.repeat([False], M)
+        xtemp = np.ones((M, 2))
+        xtemp[:, 0] *= xzero[0]
+        xtemp[:, 1] *= xzero[1]
 
         for n in np.arange(1, N_lim +1):
             # Brownian increment
             dB = (np.sqrt(dt) * np.random.normal(0, 1, 2 * M)).reshape((M, 2))
 
             # compute gradient
-            gradient = self.gradient(Xtemp)
+            gradient = self.gradient(xtemp)
 
-            # SDE iteration
-            drift = - gradient * dt
-            diffusion = np.dot(dB, np.sqrt(2 / beta) * np.eye(2))
-            Xtemp += drift + diffusion
+            # sde update
+            xtemp = self.sde_update(xtemp, gradient, dB)
 
-            # trajectories in the target set
-            is_in_target_set = (
-                (Xtemp[:, 0] >= target_set_x_min) &
-                (Xtemp[:, 0] <= target_set_x_max) &
-                (Xtemp[:, 1] >= target_set_y_min) &
-                (Xtemp[:, 1] <= target_set_y_max)
-            )
-
-            # indices of trajectories new in the target set
-            new_idx = np.where(
-                (is_in_target_set == True) & (been_in_target_set == False)
-            )[0]
-
-            # update list of indices whose trajectories have been in the target set
-            been_in_target_set[new_idx] = True
+            # get indices from the trajectories which are new in target
+            idx_new = self.get_idx_new_in_target_set(xtemp, been_in_target_set)
 
             # save first hitting time
-            self.fht[new_idx] = n * dt
+            self.fht[idx_new] = n * dt
 
             # check if all trajectories have arrived to the target set
             if been_in_target_set.all() == True:
                 break
 
+        self.been_in_target_set = been_in_target_set
+        self.compute_fht_statistics()
+        self.compute_I_statistics()
+        self.stop_timer()
 
     def sample_drifted(self):
+        self.start_timer()
+        self.initialize_fht()
+        self.initialize_girsanov_martingale_terms()
+
         beta = self.beta
         dt = self.dt
         N_lim = self.N_lim
         xzero = self.xzero
         M = self.M
-        target_set_x, target_set_y = self.target_set
-        target_set_x_min, target_set_x_max = target_set_x
-        target_set_y_min, target_set_y_max = target_set_y
-
-        self.initialize_sampling_variables()
+        been_in_target_set = self.been_in_target_set
 
         # initialize Xtemp
-        Xtemp = np.ones((M, 2))
-        Xtemp[:, 0] *= xzero[0]
-        Xtemp[:, 1] *= xzero[1]
+        xtemp = np.ones((M, 2))
+        xtemp[:, 0] *= xzero[0]
+        xtemp[:, 1] *= xzero[1]
 
         # initialize Girsanov Martingale terms, M_t = e^(M1_t + M2_t)
         M1temp = np.zeros(M)
         M2temp = np.zeros(M)
         k = np.array([])
 
-        # has arrived in target set
-        been_in_target_set = np.repeat([False], M)
-
         for n in np.arange(1, N_lim +1):
             # Brownian increment
             dB = (np.sqrt(dt) * np.random.normal(0, 1, 2 * M)).reshape((M, 2))
 
             # control at Xtemp
-            utemp = self.control(Xtemp)
+            utemp = self.control(xtemp)
 
             # compute gradient
-            gradient = self.tilted_gradient(Xtemp, utemp)
+            gradient = self.tilted_gradient(xtemp, utemp)
 
-            # SDE iteration
-            drift = - gradient * dt
-            diffusion = np.dot(dB, np.sqrt(2 / beta) * np.eye(2))
-            Xtemp += drift + diffusion
+            # sde update
+            xtemp = self.sde_update(xtemp, gradient, dB)
 
             # Girsanov Martingale terms
             M1temp -= np.sqrt(beta) * np.matmul(utemp, dB.T).diagonal()
             M2temp -= beta * 0.5 * (np.linalg.norm(utemp, axis=1) ** 2) * dt
 
-            # trajectories in the target set
-            is_in_target_set = (
-                (Xtemp[:, 0] >= target_set_x_min) &
-                (Xtemp[:, 0] <= target_set_x_max) &
-                (Xtemp[:, 0] >= target_set_y_min) &
-                (Xtemp[:, 0] <= target_set_y_max)
-            )
+            # get indices from the trajectories which are new in target set
+            idx_new = self.get_idx_new_in_target_set(xtemp, been_in_target_set)
 
-            # indices of trajectories new in the target set
-            new_idx = np.where(
-                (is_in_target_set == True) & (been_in_target_set == False)
-            )[0]
-
-            # update list of indices whose trajectories have been in the target set
-            been_in_target_set[new_idx] = True
-
-            # save first hitting time
-            self.fht[new_idx] = n * dt
-
-            # save Girsanov Martingale
-            self.M1_fht[new_idx] = M1temp[new_idx]
-            self.M2_fht[new_idx] = M2temp[new_idx]
-
-            if n % 1000 == 0:
-                pass
-                #print(n, np.mean(np.exp(M1temp + M2temp)))
-                #k = np.append(k, n)
-                #self.M1_k[:, k.shape[0]-1] = M1temp
-                #self.M2_k[:, k.shape[0]-1] = M2temp
+            # save first hitting time and Girsanov Martingale terms
+            self.fht[idx_new] = n * dt
+            self.M1_fht[idx_new] = M1temp[idx_new]
+            self.M2_fht[idx_new] = M2temp[idx_new]
 
             # check if all trajectories have arrived to the target set
             if been_in_target_set.all() == True:
-                # save Girsanov Martingale at the time when 
-                # the last trajectory arrive
-                #k = np.append(k, n)
-                #self.M1_k[:, k.shape[0]-1] = M1temp
-                #self.M2_k[:, k.shape[0]-1] = M2temp
-                #self.k = k
                 break
+
+        self.been_in_target_set = been_in_target_set
+        self.compute_fht_statistics()
+        self.compute_I_u_statistics()
+        self.stop_timer()
 
     def sample_loss(self):
         alpha = self.alpha
@@ -605,19 +613,20 @@ class Sampling:
 
         return mean, var, re
 
-    def compute_statistics(self):
-        beta = self.beta
+    def compute_fht_statistics(self):
+        been_in_target_set = self.been_in_target_set
         fht = self.fht
 
         # count trajectories which have arrived
-        idx_arrived = np.where(np.isnan(fht) == False)
+        idx_arrived = np.where(been_in_target_set == True)
         self.M_arrived = fht[idx_arrived].shape[0]
         if self.M_arrived != self.M:
             return
 
         # replace trajectories which have not arrived
-        idx_not_arrived = np.where(np.isnan(fht) == True)
+        idx_not_arrived = np.where(been_in_target_set == False)
         fht[idx_not_arrived] = self.N_lim
+        self.fht = fht
 
         # first and last fht
         self.first_fht = np.min(fht)
@@ -628,25 +637,30 @@ class Sampling:
         self.var_fht, \
         self.re_fht = self.compute_mean_variance_and_rel_error(fht)
 
-        if not self.is_drifted:
-            # compute mean and variance of I
-            I = np.exp(-beta * fht)
-            self.mean_I, \
-            self.var_I, \
-            self.re_I = self.compute_mean_variance_and_rel_error(I)
+    def compute_I_statistics(self):
+        beta = self.beta
+        fht = self.fht
 
-        else:
-            # compute mean of M_fht
-            M_fht = np.exp(self.M1_fht + self.M2_fht)
+        # compute mean and variance of I
+        I = np.exp(-beta * fht)
+        self.mean_I, \
+        self.var_I, \
+        self.re_I = self.compute_mean_variance_and_rel_error(I)
 
-            # compute mean and variance of I_u
-            I_u = np.exp(-beta * fht) * M_fht
-            self.mean_I_u, \
-            self.var_I_u, \
-            self.re_I_u = self.compute_mean_variance_and_rel_error(I_u)
+    def compute_I_u_statistics(self):
+        beta = self.beta
+        fht = self.fht
+        M1_fht = self.M1_fht
+        M2_fht = self.M2_fht
 
-        # stop timer
-        self.t_final = time.time()
+        # compute mean of M_fht
+        M_fht = np.exp(M1_fht + M2_fht)
+
+        # compute mean and variance of I_u
+        I_u = np.exp(-beta * fht) * M_fht
+        self.mean_I_u, \
+        self.var_I_u, \
+        self.re_I_u = self.compute_mean_variance_and_rel_error(I_u)
 
     def write_sde_parameters(self, f):
         '''
@@ -700,8 +714,9 @@ class Sampling:
 
         f.write('trajectories which arrived: {:2.2f} %\n'
                 ''.format(100 * self.M_arrived / self.M))
+        f.write('used time steps: {:,d}\n\n'.format(int(self.last_fht / self.dt)))
         if self.M_arrived == 0:
-            f.close
+            f.close()
             return
 
         f.write('First hitting time\n')
@@ -754,35 +769,60 @@ class Sampling:
         pl.mgf(x, Psi, appr_Psi)
 
     def plot_appr_free_energy(self, file_name, dir_path=None):
-        x = self.domain_h
+        if dir_path is None:
+            dir_path = self.dir_path
 
-        Vbias = self.bias_potential(x)
+        h = self.h
+        Nx = self.Nx
+        Ny = self.Ny
+        N = self.N
+        X = self.domain_h[:, :, 0]
+        Y = self.domain_h[:, :, 1]
+        x = self.domain_h.reshape((N, 2))
+        Vbias = self.bias_potential(x).reshape((Nx, Ny))
         appr_F = Vbias / 2
 
-        self.load_reference_solution()
-        F = self.ref_sol['F']
+        # surface plot
+        plt2d = Plot2d(dir_path, file_name + '_surface')
+        plt2d.set_title(r'$F(x, y)$')
+        plt2d.surface(X, Y, appr_F)
 
-        if dir_path is None:
-            dir_path = self.dir_path
+        # contour plot
+        vmin = 0
+        vmax = 3
+        levels = np.linspace(-0.5, 3.5, 21)
+        plt2d = Plot2d(dir_path, file_name + '_contour')
+        plt2d.set_title(r'$F(x, y)$')
+        plt2d.contour(X, Y, appr_F)
 
-        pl = Plot(dir_path, file_name)
-        pl.set_ylim(bottom=0, top=self.alpha * 3)
-        pl.free_energy(x, F, appr_F)
 
     def plot_control(self, file_name, dir_path=None):
-        x = self.domain_h
-
-        u = self.control(x)
-
-        self.load_reference_solution()
-        u_opt = self.ref_sol['u_opt']
-
         if dir_path is None:
             dir_path = self.dir_path
 
-        pl = Plot(dir_path, file_name)
-        pl.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
-        pl.control(x, u_opt, u)
+        h = self.h
+        Nx = self.Nx
+        Ny = self.Ny
+        N = self.N
+        X = self.domain_h[:, :, 0]
+        Y = self.domain_h[:, :, 1]
+        x = self.domain_h.reshape((N, 2))
+        u = self.control(x).reshape((Nx, Ny, 2))
+        u_x = u[:, :, 0]
+        u_y = u[:, :, 1]
+
+        # show every k arrow
+        k = int(X.shape[0] / 20)
+        X = X[::k, ::k]
+        Y = Y[::k, ::k]
+        U = u_x[::k, ::k]
+        V = u_y[::k, ::k]
+
+        #gradient plot
+        plt2d = Plot2d(dir_path, file_name)
+        plt2d.set_title(r'$u(x, y)$')
+        plt2d.vector_field(X, Y, U, V)
+
 
     def plot_potential_and_tilted_potential(self, file_name, dir_path=None):
         x = self.domain_h
