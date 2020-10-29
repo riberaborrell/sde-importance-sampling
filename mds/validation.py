@@ -54,8 +54,8 @@ def is_2d_valid_control(u, lower_bound, upper_bound):
     '''
     assert u.ndim == 2, ''
     assert u.shape[1] == 2, ''
-    if np.min(u, axis=0) < lower_bound:
+    if (np.min(u, axis=0) < lower_bound).any():
         return False
-    elif np.max(u, axis=0) > upper_bound:
+    elif (np.max(u, axis=0) > upper_bound).any():
         return False
     return True

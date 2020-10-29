@@ -89,7 +89,7 @@ def get_base_parser():
         dest='m',
         nargs=2,
         type=int,
-        default=[50, 50],
+        default=[10, 10],
         help='Set the number of uniformly distributed ansatz functions per axis \
               that you want to use. Default: [50, 50]',
     )

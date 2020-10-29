@@ -165,7 +165,7 @@ class GaussianAnsatz:
         f.write('m_x: {:d}\n'.format(self.m_x))
         f.write('m_y: {:d}\n'.format(self.m_y))
         f.write('m: {:d}\n'.format(self.m))
-        f.write('sigma_x: {:2.2f}\n\n'.format(self.sigma_x))
+        f.write('sigma_x: {:2.2f}\n'.format(self.sigma_x))
         f.write('sigma_y: {:2.2f}\n\n'.format(self.sigma_y))
 
     def plot_multivariate_normal_pdf(self, j):
