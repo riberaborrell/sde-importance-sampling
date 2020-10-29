@@ -5,7 +5,6 @@ from mds.utils import get_example_data_path, get_gd_data_path, get_time_in_hms, 
 from mds.validation import is_1d_valid_interval, is_1d_valid_target_set, is_1d_valid_control
 
 import numpy as np
-from scipy import stats
 import time
 import os
 
@@ -50,6 +49,7 @@ class Sampling:
 
         # domain discretization
         self.h = h
+        self.domain_h = None
         self.discretize_domain()
 
         # Euler-Marujama
@@ -65,9 +65,9 @@ class Sampling:
 
         # trajectories which arrived
         self.M_arrived = None
+        self.been_in_target_set = None
 
         # first hitting time
-        self.been_in_target_set = None
         self.fht = None
         self.first_fht = None
         self.last_fht = None
@@ -75,6 +75,7 @@ class Sampling:
         self.var_fht = None
         self.re_fht = None
 
+        # quantity of interest
         self.mean_I = None
         self.var_I = None
         self.re_I = None
@@ -369,13 +370,9 @@ class Sampling:
         M = self.M
 
         self.M1_fht = np.empty(M)
-        self.M1_fht[:] = np.NaN
         self.M2_fht = np.empty(M)
-        self.M2_fht[:] = np.NaN
         self.M1_k = np.empty((M, 10))
-        self.M1_k[:, :] = np.NaN
         self.M2_k = np.empty((M, 10))
-        self.M2_k[:, :] = np.NaN
 
     def sde_update(self, x, gradient, dB):
         beta = self.beta

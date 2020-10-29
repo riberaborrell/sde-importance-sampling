@@ -14,11 +14,20 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
+    def f(x):
+        return 1
+
+    def g(x):
+        return 0
+
     # get solver
     sol = Solver(
+        f=f,
+        g=g,
         potential_name=args.potential_name,
         alpha=np.array(args.alpha),
         beta=args.beta,
+        domain=np.array(args.domain).reshape((2, 2)),
         target_set=np.array(args.target_set).reshape((2, 2)),
     )
 

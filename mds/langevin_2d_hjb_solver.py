@@ -1,3 +1,4 @@
+from mds.plots_2d import Plot2d
 from mds.potentials_and_gradients_2d import get_potential_and_gradient
 from mds.utils import get_example_data_path
 from mds.numpy_utils import coarse_matrix
@@ -314,89 +315,53 @@ class Solver():
         f.write('F at x = {:2.3e}\n'.format(F))
         f.close()
 
-    #TODO: use plots_2d module
     def plot_psi(self):
         Psi = self.Psi
-        X = self.domain_h[:, : 0]
-        Y = self.domain_h[:, : 1]
+        X = self.domain_h[:, :, 0]
+        Y = self.domain_h[:, :, 1]
 
-        label = r'$\Psi(x, y), \, h = {}$'
-        fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-        surf = ax.plot_surface(
-            X,
-            Y,
-            Psi,
-            cmap=cm.coolwarm,
-            linewidth=0,
-            antialiased=False,
-        )
-        fig.colorbar(surf, fraction=0.15, shrink=0.7, aspect=20)
-        ax.set_xlabel('x', fontsize=16)
-        ax.set_ylabel('y', fontsize=16)
-        file_path = os.path.join(self.dir_path, 'mgf.png')
-        plt.savefig(file_path)
-        plt.close()
+        # surface plot
+        plt2d = Plot2d(self.dir_path, 'mgf_surface')
+        plt2d.set_title(r'$\Psi(x, y)$')
+        plt2d.surface(X, Y, Psi)
+
+        # contour plot
+        plt2d = Plot2d(self.dir_path, 'mgf_contour')
+        plt2d.set_title(r'$\Psi(x, y)$')
+        plt2d.contour(X, Y, Psi)
 
     def plot_free_energy(self):
         F = self.F
-        X = self.domain_h[:, : 0]
-        Y = self.domain_h[:, : 1]
+        X = self.domain_h[:, :, 0]
+        Y = self.domain_h[:, :, 1]
 
-        label = r'$\F(x, y), \, h = {}$'
-        fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-        surf = ax.plot_surface(
-            X,
-            Y,
-            F,
-            cmap=cm.coolwarm,
-            linewidth=0,
-            antialiased=False,
-        )
-        fig.colorbar(surf, fraction=0.15, shrink=0.7, aspect=20)
-        ax.set_xlabel('x', fontsize=16)
-        ax.set_ylabel('y', fontsize=16)
-        file_path = os.path.join(self.dir_path, 'free_energy_surface.png')
-        plt.savefig(file_path)
-        plt.close()
+        # surface plot
+        plt2d = Plot2d(self.dir_path, 'free_energy_surface')
+        plt2d.set_title(r'$F(x, y)$')
+        plt2d.surface(X, Y, F)
 
-        fig, ax = plt.subplots()
+        # contour plot
+        vmin = 0
+        vmax = 3
         levels = np.linspace(-0.5, 3.5, 21)
-        cs = ax.contourf(
-            X,
-            Y,
-            F,
-            vmin=0,
-            vmax=3,
-            levels=levels,
-            cmap=cm.coolwarm,
-        )
-        cbar = fig.colorbar(cs)
-        file_path = os.path.join(self.dir_path, 'free_energy_contour.png')
-        plt.savefig(file_path)
-        plt.close()
-
+        plt2d = Plot2d(self.dir_path, 'free_energy_contour')
+        plt2d.set_title(r'$F(x, y)$')
+        plt2d.contour(X, Y, F)
 
     def plot_optimal_tilted_potential(self):
         F = self.F
-        X = self.domain_h[:, : 0]
-        Y = self.domain_h[:, : 1]
+        X = self.domain_h[:, :, 0]
+        Y = self.domain_h[:, :, 1]
 
-        label = r'$\tilde{V}(x, y), \, h = {}$'
-        fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-        surf = ax.plot_surface(
-            X,
-            Y,
-            2 * F,
-            cmap=cm.coolwarm,
-            linewidth=0,
-            antialiased=False,
-        )
-        fig.colorbar(surf, fraction=0.15, shrink=0.7, aspect=20)
-        ax.set_xlabel('x', fontsize=16)
-        ax.set_ylabel('y', fontsize=16)
-        file_path = os.path.join(self.dir_path, 'optimal_tilted_potential.png')
-        plt.savefig(file_path)
-        plt.close()
+        # surface plot
+        plt2d = Plot2d(self.dir_path, 'optimal_tilted_potential_surface')
+        plt2d.set_title(r'$\tilde{V}(x, y)$')
+        plt2d.surface(X, Y, 2 * F)
+
+        # contour plot
+        plt2d = Plot2d(self.dir_path, 'optimal_tilted_potential_contour')
+        plt2d.set_title(r'$\tilde{V}(x, y)$')
+        plt2d.contour(X, Y, 2 * F)
 
     def plot_optimal_control(self):
         h = self.h
@@ -405,23 +370,19 @@ class Solver():
         u_opt_x = self.u_opt[:, :, 0]
         u_opt_y = self.u_opt[:, :, 1]
 
-        fig, ax = plt.subplots()
-        label = r'$\u_opt(x, y), \, h = {}$'
-
         # show every k arrow
         k = int(X.shape[0] / 20)
         X = X[::k, ::k]
         Y = Y[::k, ::k]
         U = u_opt_x[::k, ::k]
         V = u_opt_y[::k, ::k]
-        C = np.sqrt(U**2 + V**2)
-        quiv = ax.quiver(X, Y, U, V, C, angles='xy', scale_units='xy')
-        ax.set_xlabel('x', fontsize=16)
-        ax.set_ylabel('y', fontsize=16)
-        file_path = os.path.join(self.dir_path, 'optimal_control')
-        plt.savefig(file_path)
-        plt.close()
 
+        #gradient plot
+        plt2d = Plot2d(self.dir_path, 'optimal_control')
+        plt2d.set_title(r'$u_opt(x, y)$')
+        plt2d.vector_field(X, Y, U, V)
+
+        #TODO: use plots_2d. set xlim and ylim
         fig, ax = plt.subplots()
         # show every k arrow
         X = self.domain_h[:, :, 0]

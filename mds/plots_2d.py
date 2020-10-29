@@ -32,8 +32,6 @@ class Plot2d:
 
     def surface(self, X, Y, Z, vmin=None, vmax=None):
         assert X.ndim == Y.ndim == Z.ndim == 2, ''
-        assert X.shape[1] == 1, ''
-        assert Y.shape[0] == 1, ''
         assert Z.shape == (X.shape[0], Y.shape[1]), ''
 
         fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
