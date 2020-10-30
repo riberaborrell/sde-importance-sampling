@@ -62,6 +62,9 @@ def main():
         N_lim=100000,
     )
 
+    # get value f at xzero from the reference solution
+    sample.get_value_f_at_xzero()
+
     # initialize gradient descent object
     gd = GradientDescent(
         sample=sample,
@@ -72,7 +75,6 @@ def main():
         do_epoch_plots=args.do_epoch_plots,
     )
 
-    gd.get_value_f_at_xzero()
     gd.gd_ipa()
     gd.save_gd()
     gd.write_report()

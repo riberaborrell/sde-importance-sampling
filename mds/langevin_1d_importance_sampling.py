@@ -98,6 +98,7 @@ class Sampling:
 
         # reference solution
         self.ref_sol = None
+        self.value_f_at_xzero = None
 
         # metadynamics
         self.meta_bias_pot = None
@@ -187,6 +188,18 @@ class Sampling:
                 'reference_solution.npz',
             )
             self.ref_sol = np.load(file_path)
+
+    def get_value_f_at_xzero(self):
+        xzero = self.xzero
+
+        # load ref sol
+        self.load_reference_solution()
+        x = self.ref_sol['domain_h']
+        F = self.ref_sol['F']
+
+        # evaluate F at xzero
+        idx = np.where(x == xzero)[0][0]
+        self.value_f_at_xzero = F[idx]
 
     def set_theta_optimal(self):
         assert self.ansatz is not None, ''

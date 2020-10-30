@@ -55,22 +55,6 @@ class GradientDescent:
         self.epochs_dir_path = os.path.join(self.dir_path, 'epochs')
         make_dir_path(self.epochs_dir_path)
 
-    def get_value_f_at_xzero(self):
-        sample = self.sample
-        xzero = self.sample.xzero
-
-        # get ref sol dir path
-        ref_sol_dir_path = os.path.join(sample.example_dir_path, 'reference_solution')
-
-        # load ref sol
-        sample.load_reference_solution()
-        #ref_sol = np.load(os.path.join(ref_sol_dir_path, 'reference_solution.npz'))
-        domain_h = sample.ref_sol['domain_h']
-        F_opt = sample.ref_sol['F']
-
-        idx = np.where(domain_h == xzero)[0][0]
-        self.value_f = F_opt[idx]
-
     #TODO: test method. test grad_type: fd
     def perturb_a(self, a, j, sign, delta=None):
         # assert j in np.arange(self.sample.m)
@@ -124,7 +108,7 @@ class GradientDescent:
         epochs_lim = self.epochs_lim
         lr = self.lr
         m = sample.ansatz.m
-        value_f = self.value_f
+        value_f = sample.value_f_at_xzero
 
         # initialize timer
         self.t_initial = time.perf_counter()

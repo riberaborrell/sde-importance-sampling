@@ -35,7 +35,7 @@ def main():
     sol.load_reference_solution()
 
     # write report
-    sol.write_report(x=args.xzero)
+    sol.write_report(x=np.array(args.xzero))
 
 if __name__ == "__main__":
     main()

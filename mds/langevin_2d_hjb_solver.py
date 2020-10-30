@@ -298,12 +298,13 @@ class Solver():
             (domain_h[:, :, 0] == x[0]) &
             (domain_h[:, :, 1] == x[1])
         )
-        idx_x1, idx_x2 = idx_x
-        if idx_x1.shape[0] != 1 or idx_x2.shape[0] != 1:
+        if idx_x[0].shape[0] != 1 or idx_x[1].shape[0] != 1:
             return
-        #exp_fht = self.exp_fht[idx_x1[0], idx_x2[0]] if self.exp_fht is not None else np.nan
-        Psi = self.Psi[idx_x1[0], idx_x2[0]] if self.Psi is not None else np.nan
-        F = self.F[idx_x1[0], idx_x2[0]] if self.F is not None else np.nan
+        idx_x1 = idx_x[0][0]
+        idx_x2 = idx_x[1][0]
+        #exp_fht = self.exp_fht[idx_x1, idx_x2] if self.exp_fht is not None else np.nan
+        Psi = self.Psi[idx_x1, idx_x2] if self.Psi is not None else np.nan
+        F = self.F[idx_x1, idx_x2] if self.F is not None else np.nan
 
         # write file
         file_path = os.path.join(self.dir_path, 'report.txt')
