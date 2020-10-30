@@ -35,7 +35,7 @@ def main():
     sol.compute_optimal_control()
     sol.compute_exp_fht()
     sol.save_reference_solution()
-    sol.write_report(x=-1)
+    sol.write_report(x=args.xzero)
 
     if args.do_plots:
         sol.plot_mgf()

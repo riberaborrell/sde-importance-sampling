@@ -3,10 +3,12 @@ from mds.langevin_2d_hjb_solver import Solver
 
 import numpy as np
 
+import os
+
 def get_parser():
     parser = get_base_parser()
-    parser.description = 'Computes the numerical solution of the HJB equation associated to' \
-                         'the overdamped Langevin SDE'
+    parser.description = 'Reports the numerical solution of the HJB equation associated to' \
+                         'the overdamped Langevin SDE for different xzero'
     return parser
 
 def main():
@@ -18,7 +20,7 @@ def main():
     def g(x):
         return 0
 
-    # compute reference solution
+    # get solver
     sol = Solver(
         f=f,
         g=g,
@@ -27,22 +29,13 @@ def main():
         beta=args.beta,
         domain=np.array(args.domain).reshape((2, 2)),
         target_set=np.array(args.target_set).reshape((2, 2)),
-        h=args.h,
     )
-    sol.discretize_domain()
-    sol.solve_bvp()
-    sol.compute_free_energy()
-    sol.compute_optimal_control()
-    #sol.compute_exp_fht()
-    sol.save_reference_solution()
+
+    # load already computed solution
+    sol.load_reference_solution()
+
+    # write report
     sol.write_report(x=args.xzero)
-
-    if args.do_plots:
-        sol.plot_psi()
-        sol.plot_free_energy()
-        sol.plot_optimal_tilted_potential()
-        sol.plot_optimal_control()
-
 
 if __name__ == "__main__":
     main()
