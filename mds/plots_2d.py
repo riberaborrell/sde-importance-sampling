@@ -79,9 +79,11 @@ class Plot2d:
             levels=levels,
             cmap=cm.coolwarm,
         )
-        cbar = fig.colorbar(cs)
+        if self.title is not None:
+            ax.set_title(self.title)
         ax.set_xlabel('x', fontsize=16)
         ax.set_ylabel('y', fontsize=16)
+        cbar = fig.colorbar(cs)
         plt.savefig(self.file_path)
 
     def vector_field(self, X, Y, U, V):

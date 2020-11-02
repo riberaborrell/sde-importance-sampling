@@ -574,7 +574,7 @@ class Sampling:
             lower_bound = -10 * np.ones(2)
             upper_bound = 10 * np.ones(2)
             if not is_2d_valid_control(utemp, lower_bound, upper_bound):
-                return False, None, None
+                return False, None, None, None
 
             # ipa statistics 
             normed_utemp = np.linalg.norm(utemp, axis=1)
@@ -607,7 +607,7 @@ class Sampling:
         mean_J = np.mean(J)
         mean_grad_J = np.mean(grad_J, axis=0)
 
-        return True, mean_J, mean_grad_J
+        return True, mean_J, mean_grad_J, n
 
 
     def compute_mean_variance_and_rel_error(self, x):

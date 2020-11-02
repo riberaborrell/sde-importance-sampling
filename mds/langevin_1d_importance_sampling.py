@@ -545,7 +545,7 @@ class Sampling:
             btemp = self.ansatz.basis_control(xtemp)
             utemp = self.control(xtemp)
             if not is_1d_valid_control(utemp, -self.alpha * 10, self.alpha * 10):
-                return False, None, None
+                return False, None, None, None
 
             # ipa statistics 
             cost_temp += 0.5 * (utemp ** 2) * dt

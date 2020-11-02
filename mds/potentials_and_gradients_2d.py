@@ -17,27 +17,21 @@ def get_potential_and_gradient(potential_name, alpha=None):
     assert alpha.ndim == 1, ''
 
     if potential_name == '2d_1well':
-        a = alpha[:2]
-        b = alpha[2:]
-        potential = functools.partial(one_well_2d_potential, a=a, b=b)
-        gradient = functools.partial(one_well_2d_gradient, a=a, b=b)
-        pot_formula = r'$V(x; a, b) = a_1(x - b_1)^2 + a_2(y - b_2)^2$'
-        grad_formula = r'$\nabla V(x; a, b) = 2 a_1 (x - b_1) + 2 a_2(y - b_2)$'
-        parameters = r'$a_1={}, a_2={}, b_1={}, b_2={}$'.format(
-            a[0], a[1], b[0], b[1]
-        )
+        assert alpha.shape[0] == 2, ''
+        potential = functools.partial(one_well_2d_potential, a=alpha, b=np.array([0, 0]))
+        gradient = functools.partial(one_well_2d_gradient, a=alpha, b=np.array([0, 0]))
+        pot_formula = r'$V(x; \alpha) = \alpha_1 x^2 + \alpha_2 y^2$'
+        grad_formula = r'$\nabla V(x; \alpha) = 2 \alpha_1 x + 2 \alpha_2 y$'
+        parameters = r'$\alpha_1={}, \alpha_2={}$'.format(alpha[0], alpha[1])
 
     elif potential_name == '2d_4well':
-        a = alpha[:2]
-        b = alpha[2:]
-        potential = functools.partial(quadruple_well_2d_potential, a=a, b=b)
-        gradient = functools.partial(quadruple_well_2d_gradient, a=a, b=b)
-        pot_formula = r'$V(x; a, b) = a_1(x^2 - b_1)^2 + a_2(y^2 - b_2)^2$'
-        grad_formula = r'$\nabla V(x; a, b) = 4 a_1 x (x^2 - b_1)' + \
-                                           '+ 4 a_2 y (y^2 - b_2)$'
-        parameters = r'$a_1={}, a_2={}, b_1={}, b_2={}$'.format(
-            a[0], a[1], b[0], b[1]
-        )
+        assert alpha.shape[0] == 2, ''
+        potential = functools.partial(quadruple_well_2d_potential, a=alpha, b=np.array([1, 1]))
+        gradient = functools.partial(quadruple_well_2d_gradient, a=alpha, b=np.array([1, 1]))
+        pot_formula = r'$V(x; \alpha) = \alpha_1(x^2 - 1)^2 + \alpha_2(y^2 - 1)^2$'
+        grad_formula = r'$\nabla V(x; \alpha) = 4 \alpha_1 x (x^2 - 1)' + \
+                                             '+ 4 \alpha_2 y (y^2 - 1)$'
+        parameters = r'$\alpha_1={}, \alpha_2={}$'.format(alpha[0], alpha[1])
 
     return potential, gradient, pot_formula, grad_formula, parameters
 

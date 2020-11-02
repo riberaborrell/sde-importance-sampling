@@ -22,8 +22,8 @@ def get_base_parser():
         dest='alpha',
         nargs='+',
         type=float,
-        default=[1, 1, 1, 1],
-        help='Set the parameters for the 2D MD SDE potential. Default: [1, 1, 1, 1]',
+        default=[1, 1],
+        help='Set the parameters for the 2D MD SDE potential. Default: [1, 1]',
     )
     parser.add_argument(
         '--beta',
