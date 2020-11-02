@@ -784,12 +784,12 @@ class Sampling:
 
         # surface plot
         plt2d = Plot2d(dir_path, file_name + '_surface')
-        plt2d.set_title(r'$\Psi(x, y)$')
+        plt2d.set_title(r'$\Psi(x_1, x_2)$')
         plt2d.surface(X, Y, appr_Psi)
 
         # contour plot
         plt2d = Plot2d(dir_path, file_name + '_contour')
-        plt2d.set_title(r'$\Psi(x, y)$')
+        plt2d.set_title(r'$\Psi(x_1, x_2)$')
         plt2d.contour(X, Y, appr_Psi)
 
     def plot_appr_free_energy(self, file_name, dir_path=None):
@@ -808,12 +808,12 @@ class Sampling:
 
         # surface plot
         plt2d = Plot2d(dir_path, file_name + '_surface')
-        plt2d.set_title(r'$F(x, y)$')
+        plt2d.set_title(r'$F(x_1, x_2)$')
         plt2d.surface(X, Y, appr_F)
 
         # contour plot
         plt2d = Plot2d(dir_path, file_name + '_contour')
-        plt2d.set_title(r'$F(x, y)$')
+        plt2d.set_title(r'$F(x_1, x_2)$')
         plt2d.contour(X, Y, appr_F)
 
 
@@ -841,7 +841,7 @@ class Sampling:
 
         #gradient plot
         plt2d = Plot2d(dir_path, file_name)
-        plt2d.set_title(r'$u(x, y)$')
+        plt2d.set_title(r'$u(x_1, x_2)$')
         plt2d.vector_field(X, Y, U, V)
 
     def plot_tilted_potential(self, file_name, dir_path=None):
@@ -864,13 +864,13 @@ class Sampling:
         vmin = 0
         vmax = 10
         plt2d = Plot2d(dir_path, file_name + '_surface')
-        plt2d.set_title(r'$\tilde{V}(x, y)$')
+        plt2d.set_title(r'$\tilde{V}(x_1, x_2)$')
         plt2d.surface(X, Y, V + Vbias, vmin, vmax)
 
         # contour plot
         levels = np.logspace(-2, 1, 20, endpoint=True)
         plt2d = Plot2d(dir_path, file_name + '_contour')
-        plt2d.set_title(r'$\tilde{V}(x, y)$')
+        plt2d.set_title(r'$\tilde{V}(x_2, x_1)$')
         plt2d.contour(X, Y, V + Vbias, vmin, vmax, levels)
 
     def plot_tilted_drift(self, file_name, dir_path=None):
@@ -901,5 +901,5 @@ class Sampling:
 
         #gradient plot
         plt2d = Plot2d(dir_path, file_name)
-        plt2d.set_title(r'$-\nabla \tilde{V}(x, y)$')
+        plt2d.set_title(r'$-\nabla \tilde{V}(x_1, x_2)$')
         plt2d.vector_field(X, Y, U, V)

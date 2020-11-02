@@ -59,8 +59,8 @@ class Plot2d:
         )
         if self.title is not None:
             ax.set_title(self.title)
-        ax.set_xlabel('x', fontsize=16)
-        ax.set_ylabel('y', fontsize=16)
+        ax.set_xlabel(r'$x_1$', fontsize=16)
+        ax.set_ylabel(r'$x_2$', fontsize=16)
         ax.set_zlim(vmin, vmax)
         fig.colorbar(surf, fraction=0.15, shrink=0.7, aspect=20)
         plt.savefig(self.file_path)
@@ -81,8 +81,8 @@ class Plot2d:
         )
         if self.title is not None:
             ax.set_title(self.title)
-        ax.set_xlabel('x', fontsize=16)
-        ax.set_ylabel('y', fontsize=16)
+        ax.set_xlabel(r'$x_1$', fontsize=16)
+        ax.set_ylabel(r'$x_2$', fontsize=16)
         cbar = fig.colorbar(cs)
         plt.savefig(self.file_path)
 
@@ -92,7 +92,7 @@ class Plot2d:
         quiv = ax.quiver(X, Y, U, V, C, angles='xy', scale_units='xy')
         if self.title is not None:
             ax.set_title(self.title)
-        ax.set_xlabel('x', fontsize=16)
-        ax.set_ylabel('y', fontsize=16)
+        ax.set_xlabel(r'$x_1$', fontsize=16)
+        ax.set_ylabel(r'$x_2$', fontsize=16)
         #fig.colorbar(surf, fraction=0.15, shrink=0.7, aspect=20)
         plt.savefig(self.file_path)

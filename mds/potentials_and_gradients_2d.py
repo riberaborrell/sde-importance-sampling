@@ -20,17 +20,16 @@ def get_potential_and_gradient(potential_name, alpha=None):
         assert alpha.shape[0] == 2, ''
         potential = functools.partial(one_well_2d_potential, a=alpha, b=np.array([0, 0]))
         gradient = functools.partial(one_well_2d_gradient, a=alpha, b=np.array([0, 0]))
-        pot_formula = r'$V(x; \alpha) = \alpha_1 x^2 + \alpha_2 y^2$'
-        grad_formula = r'$\nabla V(x; \alpha) = 2 \alpha_1 x + 2 \alpha_2 y$'
+        pot_formula = r'$V(x; \alpha) = \alpha_1 x_1^2 + \alpha_2 x_2^2$'
+        grad_formula = r'$\nabla V(x; \alpha) = 2 \alpha_1 x_1 + 2 \alpha_2 x_2$'
         parameters = r'$\alpha_1={}, \alpha_2={}$'.format(alpha[0], alpha[1])
 
     elif potential_name == '2d_4well':
         assert alpha.shape[0] == 2, ''
         potential = functools.partial(quadruple_well_2d_potential, a=alpha, b=np.array([1, 1]))
         gradient = functools.partial(quadruple_well_2d_gradient, a=alpha, b=np.array([1, 1]))
-        pot_formula = r'$V(x; \alpha) = \alpha_1(x^2 - 1)^2 + \alpha_2(y^2 - 1)^2$'
-        grad_formula = r'$\nabla V(x; \alpha) = 4 \alpha_1 x (x^2 - 1)' + \
-                                             '+ 4 \alpha_2 y (y^2 - 1)$'
+        pot_formula = r'$V(x; \alpha) = \alpha_1(x_1^2 - 1)^2 + \alpha_2(x_2^2 - 1)^2$'
+        grad_formula = r'$\nabla V(x; \alpha) = 4 \alpha_1 x_1 (x_1^2 - 1) + 4 \alpha_2 x_2 (x_2^2 - 1)$'
         parameters = r'$\alpha_1={}, \alpha_2={}$'.format(alpha[0], alpha[1])
 
     return potential, gradient, pot_formula, grad_formula, parameters

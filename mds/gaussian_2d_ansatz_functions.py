@@ -24,7 +24,7 @@ class GaussianAnsatz:
         self.sigma_x = None
         self.sigma_y = None
         self.means = None
-        self.covs = None
+        self.cov = None
         self.dir_path = None
 
     def set_dir_path(self, example_dir_path):
@@ -59,9 +59,9 @@ class GaussianAnsatz:
             sigma_x = np.around(means_x[1] - means_x[0], decimals=2)
         if sigma_y is None:
             sigma_y = np.around(means_y[1] - means_y[0], decimals=2)
-        covs = np.zeros((m, 2, 2))
-        covs[:, 0, 0] = sigma_x
-        covs[:, 1, 1] = sigma_y
+        cov = np.eye(2)
+        cov[0, 0] *= sigma_x
+        cov[1, 1] *= sigma_y
 
         self.m = m
         self.m_x = m_x
@@ -69,7 +69,7 @@ class GaussianAnsatz:
         self.sigma_x = sigma_x
         self.sigma_y = sigma_y
         self.means = means
-        self.covs = covs
+        self.cov = cov
 
     def multivariate_normal_pdf(self, x, mean=None, cov=None):
         ''' 2d Gaussian v(x; mean, cov) evaluated at x
@@ -88,6 +88,33 @@ class GaussianAnsatz:
 
         rv = stats.multivariate_normal(mean, cov, allow_singular=False)
         return rv.pdf(x)
+
+    def vectorized_multivariate_normal_pdf(self, x, mean=None, cov=None):
+        ''' 2d Gaussian v(x; mean, cov) evaluated at x
+            x ((M, 2)-array) : position
+            mean ((m, 2)-array) : center of the gaussian
+            cov ((2, 2)-array) : covariance matrix
+        '''
+        assert x.ndim == 2, ''
+        assert x.shape[1] == 2, ''
+        if mean is None:
+            mean = np.zeros(2)[None, :]
+        if cov is None:
+            cov = np.eye(2)
+        assert mean.ndim == 2, ''
+        assert cov.ndim == 2, ''
+        assert mean.shape[1] == 2, ''
+        assert cov.shape[0] == cov.shape[1] == 2, ''
+        M = x.shape[0]
+        m = mean.shape[0]
+        norm_factor = 2 * np.pi * np.sqrt(np.linalg.det(cov))
+        x = x[:, None, :]
+        mean = mean[None, :, :]
+        x_centered = (x - mean).reshape((M*m, 2))
+        exp_term = - 0.5 * np.matmul(x_centered, cov)
+        exp_term = np.sum(exp_term * x_centered, axis=1).reshape((M, m))
+        pdf = np.exp(exp_term) / norm_factor
+        return pdf
 
     def gradient_multivariate_normal_pdf(self, x, mean=None, cov=None):
         ''' 2d Gaussian v(x; mean, cov) evaluated at x
@@ -120,6 +147,46 @@ class GaussianAnsatz:
         grad = np.hstack((grad_x, grad_y))
         return grad
 
+    def vectorized_gradient_multivariate_normal_pdf(self, x, mean=None, cov=None):
+        ''' 2d Gaussian v(x; mean, cov) evaluated at x
+            x ((M, 2)-array) : posicion
+            mean ((m, 2)-array) : center of the gaussian
+            cov ((2, 2)-array) : covariance matrix
+        '''
+        assert x.ndim == 2, ''
+        assert x.shape[1] == 2, ''
+        if mean is None:
+            mean = np.zeros(2)[None, :]
+        if cov is None:
+            cov = np.eye(2)
+        assert mean.ndim == 2, ''
+        assert cov.ndim == 2, ''
+        assert mean.shape[1] == 2, ''
+        assert cov.shape[0] == cov.shape[1] == 2, ''
+        M = x.shape[0]
+        m = mean.shape[0]
+
+        pdf = self.vectorized_multivariate_normal_pdf(x, mean, cov)
+        x = x[:, None, :]
+        mean = mean[None, :, :]
+        inv_cov = np.linalg.inv(cov)
+
+        exp_grad_x = - (
+            + 2 * (x[:, :, 0] - mean[:, :, 0]) * inv_cov[0, 0]
+            + (x[:, :, 1] - mean[:, :, 1]) * (inv_cov[1, 0] + inv_cov[0, 1])
+        ) / 2
+        exp_grad_y = - (
+            + (x[:, :, 0] - mean[:, :, 0]) * (inv_cov[1, 0] + inv_cov[0, 1])
+            + 2 * (x[:, :, 1] - mean[:, :, 1]) * inv_cov[0, 0]
+        ) / 2
+        grad_x = (pdf * exp_grad_x)
+        grad_y = (pdf * exp_grad_y)
+
+        grad = np.empty((M, m, 2))
+        grad[:, :, 0] = grad_x
+        grad[:, :, 1] = grad_y
+        return grad
+
     def basis_value_f(self, x):
         '''This method computes the ansatz functions for the value function evaluated at x
 
@@ -132,11 +199,12 @@ class GaussianAnsatz:
         M = x.shape[0]
         m = self.m
         means = self.means
-        covs = self.covs
+        cov = self.cov
 
-        basis_value_f = np.zeros((M, m))
-        for j in np.arange(m):
-            basis_value_f[:, j] = self.multivariate_normal_pdf(x, means[j], covs[j])
+        #basis_value_f = np.zeros((M, m))
+        #for j in np.arange(m):
+        #    basis_value_f[:, j] = self.multivariate_normal_pdf(x, means[j], covs[j])
+        basis_value_f = self.vectorized_multivariate_normal_pdf(x, means, cov)
         return basis_value_f
 
     def basis_control(self, x):
@@ -151,11 +219,12 @@ class GaussianAnsatz:
         M = x.shape[0]
         m = self.m
         means = self.means
-        covs = self.covs
+        cov = self.cov
 
-        basis_control = np.zeros((M, m, 2))
-        for j in np.arange(m):
-            basis_control[:, j, :] = - np.sqrt(2) *  self.gradient_multivariate_normal_pdf(x, means[j], covs[j])
+        #basis_control = np.zeros((M, m, 2))
+        #for j in np.arange(m):
+        #    basis_control[:, j, :] = - np.sqrt(2) *  self.gradient_multivariate_normal_pdf(x, means[j], covs[j])
+        basis_control = - np.sqrt(2) * self.vectorized_gradient_multivariate_normal_pdf(x, means, cov)
         return basis_control
 
     def write_ansatz_parameters(self, f):
@@ -170,7 +239,7 @@ class GaussianAnsatz:
 
     def plot_multivariate_normal_pdf(self, j):
         means = self.means
-        covs = self.covs
+        cov = self.cov
 
         d_xmin, d_xmax = self.domain[0]
         d_ymin, d_ymax = self.domain[1]
@@ -183,16 +252,18 @@ class GaussianAnsatz:
         X, Y = np.meshgrid(x, y, sparse=False, indexing='ij')
         pos = np.dstack((X, Y)).reshape((Nx * Ny, 2))
 
-        Z = self.multivariate_normal_pdf(pos, means[j], covs[j]).reshape((Nx, Ny))
+        #Z = self.multivariate_normal_pdf(pos, means[j], cov).reshape((Nx, Ny))
+        Z = self.vectorized_multivariate_normal_pdf(pos, means, cov).reshape((Nx, Ny, self.m))
         plt2d = Plot2d(self.dir_path, 'gaussian_surface')
-        plt2d.surface(xx, yy, Z)
+        plt2d.surface(xx, yy, Z[:, :, j])
 
         plt2d = Plot2d(self.dir_path, 'gaussian_contour')
-        plt2d.contour(X, Y, Z)
+        plt2d.contour(X, Y, Z[:, :, j])
 
-        grad = self.gradient_multivariate_normal_pdf(pos, means[j], covs[j]).reshape((Nx, Ny, 2))
-        U = grad[:, :, 0]
-        V = grad[:, :, 1]
+        #grad = self.gradient_multivariate_normal_pdf(pos, means[j], cov).reshape((Nx, Ny, 2))
+        grad = self.vectorized_gradient_multivariate_normal_pdf(pos, means, cov).reshape((Nx, Ny, self.m, 2))
+        U = grad[:, :, j, 0]
+        V = grad[:, :, j, 1]
         plt2d = Plot2d(self.dir_path, 'grad_gaussian')
         plt2d.vector_field(X, Y, U, V)
 
@@ -200,8 +271,6 @@ class GaussianAnsatz:
         m = self.m
         m_x = self.m_x
         m_y = self.m_y
-        means = self.means
-        covs = self.covs
 
         d_xmin, d_xmax = self.domain[0]
         d_ymin, d_ymax = self.domain[1]

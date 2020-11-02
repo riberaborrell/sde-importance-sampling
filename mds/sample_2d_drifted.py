@@ -28,8 +28,8 @@ def main():
     sample.set_gaussian_ansatz_functions(m_x, m_y, sigma_x, sigma_y)
 
     if args.do_plots:
-        sample.ansatz.plot_multivariate_normal_pdf(j=12)
-        sample.ansatz.plot_gaussian_ansatz_functions(omega=None)
+        sample.ansatz.plot_multivariate_normal_pdf(j=0)
+        #sample.ansatz.plot_gaussian_ansatz_functions(omega=None)
 
     # set path
     sample.set_drifted_dir_path()
@@ -51,14 +51,12 @@ def main():
     # plot potential and gradient
     if args.do_plots:
         theta_stamp = 'theta-{}'.format(args.theta)
-        #sample.ansatz.plot_gaussian_ansatz_functions()
         sample.plot_appr_mgf(file_name=theta_stamp+'_appr_mgf')
         sample.plot_appr_free_energy(file_name=theta_stamp+'_appr_free_energy')
         sample.plot_control(file_name=theta_stamp+'_control')
         sample.plot_tilted_potential(file_name=theta_stamp+'_tilted_potential')
         sample.plot_tilted_drift(file_name=theta_stamp+'_tilted_drift')
 
-    return
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(
         seed=args.seed,

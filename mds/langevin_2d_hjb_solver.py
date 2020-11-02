@@ -310,7 +310,7 @@ class Solver():
         file_path = os.path.join(self.dir_path, 'report.txt')
         f = open(file_path, "w")
         f.write('h = {:2.4f}\n'.format(h))
-        f.write('(x, y) = ({:2.1f}, {:2.1f})\n'.format(x[0], x[1]))
+        f.write('(x_1, x_2) = ({:2.1f}, {:2.1f})\n'.format(x[0], x[1]))
         #f.write('E[fht] at x = {:2.3f}\n'.format(exp_fht))
         f.write('Psi at x = {:2.3e}\n'.format(Psi))
         f.write('F at x = {:2.3e}\n'.format(F))
@@ -323,12 +323,12 @@ class Solver():
 
         # surface plot
         plt2d = Plot2d(self.dir_path, 'mgf_surface')
-        plt2d.set_title(r'$\Psi(x, y)$')
+        plt2d.set_title(r'$\Psi(x_1, x_2)$')
         plt2d.surface(X, Y, Psi)
 
         # contour plot
         plt2d = Plot2d(self.dir_path, 'mgf_contour')
-        plt2d.set_title(r'$\Psi(x, y)$')
+        plt2d.set_title(r'$\Psi(x_1, x_2)$')
         plt2d.contour(X, Y, Psi)
 
     def plot_free_energy(self):
@@ -338,7 +338,7 @@ class Solver():
 
         # surface plot
         plt2d = Plot2d(self.dir_path, 'free_energy_surface')
-        plt2d.set_title(r'$F(x, y)$')
+        plt2d.set_title(r'$F(x_1, x_2)$')
         plt2d.surface(X, Y, F)
 
         # contour plot
@@ -346,7 +346,7 @@ class Solver():
         vmax = 3
         levels = np.linspace(-0.5, 3.5, 21)
         plt2d = Plot2d(self.dir_path, 'free_energy_contour')
-        plt2d.set_title(r'$F(x, y)$')
+        plt2d.set_title(r'$F(x_1, x_2)$')
         plt2d.contour(X, Y, F)
 
     def plot_optimal_tilted_potential(self):
@@ -356,12 +356,12 @@ class Solver():
 
         # surface plot
         plt2d = Plot2d(self.dir_path, 'optimal_tilted_potential_surface')
-        plt2d.set_title(r'$\tilde{V}(x, y)$')
+        plt2d.set_title(r'$\tilde{V}(x_1, x_2)$')
         plt2d.surface(X, Y, 2 * F)
 
         # contour plot
         plt2d = Plot2d(self.dir_path, 'optimal_tilted_potential_contour')
-        plt2d.set_title(r'$\tilde{V}(x, y)$')
+        plt2d.set_title(r'$\tilde{V}(x_1, x_2)$')
         plt2d.contour(X, Y, 2 * F)
 
     def plot_optimal_control(self):
@@ -380,7 +380,7 @@ class Solver():
 
         #gradient plot
         plt2d = Plot2d(self.dir_path, 'optimal_control')
-        plt2d.set_title(r'$u_opt(x, y)$')
+        plt2d.set_title(r'$u_{opt}(x_1, x_2)$')
         plt2d.vector_field(X, Y, U, V)
 
         #TODO: use plots_2d. set xlim and ylim
@@ -395,8 +395,8 @@ class Solver():
         V = u_opt_y[::k, ::k]
         C = np.sqrt(U**2 + V**2)
         quiv = ax.quiver(X, Y, U, V, C, angles='xy', scale_units='xy')
-        ax.set_xlabel('x', fontsize=16)
-        ax.set_ylabel('y', fontsize=16)
+        ax.set_xlabel(r'$x_1$', fontsize=16)
+        ax.set_ylabel(r'$x_2$', fontsize=16)
         ax.set_xlim(0, 2)
         ax.set_ylim(0, 2)
         file_path = os.path.join(self.dir_path, 'optimal_control_zoom_ts')
