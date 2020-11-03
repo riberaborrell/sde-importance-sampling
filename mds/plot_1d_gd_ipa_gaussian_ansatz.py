@@ -1,7 +1,6 @@
 from mds.base_parser_1d import get_base_parser
 from mds.langevin_1d_gradient_descent import GradientDescent
 from mds.langevin_1d_importance_sampling import Sampling
-from mds.utils import make_dir_path
 
 import numpy as np
 

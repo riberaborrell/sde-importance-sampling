@@ -212,7 +212,7 @@ class Sampling:
         Ny = self.Ny
         N = self.N
         domain_h = self.ref_sol['domain_h'].reshape((N, 2))
-        F = self.ref_sol['F'].reshape((N, 1))
+        F = self.ref_sol['F'].reshape((N,))
 
         # compute the optimal theta given a basis of ansatz functions
         v = self.ansatz.basis_value_f(domain_h)
