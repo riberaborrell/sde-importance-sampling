@@ -1,6 +1,6 @@
-from mds.base_parser_1d import get_base_parser
+from mds.base_parser_2d import get_base_parser
 from mds.langevin_nd_gradient_descent import GradientDescent
-from mds.langevin_1d_importance_sampling import Sampling
+from mds.langevin_2d_importance_sampling import Sampling
 
 import numpy as np
 
@@ -25,12 +25,15 @@ def main():
         potential_name=args.potential_name,
         alpha=np.array(args.alpha),
         beta=args.beta,
-        target_set=np.array(args.target_set),
+        domain=np.array(args.domain).reshape((2, 2)),
+        target_set=np.array(args.target_set).reshape((2, 2)),
         is_drifted=True,
     )
 
     # set gaussian ansatz functions
-    sample.set_gaussian_ansatz_functions(args.m, args.sigma)
+    m_x, m_y = args.m
+    sigma_x, sigma_y = args.sigma
+    sample.set_gaussian_ansatz_functions(m_x, m_y, sigma_x, sigma_y)
 
     # initialize gradient descent object
     gd = GradientDescent(
@@ -55,9 +58,6 @@ def main():
             sample.plot_tilted_potential('tilted_potential' + epoch_stamp, gd.epochs_dir_path)
 
     # plot all epochs
-    gd.plot_gd_1d_controls()
-    gd.plot_gd_1d_appr_free_energies()
-    gd.plot_gd_1d_tilted_potentials()
     gd.plot_gd_losses()
     gd.plot_gd_time_steps()
 

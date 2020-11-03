@@ -224,13 +224,13 @@ class GradientDescent:
         f.write('lr: {}\n'.format(self.lr))
         f.write('epochs lim: {}\n'.format(self.epochs_lim))
         f.write('epochs: {}\n'.format(self.epochs))
-        f.write('N total: {}\n'.format(self.N.sum()))
+        f.write('N total: {:,d}\n'.format(int(self.N.sum())))
         #f.write('atol: {}\n'.format(self.atol))
         #f.write('rtol: {}\n'.format(self.rtol))
         f.write('approx value function at xzero: {:2.3f}\n\n'.format(self.losses[-1]))
 
-        h, m, s = get_time_in_hms(self.t_final - self.t_initial)
-        f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
+        #h, m, s = get_time_in_hms(self.t_final - self.t_initial)
+        #f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
 
     #TODO: 
     def write_epoch_report(self):
@@ -259,7 +259,7 @@ class GradientDescent:
             epochs_to_show = np.append(epochs_to_show, epochs[-1])
         return epochs_to_show
 
-    def plot_gd_appr_free_energies(self):
+    def plot_gd_1d_appr_free_energies(self):
         sample = self.sample
         x = sample.domain_h
         epochs_to_show = self.get_epochs_to_show()
@@ -277,7 +277,7 @@ class GradientDescent:
         plt1d.set_ylim(bottom= 0, top=sample.alpha * 3)
         plt1d.gd_appr_free_energies(x, epochs_to_show, F_appr, F)
 
-    def plot_gd_controls(self):
+    def plot_gd_1d_controls(self):
         sample = self.sample
         x = sample.domain_h
         epochs_to_show = self.get_epochs_to_show()
@@ -295,7 +295,7 @@ class GradientDescent:
         plt1d.set_ylim(bottom=-sample.alpha * 5, top=sample.alpha * 5)
         plt1d.gd_controls(x, epochs_to_show, u, u_opt)
 
-    def plot_gd_tilted_potentials(self):
+    def plot_gd_1d_tilted_potentials(self):
         sample = self.sample
         x = sample.domain_h
 
@@ -328,3 +328,15 @@ class GradientDescent:
         plt1d = Plot1d(self.dir_path, 'gd_losses_line')
         plt1d.set_ylim(bottom=0, top=max_loss * 1.2)
         plt1d.gd_losses_line(epochs, losses, value_f)
+
+    def plot_gd_time_steps(self):
+        N = self.N
+        epochs = np.arange(N.shape[0])
+        max_N = np.max(N)
+        plt1d = Plot1d(self.dir_path, 'gd_time_steps_bar')
+        plt1d.set_ylim(bottom=0, top=max_N * 1.2)
+        plt1d.gd_time_steps_bar(epochs, N)
+
+        plt1d = Plot1d(self.dir_path, 'gd_time_steps_line')
+        plt1d.set_ylim(bottom=0, top=max_N * 1.2)
+        plt1d.gd_time_steps_line(epochs, N)

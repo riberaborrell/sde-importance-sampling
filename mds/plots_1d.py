@@ -347,6 +347,29 @@ class Plot1d:
         plt.savefig(self.file_path)
         plt.close()
 
+    def gd_time_steps_bar(self, epochs, N):
+        plt.title('Time steps per epoch')
+        plt.bar(x=epochs, height=N, width=0.8, color='b', align='center', label=r'$N$')
+        plt.xlabel('epochs', fontsize=16)
+        plt.xlim(left=epochs[0] -0.8, right=epochs[-1] + 0.8)
+        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.legend(loc='upper left', fontsize=8)
+        plt.grid(True)
+        plt.savefig(self.file_path)
+        plt.close()
+
+    def gd_time_steps_line(self, epochs, N):
+        plt.title('Time steps per epoch')
+        plt.plot(epochs, N, 'b-', label=r'$N$')
+        plt.xlabel('epochs', fontsize=16)
+        #plt.xlim(left=epochs[0], right=epochs[-1])
+        #plt.xticks(epochs)
+        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.legend(loc='upper left', fontsize=8)
+        plt.grid(True)
+        plt.savefig(self.file_path)
+        plt.close()
+
     def trajectory(self, x, y):
         plt.plot(x, y, 'r', label='EM solution path')
         plt.xlabel('t', fontsize=16)
