@@ -578,11 +578,9 @@ class Sampling:
 
             # ipa statistics 
             normed_utemp = np.linalg.norm(utemp, axis=1)
-            normed_btemp = np.linalg.norm(btemp, axis=2)
-            normed_dB = np.linalg.norm(dB, axis=1)
             cost_temp += 0.5 * (normed_utemp ** 2) * dt
-            grad_phi_temp += (normed_utemp * normed_btemp.T * dt).T
-            grad_S_temp -= (np.sqrt(beta) * normed_btemp.T * normed_dB).T
+            grad_phi_temp += np.sum(utemp[:, None, :] * btemp, axis=2) * dt
+            grad_S_temp -= np.sqrt(beta) * np.sum(dB[:, None, :] * btemp, axis=2)
 
             # compute gradient
             gradient = self.tilted_gradient(xtemp, utemp)
@@ -596,8 +594,8 @@ class Sampling:
             # save ipa statistics
             J[idx_new] = n * dt + cost_temp[idx_new]
             grad_J[idx_new, :] = grad_phi_temp[idx_new, :] \
-                               - ((n * dt + cost_temp[idx_new]) \
-                               * grad_S_temp[idx_new, :].T).T
+                               - (n * dt + cost_temp[idx_new])[:, None] \
+                               * grad_S_temp[idx_new, :]
 
             # check if all trajectories have arrived to the target set
             if been_in_target_set.all() == True:
