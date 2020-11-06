@@ -61,21 +61,17 @@ class Solver():
     def discretize_domain(self):
         ''' this method discretizes the rectangular domain uniformly with step-size h
         '''
+        assert self.h is not None, ''
         d_xmin, d_xmax = self.domain[0]
         d_ymin, d_ymax = self.domain[1]
         h = self.h
-        assert h is not None, ''
-
-        Nx = int((d_xmax - d_xmin) / h) + 1
-        Ny = int((d_ymax - d_ymin) / h) + 1
-        x = np.around(np.linspace(d_xmin, d_xmax, Nx), decimals=3)
-        y = np.around(np.linspace(d_ymin, d_ymax, Ny), decimals=3)
+        x = np.around(np.arange(d_xmin, d_xmax + h, h), decimals=3)
+        y = np.around(np.arange(d_ymin, d_ymax + h, h), decimals=3)
         X, Y = np.meshgrid(x, y, sparse=False, indexing='ij')
-
-        self.Nx = Nx
-        self.Ny = Ny
-        self.N = Nx * Ny
         self.domain_h = np.dstack((X, Y))
+        self.Nx = x.shape[0]
+        self.Ny = y.shape[0]
+        self.N = self.Nx * self.Ny
 
     def get_x(self, k):
         ''' returns the x-coordinate of the node k
@@ -342,63 +338,75 @@ class Solver():
         plt2d.surface(X, Y, F)
 
         # contour plot
-        vmin = 0
-        vmax = 3
         levels = np.linspace(-0.5, 3.5, 21)
         plt2d = Plot2d(self.dir_path, 'free_energy_contour')
         plt2d.set_title(r'$F(x_1, x_2)$')
+        plt2d.set_zlim(0, 3)
         plt2d.contour(X, Y, F)
 
     def plot_optimal_tilted_potential(self):
         F = self.F
         X = self.domain_h[:, :, 0]
         Y = self.domain_h[:, :, 1]
+        Nx = self.domain_h.shape[0]
+        Ny = self.domain_h.shape[1]
+        N = Nx * Ny
+        x = self.domain_h.reshape(N, 2)
+        V = self.potential(x).reshape(Nx, Ny)
+        Vb = 2 * F
 
         # surface plot
         plt2d = Plot2d(self.dir_path, 'optimal_tilted_potential_surface')
         plt2d.set_title(r'$\tilde{V}(x_1, x_2)$')
-        plt2d.surface(X, Y, 2 * F)
+        plt2d.set_xlim(-2, 2)
+        plt2d.set_ylim(-2, 2)
+        plt2d.set_zlim(0, 10)
+        plt2d.surface(X, Y, V + Vb)
 
         # contour plot
+        levels = np.logspace(-2, 1, 20, endpoint=True)
         plt2d = Plot2d(self.dir_path, 'optimal_tilted_potential_contour')
         plt2d.set_title(r'$\tilde{V}(x_1, x_2)$')
-        plt2d.contour(X, Y, 2 * F)
+        plt2d.set_xlim(-2, 2)
+        plt2d.set_ylim(-2, 2)
+        plt2d.set_zlim(0, 10)
+        plt2d.contour(X, Y, V + Vb, levels)
 
     def plot_optimal_control(self):
-        h = self.h
         X = self.domain_h[:, :, 0]
         Y = self.domain_h[:, :, 1]
-        u_opt_x = self.u_opt[:, :, 0]
-        u_opt_y = self.u_opt[:, :, 1]
-
-        # show every k arrow
-        k = int(X.shape[0] / 20)
-        X = X[::k, ::k]
-        Y = Y[::k, ::k]
-        U = u_opt_x[::k, ::k]
-        V = u_opt_y[::k, ::k]
+        U = self.u_opt[:, :, 0]
+        V = self.u_opt[:, :, 1]
 
         #gradient plot
         plt2d = Plot2d(self.dir_path, 'optimal_control')
         plt2d.set_title(r'$u_{opt}(x_1, x_2)$')
-        plt2d.vector_field(X, Y, U, V)
+        plt2d.vector_field(X, Y, U, V, k=10)
 
-        #TODO: use plots_2d. set xlim and ylim
-        fig, ax = plt.subplots()
-        # show every k arrow
+        #zoom gradient plot
+        plt2d = Plot2d(self.dir_path, 'optimal_control_zoom_ts')
+        plt2d.set_title(r'$u_{opt}(x_1, x_2)$')
+        plt2d.set_xlim(0, 2)
+        plt2d.set_ylim(0, 2)
+        plt2d.vector_field(X, Y, U, V, k=2)
+
+    def plot_optimal_tilted_drift(self):
         X = self.domain_h[:, :, 0]
         Y = self.domain_h[:, :, 1]
-        k = 2
-        X = X[::k, ::k]
-        Y = Y[::k, ::k]
-        U = u_opt_x[::k, ::k]
-        V = u_opt_y[::k, ::k]
-        C = np.sqrt(U**2 + V**2)
-        quiv = ax.quiver(X, Y, U, V, C, angles='xy', scale_units='xy')
-        ax.set_xlabel(r'$x_1$', fontsize=16)
-        ax.set_ylabel(r'$x_2$', fontsize=16)
-        ax.set_xlim(0, 2)
-        ax.set_ylim(0, 2)
-        file_path = os.path.join(self.dir_path, 'optimal_control_zoom_ts')
-        plt.savefig(file_path)
-        plt.close()
+        Nx = self.domain_h.shape[0]
+        Ny = self.domain_h.shape[1]
+        N = Nx * Ny
+        x = self.domain_h.reshape(N, 2)
+        dV = self.gradient(x).reshape(Nx, Ny, 2)
+        U = - dV[:, :, 0] + np.sqrt(2) * self.u_opt[:, :, 0]
+        V = - dV[:, :, 1] + np.sqrt(2) * self.u_opt[:, :, 1]
+
+        plt2d = Plot2d(self.dir_path, 'optimal_tilted_drift')
+        plt2d.set_title(r'$-\nabla \tilde{V}(x_1, x_2)$')
+        #plt2d.set_xlim(-2, 2)
+        #plt2d.set_ylim(-2, 2)
+        #plt2d.vector_field(X, Y, U, V, k=5, scale=50)
+        plt2d.set_xlim(-1.25, 1.25)
+        plt2d.set_ylim(-1.25, 1.25)
+        plt2d.vector_field(X, Y, U, V, k=4, scale=50)
+

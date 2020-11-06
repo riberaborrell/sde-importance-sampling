@@ -33,7 +33,6 @@ def main():
     sol.solve_bvp()
     sol.compute_free_energy()
     sol.compute_optimal_control()
-    #sol.compute_exp_fht()
     sol.save_reference_solution()
     sol.write_report(x=args.xzero)
 
@@ -42,6 +41,7 @@ def main():
         sol.plot_free_energy()
         sol.plot_optimal_tilted_potential()
         sol.plot_optimal_control()
+        sol.plot_optimal_tilted_drift()
 
 
 if __name__ == "__main__":

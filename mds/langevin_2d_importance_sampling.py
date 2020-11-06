@@ -117,14 +117,13 @@ class Sampling:
 
         d_xmin, d_xmax = self.domain[0]
         d_ymin, d_ymax = self.domain[1]
-
-        x = np.arange(d_xmin, d_xmax + h, h)
-        y = np.arange(d_ymin, d_ymax + h, h)
+        x = np.around(np.arange(d_xmin, d_xmax + h, h), decimals=3)
+        y = np.around(np.arange(d_ymin, d_ymax + h, h), decimals=3)
         X, Y = np.meshgrid(x, y, sparse=False, indexing='ij')
         self.domain_h = np.dstack((X, Y))
         self.Nx = x.shape[0]
         self.Ny = y.shape[0]
-        self.N = x.shape[0] * y.shape[0]
+        self.N = self.Nx * self.Ny
 
     def set_not_drifted_dir_path(self):
         self.dir_path = os.path.join(self.example_dir_path, 'not-drifted-sampling')
@@ -452,10 +451,8 @@ class Sampling:
         M = self.M
         been_in_target_set = self.been_in_target_set
 
-        # initialize Xtemp
-        xtemp = np.ones((M, 2))
-        xtemp[:, 0] *= xzero[0]
-        xtemp[:, 1] *= xzero[1]
+        # initialize xtemp
+        xtemp = np.full((M, 2), xzero)
 
         for n in np.arange(1, N_lim +1):
             # Brownian increment
@@ -495,9 +492,7 @@ class Sampling:
         been_in_target_set = self.been_in_target_set
 
         # initialize xtemp
-        xtemp = np.ones((M, 2))
-        xtemp[:, 0] *= xzero[0]
-        xtemp[:, 1] *= xzero[1]
+        xtemp = np.full((M, 2), xzero)
 
         # initialize Girsanov Martingale terms, M_t = e^(M1_t + M2_t)
         M1temp = np.zeros(M)
@@ -538,6 +533,39 @@ class Sampling:
         self.compute_I_u_statistics()
         self.stop_timer()
 
+    def sample_meta(self):
+        assert self.M == 1, ''
+
+        # initialize xtemp
+        xtemp = np.empty((self.N_lim +1, 1, 2))
+        xtemp[0, 0, :] = self.xzero
+
+        for n in np.arange(self.N_lim):
+            # Brownian increment
+            dB = np.sqrt(self.dt) * np.random.normal(0, 1, 2).reshape(1, 2)
+
+            if not self.is_drifted:
+                # compute gradient
+                gradient = self.gradient(xtemp[n, :, :])
+
+            else:
+                # control at xtemp
+                utemp = self.control(xtemp[n, :, :])
+
+                # compute gradient
+                gradient = self.tilted_gradient(xtemp[n, :, :], utemp)
+
+            # sde update
+            xtemp[n+1, :, :] = self.sde_update(xtemp[n, :, :], gradient, dB)
+
+            if (xtemp[n+1, 0, 0] >= self.target_set[0, 0] and
+                xtemp[n+1, 0, 0] <= self.target_set[0, 1] and
+                xtemp[n+1, 0, 1] >= self.target_set[1, 0] and
+                xtemp[n+1, 0, 1] <= self.target_set[1, 1]):
+                return True, xtemp[:n+1, 0, :]
+
+        return False, xtemp[:, 0, :]
+
     def sample_loss(self):
         self.initialize_fht()
 
@@ -555,9 +583,7 @@ class Sampling:
         grad_J = np.zeros((M, m))
 
         # initialize xtemp
-        xtemp = np.ones((M, 2))
-        xtemp[:, 0] *= xzero[0]
-        xtemp[:, 1] *= xzero[1]
+        xtemp = np.full((M, 2), xzero)
 
         # initialize ipa variables
         cost_temp = np.zeros(M)
@@ -692,6 +718,8 @@ class Sampling:
 
     def write_sampling_parameters(self, f):
         f.write('Sampling parameters\n')
+        if self.seed:
+            f.write('seed: {:2.1f}'.format(self.seed))
         f.write('xzero: ({:2.1f}, {:2.1f})\n'.format(self.xzero[0], self.xzero[1]))
         f.write('target set: [[{:2.1f}, {:2.1f}], [{:2.1f}, {:2.1f}]]\n'.format(
             self.target_set[0, 0],
@@ -764,140 +792,125 @@ class Sampling:
 
         f.close()
 
-    def plot_appr_mgf(self, file_name, dir_path=None):
+    def plot_appr_mgf_surface(self, file_name, dir_path=None):
         if dir_path is None:
             dir_path = self.dir_path
-
-        beta = self.beta
-        h = self.h
-        Nx = self.Nx
-        Ny = self.Ny
-        N = self.N
         X = self.domain_h[:, :, 0]
         Y = self.domain_h[:, :, 1]
-        x = self.domain_h.reshape((N, 2))
-        Vbias = self.bias_potential(x).reshape((Nx, Ny))
+        x = self.domain_h.reshape(self.N, 2)
+        Vbias = self.bias_potential(x).reshape(self.Nx, self.Ny)
         appr_F = Vbias / 2
-        appr_Psi = np.exp(- beta * appr_F)
-
-        # surface plot
-        plt2d = Plot2d(dir_path, file_name + '_surface')
+        appr_Psi = np.exp(- self.beta * appr_F)
+        plt2d = Plot2d(dir_path, file_name)
         plt2d.set_title(r'$\Psi(x_1, x_2)$')
         plt2d.surface(X, Y, appr_Psi)
 
-        # contour plot
-        plt2d = Plot2d(dir_path, file_name + '_contour')
+    def plot_appr_mgf_contour(self, file_name, dir_path=None):
+        if dir_path is None:
+            dir_path = self.dir_path
+        X = self.domain_h[:, :, 0]
+        Y = self.domain_h[:, :, 1]
+        x = self.domain_h.reshape(self.N, 2)
+        Vbias = self.bias_potential(x).reshape(self.Nx, self.Ny)
+        appr_F = Vbias / 2
+        appr_Psi = np.exp(- self.beta * appr_F)
+        plt2d = Plot2d(dir_path, file_name)
         plt2d.set_title(r'$\Psi(x_1, x_2)$')
         plt2d.contour(X, Y, appr_Psi)
 
-    def plot_appr_free_energy(self, file_name, dir_path=None):
+    def plot_appr_free_energy_surface(self, file_name, dir_path=None):
         if dir_path is None:
             dir_path = self.dir_path
-
-        h = self.h
-        Nx = self.Nx
-        Ny = self.Ny
-        N = self.N
         X = self.domain_h[:, :, 0]
         Y = self.domain_h[:, :, 1]
-        x = self.domain_h.reshape((N, 2))
-        Vbias = self.bias_potential(x).reshape((Nx, Ny))
+        x = self.domain_h.reshape(self.N, 2)
+        Vbias = self.bias_potential(x).reshape(self.Nx, self.Ny)
         appr_F = Vbias / 2
-
-        # surface plot
-        plt2d = Plot2d(dir_path, file_name + '_surface')
+        plt2d = Plot2d(dir_path, file_name)
         plt2d.set_title(r'$F(x_1, x_2)$')
         plt2d.surface(X, Y, appr_F)
 
-        # contour plot
-        plt2d = Plot2d(dir_path, file_name + '_contour')
+    def plot_appr_free_energy_contour(self, file_name, dir_path=None):
+        if dir_path is None:
+            dir_path = self.dir_path
+        X = self.domain_h[:, :, 0]
+        Y = self.domain_h[:, :, 1]
+        x = self.domain_h.reshape(self.N, 2)
+        Vbias = self.bias_potential(x).reshape(self.Nx, self.Ny)
+        appr_F = Vbias / 2
+        plt2d = Plot2d(dir_path, file_name)
         plt2d.set_title(r'$F(x_1, x_2)$')
         plt2d.contour(X, Y, appr_F)
-
 
     def plot_control(self, file_name, dir_path=None):
         if dir_path is None:
             dir_path = self.dir_path
-
-        h = self.h
-        Nx = self.Nx
-        Ny = self.Ny
-        N = self.N
         X = self.domain_h[:, :, 0]
         Y = self.domain_h[:, :, 1]
-        x = self.domain_h.reshape((N, 2))
-        u = self.control(x).reshape((Nx, Ny, 2))
+        x = self.domain_h.reshape(self.N, 2)
+        u = self.control(x).reshape(self.Nx, self.Ny, 2)
         u_x = u[:, :, 0]
         u_y = u[:, :, 1]
-
-        # show every k arrow
-        k = int(X.shape[0] / 20)
-        X = X[::k, ::k]
-        Y = Y[::k, ::k]
-        U = u_x[::k, ::k]
-        V = u_y[::k, ::k]
-
-        #gradient plot
         plt2d = Plot2d(dir_path, file_name)
         plt2d.set_title(r'$u(x_1, x_2)$')
-        plt2d.vector_field(X, Y, U, V)
+        plt2d.vector_field(X, Y, u_x, u_y, k=10, scale=4)
 
-    def plot_tilted_potential(self, file_name, dir_path=None):
+    def plot_tilted_potential_surface(self, file_name, dir_path=None):
         if dir_path is None:
             dir_path = self.dir_path
-        h = self.h
-        Nx = self.Nx
-        Ny = self.Ny
-        N = self.N
         X = self.domain_h[:, :, 0]
         Y = self.domain_h[:, :, 1]
-        x = self.domain_h.reshape((N, 2))
-        V = self.potential(x).reshape((Nx, Ny))
+        x = self.domain_h.reshape(self.N, 2)
+        V = self.potential(x).reshape(self.Nx, self.Ny)
         if self.is_drifted:
-            Vbias = self.bias_potential(x).reshape((Nx, Ny))
+            Vbias = self.bias_potential(x).reshape(self.Nx, self.Ny)
         else:
-            Vbias = np.zeros((Nx, Ny))
-
-        # surface plot
-        vmin = 0
-        vmax = 10
-        plt2d = Plot2d(dir_path, file_name + '_surface')
+            Vbias = np.zeros((self.Nx, self.Ny))
+        plt2d = Plot2d(dir_path, file_name)
         plt2d.set_title(r'$\tilde{V}(x_1, x_2)$')
-        plt2d.surface(X, Y, V + Vbias, vmin, vmax)
+        plt2d.set_xlim(-2, 2)
+        plt2d.set_ylim(-2, 2)
+        plt2d.set_zlim(0, 10)
+        plt2d.surface(X, Y, V + Vbias)
 
-        # contour plot
+    def plot_tilted_potential_contour(self, file_name, dir_path=None):
+        if dir_path is None:
+            dir_path = self.dir_path
+        X = self.domain_h[:, :, 0]
+        Y = self.domain_h[:, :, 1]
+        x = self.domain_h.reshape(self.N, 2)
+        V = self.potential(x).reshape(self.Nx, self.Ny)
+        if self.is_drifted:
+            Vbias = self.bias_potential(x).reshape(self.Nx, self.Ny)
+        else:
+            Vbias = np.zeros((self.Nx, self.Ny))
         levels = np.logspace(-2, 1, 20, endpoint=True)
-        plt2d = Plot2d(dir_path, file_name + '_contour')
+        plt2d = Plot2d(dir_path, file_name)
         plt2d.set_title(r'$\tilde{V}(x_2, x_1)$')
-        plt2d.contour(X, Y, V + Vbias, vmin, vmax, levels)
+        plt2d.set_xlim(-2, 2)
+        plt2d.set_ylim(-2, 2)
+        plt2d.set_zlim(0, 10)
+        plt2d.contour(X, Y, V + Vbias, levels=levels)
 
     def plot_tilted_drift(self, file_name, dir_path=None):
         if dir_path is None:
             dir_path = self.dir_path
-        h = self.h
-        Nx = self.Nx
-        Ny = self.Ny
-        N = self.N
         X = self.domain_h[:, :, 0]
         Y = self.domain_h[:, :, 1]
-        x = self.domain_h.reshape((N, 2))
-        dV = self.gradient(x).reshape((Nx, Ny, 2))
+        x = self.domain_h.reshape(self.N, 2)
+        dV = self.gradient(x).reshape(self.Nx, self.Ny, 2)
         if self.is_drifted:
-            u = self.control(x).reshape((Nx, Ny, 2))
+            u = self.control(x).reshape(self.Nx, self.Ny, 2)
             dVbias = self.bias_gradient(u)
         else:
-            dVbias = np.zeros((Nx, Ny, 2))
+            dVbias = np.zeros((self.Nx, self.Ny, 2))
         U = - dV[:, :, 0] - dVbias[:, :, 0]
         V = - dV[:, :, 1] - dVbias[:, :, 1]
-
-        # show every k arrow
-        k = int(X.shape[0] / 20)
-        X = X[::k, ::k]
-        Y = Y[::k, ::k]
-        U = U[::k, ::k]
-        V = V[::k, ::k]
-
-        #gradient plot
         plt2d = Plot2d(dir_path, file_name)
         plt2d.set_title(r'$-\nabla \tilde{V}(x_1, x_2)$')
-        plt2d.vector_field(X, Y, U, V)
+        #plt2d.set_xlim(-2, 2)
+        #plt2d.set_ylim(-2, 2)
+        #plt2d.vector_field(X, Y, U, V, k=5, scale=50)
+        plt2d.set_xlim(-1.25, 1.25)
+        plt2d.set_ylim(-1.25, 1.25)
+        plt2d.vector_field(X, Y, U, V, k=4, scale=50)

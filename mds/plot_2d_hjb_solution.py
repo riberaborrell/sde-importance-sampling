@@ -27,8 +27,8 @@ def main():
         potential_name=args.potential_name,
         alpha=np.array(args.alpha),
         beta=args.beta,
-        domain=np.array(args.domain).reshape((2, 2)),
-        target_set=np.array(args.target_set).reshape((2, 2)),
+        domain=np.array(args.domain).reshape(2, 2),
+        target_set=np.array(args.target_set).reshape(2, 2),
     )
 
     # load already computed solution
@@ -39,6 +39,7 @@ def main():
     sol.plot_free_energy()
     sol.plot_optimal_tilted_potential()
     sol.plot_optimal_control()
+    sol.plot_optimal_tilted_drift()
 
 if __name__ == "__main__":
     main()
