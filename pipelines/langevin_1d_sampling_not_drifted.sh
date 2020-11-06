@@ -16,9 +16,9 @@ do
     for M in $trajectories
     do
     echo $alpha $beta $M
-    python mds/langevin_1d_sampling_not_drifted.py --alpha $alpha \
-                                                   --beta $beta \
-                                                   --M $M
+    python mds/sample_1d_not_drifted.py --alpha $alpha \
+                                        --beta $beta \
+                                        --M $M
     done
   done
 done

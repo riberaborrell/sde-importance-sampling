@@ -5,9 +5,9 @@ do
     case "${flag}" in
         a) alpha=${OPTARG};;
         b) beta=${OPTARG};;
-        t) theta_init=${OPTARG};;
         m) m=${OPTARG};;
         s) sigmas=${OPTARG};;
+        t) theta_init=${OPTARG};;
         l) lrs=${OPTARG};;
         e) epochs=${OPTARG};;
         M) M=${OPTARG};;
@@ -18,14 +18,14 @@ for sigma in $sigmas
 do
   for lr in $lrs
   do
-    echo $alpha $beta $theta_init $m $sigma $lr $epochs $M
-    python mds/script_gd_ipa_ansatz_value_f.py --alpha $alpha \
-                                               --beta $beta \
-                                               --theta-init $theta_init \
-                                               --m $m \
-                                               --sigma $sigma \
-                                               --lr $lr \
-                                               --epochs-lim $epochs \
-                                               --M $M
+    echo $alpha $beta $m $sigma $theta_init $M $lr $epochs
+    python mds/gd_1d_ipa_gaussian_ansatz.py --alpha $alpha \
+                                            --beta $beta \
+                                            --m $m \
+                                            --sigma $sigma \
+                                            --theta-init $theta_init \
+                                            --M $M \
+                                            --lr $lr \
+                                            --epochs-lim $epochs
   done
 done
