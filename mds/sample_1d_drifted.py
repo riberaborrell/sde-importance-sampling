@@ -24,9 +24,6 @@ def main():
     # set gaussian ansatz functions
     sample.set_gaussian_ansatz_functions(args.m, args.sigma)
 
-    # set path
-    sample.set_drifted_dir_path()
-
     # set chosen coefficients
     if args.theta == 'optimal':
         sample.set_theta_optimal()
@@ -43,13 +40,12 @@ def main():
 
     # plot potential and gradient
     if args.do_plots:
-        theta_stamp = 'theta-{}'.format(args.theta)
         sample.ansatz.plot_gaussian_ansatz_functions()
-        sample.plot_appr_mgf(file_name=theta_stamp+'_appr_mgf')
-        sample.plot_appr_free_energy(file_name=theta_stamp+'_appr_free_energy')
-        sample.plot_control(file_name=theta_stamp+'_control')
-        sample.plot_tilted_potential(file_name=theta_stamp+'_tilted_potential')
-        sample.plot_tilted_drift(file_name=theta_stamp+'_tilted_drift')
+        sample.plot_appr_mgf()
+        sample.plot_appr_free_energy()
+        sample.plot_control()
+        sample.plot_tilted_potential()
+        sample.plot_tilted_drift()
 
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(

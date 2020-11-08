@@ -59,8 +59,8 @@ def get_base_parser():
         '--h',
         dest='h',
         type=float,
-        default=0.01,
-        help='Set the discretization step size. Default: 0.01',
+        default=0.001,
+        help='Set the discretization step size. Default: 0.001',
     )
     parser.add_argument(
         '--M',
@@ -95,8 +95,8 @@ def get_base_parser():
         '--sigma',
         dest='sigma',
         type=float,
-        default=1,
-        help='Set the standard deviation of the ansatz functions. Default: 1',
+        default=0.2,
+        help='Set the standard deviation of the ansatz functions. Default: 0.2',
     )
     parser.add_argument(
         '--theta',
@@ -116,8 +116,8 @@ def get_base_parser():
         '--lr',
         dest='lr',
         type=float,
-        default=1,
-        help='Set learning rate. Default: 1',
+        default=0.01,
+        help='Set learning rate. Default: 0.01',
     )
     parser.add_argument(
         '--do-plots',
