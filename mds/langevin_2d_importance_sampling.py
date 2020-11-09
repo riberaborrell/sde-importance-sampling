@@ -812,9 +812,9 @@ class Sampling:
 
         f.close()
 
-    def plot_appr_mgf_surface(self, file_name=None, dir_path=None):
+    def plot_appr_psi_surface(self, file_name=None, dir_path=None):
         if file_name is None:
-            file_name = 'appr_mgf_surface'
+            file_name = 'appr_psi_surface'
         if dir_path is None:
             dir_path = self.dir_path
         X = self.domain_h[:, :, 0]
@@ -827,9 +827,9 @@ class Sampling:
         plt2d.set_title(r'$\Psi(x_1, x_2)$')
         plt2d.surface(X, Y, appr_Psi)
 
-    def plot_appr_mgf_contour(self, file_name=None, dir_path=None):
+    def plot_appr_psi_contour(self, file_name=None, dir_path=None):
         if file_name is None:
-            file_name = 'appr_mgf_contour'
+            file_name = 'appr_psi_contour'
         if dir_path is None:
             dir_path = self.dir_path
         X = self.domain_h[:, :, 0]

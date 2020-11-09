@@ -110,23 +110,11 @@ class Metadynamics:
                 bias_stamp = '_j_{:d}'.format(j)
                 stamp = sample_stamp + bias_stamp
                 if sample.is_drifted:
-                    #sample.plot_appr_free_energy_surface(
-                    #    'appr_free_energy_surface' + stamp,
-                    #    self.updates_dir_path,
-                    #)
-                    sample.plot_appr_free_energy_contour(
-                        'appr_free_energy_contour' + stamp,
-                        self.updates_dir_path,
-                    )
+                    sample.plot_appr_free_energy_surface('appr_free_energy_surface' + stamp, self.updates_dir_path)
+                    sample.plot_appr_free_energy_contour('appr_free_energy_contour' + stamp, self.updates_dir_path)
                     sample.plot_control('control' + stamp, self.updates_dir_path)
-                #sample.plot_tilted_potential_surface(
-                #    'tilted_potential_surface' + stamp,
-                #    self.updates_dir_path,
-                #)
-                sample.plot_tilted_potential_contour(
-                    'tilted_potential_contour' + stamp,
-                    self.updates_dir_path,
-                )
+                sample.plot_tilted_potential_surface('tilted_potential_surface' + stamp, self.updates_dir_path)
+                sample.plot_tilted_potential_contour('tilted_potential_contour' + stamp, self.updates_dir_path)
                 #sample.plot_tilted_drift('tilted_drift' + stamp, self.updates_dir_path)
 
             # sample with the given weights

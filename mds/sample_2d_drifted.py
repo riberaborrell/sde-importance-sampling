@@ -16,8 +16,8 @@ def main():
         potential_name=args.potential_name,
         alpha=np.array(args.alpha),
         beta=args.beta,
-        domain=np.array(args.domain).reshape((2, 2)),
-        target_set=np.array(args.target_set).reshape((2, 2)),
+        domain=np.array(args.domain).reshape(2, 2),
+        target_set=np.array(args.target_set).reshape(2, 2),
         h=args.h,
         is_drifted=True,
     )
@@ -26,13 +26,6 @@ def main():
     m_x, m_y = args.m
     sigma_x, sigma_y = args.sigma
     sample.set_gaussian_ansatz_functions(m_x, m_y, sigma_x, sigma_y)
-
-    if args.do_plots:
-        sample.ansatz.plot_multivariate_normal_pdf(j=0)
-        #sample.ansatz.plot_gaussian_ansatz_functions(omega=None)
-
-    # set path
-    sample.set_drifted_dir_path()
 
     # set chosen coefficients
     if args.theta == 'optimal':
@@ -50,17 +43,22 @@ def main():
 
     # plot potential and gradient
     if args.do_plots:
-        theta_stamp = 'theta-{}'.format(args.theta)
-        sample.plot_appr_mgf(file_name=theta_stamp+'_appr_mgf')
-        sample.plot_appr_free_energy(file_name=theta_stamp+'_appr_free_energy')
-        sample.plot_control(file_name=theta_stamp+'_control')
-        sample.plot_tilted_potential(file_name=theta_stamp+'_tilted_potential')
-        sample.plot_tilted_drift(file_name=theta_stamp+'_tilted_drift')
+        sample.ansatz.plot_multivariate_normal_pdf(j=0)
+        #sample.ansatz.plot_gaussian_ansatz_functions(omega=None)
+        sample.plot_appr_psi_surface()
+        sample.plot_appr_psi_contour()
+        sample.plot_appr_free_energy_surface()
+        sample.plot_appr_free_energy_contour()
+        sample.plot_control()
+        sample.plot_tilted_potential_surface()
+        sample.plot_tilted_potential_contour()
+        sample.plot_tilted_drift()
+    return
 
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(
         seed=args.seed,
-        xzero=args.xzero,
+        xzero=np.array(args.xzero),
         M=args.M,
         dt=args.dt,
         N_lim=args.N_lim,

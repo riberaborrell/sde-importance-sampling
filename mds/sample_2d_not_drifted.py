@@ -16,8 +16,8 @@ def main():
         potential_name=args.potential_name,
         alpha=np.array(args.alpha),
         beta=args.beta,
-        domain=np.array(args.domain).reshape((2, 2)),
-        target_set=np.array(args.target_set).reshape((2, 2)),
+        domain=np.array(args.domain).reshape(2, 2),
+        target_set=np.array(args.target_set).reshape(2, 2),
         h=args.h,
         is_drifted=False,
     )
@@ -28,7 +28,7 @@ def main():
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(
         seed=args.seed,
-        xzero=args.xzero,
+        xzero=np.array(args.xzero),
         M=args.M,
         dt=args.dt,
         N_lim=args.N_lim,
@@ -36,8 +36,9 @@ def main():
 
     # plot potential and gradient
     if args.do_plots:
-        sample.plot_tilted_potential(file_name='tilted_potential')
-        sample.plot_tilted_drift(file_name='tilted_drift')
+        sample.plot_tilted_potential_surface()
+        sample.plot_tilted_potential_contour()
+        #sample.plot_tilted_drift()
 
     # sample and compute statistics
     sample.sample_not_drifted()

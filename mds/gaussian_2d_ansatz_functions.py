@@ -250,7 +250,7 @@ class GaussianAnsatz:
         Ny = y.shape[0]
         xx, yy = np.meshgrid(x, y, sparse=True, indexing='ij')
         X, Y = np.meshgrid(x, y, sparse=False, indexing='ij')
-        pos = np.dstack((X, Y)).reshape((Nx * Ny, 2))
+        pos = np.dstack((X, Y)).reshape(Nx * Ny, 2)
 
         #Z = self.multivariate_normal_pdf(pos, means, cov).reshape(Nx, Ny)
         Z = self.vectorized_multivariate_normal_pdf(pos, means, cov).reshape(Nx, Ny, self.m)
@@ -260,45 +260,9 @@ class GaussianAnsatz:
         plt2d = Plot2d(self.dir_path, 'gaussian_contour')
         plt2d.contour(X, Y, Z[:, :, j])
 
-        #grad = self.gradient_multivariate_normal_pdf(pos, means[j], cov).reshape((Nx, Ny, 2))
-        grad = self.vectorized_gradient_multivariate_normal_pdf(pos, means, cov).reshape((Nx, Ny, self.m, 2))
+        #grad = self.gradient_multivariate_normal_pdf(pos, means[j], cov).reshape(Nx, Ny, 2)
+        grad = self.vectorized_gradient_multivariate_normal_pdf(pos, means, cov).reshape(Nx, Ny, self.m, 2)
         U = grad[:, :, j, 0]
         V = grad[:, :, j, 1]
         plt2d = Plot2d(self.dir_path, 'grad_gaussian')
-        plt2d.vector_field(X, Y, U, V)
-
-    def plot_gaussian_ansatz_functions(self, omega=None):
-        m = self.m
-        m_x = self.m_x
-        m_y = self.m_y
-
-        d_xmin, d_xmax = self.domain[0]
-        d_ymin, d_ymax = self.domain[1]
-        h = 0.2
-        x = np.arange(d_xmin, d_xmax + h, h)
-        y = np.arange(d_ymin, d_ymax + h, h)
-        Nx = x.shape[0]
-        Ny = y.shape[0]
-        xx, yy = np.meshgrid(x, y, sparse=True, indexing='ij')
-        X, Y = np.meshgrid(x, y, sparse=False, indexing='ij')
-        pos = np.dstack((X, Y)).reshape((Nx * Ny, 2))
-
-        basis_value_f = self.basis_value_f(pos)
-        basis_control = self.basis_control(pos)
-        theta = np.ones(m)
-        value_f = np.dot(basis_value_f, theta)
-        value_f = value_f.reshape((Nx, Ny))
-        control = np.empty((Nx * Ny, 2))
-        control[:, 0] = np.dot(basis_control[:, :, 0], theta)
-        control[:, 1] = np.dot(basis_control[:, :, 1], theta)
-        control = control.reshape((Nx, Ny, 2))
-        plt2d = Plot2d(self.dir_path, 'basis_value_f_surface')
-        plt2d.surface(xx, yy, value_f)
-
-        plt2d = Plot2d(self.dir_path, 'basis_value_f_contour')
-        plt2d.contour(X, Y, value_f)
-
-        U = control[:, :, 0]
-        V = control[:, :, 1]
-        plt2d = Plot2d(self.dir_path, 'basis_control')
         plt2d.vector_field(X, Y, U, V)
