@@ -25,11 +25,6 @@ class Sampling:
         is_2d_valid_interval(domain)
         is_2d_valid_target_set(domain, target_set)
 
-        # dir_path
-        self.example_dir_path = get_example_data_path(potential_name, alpha,
-                                                      beta, target_set)
-        self.dir_path = None
-
         #seed
         self.seed = None
 
@@ -106,6 +101,11 @@ class Sampling:
         # metadynamics
         self.meta_bias_pot = None
 
+        # dir_path
+        self.example_dir_path = None
+        self.dir_path = None
+        self.set_example_dir_path()
+
 
     def discretize_domain(self, h=None):
         ''' this method discretizes the rectangular domain uniformly with step-size h
@@ -125,15 +125,16 @@ class Sampling:
         self.Ny = y.shape[0]
         self.N = self.Nx * self.Ny
 
+    def set_example_dir_path(self):
+        self.example_dir_path = get_example_data_path(self.potential_name, self.alpha,
+                                                      self.beta, self.target_set)
+
     def set_not_drifted_dir_path(self):
         self.dir_path = os.path.join(self.example_dir_path, 'not-drifted-sampling')
         make_dir_path(self.dir_path)
 
-    def set_drifted_dir_path(self):
-        assert self.ansatz is not None, ''
-        assert self.ansatz.dir_path is not None, ''
-
-        self.dir_path = os.path.join(self.ansatz.dir_path, 'drifted-sampling')
+    def set_drifted_dir_path(self, dir_path):
+        self.dir_path = dir_path
         make_dir_path(self.dir_path)
 
     def set_gaussian_ansatz_functions(self, m_x, m_y, sigma_x=None, sigma_y=None):
@@ -151,6 +152,23 @@ class Sampling:
         ansatz.set_dir_path(self.example_dir_path)
         self.ansatz = ansatz
 
+    def set_bias_potential(self, theta, means, covs):
+        ''' set the gaussian ansatz functions and the coefficients theta
+        Args:
+            theta ((m,)-array): parameters
+            means ((m, 2)-array): mean of each gaussian
+            covs ((m, 2, 2)-array) : covaraince matrix of each gaussian
+        '''
+        assert self.is_drifted, ''
+        assert theta.shape[0] == means.shape[0] == covs.shape[0], ''
+
+        # set gaussian ansatz functions
+        ansatz = GaussianAnsatz(domain=self.domain)
+        ansatz.set_given_ansatz_functions(mus, sigmas)
+
+        self.ansatz = ansatz
+        self.theta = theta
+
     def load_meta_bias_potential(self):
         if not self.meta_bias_pot:
             file_path = os.path.join(
@@ -159,18 +177,6 @@ class Sampling:
                 'bias_potential.npz',
             )
             self.meta_bias_pot = np.load(file_path)
-
-    def set_bias_potential_from_metadynamics(self):
-        ''' set the gaussian ansatz functions and the coefficients from metadynamics
-        '''
-        self.load_meta_bias_potential()
-        meta_theta = self.meta_bias_pot['omegas'] / 2
-        meta_mus = self.meta_bias_pot['mus']
-        meta_sigmas = self.meta_bias_pot['sigmas']
-
-        assert meta_theta.shape == meta_mus.shape == meta_sigmas.shape, ''
-
-        self.set_bias_potential(meta_theta, meta_mus, meta_sigmas)
 
     def load_reference_solution(self):
         if not self.ref_sol:
@@ -202,38 +208,46 @@ class Sampling:
 
     def set_theta_optimal(self):
         assert self.ansatz is not None, ''
+        assert self.ansatz.dir_path is not None, ''
+
         self.load_reference_solution()
-
-        h = self.ref_sol['h']
-        self.discretize_domain(h)
-
-        Nx = self.Nx
-        Ny = self.Ny
-        N = self.N
-        domain_h = self.ref_sol['domain_h'].reshape((N, 2))
-        F = self.ref_sol['F'].reshape((N,))
+        Nx, Ny, _ = self.ref_sol['domain_h'].shape
+        x = self.ref_sol['domain_h'].reshape(Nx * Ny, 2)
+        F = self.ref_sol['F'].reshape(Nx * Ny,)
 
         # compute the optimal theta given a basis of ansatz functions
-        v = self.ansatz.basis_value_f(domain_h)
+        v = self.ansatz.basis_value_f(x)
         self.theta, _, _, _ = np.linalg.lstsq(v, F, rcond=None)
         self.theta_type = 'optimal'
 
+        # set drifted sampling dir path
+        dir_path = os.path.join(self.ansatz.dir_path, 'optimal-importance-sampling')
+        self.set_drifted_dir_path(dir_path)
+
     def set_theta_null(self):
         assert self.ansatz is not None, ''
-        m = self.ansatz.m
-        self.theta = np.zeros(m)
+        assert self.ansatz.dir_path is not None, ''
+
+        self.theta = np.zeros(self.ansatz.m)
         self.theta_type = 'null'
+
+        # set drifted sampling dir path
+        dir_path = os.path.join(self.ansatz.dir_path, 'null-importance-sampling')
+        self.set_drifted_dir_path(dir_path)
 
     def set_theta_from_metadynamics(self):
         '''
         '''
+        assert self.ansatz is not None, ''
+        assert self.ansatz.dir_path is not None, ''
+
         x = self.domain_h
 
         self.load_meta_bias_potential()
-        meta_theta = self.meta_bias_pot['omegas'] / 2
-        meta_mus = self.meta_bias_pot['mus']
-        meta_sigmas = self.meta_bias_pot['sigmas']
-        assert meta_theta.shape == meta_mus.shape == meta_sigmas.shape, ''
+        meta_theta = self.meta_bias_pot['theta']
+        meta_means = self.meta_bias_pot['means']
+        meta_covs = self.meta_bias_pot['covs']
+        assert meta_theta.shape[0] == meta_means.shape[0] == meta_covs.shape[0], ''
 
         # create ansatz functions from meta
         meta_ansatz = GaussianAnsatz(domain=self.domain)
@@ -249,10 +263,15 @@ class Sampling:
         self.theta, _, _, _ = np.linalg.lstsq(v, value_f_meta, rcond=None)
         self.theta_type = 'meta'
 
+        # set drifted sampling dir path
+        dir_path = os.path.join(self.ansatz.dir_path, 'meta-importance-sampling')
+        self.set_drifted_dir_path(dir_path)
+
     def set_theta_from_gd(self, gd_type, gd_theta_init, gd_lr):
         '''
         '''
-        assert self.ansatz, ''
+        assert self.ansatz is not None, ''
+        assert self.ansatz.dir_path is not None, ''
 
         # get gd dir path
         ansatz_dir_path = self.ansatz.dir_path
@@ -268,8 +287,8 @@ class Sampling:
         self.theta_type = 'gd'
 
         # set drifted sampling dir path
-        self.dir_path = os.path.join(gd_dir_path, 'drifted-sampling')
-        make_dir_path(self.dir_path)
+        dir_path = os.path.join(gd_dir_path, 'gd-importance-sampling')
+        self.set_drifted_dir_path(dir_path)
 
     def value_function(self, x, theta=None, ansatz=None):
         '''This method computes the value function evaluated at x
@@ -534,37 +553,38 @@ class Sampling:
         self.stop_timer()
 
     def sample_meta(self):
-        assert self.M == 1, ''
+        self.initialize_fht()
 
         # initialize xtemp
-        xtemp = np.empty((self.N_lim +1, 1, 2))
-        xtemp[0, 0, :] = self.xzero
+        xtemp = np.empty((self.N_lim +1, self.M, 2))
+        xtemp[0] = self.xzero
 
         for n in np.arange(self.N_lim):
             # Brownian increment
-            dB = np.sqrt(self.dt) * np.random.normal(0, 1, 2).reshape(1, 2)
+            dB = np.sqrt(self.dt) * np.random.normal(0, 1, 2 * self.M).reshape(self.M, 2)
 
             if not self.is_drifted:
                 # compute gradient
-                gradient = self.gradient(xtemp[n, :, :])
+                gradient = self.gradient(xtemp[n])
 
             else:
                 # control at xtemp
-                utemp = self.control(xtemp[n, :, :])
+                utemp = self.control(xtemp[n])
 
                 # compute gradient
-                gradient = self.tilted_gradient(xtemp[n, :, :], utemp)
+                gradient = self.tilted_gradient(xtemp[n], utemp)
 
             # sde update
-            xtemp[n+1, :, :] = self.sde_update(xtemp[n, :, :], gradient, dB)
+            xtemp[n+1] = self.sde_update(xtemp[n], gradient, dB)
 
-            if (xtemp[n+1, 0, 0] >= self.target_set[0, 0] and
-                xtemp[n+1, 0, 0] <= self.target_set[0, 1] and
-                xtemp[n+1, 0, 1] >= self.target_set[1, 0] and
-                xtemp[n+1, 0, 1] <= self.target_set[1, 1]):
-                return True, xtemp[:n+1, 0, :]
+            # get indices from the trajectories which are new in target
+            idx_new = self.get_idx_new_in_target_set(xtemp[n+1], self.been_in_target_set)
 
-        return False, xtemp[:, 0, :]
+            # check if the half of the trajectories have arrived to the target set
+            if np.sum(self.been_in_target_set) >= self.M / 3:
+                return True, xtemp[:n+1]
+
+        return False, xtemp
 
     def sample_loss(self):
         self.initialize_fht()
@@ -720,7 +740,7 @@ class Sampling:
         f.write('Sampling parameters\n')
         if self.seed:
             f.write('seed: {:2.1f}'.format(self.seed))
-        f.write('xzero: ({:2.1f}, {:2.1f})\n'.format(self.xzero[0], self.xzero[1]))
+        f.write('xzero: ({:2.1f}, {:2.1f})\n'.format(self.xzero[0, 0], self.xzero[0, 1]))
         f.write('target set: [[{:2.1f}, {:2.1f}], [{:2.1f}, {:2.1f}]]\n'.format(
             self.target_set[0, 0],
             self.target_set[0, 1],
@@ -792,7 +812,9 @@ class Sampling:
 
         f.close()
 
-    def plot_appr_mgf_surface(self, file_name, dir_path=None):
+    def plot_appr_mgf_surface(self, file_name=None, dir_path=None):
+        if file_name is None:
+            file_name = 'appr_mgf_surface'
         if dir_path is None:
             dir_path = self.dir_path
         X = self.domain_h[:, :, 0]
@@ -805,7 +827,9 @@ class Sampling:
         plt2d.set_title(r'$\Psi(x_1, x_2)$')
         plt2d.surface(X, Y, appr_Psi)
 
-    def plot_appr_mgf_contour(self, file_name, dir_path=None):
+    def plot_appr_mgf_contour(self, file_name=None, dir_path=None):
+        if file_name is None:
+            file_name = 'appr_mgf_contour'
         if dir_path is None:
             dir_path = self.dir_path
         X = self.domain_h[:, :, 0]
@@ -818,7 +842,9 @@ class Sampling:
         plt2d.set_title(r'$\Psi(x_1, x_2)$')
         plt2d.contour(X, Y, appr_Psi)
 
-    def plot_appr_free_energy_surface(self, file_name, dir_path=None):
+    def plot_appr_free_energy_surface(self, file_name=None, dir_path=None):
+        if file_name is None:
+            file_name = 'appr_free_energy_surface'
         if dir_path is None:
             dir_path = self.dir_path
         X = self.domain_h[:, :, 0]
@@ -830,7 +856,9 @@ class Sampling:
         plt2d.set_title(r'$F(x_1, x_2)$')
         plt2d.surface(X, Y, appr_F)
 
-    def plot_appr_free_energy_contour(self, file_name, dir_path=None):
+    def plot_appr_free_energy_contour(self, file_name=None, dir_path=None):
+        if file_name is None:
+            file_name = 'appr_free_energy_contour'
         if dir_path is None:
             dir_path = self.dir_path
         X = self.domain_h[:, :, 0]
@@ -842,7 +870,9 @@ class Sampling:
         plt2d.set_title(r'$F(x_1, x_2)$')
         plt2d.contour(X, Y, appr_F)
 
-    def plot_control(self, file_name, dir_path=None):
+    def plot_control(self, file_name=None, dir_path=None):
+        if file_name is None:
+            file_name = 'control'
         if dir_path is None:
             dir_path = self.dir_path
         X = self.domain_h[:, :, 0]
@@ -855,7 +885,9 @@ class Sampling:
         plt2d.set_title(r'$u(x_1, x_2)$')
         plt2d.vector_field(X, Y, u_x, u_y, k=10, scale=4)
 
-    def plot_tilted_potential_surface(self, file_name, dir_path=None):
+    def plot_tilted_potential_surface(self, file_name=None, dir_path=None):
+        if file_name is None:
+            file_name = 'tilted_potential_surface'
         if dir_path is None:
             dir_path = self.dir_path
         X = self.domain_h[:, :, 0]
@@ -873,7 +905,9 @@ class Sampling:
         plt2d.set_zlim(0, 10)
         plt2d.surface(X, Y, V + Vbias)
 
-    def plot_tilted_potential_contour(self, file_name, dir_path=None):
+    def plot_tilted_potential_contour(self, file_name=None, dir_path=None):
+        if file_name is None:
+            file_name = 'tilted_potential_contour'
         if dir_path is None:
             dir_path = self.dir_path
         X = self.domain_h[:, :, 0]
@@ -892,7 +926,9 @@ class Sampling:
         plt2d.set_zlim(0, 10)
         plt2d.contour(X, Y, V + Vbias, levels=levels)
 
-    def plot_tilted_drift(self, file_name, dir_path=None):
+    def plot_tilted_drift(self, file_name=None, dir_path=None):
+        if file_name is None:
+            file_name = 'tilted_drift'
         if dir_path is None:
             dir_path = self.dir_path
         X = self.domain_h[:, :, 0]

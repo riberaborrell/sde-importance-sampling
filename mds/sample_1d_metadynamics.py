@@ -36,7 +36,7 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
-    # initialize sampling object
+    # initialize 1d sampling object
     sample = Sampling(
         potential_name=args.potential_name,
         alpha=np.array(args.alpha),

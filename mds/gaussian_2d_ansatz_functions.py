@@ -1,6 +1,6 @@
 from mds.plots_2d import Plot2d
 from mds.utils import get_ansatz_data_path
-#from mds.validation import is_1d_valid_domain
+from mds.validation import is_2d_valid_interval
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -15,8 +15,7 @@ class GaussianAnsatz:
         '''
         if domain is None:
             domain = np.array([[-3, 3], [-3, 3]])
-        #TODO: validate 2d domain
-        #is_1d_valid_domain(domain)
+        is_2d_valid_interval(domain)
         self.domain = domain
         self.m_x = m_x
         self.m_y = m_y
@@ -108,11 +107,12 @@ class GaussianAnsatz:
         M = x.shape[0]
         m = mean.shape[0]
         norm_factor = 2 * np.pi * np.sqrt(np.linalg.det(cov))
+        cov_inv = np.linalg.inv(cov)
         x = x[:, None, :]
         mean = mean[None, :, :]
-        x_centered = (x - mean).reshape((M*m, 2))
-        exp_term = - 0.5 * np.matmul(x_centered, cov)
-        exp_term = np.sum(exp_term * x_centered, axis=1).reshape((M, m))
+        x_centered = (x - mean).reshape(M*m, 2)
+        exp_term = - 0.5 * np.matmul(x_centered, cov_inv)
+        exp_term = np.sum(exp_term * x_centered, axis=1).reshape(M, m)
         pdf = np.exp(exp_term) / norm_factor
         return pdf
 
@@ -252,8 +252,8 @@ class GaussianAnsatz:
         X, Y = np.meshgrid(x, y, sparse=False, indexing='ij')
         pos = np.dstack((X, Y)).reshape((Nx * Ny, 2))
 
-        #Z = self.multivariate_normal_pdf(pos, means[j], cov).reshape((Nx, Ny))
-        Z = self.vectorized_multivariate_normal_pdf(pos, means, cov).reshape((Nx, Ny, self.m))
+        #Z = self.multivariate_normal_pdf(pos, means, cov).reshape(Nx, Ny)
+        Z = self.vectorized_multivariate_normal_pdf(pos, means, cov).reshape(Nx, Ny, self.m)
         plt2d = Plot2d(self.dir_path, 'gaussian_surface')
         plt2d.surface(xx, yy, Z[:, :, j])
 

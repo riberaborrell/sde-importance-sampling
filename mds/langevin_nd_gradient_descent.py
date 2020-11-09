@@ -36,7 +36,7 @@ class GradientDescent:
 
         self.do_epoch_plots = do_epoch_plots
 
-        # set paht
+        # set path
         self.dir_path = None
         self.set_dir_path()
         if do_epoch_plots:

@@ -111,9 +111,9 @@ class Sampling:
         if h is None:
             h = self.h
 
-        D_min, D_max = self.domain
-        self.N = int((D_max - D_min) / h) + 1
-        self.domain_h = np.around(np.linspace(D_min, D_max, self.N), decimals=3)
+        d_min, d_max = self.domain
+        self.domain_h = np.around(np.arange(d_xmin, d_xmax + h, h), decimals=3)
+        self.N = self.domain_h.shape[0]
 
     def set_example_dir_path(self):
         self.example_dir_path = get_example_data_path(self.potential_name, self.alpha,
@@ -145,9 +145,9 @@ class Sampling:
     def set_bias_potential(self, theta, mus, sigmas):
         ''' set the gaussian ansatz functions and the coefficients theta
         Args:
-            theta (ndarray): parameters
-            mus (ndarray): mean of each gaussian
-            sigmas (ndarray) : standard deviation of each gaussian
+            theta ((m,)-array): parameters
+            mus ((m,)-array): mean of each gaussian
+            sigmas ((m,)-array) : standard deviation of each gaussian
         '''
         assert self.is_drifted, ''
         assert theta.shape == mus.shape == sigmas.shape, ''
@@ -249,11 +249,11 @@ class Sampling:
         dir_path = os.path.join(self.ansatz.dir_path, 'meta-importance-sampling')
         self.set_drifted_dir_path(dir_path)
 
-
     def set_theta_from_gd(self, gd_type, gd_theta_init, gd_lr):
         '''
         '''
-        assert self.ansatz, ''
+        assert self.ansatz is not None, ''
+        assert self.ansatz.dir_path is not None, ''
 
         # get gd dir path
         ansatz_dir_path = self.ansatz.dir_path

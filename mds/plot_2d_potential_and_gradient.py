@@ -29,51 +29,56 @@ def main():
     dir_path = get_example_data_path(potential_name, alpha)
 
     # set grid
-    xmin, xmax = (-2, 2)
-    ymin, ymax = (-2, 2)
+    xmin, xmax = (-3, 3)
+    ymin, ymax = (-3, 3)
     h = 0.01
-    x = np.arange(xmin, xmax, h)
-    y = np.arange(ymin, ymax, h)
+    x = np.around(np.arange(xmin, xmax + h, h), decimals=3)
+    y = np.around(np.arange(ymin, ymax + h, h), decimals=3)
     Nx = x.shape[0]
     Ny = y.shape[0]
     xx, yy = np.meshgrid(x, y, sparse=True, indexing='ij')
     X, Y = np.meshgrid(x, y, sparse=False, indexing='ij')
 
     # set bounds for the z axis
-    vmin, vmax = (0, 10 * alpha.max())
+    zmin, zmax = (0, 10 * alpha.max())
 
-    # evaluate potential
-    pos = np.dstack((X, Y)).reshape((Nx * Ny, 2))
-    V = potential(pos).reshape((Nx, Ny))
+    # evaluate potential and gradient
+    pos = np.dstack((X, Y)).reshape(Nx * Ny, 2)
+    pot = potential(pos).reshape(Nx, Ny)
+    grad = gradient(pos).reshape(Nx, Ny, 2)
+    U = -grad[:, :, 0]
+    V = -grad[:, :, 1]
 
-    # surface plot
+    # potential surface plot
     plt2d = Plot2d(dir_path, 'potential_surface')
     plt2d.set_title(pot_formula)
-    plt2d.surface(xx, yy, V, vmin, vmax)
+    plt2d.set_xlim(-2, 2)
+    plt2d.set_ylim(-2, 2)
+    plt2d.set_zlim(zmin, zmax)
+    plt2d.surface(xx, yy, pot)
 
-    # contour plot
+    # potential contour plot
     levels = np.logspace(-2, 1, 20, endpoint=True)
     plt2d = Plot2d(dir_path, 'potential_contour')
     plt2d.set_title(pot_formula)
-    plt2d.contour(X, Y, V, vmin, vmax, levels)
+    plt2d.set_xlim(-2, 2)
+    plt2d.set_ylim(-2, 2)
+    plt2d.set_zlim(zmin, zmax)
+    plt2d.contour(X, Y, pot, levels)
 
-    # evaluate coarsed gradient
-    #k = int(xx.shape[0] / 20)
-    k = 20
-    x = x[::k]
-    y = y[::k]
-    Nx = x.shape[0]
-    Ny = y.shape[0]
-    X, Y = np.meshgrid(x, y, sparse=False, indexing='ij')
-    pos = np.dstack((X, Y)).reshape((Nx * Ny, 2))
-    grad = gradient(pos).reshape((Nx, Ny, 2))
-    U = grad[:, :, 0]
-    V = grad[:, :, 1]
-
-    #gradient plot
+    # minus gradient vector field plot
     plt2d = Plot2d(dir_path, 'gradient_vector_field')
     plt2d.set_title(grad_formula)
-    plt2d.vector_field(X, Y, U, V)
+    plt2d.set_xlim(-2, 2)
+    plt2d.set_ylim(-2, 2)
+    plt2d.vector_field(X, Y, U, V, k=10, scale=100)
+
+    # zoomed minus gradient vector field plot
+    plt2d = Plot2d(dir_path, 'gradient_vector_field_zoomed')
+    plt2d.set_title(grad_formula)
+    plt2d.set_xlim(-1.25, 1.25)
+    plt2d.set_ylim(-1.25, 1.25)
+    plt2d.vector_field(X, Y, U, V, k=5, scale=20)
 
 
 if __name__ == "__main__":
