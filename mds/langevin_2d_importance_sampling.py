@@ -188,8 +188,6 @@ class Sampling:
             self.ref_sol = np.load(file_path)
 
     def get_value_f_at_xzero(self):
-        xzero = self.xzero
-
         # load ref sol
         self.load_reference_solution()
         x = self.ref_sol['domain_h']
@@ -197,8 +195,8 @@ class Sampling:
 
         # evaluate F at xzero
         idx_x = np.where(
-            (x[:, :, 0] == xzero[0]) &
-            (x[:, :, 1] == xzero[1])
+            (x[:, :, 0] == self.xzero[0]) &
+            (x[:, :, 1] == self.xzero[1])
         )
         assert idx_x[0].shape[0] == idx_x[1].shape[0] == 1, ''
         idx_x1 = idx_x[0][0]
@@ -436,7 +434,7 @@ class Sampling:
         diffusion = np.dot(dB, np.sqrt(2 / beta) * np.eye(2))
         return x + drift + diffusion
 
-    def get_idx_new_in_target_set(self, x, been_in_target_set):
+    def get_idx_new_in_target_set(self, x):
         target_set_x, target_set_y = self.target_set
         target_set_x_min, target_set_x_max = target_set_x
         target_set_y_min, target_set_y_max = target_set_y
@@ -452,11 +450,11 @@ class Sampling:
         # indices of trajectories new in the target set
         idx_new = np.where(
             (is_in_target_set == True) &
-            (been_in_target_set == False)
+            (self.been_in_target_set == False)
         )[0]
 
         # update list of indices whose trajectories have been in the target set
-        been_in_target_set[idx_new] = True
+        self.been_in_target_set[idx_new] = True
 
         return idx_new
 
@@ -464,18 +462,12 @@ class Sampling:
         self.start_timer()
         self.initialize_fht()
 
-        dt = self.dt
-        N_lim = self.N_lim
-        xzero = self.xzero
-        M = self.M
-        been_in_target_set = self.been_in_target_set
-
         # initialize xtemp
-        xtemp = np.full((M, 2), xzero)
+        xtemp = np.full((self.M, 2), self.xzero)
 
-        for n in np.arange(1, N_lim +1):
+        for n in np.arange(1, self.N_lim +1):
             # Brownian increment
-            dB = (np.sqrt(dt) * np.random.normal(0, 1, 2 * M)).reshape((M, 2))
+            dB = np.sqrt(self.dt) * np.random.normal(0, 1, 2 * self.M).reshape(self.M, 2)
 
             # compute gradient
             gradient = self.gradient(xtemp)
@@ -484,16 +476,15 @@ class Sampling:
             xtemp = self.sde_update(xtemp, gradient, dB)
 
             # get indices from the trajectories which are new in target
-            idx_new = self.get_idx_new_in_target_set(xtemp, been_in_target_set)
+            idx_new = self.get_idx_new_in_target_set(xtemp)
 
             # save first hitting time
-            self.fht[idx_new] = n * dt
+            self.fht[idx_new] = n * self.dt
 
             # check if all trajectories have arrived to the target set
-            if been_in_target_set.all() == True:
+            if self.been_in_target_set.all() == True:
                 break
 
-        self.been_in_target_set = been_in_target_set
         self.compute_fht_statistics()
         self.compute_I_statistics()
         self.stop_timer()
@@ -503,24 +494,17 @@ class Sampling:
         self.initialize_fht()
         self.initialize_girsanov_martingale_terms()
 
-        beta = self.beta
-        dt = self.dt
-        N_lim = self.N_lim
-        xzero = self.xzero
-        M = self.M
-        been_in_target_set = self.been_in_target_set
-
         # initialize xtemp
-        xtemp = np.full((M, 2), xzero)
+        xtemp = np.full((self.M, 2), self.xzero)
 
         # initialize Girsanov Martingale terms, M_t = e^(M1_t + M2_t)
-        M1temp = np.zeros(M)
-        M2temp = np.zeros(M)
+        M1temp = np.zeros(self.M)
+        M2temp = np.zeros(self.M)
         k = np.array([])
 
-        for n in np.arange(1, N_lim +1):
+        for n in np.arange(1, self.N_lim +1):
             # Brownian increment
-            dB = (np.sqrt(dt) * np.random.normal(0, 1, 2 * M)).reshape((M, 2))
+            dB = np.sqrt(self.dt) * np.random.normal(0, 1, 2 * self.M).reshape(self.M, 2)
 
             # control at Xtemp
             utemp = self.control(xtemp)
@@ -532,22 +516,21 @@ class Sampling:
             xtemp = self.sde_update(xtemp, gradient, dB)
 
             # Girsanov Martingale terms
-            M1temp -= np.sqrt(beta) * np.matmul(utemp, dB.T).diagonal()
-            M2temp -= beta * 0.5 * (np.linalg.norm(utemp, axis=1) ** 2) * dt
+            M1temp -= np.sqrt(self.beta) * np.matmul(utemp, dB.T).diagonal()
+            M2temp -= self.beta * 0.5 * (np.linalg.norm(utemp, axis=1) ** 2) * self.dt
 
             # get indices from the trajectories which are new in target set
-            idx_new = self.get_idx_new_in_target_set(xtemp, been_in_target_set)
+            idx_new = self.get_idx_new_in_target_set(xtemp)
 
             # save first hitting time and Girsanov Martingale terms
-            self.fht[idx_new] = n * dt
+            self.fht[idx_new] = n * self.dt
             self.M1_fht[idx_new] = M1temp[idx_new]
             self.M2_fht[idx_new] = M2temp[idx_new]
 
             # check if all trajectories have arrived to the target set
-            if been_in_target_set.all() == True:
+            if self.been_in_target_set.all() == True:
                 break
 
-        self.been_in_target_set = been_in_target_set
         self.compute_fht_statistics()
         self.compute_I_u_statistics()
         self.stop_timer()
@@ -557,7 +540,7 @@ class Sampling:
 
         # initialize xtemp
         xtemp = np.empty((self.N_lim +1, self.M, 2))
-        xtemp[0] = self.xzero
+        xtemp[0] = np.full((self.M, 2), self.xzero)
 
         for n in np.arange(self.N_lim):
             # Brownian increment
@@ -578,7 +561,7 @@ class Sampling:
             xtemp[n+1] = self.sde_update(xtemp[n], gradient, dB)
 
             # get indices from the trajectories which are new in target
-            idx_new = self.get_idx_new_in_target_set(xtemp[n+1], self.been_in_target_set)
+            idx_new = self.get_idx_new_in_target_set(xtemp[n+1])
 
             # check if the half of the trajectories have arrived to the target set
             if np.sum(self.been_in_target_set) >= self.M / 3:
@@ -589,30 +572,24 @@ class Sampling:
     def sample_loss(self):
         self.initialize_fht()
 
-        alpha = self.alpha
-        beta = self.beta
-        dt = self.dt
-        N_lim = self.N_lim
-        xzero = self.xzero
-        M = self.M
+        # number of ansatz functions
         m = self.ansatz.m
-        been_in_target_set = self.been_in_target_set
 
         # initialize statistics 
-        J = np.zeros(M)
-        grad_J = np.zeros((M, m))
+        J = np.zeros(self.M)
+        grad_J = np.zeros((self.M, m))
 
         # initialize xtemp
-        xtemp = np.full((M, 2), xzero)
+        xtemp = np.full((self.M, 2), self.xzero)
 
         # initialize ipa variables
-        cost_temp = np.zeros(M)
-        grad_phi_temp = np.zeros((M, m))
-        grad_S_temp = np.zeros((M, m))
+        cost_temp = np.zeros(self.M)
+        grad_phi_temp = np.zeros((self.M, m))
+        grad_S_temp = np.zeros((self.M, m))
 
-        for n in np.arange(1, N_lim+1):
+        for n in np.arange(1, self.N_lim+1):
             # Brownian increment
-            dB = (np.sqrt(dt) * np.random.normal(0, 1, 2 * M)).reshape((M, 2))
+            dB = np.sqrt(self.dt) * np.random.normal(0, 1, 2 * self.M).reshape(self.M, 2)
 
             # control
             btemp = self.ansatz.basis_control(xtemp)
@@ -624,9 +601,9 @@ class Sampling:
 
             # ipa statistics 
             normed_utemp = np.linalg.norm(utemp, axis=1)
-            cost_temp += 0.5 * (normed_utemp ** 2) * dt
-            grad_phi_temp += np.sum(utemp[:, None, :] * btemp, axis=2) * dt
-            grad_S_temp -= np.sqrt(beta) * np.sum(dB[:, None, :] * btemp, axis=2)
+            cost_temp += 0.5 * (normed_utemp ** 2) * self.dt
+            grad_phi_temp += np.sum(utemp[:, None, :] * btemp, axis=2) * self.dt
+            grad_S_temp -= np.sqrt(self.beta) * np.sum(dB[:, None, :] * btemp, axis=2)
 
             # compute gradient
             gradient = self.tilted_gradient(xtemp, utemp)
@@ -635,16 +612,16 @@ class Sampling:
             xtemp = self.sde_update(xtemp, gradient, dB)
 
             # get indices from the trajectories which are new in target set
-            idx_new = self.get_idx_new_in_target_set(xtemp, been_in_target_set)
+            idx_new = self.get_idx_new_in_target_set(xtemp)
 
             # save ipa statistics
-            J[idx_new] = n * dt + cost_temp[idx_new]
+            J[idx_new] = n * self.dt + cost_temp[idx_new]
             grad_J[idx_new, :] = grad_phi_temp[idx_new, :] \
-                               - (n * dt + cost_temp[idx_new])[:, None] \
+                               - (n * self.dt + cost_temp[idx_new])[:, None] \
                                * grad_S_temp[idx_new, :]
 
             # check if all trajectories have arrived to the target set
-            if been_in_target_set.all() == True:
+            if self.been_in_target_set.all() == True:
                 break
 
         # compute averages
@@ -740,7 +717,7 @@ class Sampling:
         f.write('Sampling parameters\n')
         if self.seed:
             f.write('seed: {:2.1f}'.format(self.seed))
-        f.write('xzero: ({:2.1f}, {:2.1f})\n'.format(self.xzero[0, 0], self.xzero[0, 1]))
+        f.write('xzero: ({:2.1f}, {:2.1f})\n'.format(self.xzero[0], self.xzero[1]))
         f.write('target set: [[{:2.1f}, {:2.1f}], [{:2.1f}, {:2.1f}]]\n'.format(
             self.target_set[0, 0],
             self.target_set[0, 1],
