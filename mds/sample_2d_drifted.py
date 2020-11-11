@@ -6,6 +6,13 @@ import numpy as np
 def get_parser():
     parser = get_base_parser()
     parser.description = 'sample drifted 2D overdamped Langevin SDE'
+    parser.add_argument(
+        '--j',
+        dest='j',
+        type=int,
+        default=0,
+        help='Index of the 2d gaussian ansatz that we want to plot. Default: 0',
+    )
     return parser
 
 def main():
@@ -43,8 +50,7 @@ def main():
 
     # plot potential and gradient
     if args.do_plots:
-        sample.ansatz.plot_multivariate_normal_pdf(j=0)
-        #sample.ansatz.plot_gaussian_ansatz_functions(omega=None)
+        sample.ansatz.plot_multivariate_normal_pdf(j=args.j)
         sample.plot_appr_psi_surface()
         sample.plot_appr_psi_contour()
         sample.plot_appr_free_energy_surface()
@@ -53,7 +59,7 @@ def main():
         sample.plot_tilted_potential_surface()
         sample.plot_tilted_potential_contour()
         sample.plot_tilted_drift()
-    return
+        return
 
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(

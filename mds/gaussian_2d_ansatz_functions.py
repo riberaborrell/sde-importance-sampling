@@ -254,15 +254,15 @@ class GaussianAnsatz:
 
         #Z = self.multivariate_normal_pdf(pos, means, cov).reshape(Nx, Ny)
         Z = self.vectorized_multivariate_normal_pdf(pos, means, cov).reshape(Nx, Ny, self.m)
-        plt2d = Plot2d(self.dir_path, 'gaussian_surface')
+        plt2d = Plot2d(self.dir_path, 'gaussian_surface' + '_j{:d}'.format(j))
         plt2d.surface(xx, yy, Z[:, :, j])
 
-        plt2d = Plot2d(self.dir_path, 'gaussian_contour')
+        plt2d = Plot2d(self.dir_path, 'gaussian_contour' + '_j{:d}'.format(j))
         plt2d.contour(X, Y, Z[:, :, j])
 
         #grad = self.gradient_multivariate_normal_pdf(pos, means[j], cov).reshape(Nx, Ny, 2)
         grad = self.vectorized_gradient_multivariate_normal_pdf(pos, means, cov).reshape(Nx, Ny, self.m, 2)
         U = grad[:, :, j, 0]
         V = grad[:, :, j, 1]
-        plt2d = Plot2d(self.dir_path, 'grad_gaussian')
-        plt2d.vector_field(X, Y, U, V)
+        plt2d = Plot2d(self.dir_path, 'grad_gaussian' + '_j{:d}'.format(j))
+        plt2d.vector_field(X, Y, U, V, scale=1)

@@ -318,12 +318,12 @@ class Solver():
         Y = self.domain_h[:, :, 1]
 
         # surface plot
-        plt2d = Plot2d(self.dir_path, 'mgf_surface')
+        plt2d = Plot2d(self.dir_path, 'psi_surface')
         plt2d.set_title(r'$\Psi(x_1, x_2)$')
         plt2d.surface(X, Y, Psi)
 
         # contour plot
-        plt2d = Plot2d(self.dir_path, 'mgf_contour')
+        plt2d = Plot2d(self.dir_path, 'psi_contour')
         plt2d.set_title(r'$\Psi(x_1, x_2)$')
         plt2d.contour(X, Y, Psi)
 
@@ -381,14 +381,14 @@ class Solver():
         #gradient plot
         plt2d = Plot2d(self.dir_path, 'optimal_control')
         plt2d.set_title(r'$u_{opt}(x_1, x_2)$')
-        plt2d.vector_field(X, Y, U, V, k=10)
+        plt2d.vector_field(X, Y, U, V, scale=8)
 
         #zoom gradient plot
         plt2d = Plot2d(self.dir_path, 'optimal_control_zoom_ts')
         plt2d.set_title(r'$u_{opt}(x_1, x_2)$')
         plt2d.set_xlim(0, 2)
         plt2d.set_ylim(0, 2)
-        plt2d.vector_field(X, Y, U, V, k=2)
+        plt2d.vector_field(X, Y, U, V, scale=30)
 
     def plot_optimal_tilted_drift(self):
         X = self.domain_h[:, :, 0]
@@ -403,10 +403,7 @@ class Solver():
 
         plt2d = Plot2d(self.dir_path, 'optimal_tilted_drift')
         plt2d.set_title(r'$-\nabla \tilde{V}(x_1, x_2)$')
-        #plt2d.set_xlim(-2, 2)
-        #plt2d.set_ylim(-2, 2)
-        #plt2d.vector_field(X, Y, U, V, k=5, scale=50)
-        plt2d.set_xlim(-1.25, 1.25)
-        plt2d.set_ylim(-1.25, 1.25)
-        plt2d.vector_field(X, Y, U, V, k=4, scale=50)
+        plt2d.set_xlim(-1.5, 1.5)
+        plt2d.set_ylim(-1.5, 1.5)
+        plt2d.vector_field(X, Y, U, V, scale=50)
 

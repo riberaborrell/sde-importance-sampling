@@ -88,7 +88,9 @@ class Plot2d:
         ax.set_zlim(self.zmin, self.zmax)
 
         fig.colorbar(surf, fraction=0.15, shrink=0.7, aspect=20)
+        #fig.subplots_adjust(wspace=0.2, hspace=0)
         plt.savefig(self.file_path)
+        plt.close()
 
     def contour(self, X, Y, Z, levels=None):
         assert X.ndim == Y.ndim == Z.ndim == 2, ''
@@ -112,6 +114,7 @@ class Plot2d:
 
         cbar = fig.colorbar(cs)
         plt.savefig(self.file_path)
+        plt.close()
 
     def reduce_quiver_arrows(self, X, Y, U, V):
         # get the indices of the given limits
@@ -127,26 +130,38 @@ class Plot2d:
         V = V[idx_xmin:idx_xmax+1, idx_ymin:idx_ymax+1]
         return X, Y, U, V
 
-    def coarse_quiver_arrows(self, X, Y, U, V, k):
+    def coarse_quiver_arrows(self, X, Y, U, V, kx, ky):
         # show every k row and column
-        X = X[::k, ::k]
-        Y = Y[::k, ::k]
-        U = U[::k, ::k]
-        V = V[::k, ::k]
+        X = X[::kx, ::ky]
+        Y = Y[::kx, ::ky]
+        U = U[::kx, ::ky]
+        V = V[::kx, ::ky]
         return X, Y, U, V
 
-    def vector_field(self, X, Y, U, V, k=None, scale=None):
+    def vector_field(self, X, Y, U, V, kx=None, ky=None, scale=None, width=0.005):
         fig, ax = plt.subplots()
-        if self.xmin and self.xmax and self.ymin and self.ymax:
+        if (self.xmin is not None and
+            self.xmax is not None and
+            self.ymin is not None and
+            self.ymax is not None):
             X, Y, U, V = self.reduce_quiver_arrows(X, Y, U, V)
-        if k is not None:
-            X, Y, U, V = self.coarse_quiver_arrows(X, Y, U, V, k)
+        if kx is None:
+            kx = X.shape[0] // 25
+        if ky is None:
+            ky = Y.shape[1] // 25
+        X, Y, U, V = self.coarse_quiver_arrows(X, Y, U, V, kx, ky)
 
         C = np.sqrt(U**2 + V**2)
 
+        # modify color map
+        colormap = cm.get_cmap('viridis_r', 100)
+        colormap = colors.ListedColormap(
+            colormap(np.linspace(0.20, 0.95, 75))
+        )
+
         # initialize norm object and make rgba array
         norm = colors.Normalize(vmin=np.min(C), vmax=np.max(C))
-        sm = cm.ScalarMappable(cmap=cm.coolwarm, norm=norm)
+        sm = cm.ScalarMappable(cmap=colormap, norm=norm)
 
         quiv = ax.quiver(
             X,
@@ -154,10 +169,11 @@ class Plot2d:
             U,
             V,
             C,
-            cmap=cm.coolwarm,
+            cmap=colormap,
             angles='xy',
             scale_units='xy',
             scale=scale,
+            width=width,
         )
 
         ax.set_title(self.title)
@@ -167,3 +183,4 @@ class Plot2d:
         ax.set_ylim(self.ymin, self.ymax)
         plt.colorbar(sm)
         plt.savefig(self.file_path)
+        plt.close()

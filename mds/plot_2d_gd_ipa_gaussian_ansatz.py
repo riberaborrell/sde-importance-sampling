@@ -54,11 +54,21 @@ def main():
         for epoch in range(gd.epochs):
             sample.theta = gd.thetas[epoch]
             epoch_stamp = '_epoch{}'.format(epoch)
-            sample.plot_appr_free_energy('appr_free_energy' + epoch_stamp, gd.epochs_dir_path)
+            sample.plot_appr_free_energy_contour('appr_free_energy_contour' + epoch_stamp, gd.epochs_dir_path)
             sample.plot_control('control' + epoch_stamp, gd.epochs_dir_path)
-            sample.plot_tilted_potential('tilted_potential' + epoch_stamp, gd.epochs_dir_path)
+            sample.plot_tilted_potential_contour('tilted_potential_contour' + epoch_stamp, gd.epochs_dir_path)
 
-    # plot all epochs
+    # plot last epochs
+    last_epoch = gd.epochs -1
+    sample.theta = gd.thetas[last_epoch]
+    epoch_stamp = '_epoch{}'.format(last_epoch)
+    sample.plot_appr_free_energy_surface('appr_free_energy_surface' + epoch_stamp, gd.dir_path)
+    sample.plot_appr_free_energy_contour('appr_free_energy_contour' + epoch_stamp, gd.dir_path)
+    sample.plot_control('control' + epoch_stamp, gd.dir_path)
+    sample.plot_tilted_potential_surface('tilted_potential_surface' + epoch_stamp, gd.dir_path)
+    sample.plot_tilted_potential_contour('tilted_potential_contour' + epoch_stamp, gd.dir_path)
+
+    # plot losses and time steps for all epochs
     gd.plot_gd_losses()
     gd.plot_gd_time_steps()
 

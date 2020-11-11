@@ -860,7 +860,7 @@ class Sampling:
         u_y = u[:, :, 1]
         plt2d = Plot2d(dir_path, file_name)
         plt2d.set_title(r'$u(x_1, x_2)$')
-        plt2d.vector_field(X, Y, u_x, u_y, k=10, scale=4)
+        plt2d.vector_field(X, Y, u_x, u_y, scale=8)
 
     def plot_tilted_potential_surface(self, file_name=None, dir_path=None):
         if file_name is None:
@@ -921,9 +921,6 @@ class Sampling:
         V = - dV[:, :, 1] - dVbias[:, :, 1]
         plt2d = Plot2d(dir_path, file_name)
         plt2d.set_title(r'$-\nabla \tilde{V}(x_1, x_2)$')
-        #plt2d.set_xlim(-2, 2)
-        #plt2d.set_ylim(-2, 2)
-        #plt2d.vector_field(X, Y, U, V, k=5, scale=50)
-        plt2d.set_xlim(-1.25, 1.25)
-        plt2d.set_ylim(-1.25, 1.25)
-        plt2d.vector_field(X, Y, U, V, k=4, scale=50)
+        plt2d.set_xlim(-1.5, 1.5)
+        plt2d.set_ylim(-1.5, 1.5)
+        plt2d.vector_field(X, Y, U, V, scale=50)

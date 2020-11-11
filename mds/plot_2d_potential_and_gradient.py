@@ -71,14 +71,14 @@ def main():
     plt2d.set_title(grad_formula)
     plt2d.set_xlim(-2, 2)
     plt2d.set_ylim(-2, 2)
-    plt2d.vector_field(X, Y, U, V, k=10, scale=100)
+    plt2d.vector_field(X, Y, U, V, scale=100)
 
     # zoomed minus gradient vector field plot
     plt2d = Plot2d(dir_path, 'gradient_vector_field_zoomed')
     plt2d.set_title(grad_formula)
     plt2d.set_xlim(-1.25, 1.25)
     plt2d.set_ylim(-1.25, 1.25)
-    plt2d.vector_field(X, Y, U, V, k=5, scale=20)
+    plt2d.vector_field(X, Y, U, V, scale=25)
 
 
 if __name__ == "__main__":
