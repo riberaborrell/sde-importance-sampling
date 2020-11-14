@@ -7,6 +7,8 @@ from mds.validation import is_2d_valid_interval, is_2d_valid_target_set
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import numpy as np
+import scipy.sparse as sparse
+import scipy.sparse.linalg as linalg
 
 from inspect import isfunction
 
@@ -159,7 +161,7 @@ class Solver():
         N = self.N
 
         # assemble linear system of equations: A \Psi = b.
-        A = np.zeros((N, N))
+        A = sparse.lil_matrix((N, N))
         b = np.zeros(N)
 
         # nodes in boundary, boundary corner and target set
@@ -221,8 +223,7 @@ class Solver():
         b[N -1] = 0
 
         # solve the linear system
-        self.Psi = np.linalg.solve(A, b).reshape((Nx, Ny)).T
-        #self.Psi, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
+        self.Psi = linalg.spsolve(A.tocsc(), b).reshape((Nx, Ny)).T
 
     def compute_free_energy(self):
         ''' this methos computes the free energy
