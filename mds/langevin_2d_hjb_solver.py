@@ -1,6 +1,6 @@
 from mds.plots_2d import Plot2d
 from mds.potentials_and_gradients_2d import get_potential_and_gradient
-from mds.utils import get_example_data_path
+from mds.utils import get_example_data_path, get_time_in_hms
 from mds.numpy_utils import coarse_matrix
 from mds.validation import is_2d_valid_interval, is_2d_valid_target_set
 
@@ -9,6 +9,7 @@ import matplotlib.cm as cm
 import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as linalg
+import time
 
 from inspect import isfunction
 
@@ -59,6 +60,16 @@ class Solver():
         self.F = None
         self.u_opt_x = None
         self.u_opt_y = None
+
+        # computational time
+        self.t_initial = None
+        self.t_final = None
+
+    def start_timer(self):
+        self.t_initial = time.perf_counter()
+
+    def stop_timer(self):
+        self.t_final = time.perf_counter()
 
     def discretize_domain(self):
         ''' this method discretizes the rectangular domain uniformly with step-size h
@@ -174,7 +185,6 @@ class Solver():
             if k not in idx_ts and k not in idx_boundary:
                 x = self.get_x(k)
                 y = self.get_y(k)
-                #dVx, dVy = gradient(x, y)
                 z = np.array([[x, y]])
                 dVx = gradient(z)[0, 0]
                 dVy = gradient(z)[0, 1]
@@ -271,7 +281,8 @@ class Solver():
             Psi=self.Psi,
             F=self.F,
             u_opt=self.u_opt,
-            #exp_fht=self.exp_fht,
+            t_initial=self.t_initial,
+            t_final=self.t_final,
         )
 
     def load_reference_solution(self):
@@ -284,7 +295,8 @@ class Solver():
         self.Psi = ref_sol['Psi']
         self.F = ref_sol['F']
         self.u_opt = ref_sol['u_opt']
-        #self.exp_fht = ref_sol['exp_fht']
+        self.t_initial = ref_sol['t_initial']
+        self.t_final = ref_sol['t_final']
 
     def write_report(self, x):
         h = self.h
@@ -299,7 +311,6 @@ class Solver():
             return
         idx_x1 = idx_x[0][0]
         idx_x2 = idx_x[1][0]
-        #exp_fht = self.exp_fht[idx_x1, idx_x2] if self.exp_fht is not None else np.nan
         Psi = self.Psi[idx_x1, idx_x2] if self.Psi is not None else np.nan
         F = self.F[idx_x1, idx_x2] if self.F is not None else np.nan
 
@@ -308,9 +319,10 @@ class Solver():
         f = open(file_path, "w")
         f.write('h = {:2.4f}\n'.format(h))
         f.write('(x_1, x_2) = ({:2.1f}, {:2.1f})\n'.format(x[0], x[1]))
-        #f.write('E[fht] at x = {:2.3f}\n'.format(exp_fht))
         f.write('Psi at x = {:2.3e}\n'.format(Psi))
         f.write('F at x = {:2.3e}\n'.format(F))
+        h, m, s = get_time_in_hms(self.t_final - self.t_initial)
+        f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
         f.close()
 
     def plot_psi(self):
@@ -407,4 +419,3 @@ class Solver():
         plt2d.set_xlim(-1.5, 1.5)
         plt2d.set_ylim(-1.5, 1.5)
         plt2d.vector_field(X, Y, U, V, scale=50)
-

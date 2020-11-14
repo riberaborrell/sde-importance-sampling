@@ -1,10 +1,11 @@
 from mds.potentials_and_gradients_1d import get_potential_and_gradient
 from mds.plots_1d import Plot1d
-from mds.utils import get_example_data_path
+from mds.utils import get_example_data_path, get_time_in_hms
 from mds.validation import is_1d_valid_interval, is_1d_valid_target_set
 
 import functools
 import numpy as np
+import time
 
 import os
 
@@ -51,6 +52,16 @@ class Solver():
         self.F = None
         self.u_opt = None
         self.exp_fht = None
+
+        # computational time
+        self.t_initial = None
+        self.t_final = None
+
+    def start_timer(self):
+        self.t_initial = time.perf_counter()
+
+    def stop_timer(self):
+        self.t_final = time.perf_counter()
 
     def discretize_domain(self):
         ''' this method discretizes the domain interval uniformly with step-size h
@@ -185,6 +196,8 @@ class Solver():
             F=self.F,
             u_opt=self.u_opt,
             exp_fht=self.exp_fht,
+            t_initial=self.t_initial,
+            t_final=self.t_final,
         )
 
     def load_reference_solution(self):
@@ -195,6 +208,8 @@ class Solver():
         self.F = ref_sol['F']
         self.u_opt = ref_sol['u_opt']
         self.exp_fht = ref_sol['exp_fht']
+        self.t_initial = ref_sol['t_initial'],
+        self.t_final = ref_sol['t_final'],
 
     def write_report(self, x):
         h = self.h
@@ -216,6 +231,8 @@ class Solver():
         f.write('E[fht] at x = {:2.3f}\n'.format(exp_fht))
         f.write('Psi at x = {:2.3e}\n'.format(Psi))
         f.write('F at x = {:2.3e}\n'.format(F))
+        h, m, s = get_time_in_hms(self.t_final - self.t_initial)
+        f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
         f.close()
 
     def plot_mgf(self):

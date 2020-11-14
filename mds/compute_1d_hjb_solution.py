@@ -29,11 +29,13 @@ def main():
         domain=np.array(args.domain),
         h=args.h,
     )
+    sol.start_timer()
     sol.discretize_domain()
     sol.solve_bvp()
     sol.compute_free_energy()
     sol.compute_optimal_control()
     #sol.compute_exp_fht()
+    sol.stop_timer()
     sol.save_reference_solution()
     sol.write_report(x=args.xzero)
 
