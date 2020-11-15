@@ -122,15 +122,16 @@ class Metadynamics:
                 break
 
             # add new bias ansatz function
+            #print('{:2.2f}, {:2.3f}, {:2.3f}'.format(np.mean(xtemp), np.std(xtemp), np.var(xtemp)))
             mus[j] = np.mean(xtemp)
-            sigmas[j] = 10 * np.var(xtemp)
+            sigmas[j] = 5 * np.std(xtemp)
 
             # update ansatz
             sample.is_drifted = True
             sample.theta = omegas[:j+1] / 2
             sample.ansatz.mus = mus[:j+1]
             sample.ansatz.sigmas = sigmas[:j+1]
-            sample.xzero = np.full(sample.M, np.mean(xtemp[-1]))
+            sample.xzero = np.mean(xtemp[-1])
 
             # update used time steps
             time_steps += sample.N_lim
@@ -156,7 +157,8 @@ class Metadynamics:
     def write_report(self):
         sample = self.sample
         sample.N_lim = self.N_lim
-        sample.xzero = np.full(sample.M, self.xzero)
+        sample.xzero = self.xzero
+        #sample.xzero = np.full(sample.M, self.xzero)
 
         k_steps_stamp = '_k{:d}'.format(self.k)
         file_name = 'report' + k_steps_stamp + '.txt'
@@ -174,9 +176,10 @@ class Metadynamics:
             f.write('seed: {:d}\n'.format(self.seed))
 
         f.write('number of samples: {:d}\n'.format(self.num_samples))
+        f.write('k: {:d}\n\n'.format(self.k))
+
         f.write('samples succeeded: {:2.2f} %\n'
                 ''.format(100 * np.sum(self.succ) / self.num_samples))
-        f.write('k: {:d}\n'.format(self.k))
         f.write('m: {:d}\n'.format(self.theta.shape[0]))
         f.write('used time steps: {:,d}\n\n'.format(self.time_steps))
 

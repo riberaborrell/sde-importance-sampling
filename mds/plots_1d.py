@@ -12,9 +12,15 @@ class Plot1d:
         self.file_type = file_type
         self.dir_path = dir_path
 
+        # title and label
         self.title = ''
-        self.bottom = None
-        self.top = None
+        self.label = ''
+
+        # axes bounds
+        self.xmin = None
+        self.xmax= None
+        self.ymin = None
+        self.ymax= None
         self.yticks = None
 
     @property
@@ -29,11 +35,15 @@ class Plot1d:
     def set_title(self, title):
         self.title = title
 
-    def set_ylim(self, bottom=None, top=None):
-        self.bottom = bottom
-        self.top = top
-        tick_sep = (top - bottom) / 10
-        self.yticks = np.arange(bottom, top + tick_sep, tick_sep)
+    def set_xlim(self, xmin, xmax):
+        self.xmin = xmin
+        self.xmax = xmax
+
+    def set_ylim(self, ymin, ymax):
+        self.ymin = ymin
+        self.ymax = ymax
+        tick_sep = (ymax - ymin) / 10
+        self.yticks = np.arange(ymin, ymax + tick_sep, tick_sep)
 
     def potential(self, x, V, label=None):
         plt.title(self.title)
@@ -42,7 +52,7 @@ class Plot1d:
         else:
             plt.plot(x, V, 'b-')
         plt.xlabel('x', fontsize=16)
-        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.ylim(self.ymin, self.ymax)
         plt.yticks(self.yticks)
         plt.grid(True)
         plt.legend()
@@ -60,7 +70,7 @@ class Plot1d:
                 plt.plot(x, Vs[i], '-')
 
         plt.xlabel('x', fontsize=16)
-        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.ylim(self.ymin, self.ymax)
         plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
@@ -93,7 +103,7 @@ class Plot1d:
         if appr_exp_fht is not None:
             #todo
             pass
-        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.ylim(self.ymin, self.ymax)
         plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
@@ -106,7 +116,7 @@ class Plot1d:
             plt.plot(x, Psi, 'c-', label=r'$\Psi(x)$')
         if appr_Psi is not None:
             plt.plot(x, appr_Psi, 'm-', label=r'$\tilde{\Psi}(x)$')
-        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.ylim(self.ymin, self.ymax)
         plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
@@ -119,7 +129,7 @@ class Plot1d:
             plt.plot(x, F, 'c-', label='F(x)')
         if appr_F is not None:
             plt.plot(x, appr_F, 'm-', label=r'$\tilde{F}(x)$')
-        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.ylim(self.ymin, self.ymax)
         plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
@@ -132,7 +142,7 @@ class Plot1d:
             plt.plot(x, u_opt, 'c-', label=r'$u^*(x)$')
         if u is not None:
             plt.plot(x, u, 'm-', label=r'u(x)')
-        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.ylim(self.ymin, self.ymax)
         plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
@@ -146,7 +156,7 @@ class Plot1d:
         if Vbias_opt is not None:
             plt.plot(x, V + Vbias_opt, 'c-', label=r'$\tilde{V}^*(x)$')
         plt.xlabel('x', fontsize=16)
-        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.ylim(self.ymin, self.ymax)
         plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
@@ -163,7 +173,7 @@ class Plot1d:
             plt.plot(x, Vbias_opt, 'y-', label=r'$V_{b}^*(x)$')
             plt.plot(x, V + Vbias_opt, 'c-', label=r'$\tilde{V}^*(x)$')
         plt.xlabel('x', fontsize=16)
-        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.ylim(self.ymin, self.ymax)
         plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
@@ -180,7 +190,7 @@ class Plot1d:
             plt.plot(x, -dVbias_opt, 'y-', label=r'$ - \nabla V_{b}^*(x)$')
             plt.plot(x, -dV -dVbias_opt, 'c-', label=r'$ - \nabla \tilde{V}^*(x)$')
         plt.xlabel('x', fontsize=16)
-        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.ylim(self.ymin, self.ymax)
         plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
@@ -194,7 +204,7 @@ class Plot1d:
             label = r'$\beta={:2.1f}$'.format(beta)
             plt.plot(x, V + Vbias[i, :], '-', label=label)
         plt.xlabel('x', fontsize=16)
-        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.ylim(self.ymin, self.ymax)
         plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
@@ -208,7 +218,7 @@ class Plot1d:
             label = r'$\beta={:2.1f}$'.format(beta)
             plt.plot(x, -dV - dVbias[i, :], '-', label=label)
         plt.xlabel('x', fontsize=16)
-        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.ylim(self.ymin, self.ymax)
         plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
@@ -221,7 +231,7 @@ class Plot1d:
         for i, beta in enumerate(betas):
             label = r'$\beta={:2.1f}$'.format(beta)
             plt.plot(x, F[i, :], '-', label=label)
-        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.ylim(self.ymin, self.ymax)
         plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
@@ -234,7 +244,7 @@ class Plot1d:
         for i, beta in enumerate(betas):
             label = r'$\beta={:2.1f}$'.format(beta)
             plt.plot(x, u[i, :], '-', label=label)
-        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.ylim(self.ymin, self.ymax)
         plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
@@ -246,7 +256,8 @@ class Plot1d:
         plt.plot(x, V, 'b-', label=r'Potential $V(x)$')
         plt.plot(x, dV, 'r-', label=r'Gradient $\nabla V(X)$')
         plt.xlabel('x', fontsize=16)
-        plt.ylim(top=8, bottom=-8)
+        #plt.ylim(self.ymin, self.ymax)
+        plt.ylim(8, -8)
         plt.legend(loc='upper left', fontsize=8)
         plt.savefig(self.file_path)
         plt.close()
@@ -260,7 +271,8 @@ class Plot1d:
             ax1.plot(x, Vopt, 'c-', label=r'$\tilde{V}_{opt}(x)$')
         ax1.set_xlabel('x', fontsize=16)
         ax1.set_xlim(left=-1.8, right=1.8)
-        ax1.set_ylim(top=8, bottom=-4)
+        #plt.ylim(self.ymin, self.ymax)
+        #ax1.set_ylim(top=8, bottom=-4)
         ax1.legend(loc='upper right', fontsize=8)
         ax1.grid(True)
         ax2.plot(x, dV, 'b-.', label=r'$\nabla V(x)$')
@@ -285,7 +297,7 @@ class Plot1d:
             plt.plot(x, F, color='c', linestyle='dashed', label=r'$F(x)$')
 
         plt.xlabel('x', fontsize=16)
-        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.ylim(self.ymin, self.ymax)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
         plt.savefig(self.file_path)
@@ -300,7 +312,7 @@ class Plot1d:
             plt.plot(x, u_opt, color='c', linestyle='dashed', label=r'$u^*(x)$')
 
         plt.xlabel('x', fontsize=16)
-        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.ylim(self.ymin, self.ymax)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
         plt.savefig(self.file_path)
@@ -315,7 +327,7 @@ class Plot1d:
             plt.plot(x, V + Vbias_opt, color='c', linestyle='dashed', label=r'$\tilde{V}^*(x)$')
 
         plt.xlabel('x', fontsize=16)
-        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.ylim(self.ymin, self.ymax)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
         plt.savefig(self.file_path)
@@ -328,7 +340,7 @@ class Plot1d:
                  'k--', label=r'$F(x_0)$')
         plt.xlabel('epochs', fontsize=16)
         plt.xlim(left=epochs[0] -0.8, right=epochs[-1] + 0.8)
-        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.ylim(self.ymin, self.ymax)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
         plt.savefig(self.file_path)
@@ -341,7 +353,7 @@ class Plot1d:
         plt.xlabel('epochs', fontsize=16)
         #plt.xlim(left=epochs[0], right=epochs[-1])
         #plt.xticks(epochs)
-        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.ylim(self.ymin, self.ymax)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
         plt.savefig(self.file_path)
@@ -352,7 +364,7 @@ class Plot1d:
         plt.bar(x=epochs, height=N, width=0.8, color='b', align='center', label=r'$N$')
         plt.xlabel('epochs', fontsize=16)
         plt.xlim(left=epochs[0] -0.8, right=epochs[-1] + 0.8)
-        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.ylim(self.ymin, self.ymax)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
         plt.savefig(self.file_path)
@@ -364,7 +376,7 @@ class Plot1d:
         plt.xlabel('epochs', fontsize=16)
         #plt.xlim(left=epochs[0], right=epochs[-1])
         #plt.xticks(epochs)
-        plt.ylim(top=self.top, bottom=self.bottom)
+        plt.ylim(self.ymin, self.ymax)
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
         plt.savefig(self.file_path)
@@ -374,9 +386,7 @@ class Plot1d:
         plt.plot(x, y, 'r', label='EM solution path')
         plt.xlabel('t', fontsize=16)
         plt.ylabel('X', fontsize=16)
-        #plt.xlim(right=600)
-        plt.ylim(bottom=-1.8)
-        plt.ylim(top=1.8)
+        plt.ylim(-1.8, 1.8)
         plt.legend(loc='upper left', fontsize=8)
         plt.savefig(self.file_path)
         plt.close()

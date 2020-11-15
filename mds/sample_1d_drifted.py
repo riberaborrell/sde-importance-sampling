@@ -41,11 +41,12 @@ def main():
     # plot potential and gradient
     if args.do_plots:
         sample.ansatz.plot_gaussian_ansatz_functions()
-        sample.plot_appr_mgf()
+        sample.plot_appr_psi()
         sample.plot_appr_free_energy()
         sample.plot_control()
         sample.plot_tilted_potential()
         sample.plot_tilted_drift()
+        return
 
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(

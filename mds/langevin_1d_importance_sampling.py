@@ -533,7 +533,7 @@ class Sampling:
             idx_new = self.get_idx_new_in_target_set(xtemp[n+1])
 
             # check if the half of the trajectories have arrived to the target set
-            if np.sum(self.been_in_target_set) >= self.M / 3:
+            if np.sum(self.been_in_target_set) >= self.M / 2:
                 return True, xtemp[:n+1]
 
         return False, xtemp
@@ -792,8 +792,10 @@ class Sampling:
         self.load_reference_solution()
         Psi = self.ref_sol['Psi']
 
+        ymax = self.alpha * 2
+        ymin = 0
         plt1d = Plot1d(dir_path, file_name)
-        plt1d.set_ylim(bottom=0, top=self.alpha * 2)
+        plt1d.set_ylim(ymin, ymax)
         plt1d.mgf(self.domain_h, Psi, appr_Psi)
 
     def plot_appr_free_energy(self, file_name=None, dir_path=None):
@@ -809,7 +811,7 @@ class Sampling:
         F = self.ref_sol['F']
 
         plt1d = Plot1d(dir_path, file_name)
-        plt1d.set_ylim(bottom=0, top=self.alpha * 3)
+        plt1d.set_ylim(0, self.alpha * 3)
         plt1d.free_energy(self.domain_h, F, appr_F)
 
     def plot_control(self, file_name=None, dir_path=None):
@@ -824,7 +826,7 @@ class Sampling:
         u_opt = self.ref_sol['u_opt']
 
         plt1d = Plot1d(dir_path, file_name)
-        plt1d.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
+        plt1d.set_ylim(-self.alpha * 5, self.alpha * 5)
         plt1d.control(self.domain_h, u_opt, u)
 
     def plot_potential_and_tilted_potential(self, file_name=None, dir_path=None):
@@ -845,7 +847,7 @@ class Sampling:
         Vb_opt = 2 * F
 
         plt1d = Plot1d(dir_path, file_name)
-        plt1d.set_ylim(bottom=0, top=self.alpha * 10)
+        plt1d.set_ylim(0, self.alpha * 10)
         plt1d.potential_and_tilted_potential(self.domain_h, V, Vb, Vb_opt)
 
     def plot_tilted_potential(self, file_name=None, dir_path=None):
@@ -866,7 +868,7 @@ class Sampling:
         Vb_opt = 2 * F
 
         plt1d = Plot1d(dir_path, file_name)
-        plt1d.set_ylim(bottom=0, top=self.alpha * 10)
+        plt1d.set_ylim(0, self.alpha * 10)
         plt1d.tilted_potential(self.domain_h, V, Vb, Vb_opt)
 
     def plot_tilted_drift(self, file_name=None, dir_path=None):
@@ -888,5 +890,5 @@ class Sampling:
         dVb_opt = - np.sqrt(2) * u_opt
 
         plt1d = Plot1d(dir_path, file_name)
-        plt1d.set_ylim(bottom=-self.alpha * 5, top=self.alpha * 5)
+        plt1d.set_ylim(-self.alpha * 5, self.alpha * 5)
         plt1d.drift_and_tilted_drift(self.domain_h, dV, dVb, dVb_opt)
