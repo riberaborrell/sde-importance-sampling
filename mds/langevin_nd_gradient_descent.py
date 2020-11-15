@@ -8,8 +8,8 @@ import os
 class GradientDescent:
     '''
     '''
-    def __init__(self, sample, grad_type, theta_init,
-                 lr, epochs_lim, do_epoch_plots=False):
+    def __init__(self, sample, grad_type, theta_init, lr, epochs_lim,
+                 do_epoch_plots=False, atol=0.01, rtol=0.01):
         '''
         '''
         self.sample = sample
@@ -23,6 +23,8 @@ class GradientDescent:
         self.lr = lr
         self.epochs_lim = epochs_lim
         self.epochs = None
+        self.atol = atol
+        self.rtol = rtol
 
         self.thetas = None
         #self.thetas_dif = None
@@ -54,6 +56,12 @@ class GradientDescent:
     def set_epochs_dir_path(self):
         self.epochs_dir_path = os.path.join(self.dir_path, 'epochs')
         make_dir_path(self.epochs_dir_path)
+
+    def start_timer(self):
+        self.t_initial = time.perf_counter()
+
+    def stop_timer(self):
+        self.t_final = time.perf_counter()
 
     #TODO: test method. test grad_type: fd
     def perturb_a(self, a, j, sign, delta=None):
@@ -103,6 +111,8 @@ class GradientDescent:
         return a_updated, loss, grad_loss
 
     def gd_ipa(self):
+        self.start_timer()
+
         sample = self.sample
         x = self.sample.domain_h
         epochs_lim = self.epochs_lim
@@ -148,7 +158,7 @@ class GradientDescent:
 
             print('{:2.3f}, {:2.3f}'.format(value_f, losses[epoch]))
             # check if we are close enought to the value f
-            if np.isclose(value_f, losses[epoch], atol=0.01, rtol=0.01):
+            if np.isclose(value_f, losses[epoch], atol=self.atol, rtol=self.rtol):
                 grad_succ = True
                 break
 
@@ -181,8 +191,7 @@ class GradientDescent:
         # compute eucl dist between thetas and thetas opt
         #self.a_dif = np.linalg.norm(self.a_s - self.sample.a_opt, axis=1)
 
-        # stop timer
-        self.t_final = time.perf_counter()
+        self.stop_timer()
 
     def save_gd(self):
         file_path = os.path.join(self.dir_path, 'gd.npz')
@@ -221,16 +230,18 @@ class GradientDescent:
 
         f.write('GD parameters\n')
         f.write('grad type: {}\n\n'.format(self.grad_type))
+
         f.write('lr: {}\n'.format(self.lr))
         f.write('epochs lim: {}\n'.format(self.epochs_lim))
-        f.write('epochs: {}\n'.format(self.epochs))
+        f.write('atol: {}\n'.format(self.atol))
+        f.write('rtol: {}\n\n'.format(self.rtol))
+
+        f.write('epochs needed: {}\n'.format(self.epochs))
         f.write('N total: {:,d}\n'.format(int(self.N.sum())))
-        #f.write('atol: {}\n'.format(self.atol))
-        #f.write('rtol: {}\n'.format(self.rtol))
         f.write('approx value function at xzero: {:2.3f}\n\n'.format(self.losses[-1]))
 
-        #h, m, s = get_time_in_hms(self.t_final - self.t_initial)
-        #f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
+        h, m, s = get_time_in_hms(self.t_final - self.t_initial)
+        f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
 
     #TODO: 
     def write_epoch_report(self):
@@ -250,7 +261,7 @@ class GradientDescent:
 
             f.close()
 
-    def get_epochs_to_show(self, num_epochs_to_show=10):
+    def get_epochs_to_show(self, num_epochs_to_show=5):
         num_epochs = self.epochs
         k = num_epochs // num_epochs_to_show
         epochs = np.arange(num_epochs)
@@ -274,7 +285,10 @@ class GradientDescent:
         F = sample.ref_sol['F']
 
         plt1d = Plot1d(self.dir_path, 'gd_appr_free_energy')
-        plt1d.set_ylim(bottom= 0, top=sample.alpha * 3)
+        #plt1d.set_ylim(0, sample.alpha * 3)
+        plt1d.set_ylim(-0.25, 3)
+        #plt1d.set_ylim(-0.25, 4)
+        #plt1d.set_ylim(-0.25, 10)
         plt1d.gd_appr_free_energies(x, epochs_to_show, F_appr, F)
 
     def plot_gd_1d_controls(self):
@@ -292,7 +306,10 @@ class GradientDescent:
         u_opt = sample.ref_sol['u_opt']
 
         plt1d = Plot1d(self.dir_path, 'gd_controls')
-        plt1d.set_ylim(bottom=-sample.alpha * 5, top=sample.alpha * 5)
+        #plt1d.set_ylim(-sample.alpha * 5, sample.alpha * 5)
+        plt1d.set_ylim(-5, 5)
+        #plt1d.set_ylim(-10, 20)
+        #plt1d.set_ylim(-15, 25)
         plt1d.gd_controls(x, epochs_to_show, u, u_opt)
 
     def plot_gd_1d_tilted_potentials(self):
@@ -312,21 +329,28 @@ class GradientDescent:
         Vbias_opt = 2 * F
 
         plt1d = Plot1d(self.dir_path, 'gd_tilted_potentials')
-        plt1d.set_ylim(bottom= 0, top=sample.alpha * 10)
+        #plt1d.set_ylim(0, sample.alpha * 10)
+        plt1d.set_ylim(-0.25, 10)
+        #plt1d.set_ylim(-0.25, 40)
+        #plt1d.set_ylim(-0.25, 100)
         plt1d.gd_tilted_potentials(x, V, epochs_to_show, Vbias, Vbias_opt)
 
     def plot_gd_losses(self):
         losses = self.losses
         epochs = np.arange(losses.shape[0])
         max_loss = np.max(losses)
-        value_f = 1.7
+        #value_f = 1.742 # 1d alpha=1
+        #value_f = 3.124 # 1d alpha=4
+        #value_f = 7.978 # 1d alpha=10
+        value_f = 3.015 # 2d alpha=1, 1
+        #value_f = 5.485 # 1d alpha=4, 4
 
         plt1d = Plot1d(self.dir_path, 'gd_losses_bar')
-        plt1d.set_ylim(bottom=0, top=max_loss * 1.2)
+        plt1d.set_ylim(0, max_loss * 1.2)
         plt1d.gd_losses_bar(epochs, losses, value_f)
 
         plt1d = Plot1d(self.dir_path, 'gd_losses_line')
-        plt1d.set_ylim(bottom=0, top=max_loss * 1.2)
+        plt1d.set_ylim(0, max_loss * 1.2)
         plt1d.gd_losses_line(epochs, losses, value_f)
 
     def plot_gd_time_steps(self):
@@ -334,9 +358,9 @@ class GradientDescent:
         epochs = np.arange(N.shape[0])
         max_N = np.max(N)
         plt1d = Plot1d(self.dir_path, 'gd_time_steps_bar')
-        plt1d.set_ylim(bottom=0, top=max_N * 1.2)
+        plt1d.set_ylim(0, max_N * 1.2)
         plt1d.gd_time_steps_bar(epochs, N)
 
         plt1d = Plot1d(self.dir_path, 'gd_time_steps_line')
-        plt1d.set_ylim(bottom=0, top=max_N * 1.2)
+        plt1d.set_ylim(0, max_N * 1.2)
         plt1d.gd_time_steps_line(epochs, N)
