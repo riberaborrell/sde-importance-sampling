@@ -20,7 +20,14 @@ def get_parser():
         dest='atol',
         type=float,
         default=0.01,
-        help='Set absolute tolerance between value funtion and loss at xinit. Default: 0.01',
+        help='Set absolute tolerance between value funtion and loss at xzero. Default: 0.01',
+    )
+    parser.add_argument(
+        '--rtol',
+        dest='rtol',
+        type=float,
+        default=0.01,
+        help='Set relative tolerance between value funtion and loss at xzero. Default: 0.01',
     )
     parser.add_argument(
         '--do-epoch-plots',
@@ -73,6 +80,8 @@ def main():
         lr=args.lr,
         epochs_lim=args.epochs_lim,
         do_epoch_plots=args.do_epoch_plots,
+        atol=args.atol,
+        rtol=args.rtol,
     )
 
     gd.gd_ipa()
