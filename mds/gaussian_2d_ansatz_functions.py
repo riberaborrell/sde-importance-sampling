@@ -37,6 +37,13 @@ class GaussianAnsatz:
         self.dir_path = get_ansatz_data_path(example_dir_path, 'gaussian-ansatz', m, sigma_x)
         return self.dir_path
 
+    def set_given_ansatz_functions(self, means, cov):
+        '''
+        '''
+        self.m = means.shape[0]
+        self.means = means
+        self.cov = cov
+
     def set_unif_dist_ansatz_functions(self, m_x=None, m_y=None, sigma_x=None, sigma_y=None):
         '''
         '''

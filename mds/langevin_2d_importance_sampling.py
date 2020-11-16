@@ -239,17 +239,17 @@ class Sampling:
         assert self.ansatz is not None, ''
         assert self.ansatz.dir_path is not None, ''
 
-        x = self.domain_h
+        x = self.domain_h.reshape(self.N, 2)
 
         self.load_meta_bias_potential()
         meta_theta = self.meta_bias_pot['theta']
         meta_means = self.meta_bias_pot['means']
-        meta_covs = self.meta_bias_pot['covs']
-        assert meta_theta.shape[0] == meta_means.shape[0] == meta_covs.shape[0], ''
+        meta_cov = self.meta_bias_pot['cov']
+        assert meta_theta.shape[0] == meta_means.shape[0], ''
 
         # create ansatz functions from meta
         meta_ansatz = GaussianAnsatz(domain=self.domain)
-        meta_ansatz.set_given_ansatz_functions(meta_mus, meta_sigmas)
+        meta_ansatz.set_given_ansatz_functions(meta_means, meta_cov)
 
         # meta value function evaluated at the grid
         value_f_meta = self.value_function(x, meta_theta, meta_ansatz)
