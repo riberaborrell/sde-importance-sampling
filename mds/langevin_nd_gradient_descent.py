@@ -336,22 +336,19 @@ class GradientDescent:
         plt1d.gd_tilted_potentials(x, V, epochs_to_show, Vbias, Vbias_opt)
 
     def plot_gd_losses(self):
+        sample = self.sample
         losses = self.losses
         epochs = np.arange(losses.shape[0])
         max_loss = np.max(losses)
-        #value_f = 1.742 # 1d alpha=1
-        #value_f = 3.124 # 1d alpha=4
-        #value_f = 7.978 # 1d alpha=10
-        value_f = 3.015 # 2d alpha=1, 1
-        #value_f = 5.485 # 1d alpha=4, 4
+        sample.get_value_f_at_xzero()
 
         plt1d = Plot1d(self.dir_path, 'gd_losses_bar')
         plt1d.set_ylim(0, max_loss * 1.2)
-        plt1d.gd_losses_bar(epochs, losses, value_f)
+        plt1d.gd_losses_bar(epochs, losses, sample.value_f_at_xzero)
 
         plt1d = Plot1d(self.dir_path, 'gd_losses_line')
         plt1d.set_ylim(0, max_loss * 1.2)
-        plt1d.gd_losses_line(epochs, losses, value_f)
+        plt1d.gd_losses_line(epochs, losses, sample.value_f_at_xzero)
 
     def plot_gd_time_steps(self):
         N = self.N

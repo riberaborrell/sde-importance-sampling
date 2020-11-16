@@ -33,6 +33,9 @@ def main():
     # set gaussian ansatz functions
     sample.set_gaussian_ansatz_functions(args.m, args.sigma)
 
+    # set xzero
+    sample.xzero = args.xzero
+
     # initialize gradient descent object
     gd = GradientDescent(
         sample=sample,

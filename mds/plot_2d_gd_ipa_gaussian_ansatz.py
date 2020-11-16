@@ -36,6 +36,9 @@ def main():
     sigma_x, sigma_y = args.sigma
     sample.set_gaussian_ansatz_functions(m_x, m_y, sigma_x, sigma_y)
 
+    # set xzero
+    sample.xzero = np.array(args.xzero)
+
     # initialize gradient descent object
     gd = GradientDescent(
         sample=sample,
@@ -67,6 +70,7 @@ def main():
     sample.plot_control('control' + epoch_stamp, gd.dir_path)
     sample.plot_tilted_potential_surface('tilted_potential_surface' + epoch_stamp, gd.dir_path)
     sample.plot_tilted_potential_contour('tilted_potential_contour' + epoch_stamp, gd.dir_path)
+    sample.plot_tilted_drift('tilted_drift' + epoch_stamp, gd.dir_path)
 
     # plot losses and time steps for all epochs
     gd.plot_gd_losses()
