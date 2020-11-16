@@ -158,7 +158,6 @@ class Metadynamics:
         sample = self.sample
         sample.N_lim = self.N_lim
         sample.xzero = self.xzero
-        #sample.xzero = np.full(sample.M, self.xzero)
 
         k_steps_stamp = '_k{:d}'.format(self.k)
         file_name = 'report' + k_steps_stamp + '.txt'
@@ -174,7 +173,6 @@ class Metadynamics:
         f.write('Metadynamics parameters and statistics\n')
         if self.seed:
             f.write('seed: {:d}\n'.format(self.seed))
-
         f.write('number of samples: {:d}\n'.format(self.num_samples))
         f.write('k: {:d}\n\n'.format(self.k))
 

@@ -564,7 +564,7 @@ class Sampling:
             idx_new = self.get_idx_new_in_target_set(xtemp[n+1])
 
             # check if the half of the trajectories have arrived to the target set
-            if np.sum(self.been_in_target_set) >= self.M / 3:
+            if np.sum(self.been_in_target_set) >= self.M / 2:
                 return True, xtemp[:n+1]
 
         return False, xtemp

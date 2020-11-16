@@ -99,7 +99,7 @@ class Metadynamics:
         # preallocate means and cov matrix of the gaussiansbias functions
         means = np.empty((updates, 2))
         covs = np.empty((updates, 2, 2))
-        #sample.ansatz.cov = 0.2 * np.eye(2)
+        sample.ansatz.cov = 0.75 * np.eye(2)
 
         # time steps of the sampled meta trajectory
         time_steps = 0
@@ -110,10 +110,10 @@ class Metadynamics:
                 bias_stamp = '_j_{:d}'.format(j)
                 stamp = sample_stamp + bias_stamp
                 if sample.is_drifted:
-                    sample.plot_appr_free_energy_surface('appr_free_energy_surface' + stamp, self.updates_dir_path)
+                    #sample.plot_appr_free_energy_surface('appr_free_energy_surface' + stamp, self.updates_dir_path)
                     sample.plot_appr_free_energy_contour('appr_free_energy_contour' + stamp, self.updates_dir_path)
-                    sample.plot_control('control' + stamp, self.updates_dir_path)
-                sample.plot_tilted_potential_surface('tilted_potential_surface' + stamp, self.updates_dir_path)
+                    #sample.plot_control('control' + stamp, self.updates_dir_path)
+                #sample.plot_tilted_potential_surface('tilted_potential_surface' + stamp, self.updates_dir_path)
                 sample.plot_tilted_potential_contour('tilted_potential_contour' + stamp, self.updates_dir_path)
                 #sample.plot_tilted_drift('tilted_drift' + stamp, self.updates_dir_path)
 
@@ -127,16 +127,16 @@ class Metadynamics:
                 break
 
             # add new bias ansatz function
-            means[i] = np.mean(xtemp, axis=(0, 1))
-            covs[i] = np.eye(2)
-            covs[i, 0, 0] = 10 * np.var(xtemp, axis=(0, 1))[0]
-            covs[i, 1, 1] = 10 * np.var(xtemp, axis=(0, 1))[1]
+            means[j] = np.mean(xtemp, axis=(0, 1))
+            covs[j] = np.eye(2)
+            covs[j, 0, 0] = 5 * np.std(xtemp, axis=(0, 1))[0]
+            covs[j, 1, 1] = 5 * np.std(xtemp, axis=(0, 1))[1]
+            #print('({:2.3f}, {:2.3f}), ({:2.3f}, {:2.3f})'.format(means[j, 0], means[j, 1], covs[j, 0, 0], covs[j, 1, 1]))
 
             sample.is_drifted = True
             sample.theta = omegas[:j+1] / 2
             sample.ansatz.means = means[:j+1]
             #sample.ansatz.covs = covs
-            #sample.xzero = xtemp[-1]
             sample.xzero = np.full((sample.M, 2), np.mean(xtemp[-1]))
 
             # update used time steps
@@ -161,6 +161,7 @@ class Metadynamics:
         sample = self.sample
         sample.N_lim = self.N_lim
         sample.xzero = np.full((sample.M, 2), self.xzero)
+        sample.xzero = self.xzero
 
         k_steps_stamp = '_k{:d}'.format(self.k)
         file_name = 'report' + k_steps_stamp + '.txt'
@@ -176,11 +177,11 @@ class Metadynamics:
         f.write('Metadynamics parameters and statistics\n')
         if self.seed:
             f.write('seed: {:d}\n'.format(self.seed))
-
         f.write('number of samples: {:d}\n'.format(self.num_samples))
+        f.write('k: {:d}\n\n'.format(self.k))
+
         f.write('samples succeeded: {:2.2f} %\n'
                 ''.format(100 * np.sum(self.succ) / self.num_samples))
-        f.write('k: {:d}\n'.format(self.k))
         f.write('m: {:d}\n'.format(self.theta.shape[0]))
         f.write('used time steps: {:d}\n\n'.format(self.time_steps))
 

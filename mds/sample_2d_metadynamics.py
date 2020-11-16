@@ -52,7 +52,7 @@ def main():
 
     # set k-steps sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(
-        xzero=args.xzero,
+        xzero=np.array(args.xzero),
         M=args.M,
         dt=args.dt,
         N_lim=args.k,
