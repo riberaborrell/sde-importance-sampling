@@ -64,7 +64,7 @@ class Metadynamics:
         # initialize bias potentials coefficients
         self.theta = np.empty(0)
         self.means = np.empty((0, 2))
-        self.covs = np.empty((0, 2, 2))
+        self.cov = 0.75 * np.eye(2)
         self.time_steps = 0
 
         # boolean array telling us if the algorithm succeeded or not for each sample
@@ -99,7 +99,6 @@ class Metadynamics:
         # preallocate means and cov matrix of the gaussiansbias functions
         means = np.empty((updates, 2))
         covs = np.empty((updates, 2, 2))
-        sample.ansatz.cov = 0.75 * np.eye(2)
 
         # time steps of the sampled meta trajectory
         time_steps = 0
@@ -128,7 +127,6 @@ class Metadynamics:
 
             # add new bias ansatz function
             means[j] = np.mean(xtemp, axis=(0, 1))
-            covs[j] = np.eye(2)
             covs[j, 0, 0] = 5 * np.std(xtemp, axis=(0, 1))[0]
             covs[j, 1, 1] = 5 * np.std(xtemp, axis=(0, 1))[1]
             #print('({:2.3f}, {:2.3f}), ({:2.3f}, {:2.3f})'.format(means[j, 0], means[j, 1], covs[j, 0, 0], covs[j, 1, 1]))
@@ -136,7 +134,7 @@ class Metadynamics:
             sample.is_drifted = True
             sample.theta = omegas[:j+1] / 2
             sample.ansatz.means = means[:j+1]
-            #sample.ansatz.covs = covs
+            sample.ansatz.cov = self.cov
             sample.xzero = np.full((sample.M, 2), np.mean(xtemp[-1]))
 
             # update used time steps
@@ -145,7 +143,7 @@ class Metadynamics:
         # add coefficients
         self.theta = np.concatenate((self.theta, sample.theta))
         self.means = np.concatenate((self.means, sample.ansatz.means))
-        self.covs = np.concatenate((self.covs, sample.ansatz.cov[None, :, :]))
+        #self.covs = np.concatenate((self.covs, sample.ansatz.cov[None, :, :]))
         self.time_steps += time_steps
 
     def save_bias_potential(self):
@@ -154,7 +152,7 @@ class Metadynamics:
             file_path,
             theta=self.theta,
             means=self.means,
-            covs=self.covs,
+            cov=self.cov,
         )
 
     def write_report(self):
@@ -183,7 +181,7 @@ class Metadynamics:
         f.write('samples succeeded: {:2.2f} %\n'
                 ''.format(100 * np.sum(self.succ) / self.num_samples))
         f.write('m: {:d}\n'.format(self.theta.shape[0]))
-        f.write('used time steps: {:d}\n\n'.format(self.time_steps))
+        f.write('used time steps: {:,d}\n\n'.format(self.time_steps))
 
         h, m, s = get_time_in_hms(self.t_final - self.t_initial)
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
