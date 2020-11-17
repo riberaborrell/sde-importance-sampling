@@ -32,9 +32,9 @@ def get_potential_and_gradient(potential_name, alpha=None):
         a = alpha[0]
         potential = functools.partial(symmetric_double_well_1d_potential, a=a)
         gradient = functools.partial(symmetric_double_well_1d_gradient, a=a)
-        pot_formula = r'$V(x; a) = a(x^2- 1)^2$'
-        grad_formula = r'$\nabla V(x; a) = 4 a x (x^2- 1)$'
-        parameters = r'a = {}'.format(a)
+        pot_formula = r'$V(x; \alpha) = \alpha (x^2- 1)^2$'
+        grad_formula = r'$\nabla V(x; \alpha) = 4 \alpha x (x^2- 1)$'
+        parameters = r'$\alpha = {}$'.format(a)
 
     elif potential_name == '1d_asym_2well':
         assert alpha.shape[0] == 4, ''
@@ -61,7 +61,7 @@ def one_well_1d_gradient(x, a=1):
         x (float or float array) : posicion/s
         a (float) : parameter
     '''
-    return 2 * a * (x - b)
+    return 2 * a * x 
 
 def symmetric_double_well_1d_potential(x, a=1):
     ''' Potential V(x; a) = a(x^2-1)^2 evaluated at x

@@ -45,7 +45,7 @@ class Plot1d:
         tick_sep = (ymax - ymin) / 10
         self.yticks = np.arange(ymin, ymax + tick_sep, tick_sep)
 
-    def potential(self, x, V, label=None):
+    def potential_or_gradient(self, x, V, label=None):
         plt.title(self.title)
         if label is not None:
             plt.plot(x, V, 'b-', label=label)
@@ -59,7 +59,7 @@ class Plot1d:
         plt.savefig(self.file_path)
         plt.close()
 
-    def potentials(self, x, Vs, labels=None):
+    def potentials_or_gradients(self, x, Vs, labels=None):
         if labels:
             assert Vs.shape[0] == len(labels), ''
         plt.title(self.title)
@@ -75,6 +75,7 @@ class Plot1d:
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
         plt.savefig(self.file_path)
+        plt.close()
 
     def ansatz_value_f(self, x, v):
         assert v.ndim == 2, ''
@@ -110,8 +111,8 @@ class Plot1d:
         plt.savefig(self.file_path)
         plt.close()
 
-    def mgf(self, x, Psi=None, appr_Psi=None):
-        plt.title('Moment generating function')
+    def psi(self, x, Psi=None, appr_Psi=None):
+        plt.title('Psi')
         if Psi is not None:
             plt.plot(x, Psi, 'c-', label=r'$\Psi(x)$')
         if appr_Psi is not None:
