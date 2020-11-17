@@ -59,17 +59,24 @@ class Plot1d:
         plt.savefig(self.file_path)
         plt.close()
 
-    def potentials_or_gradients(self, x, Vs, labels=None):
+    def multiple_plots(self, x, ys, labels=None):
+        assert x.ndim == 1, ''
+        assert ys.ndim == 2, ''
+        assert x.shape[0] == ys.shape[1], ''
+
+        num_plots = ys.shape[0]
         if labels:
-            assert Vs.shape[0] == len(labels), ''
+            assert num_plots == len(labels), ''
+
         plt.title(self.title)
-        for i in range(Vs.shape[0]):
+        for i in range(num_plots):
             if labels:
-                plt.plot(x, Vs[i], '-', label=labels[i])
+                plt.plot(x, ys[i], '-', label=labels[i])
             else:
-                plt.plot(x, Vs[i], '-')
+                plt.plot(x, ys[i], '-')
 
         plt.xlabel('x', fontsize=16)
+        plt.xlim(self.xmin, self.xmax)
         plt.ylim(self.ymin, self.ymax)
         plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
@@ -191,60 +198,6 @@ class Plot1d:
             plt.plot(x, -dVbias_opt, 'y-', label=r'$ - \nabla V_{b}^*(x)$')
             plt.plot(x, -dV -dVbias_opt, 'c-', label=r'$ - \nabla \tilde{V}^*(x)$')
         plt.xlabel('x', fontsize=16)
-        plt.ylim(self.ymin, self.ymax)
-        plt.yticks(self.yticks)
-        plt.legend(loc='upper left', fontsize=8)
-        plt.grid(True)
-        plt.savefig(self.file_path)
-        plt.close()
-
-    def tilted_potential_wrt_betas(self, x, V, betas, Vbias):
-        assert betas.shape[0] == Vbias.shape[0], ''
-        plt.title(r'Tilted potential $\tilde{V}(x)$')
-        for i, beta in enumerate(betas):
-            label = r'$\beta={:2.1f}$'.format(beta)
-            plt.plot(x, V + Vbias[i, :], '-', label=label)
-        plt.xlabel('x', fontsize=16)
-        plt.ylim(self.ymin, self.ymax)
-        plt.yticks(self.yticks)
-        plt.legend(loc='upper left', fontsize=8)
-        plt.grid(True)
-        plt.savefig(self.file_path)
-        plt.close()
-
-    def tilted_drift_wrt_betas(self, x, dV, betas, dVbias):
-        assert betas.shape[0] == dVbias.shape[0], ''
-        plt.title(r'Tilted drift $ - \nabla \tilde{V}(x)$')
-        for i, beta in enumerate(betas):
-            label = r'$\beta={:2.1f}$'.format(beta)
-            plt.plot(x, -dV - dVbias[i, :], '-', label=label)
-        plt.xlabel('x', fontsize=16)
-        plt.ylim(self.ymin, self.ymax)
-        plt.yticks(self.yticks)
-        plt.legend(loc='upper left', fontsize=8)
-        plt.grid(True)
-        plt.savefig(self.file_path)
-        plt.close()
-
-    def free_energy_wrt_betas(self, x, betas, F):
-        assert betas.shape[0] == F.shape[0], ''
-        plt.title('Free energy / Performance function $F(x)$')
-        for i, beta in enumerate(betas):
-            label = r'$\beta={:2.1f}$'.format(beta)
-            plt.plot(x, F[i, :], '-', label=label)
-        plt.ylim(self.ymin, self.ymax)
-        plt.yticks(self.yticks)
-        plt.legend(loc='upper left', fontsize=8)
-        plt.grid(True)
-        plt.savefig(self.file_path)
-        plt.close()
-
-    def control_wrt_betas(self, x, betas, u):
-        assert betas.shape[0] == u.shape[0], ''
-        plt.title(r'Control $u(x)$')
-        for i, beta in enumerate(betas):
-            label = r'$\beta={:2.1f}$'.format(beta)
-            plt.plot(x, u[i, :], '-', label=label)
         plt.ylim(self.ymin, self.ymax)
         plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)

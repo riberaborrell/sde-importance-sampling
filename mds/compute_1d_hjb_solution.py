@@ -40,7 +40,7 @@ def main():
     sol.write_report(x=args.xzero)
 
     if args.do_plots:
-        sol.plot_mgf()
+        sol.plot_psi()
         sol.plot_free_energy()
         sol.plot_optimal_tilted_potential()
         sol.plot_optimal_tilted_drift()

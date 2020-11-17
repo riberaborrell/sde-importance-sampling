@@ -34,12 +34,12 @@ def main():
     sol.load_reference_solution()
 
     # plot
-    sol.plot_mgf()
+    sol.plot_psi()
     sol.plot_free_energy()
     sol.plot_optimal_tilted_potential()
     sol.plot_optimal_tilted_drift()
     sol.plot_optimal_control()
-    sol.plot_exp_fht()
+    #sol.plot_exp_fht()
 
 if __name__ == "__main__":
     main()

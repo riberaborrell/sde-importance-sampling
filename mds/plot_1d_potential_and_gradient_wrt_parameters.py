@@ -78,13 +78,13 @@ def main():
     plt1d = Plot1d(dir_path, 'potentials')
     plt1d.set_ylim(pot_ymin, pot_ymax)
     #plt1d.set_title(pot_formula)
-    plt1d.potentials_or_gradients(x, Vs, labels)
+    plt1d.multiple_plots(x, Vs, labels)
 
     # plot gradients
     plt1d = Plot1d(dir_path, 'gradients')
     plt1d.set_ylim(grad_ymin, grad_ymax)
     #plt1d.set_title(pot_formula)
-    plt1d.potentials_or_gradients(x, dVs, labels)
+    plt1d.multiple_plots(x, dVs, labels)
 
 if __name__ == "__main__":
     main()
