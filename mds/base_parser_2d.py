@@ -89,17 +89,17 @@ def get_base_parser():
         dest='m',
         nargs=2,
         type=int,
-        default=[10, 10],
+        default=[30, 30],
         help='Set the number of uniformly distributed ansatz functions per axis \
-              that you want to use. Default: [50, 50]',
+              that you want to use. Default: [30, 30]',
     )
     parser.add_argument(
         '--sigma',
         dest='sigma',
         nargs=2,
         type=float,
-        default=[1, 1],
-        help='Set the standard deviation of the ansatz functions. Default: [1, 1]',
+        default=[0.2, 0.2],
+        help='Set the standard deviation of the ansatz functions. Default: [0.2, 0.2]',
     )
     parser.add_argument(
         '--theta',
@@ -119,8 +119,8 @@ def get_base_parser():
         '--lr',
         dest='lr',
         type=float,
-        default=1,
-        help='Set learning rate. Default: 1',
+        default=0.01,
+        help='Set learning rate. Default: 0.01',
     )
     parser.add_argument(
         '--do-plots',

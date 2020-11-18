@@ -268,7 +268,7 @@ class GaussianAnsatz:
         plt2d.contour(X, Y, Z[:, :, j])
 
         #grad = self.gradient_multivariate_normal_pdf(pos, means[j], cov).reshape(Nx, Ny, 2)
-        grad = self.vectorized_gradient_multivariate_normal_pdf(pos, means, cov).reshape(Nx, Ny, self.m, 2)
+        grad = - np.sqrt(2) * self.vectorized_gradient_multivariate_normal_pdf(pos, means, cov).reshape(Nx, Ny, self.m, 2)
         U = grad[:, :, j, 0]
         V = grad[:, :, j, 1]
         plt2d = Plot2d(self.dir_path, 'grad_gaussian' + '_j{:d}'.format(j))

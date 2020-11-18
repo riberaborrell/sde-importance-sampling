@@ -51,7 +51,7 @@ def main():
 
     # potential surface plot
     plt2d = Plot2d(dir_path, 'potential_surface')
-    plt2d.set_title(pot_formula)
+    #plt2d.set_title(pot_formula)
     plt2d.set_xlim(-2, 2)
     plt2d.set_ylim(-2, 2)
     plt2d.set_zlim(zmin, zmax)
@@ -60,7 +60,7 @@ def main():
     # potential contour plot
     levels = np.logspace(-2, 1, 20, endpoint=True)
     plt2d = Plot2d(dir_path, 'potential_contour')
-    plt2d.set_title(pot_formula)
+    #plt2d.set_title(pot_formula)
     plt2d.set_xlim(-2, 2)
     plt2d.set_ylim(-2, 2)
     plt2d.set_zlim(zmin, zmax)
@@ -68,14 +68,14 @@ def main():
 
     # minus gradient vector field plot
     plt2d = Plot2d(dir_path, 'gradient_vector_field')
-    plt2d.set_title(grad_formula)
+    #plt2d.set_title(grad_formula)
     plt2d.set_xlim(-2, 2)
     plt2d.set_ylim(-2, 2)
     plt2d.vector_field(X, Y, U, V, scale=100)
 
     # zoomed minus gradient vector field plot
     plt2d = Plot2d(dir_path, 'gradient_vector_field_zoomed')
-    plt2d.set_title(grad_formula)
+    #plt2d.set_title(grad_formula)
     plt2d.set_xlim(-1.25, 1.25)
     plt2d.set_ylim(-1.25, 1.25)
     plt2d.vector_field(X, Y, U, V, scale=25)
