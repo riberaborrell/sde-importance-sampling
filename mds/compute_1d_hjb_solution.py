@@ -26,8 +26,8 @@ def main():
         alpha=np.array(args.alpha),
         beta=args.beta,
         target_set=np.array(args.target_set),
-        domain=np.array(args.domain),
         h=args.h,
+        domain=np.array(args.domain),
     )
     sol.start_timer()
     sol.discretize_domain()

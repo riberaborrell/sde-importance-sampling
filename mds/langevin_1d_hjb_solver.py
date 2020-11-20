@@ -21,7 +21,7 @@ class Solver():
         to the overdamped langevin sde.
     '''
 
-    def __init__(self, f, g, potential_name, alpha, beta, target_set, domain=None, h=0.001):
+    def __init__(self, f, g, potential_name, alpha, beta, target_set, h, domain=None):
         # validate domain and target set
         if domain is None:
             domain = np.array([-3, 3])
@@ -188,7 +188,11 @@ class Solver():
         self.exp_fht = - (sol_plus.Psi - sol_minus.Psi) / (self.beta * 2 * l)
 
     def save_reference_solution(self):
-        file_path = os.path.join(self.dir_path, 'reference_solution.npz')
+        # file name
+        h_ext = '_h{:.0e}'.format(self.h)
+        file_name = 'reference_solution' + h_ext + '.npz'
+
+        file_path = os.path.join(self.dir_path, file_name)
         np.savez(
             file_path,
             domain_h=self.domain_h,
@@ -196,20 +200,24 @@ class Solver():
             F=self.F,
             u_opt=self.u_opt,
             #exp_fht=self.exp_fht,
-            t_initial=self.t_initial,
-            t_final=self.t_final,
+            t_initial=np.array([self.t_initial]),
+            t_final=np.array([self.t_final]),
         )
 
     def load_reference_solution(self):
-        file_path = os.path.join(self.dir_path, 'reference_solution.npz')
+        # file name
+        h_ext = '_h{:.0e}'.format(self.h)
+        file_name = 'reference_solution' + h_ext + '.npz'
+
+        file_path = os.path.join(self.dir_path, file_name)
         ref_sol = np.load(file_path)
         self.domain_h = ref_sol['domain_h']
         self.Psi = ref_sol['Psi']
         self.F = ref_sol['F']
         self.u_opt = ref_sol['u_opt']
         #self.exp_fht = ref_sol['exp_fht']
-        self.t_initial = ref_sol['t_initial'],
-        self.t_final = ref_sol['t_final'],
+        self.t_initial = ref_sol['t_initial'][0]
+        self.t_final = ref_sol['t_final'][0]
 
     def write_report(self, x):
         h = self.h
@@ -219,16 +227,19 @@ class Solver():
         idx_x = np.where(domain_h == x)[0]
         if idx_x.shape[0] != 1:
             return
-        exp_fht = self.exp_fht[idx_x[0]] if self.exp_fht is not None else np.nan
+        #exp_fht = self.exp_fht[idx_x[0]] if self.exp_fht is not None else np.nan
         Psi = self.Psi[idx_x[0]] if self.Psi is not None else np.nan
         F = self.F[idx_x[0]] if self.F is not None else np.nan
 
+        # file name
+        h_ext = '_h{:.0e}'.format(self.h)
+        file_name = 'report' + h_ext + '.txt'
+
         # write file
-        file_path = os.path.join(self.dir_path, 'report.txt')
-        f = open(file_path, "w")
+        f = open(os.path.join(self.dir_path, file_name), "w")
         f.write('h = {:2.4f}\n'.format(h))
         f.write('x = {:2.1f}\n'.format(x))
-        f.write('E[fht] at x = {:2.3f}\n'.format(exp_fht))
+        #f.write('E[fht] at x = {:2.3f}\n'.format(exp_fht))
         f.write('Psi at x = {:2.3e}\n'.format(Psi))
         f.write('F at x = {:2.3e}\n'.format(F))
         h, m, s = get_time_in_hms(self.t_final - self.t_initial)

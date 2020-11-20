@@ -28,6 +28,7 @@ def main():
         alpha=np.array(args.alpha),
         beta=args.beta,
         target_set=np.array(args.target_set),
+        h=args.h,
     )
 
     # load already computed solution

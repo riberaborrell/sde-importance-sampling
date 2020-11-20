@@ -20,6 +20,7 @@ def main():
     def g(x):
         return 0
 
+
     # get hjb solver
     sol = Solver(
         f=f,
@@ -28,6 +29,7 @@ def main():
         alpha=np.array(args.alpha),
         beta=args.beta,
         target_set=np.array(args.target_set),
+        h=args.h,
     )
 
     # load already computed solution

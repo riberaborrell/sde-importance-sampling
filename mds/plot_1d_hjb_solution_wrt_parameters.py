@@ -61,6 +61,7 @@ def main():
                 alpha=alphas[i*alpha_dim:i*alpha_dim + alpha_dim],
                 beta=betas[i],
                 target_set=np.array(args.target_set),
+                h=args.h,
             )
             # get solution
             ref_sol = np.load(os.path.join(sol.dir_path, 'reference_solution.npz'))
