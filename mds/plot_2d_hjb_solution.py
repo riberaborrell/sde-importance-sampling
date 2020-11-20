@@ -27,8 +27,9 @@ def main():
         potential_name=args.potential_name,
         alpha=np.array(args.alpha),
         beta=args.beta,
-        domain=np.array(args.domain).reshape(2, 2),
         target_set=np.array(args.target_set).reshape(2, 2),
+        h=args.h,
+        domain=np.array(args.domain).reshape(2, 2),
     )
 
     # load already computed solution

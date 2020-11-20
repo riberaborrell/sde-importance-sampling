@@ -27,7 +27,7 @@ class Solver():
         to the overdamped langevin sde.
    '''
 
-    def __init__(self, f, g, potential_name, alpha, beta, target_set, domain=None, h=0.1):
+    def __init__(self, f, g, potential_name, alpha, beta, target_set, h, domain=None):
 
         # validate domain and target set
         if domain is None:
@@ -274,9 +274,12 @@ class Solver():
         self.u_opt = u_opt
 
     def save_reference_solution(self):
+        # file name
+        h_ext = '_h{:.0e}'.format(self.h)
+        file_name = 'reference_solution' + h_ext + '.npz'
+
         np.savez(
-            os.path.join(self.dir_path, 'reference_solution.npz'),
-            h=self.h,
+            os.path.join(self.dir_path, file_name),
             domain_h=self.domain_h,
             Psi=self.Psi,
             F=self.F,
@@ -286,11 +289,14 @@ class Solver():
         )
 
     def load_reference_solution(self):
+        # file name
+        h_ext = '_h{:.0e}'.format(self.h)
+        file_name = 'reference_solution' + h_ext + '.npz'
+
         ref_sol = np.load(
-            os.path.join(self.dir_path, 'reference_solution.npz'),
+            os.path.join(self.dir_path, file_name),
             allow_pickle=True,
         )
-        self.h = ref_sol['h']
         self.domain_h = ref_sol['domain_h']
         self.Psi = ref_sol['Psi']
         self.F = ref_sol['F']
@@ -314,9 +320,12 @@ class Solver():
         Psi = self.Psi[idx_x1, idx_x2] if self.Psi is not None else np.nan
         F = self.F[idx_x1, idx_x2] if self.F is not None else np.nan
 
+        # file name
+        h_ext = '_h{:.0e}'.format(self.h)
+        file_name = 'report' + h_ext + '.txt'
+
         # write file
-        file_path = os.path.join(self.dir_path, 'report.txt')
-        f = open(file_path, "w")
+        f = open(os.path.join(self.dir_path, file_name), "w")
         f.write('h = {:2.4f}\n'.format(h))
         f.write('(x_1, x_2) = ({:2.1f}, {:2.1f})\n'.format(x[0], x[1]))
         f.write('Psi at x = {:2.3e}\n'.format(Psi))

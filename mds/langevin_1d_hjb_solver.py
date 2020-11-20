@@ -192,16 +192,15 @@ class Solver():
         h_ext = '_h{:.0e}'.format(self.h)
         file_name = 'reference_solution' + h_ext + '.npz'
 
-        file_path = os.path.join(self.dir_path, file_name)
         np.savez(
-            file_path,
+            os.path.join(self.dir_path, file_name),
             domain_h=self.domain_h,
             Psi=self.Psi,
             F=self.F,
             u_opt=self.u_opt,
             #exp_fht=self.exp_fht,
-            t_initial=np.array([self.t_initial]),
-            t_final=np.array([self.t_final]),
+            t_initial=self.t_initial,
+            t_final=self.t_final,
         )
 
     def load_reference_solution(self):
@@ -209,15 +208,17 @@ class Solver():
         h_ext = '_h{:.0e}'.format(self.h)
         file_name = 'reference_solution' + h_ext + '.npz'
 
-        file_path = os.path.join(self.dir_path, file_name)
-        ref_sol = np.load(file_path)
+        ref_sol = np.load(
+            os.path.join(self.dir_path, file_name),
+            allow_pickle=True,
+        )
         self.domain_h = ref_sol['domain_h']
         self.Psi = ref_sol['Psi']
         self.F = ref_sol['F']
         self.u_opt = ref_sol['u_opt']
         #self.exp_fht = ref_sol['exp_fht']
-        self.t_initial = ref_sol['t_initial'][0]
-        self.t_final = ref_sol['t_final'][0]
+        self.t_initial = ref_sol['t_initial']
+        self.t_final = ref_sol['t_final']
 
     def write_report(self, x):
         h = self.h
