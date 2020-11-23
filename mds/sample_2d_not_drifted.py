@@ -2,6 +2,7 @@ from mds.base_parser_2d import get_base_parser
 from mds.langevin_2d_importance_sampling import Sampling
 
 import numpy as np
+import os
 
 def get_parser():
     parser = get_base_parser()
@@ -23,7 +24,8 @@ def main():
     )
 
     # set path
-    sample.set_not_drifted_dir_path()
+    dir_path = os.path.join(sample.example_dir_path, 'not-drifted-sampling')
+    sample.set_dir_path(dir_path)
 
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(

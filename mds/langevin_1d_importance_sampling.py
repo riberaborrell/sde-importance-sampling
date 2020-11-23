@@ -34,13 +34,15 @@ class Sampling:
         self.gradient = gradient
         self.alpha = alpha
         self.beta = beta
-        self.is_drifted = is_drifted
 
         # sampling
         self.domain = domain
         self.xzero = None
         self.target_set = target_set
         self.M = None
+        self.is_drifted = is_drifted
+        self.is_optimal = None
+        #self.is_gd = None
 
         # domain discretization
         self.h = h
@@ -98,7 +100,7 @@ class Sampling:
         # metadynamics
         self.meta_bias_pot = None
 
-        # dir_path
+        # paths
         self.example_dir_path = None
         self.dir_path = None
         self.set_example_dir_path()
@@ -119,11 +121,7 @@ class Sampling:
         self.example_dir_path = get_example_data_path(self.potential_name, self.alpha,
                                                       self.beta, self.target_set)
 
-    def set_not_drifted_dir_path(self):
-        self.dir_path = os.path.join(self.example_dir_path, 'not-drifted-sampling')
-        make_dir_path(self.dir_path)
-
-    def set_drifted_dir_path(self, dir_path):
+    def set_dir_path(self, dir_path):
         self.dir_path = dir_path
         make_dir_path(dir_path)
 
@@ -159,6 +157,12 @@ class Sampling:
         self.ansatz = ansatz
         self.theta = theta
 
+    def get_idx_discretized_domain(self, x):
+        assert x.ndim == 1, ''
+        assert x.shape[0] == self.M, ''
+        x = x.reshape(self.M, 1)
+        return np.argmin(np.abs(self.domain_h - x), axis=1)
+
     def load_meta_bias_potential(self):
         if not self.meta_bias_pot:
             file_path = os.path.join(
@@ -170,10 +174,13 @@ class Sampling:
 
     def load_reference_solution(self):
         if not self.ref_sol:
+            h_ext = '_h{:.0e}'.format(self.h)
+            file_name = 'reference_solution' + h_ext + '.npz'
+
             file_path = os.path.join(
                 self.example_dir_path,
                 'reference_solution',
-                'reference_solution.npz',
+                file_name,
             )
             self.ref_sol = np.load(file_path)
 
@@ -202,7 +209,7 @@ class Sampling:
 
         # set drifted sampling dir path
         dir_path = os.path.join(self.ansatz.dir_path, 'optimal-importance-sampling')
-        self.set_drifted_dir_path(dir_path)
+        self.set_dir_path(dir_path)
 
     def set_theta_null(self):
         assert self.ansatz is not None, ''
@@ -213,7 +220,7 @@ class Sampling:
 
         # set drifted sampling dir path
         dir_path = os.path.join(self.ansatz.dir_path, 'null-importance-sampling')
-        self.set_drifted_dir_path(dir_path)
+        self.set_dir_path(dir_path)
 
     def set_theta_from_metadynamics(self):
         '''
@@ -245,7 +252,7 @@ class Sampling:
 
         # set drifted sampling dir path
         dir_path = os.path.join(self.ansatz.dir_path, 'meta-importance-sampling')
-        self.set_drifted_dir_path(dir_path)
+        self.set_path(dir_path)
 
     def set_theta_from_gd(self, gd_type, gd_theta_init, gd_lr):
         '''
@@ -268,7 +275,7 @@ class Sampling:
 
         # set drifted sampling dir path
         dir_path = os.path.join(gd_dir_path, 'gd-importance-sampling')
-        self.set_drifted_dir_path(dir_path)
+        self.set_dir_path(dir_path)
 
     def value_function(self, x, theta=None, ansatz=None):
         '''This method computes the value function evaluated at x
@@ -504,6 +511,69 @@ class Sampling:
         self.compute_I_u_statistics()
         self.stop_timer()
 
+    def sample_optimal_drifted(self):
+        self.start_timer()
+        self.initialize_fht()
+        self.initialize_girsanov_martingale_terms()
+
+        # initialize xtemp
+        xtemp = np.full(self.M, self.xzero)
+
+        # initialize Girsanov Martingale terms, M_t = e^(M1_t + M2_t)
+        M1temp = np.zeros(self.M)
+        M2temp = np.zeros(self.M)
+        k = np.array([])
+
+        # load optimal control
+        self.load_reference_solution()
+        u_opt = self.ref_sol['u_opt']
+
+        for n in np.arange(1, self.N_lim +1):
+            # Brownian increment
+            dB = np.sqrt(self.dt) * np.random.normal(0, 1, self.M)
+
+            # control at Xtemp
+            idx_grid = self.get_idx_discretized_domain(xtemp)
+            utemp = u_opt[idx_grid]
+
+            # compute gradient
+            gradient = self.tilted_gradient(xtemp, utemp)
+
+            # sde update
+            xtemp = self.sde_update(xtemp, gradient, dB)
+
+            # Girsanov Martingale terms
+            M1temp -= np.sqrt(self.beta) * utemp * dB
+            M2temp -= self.beta * 0.5 * (utemp ** 2) * self.dt
+
+            # get indices from the trajectories which are new in target set
+            idx_new = self.get_idx_new_in_target_set(xtemp)
+
+            # save first hitting time and Girsanov Martingale terms
+            self.fht[idx_new] = n * self.dt
+            self.M1_fht[idx_new] = M1temp[idx_new]
+            self.M2_fht[idx_new] = M2temp[idx_new]
+
+            if n % 1000 == 0:
+                k = np.append(k, n)
+                self.M1_k[:, k.shape[0]-1] = M1temp
+                self.M2_k[:, k.shape[0]-1] = M2temp
+
+            # check if all trajectories have arrived to the target set
+            if self.been_in_target_set.all() == True:
+                # save Girsanov Martingale at the time when 
+                # the last trajectory arrive
+                k = np.append(k, n)
+                self.M1_k[:, k.shape[0]-1] = M1temp
+                self.M2_k[:, k.shape[0]-1] = M2temp
+                self.k = k
+                break
+
+        self.compute_fht_statistics()
+        self.compute_I_u_statistics()
+        self.stop_timer()
+
+
     def sample_meta(self):
         self.initialize_fht()
 
@@ -736,7 +806,7 @@ class Sampling:
         self.write_euler_maruyama_parameters(f)
         self.write_sampling_parameters(f)
 
-        if self.is_drifted:
+        if self.is_drifted and not self.is_optimal:
             self.ansatz.write_ansatz_parameters(f)
 
         f.write('Statistics\n\n')

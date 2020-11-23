@@ -6,7 +6,7 @@ import os
 
 def get_parser():
     parser = get_base_parser()
-    parser.description = 'Samples not drifted 1D overdamped Langevin SDE'
+    parser.description = 'sample drifted 1D overdamped Langevin SDE'
     return parser
 
 def main():
@@ -19,11 +19,15 @@ def main():
         beta=args.beta,
         domain=np.array(args.domain),
         target_set=np.array(args.target_set),
-        is_drifted=False,
+        is_drifted=True,
     )
 
     # set path
-    dir_path = os.path.join(sample.example_dir_path, 'not-drifted-sampling')
+    dir_path = os.path.join(
+        sample.example_dir_path,
+        'reference_solution',
+        'optimal-iportance-sampling',
+    )
     sample.set_dir_path(dir_path)
 
     # set sampling and Euler-Marujama parameters
@@ -35,13 +39,11 @@ def main():
         N_lim=args.N_lim,
     )
 
-    # plot potential and gradient
-    if args.do_plots:
-        sample.plot_tilted_potential()
-        sample.plot_tilted_drift()
+    # set optimal flat
+    sample.is_optimal = True
 
     # sample and compute statistics
-    sample.sample_not_drifted()
+    sample.sample_optimal_drifted()
 
     # print statistics
     sample.write_report()
