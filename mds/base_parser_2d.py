@@ -53,8 +53,8 @@ def get_base_parser():
         dest='target_set',
         nargs=4,
         type=float,
-        default=[0.9, 1.1, 0.9, 1.1],
-        help='Set the target set interval. Default: [[0.9, 1.1], [0.9, 1.1]]',
+        default=[1, 3, 1, 3],
+        help='Set the target set interval. Default: [[1, 3], [1, 3]]',
     )
     parser.add_argument(
         '--h',
