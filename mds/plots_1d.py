@@ -287,11 +287,32 @@ class Plot1d:
         plt.savefig(self.file_path)
         plt.close()
 
-    def gd_losses_bar(self, epochs, losses, value_f):
-        plt.title('Loss function per epoch')
-        plt.bar(x=epochs, height=losses, width=0.8, color='b', align='center', label=r'$J(x_0)$')
-        plt.plot([epochs[0]-0.4, epochs[-1] + 0.4], [value_f, value_f],
-                 'k--', label=r'$F(x_0)$')
+    def gd_losses_bar(self, epochs, losses, value_f_ref=None, value_f_mc=None):
+        plt.title(self.title)
+        plt.bar(
+            x=epochs,
+            height=losses,
+            width=0.8,
+            color='b',
+            align='center',
+            label=r'$J(x_0)$',
+        )
+        if value_f_ref is not None:
+            plt.plot(
+                [epochs[0]-0.4, epochs[-1] + 0.4],
+                [value_f_ref, value_f_ref],
+                color='cyan',
+                linestyle='dotted',
+                label=r'num sol HJB pde',
+            )
+        if value_f_mc is not None:
+            plt.plot(
+                [epochs[0]-0.4, epochs[-1] + 0.4],
+                [value_f_mc, value_f_mc],
+                color='orange',
+                linestyle='dashed',
+                label=r'MC Sampling',
+            )
         plt.xlabel('epochs', fontsize=16)
         plt.xlim(left=epochs[0] -0.8, right=epochs[-1] + 0.8)
         plt.ylim(self.ymin, self.ymax)
@@ -300,10 +321,15 @@ class Plot1d:
         plt.savefig(self.file_path)
         plt.close()
 
-    def gd_losses_line(self, epochs, losses, value_f):
-        plt.title('Loss function per epoch')
+    def gd_losses_line(self, epochs, losses, value_f_ref=None, value_f_mc=None):
+        plt.title(self.title)
         plt.plot(epochs, losses, 'b-', label=r'$J(x_0)$')
-        plt.plot([epochs[0], epochs[-1]], [value_f, value_f], 'k--', label=r'$F(x_0)$')
+        if value_f_ref is not None:
+            plt.plot([epochs[0], epochs[-1]], [value_f_ref, value_f_ref],
+                     color='cyan', linestyle='dotted', label=r'num sol HJB pde')
+        if value_f_mc is not None:
+            plt.plot([epochs[0], epochs[-1]], [value_f_mc, value_f_mc],
+                     color='orange', linestyle='dashed', label=r'MC Sampling')
         plt.xlabel('epochs', fontsize=16)
         #plt.xlim(left=epochs[0], right=epochs[-1])
         #plt.xticks(epochs)
@@ -314,18 +340,19 @@ class Plot1d:
         plt.close()
 
     def gd_time_steps_bar(self, epochs, N):
-        plt.title('Time steps per epoch')
+        plt.title(self.title)
         plt.bar(x=epochs, height=N, width=0.8, color='b', align='center', label=r'$N$')
         plt.xlabel('epochs', fontsize=16)
         plt.xlim(left=epochs[0] -0.8, right=epochs[-1] + 0.8)
         plt.ylim(self.ymin, self.ymax)
+        #plt.set_yticks([-1,0,1])
         plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
         plt.savefig(self.file_path)
         plt.close()
 
     def gd_time_steps_line(self, epochs, N):
-        plt.title('Time steps per epoch')
+        plt.title(self.title)
         plt.plot(epochs, N, 'b-', label=r'$N$')
         plt.xlabel('epochs', fontsize=16)
         #plt.xlim(left=epochs[0], right=epochs[-1])
@@ -337,6 +364,7 @@ class Plot1d:
         plt.close()
 
     def trajectory(self, x, y):
+        plt.title(self.title)
         plt.plot(x, y, 'r', label='EM solution path')
         plt.xlabel('t', fontsize=16)
         plt.ylabel('X', fontsize=16)

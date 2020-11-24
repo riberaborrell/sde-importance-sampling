@@ -341,14 +341,17 @@ class GradientDescent:
         epochs = np.arange(losses.shape[0])
         max_loss = np.max(losses)
         sample.get_value_f_at_xzero()
+        sample.load_not_drifted(M=10)
+        value_f_ref = sample.value_f_at_xzero
+        value_f_mc = - np.log(sample.mean_I)
 
         plt1d = Plot1d(self.dir_path, 'gd_losses_bar')
         plt1d.set_ylim(0, max_loss * 1.2)
-        plt1d.gd_losses_bar(epochs, losses, sample.value_f_at_xzero)
+        plt1d.gd_losses_bar(epochs, losses, value_f_ref, value_f_mc)
 
         plt1d = Plot1d(self.dir_path, 'gd_losses_line')
         plt1d.set_ylim(0, max_loss * 1.2)
-        plt1d.gd_losses_line(epochs, losses, sample.value_f_at_xzero)
+        plt1d.gd_losses_line(epochs, losses, value_f_ref, value_f_mc)
 
     def plot_gd_time_steps(self):
         N = self.N

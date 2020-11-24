@@ -765,6 +765,29 @@ class Sampling:
         self.var_I_u, \
         self.re_I_u = self.compute_mean_variance_and_rel_error(I_u)
 
+    def save_not_drifted(self):
+        # file name
+        M_ext = '_M{:.0e}'.format(self.M)
+        file_name = 'mc_sampling' + M_ext + '.npz'
+        np.savez(
+            os.path.join(self.dir_path, file_name),
+            M=self.M,
+            mean_I=self.mean_I,
+            var_I=self.var_I,
+            re_I=self.re_I,
+        )
+
+    def load_not_drifted(self, M):
+        # file name
+        M_ext = '_M{:.0e}'.format(M)
+        file_name = 'mc_sampling' + M_ext + '.npz'
+        file_path = os.path.join(self.example_dir_path, 'not-drifted-sampling', file_name)
+        data = np.load(file_path, allow_pickle=True)
+        self.M = data['M']
+        self.mean_I = data['mean_I']
+        self.var_I = data['var_I']
+        self.re_I = data['re_I']
+
     def write_sde_parameters(self, f):
         '''
         '''
@@ -866,7 +889,7 @@ class Sampling:
         ymin = 0
         plt1d = Plot1d(dir_path, file_name)
         plt1d.set_ylim(ymin, ymax)
-        plt1d.mgf(self.domain_h, Psi, appr_Psi)
+        plt1d.psi(self.domain_h, Psi, appr_Psi)
 
     def plot_appr_free_energy(self, file_name=None, dir_path=None):
         if file_name is None:

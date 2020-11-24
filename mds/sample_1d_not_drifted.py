@@ -43,7 +43,8 @@ def main():
     # sample and compute statistics
     sample.sample_not_drifted()
 
-    # print statistics
+    # print statistics and save data
+    sample.save_not_drifted()
     sample.write_report()
 
 
