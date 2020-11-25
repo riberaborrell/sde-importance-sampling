@@ -105,12 +105,13 @@ class Plot1d:
         plt.close()
 
     def exp_fht(self, x, exp_fht=None, appr_exp_fht=None):
-        plt.title('Expected first hitting time')
+        plt.title(self.title)
         if exp_fht is not None:
             plt.plot(x, exp_fht, 'c-', label=r'$E^x[\tau]$')
         if appr_exp_fht is not None:
             #todo
             pass
+        plt.xlabel('x', fontsize=16)
         plt.ylim(self.ymin, self.ymax)
         plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
@@ -119,11 +120,12 @@ class Plot1d:
         plt.close()
 
     def psi(self, x, Psi=None, appr_Psi=None):
-        plt.title('Psi')
+        plt.title(self.title)
         if Psi is not None:
             plt.plot(x, Psi, 'c-', label=r'$\Psi(x)$')
         if appr_Psi is not None:
             plt.plot(x, appr_Psi, 'm-', label=r'$\tilde{\Psi}(x)$')
+        plt.xlabel('x', fontsize=16)
         plt.ylim(self.ymin, self.ymax)
         plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
@@ -132,11 +134,12 @@ class Plot1d:
         plt.close()
 
     def free_energy(self, x, F=None, appr_F=None):
-        plt.title('Free energy / Performance function')
+        plt.title(self.title)
         if F is not None:
             plt.plot(x, F, 'c-', label='F(x)')
         if appr_F is not None:
             plt.plot(x, appr_F, 'm-', label=r'$\tilde{F}(x)$')
+        plt.xlabel('x', fontsize=16)
         plt.ylim(self.ymin, self.ymax)
         plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
@@ -145,11 +148,12 @@ class Plot1d:
         plt.close()
 
     def control(self, x, u_opt=None, u=None):
-        plt.title('Control')
+        plt.title(self.title)
         if u_opt is not None:
             plt.plot(x, u_opt, 'c-', label=r'$u^*(x)$')
         if u is not None:
             plt.plot(x, u, 'm-', label=r'u(x)')
+        plt.xlabel('x', fontsize=16)
         plt.ylim(self.ymin, self.ymax)
         plt.yticks(self.yticks)
         plt.legend(loc='upper left', fontsize=8)
@@ -158,7 +162,7 @@ class Plot1d:
         plt.close()
 
     def tilted_potential(self, x, V, Vbias=None, Vbias_opt=None):
-        plt.title('Tilted potential')
+        plt.title(self.title)
         if Vbias is not None:
             plt.plot(x, V + Vbias, 'm-', label=r'$\tilde{V}(x)$')
         if Vbias_opt is not None:
@@ -172,7 +176,7 @@ class Plot1d:
         plt.close()
 
     def potential_and_tilted_potential(self, x, V, Vbias=None, Vbias_opt=None):
-        plt.title('Potential, bias potential and tilted potential')
+        plt.title(self.title)
         plt.plot(x, V, 'b-', label=r'$V(x)$')
         if Vbias is not None:
             plt.plot(x, Vbias, 'r-', label=r'$V_{b}(x)$')
@@ -189,7 +193,7 @@ class Plot1d:
         plt.close()
 
     def drift_and_tilted_drift(self, x, dV, dVbias=None, dVbias_opt=None):
-        plt.title('Drift, bias drift and tilted drift')
+        plt.title(self.title)
         plt.plot(x, -dV, 'b-', label=r'$ - \nabla V(x)$')
         if dVbias is not None:
             plt.plot(x, -dVbias, 'r-', label=r'$ - \nabla V_{b}(x)$')

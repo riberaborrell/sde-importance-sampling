@@ -64,7 +64,10 @@ def main():
                 h=args.h,
             )
             # get solution
-            ref_sol = np.load(os.path.join(sol.dir_path, 'reference_solution.npz'))
+            h_ext = '_h{:.0e}'.format(args.h)
+            file_name = 'reference_solution' + h_ext + '.npz'
+
+            ref_sol = np.load(os.path.join(sol.dir_path, file_name))
             if i == 0:
                 x = ref_sol['domain_h']
                 V = sol.potential(x)
