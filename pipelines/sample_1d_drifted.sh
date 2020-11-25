@@ -21,7 +21,7 @@ do
                                   --beta $beta \
                                   --m $m \
                                   --sigma $sigma \
-                                  --theta-init $theta_init \
+                                  --theta $theta \
                                   --M $M
   done
 done
