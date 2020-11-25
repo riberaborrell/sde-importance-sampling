@@ -115,29 +115,18 @@ class GradientDescent:
 
         sample = self.sample
         x = self.sample.domain_h
-        epochs_lim = self.epochs_lim
-        lr = self.lr
         m = sample.ansatz.m
-        value_f = sample.value_f_at_xzero
-
-        # initialize timer
-        self.t_initial = time.perf_counter()
 
         # coefficients, performance function, control and free energy
-        thetas = np.zeros((epochs_lim + 1, m))
-        losses = np.zeros(epochs_lim)
-        #grad_losses = np.zeros((epochs_lim + 1, m))
-        N = np.zeros(epochs_lim)
+        thetas = np.zeros((self.epochs_lim + 1, m))
+        losses = np.zeros(self.epochs_lim)
+        #grad_losses = np.zeros((self.epochs_lim + 1, m))
+        N = np.zeros(self.epochs_lim)
 
         # set initial coefficients
         thetas[0, :] = sample.theta
 
-        # gradient descent succeeds flag
-        grad_succ = False
-
-        for epoch in np.arange(epochs_lim):
-            print(epoch)
-
+        for epoch in np.arange(self.epochs_lim):
             # plot control, free_energy and tilted potential
             if self.do_epoch_plots:
                 epochs_dir_path = self.epochs_dir_path
@@ -156,26 +145,16 @@ class GradientDescent:
             if not sample_succ:
                 break
 
-            print('{:2.3f}, {:2.3f}'.format(value_f, losses[epoch]))
-            # check if we are close enought to the value f
-            if np.isclose(value_f, losses[epoch], atol=self.atol, rtol=self.rtol):
-                grad_succ = True
-                break
+            print('{:d}, {:2.3f}'.format(epoch, losses[epoch]))
 
             # update coefficients
-            #thetas[epoch + 1, :] = thetas[epoch, :] - lr * grad_losses[epoch, :]
-            thetas[epoch + 1, :] = thetas[epoch, :] - lr * grad_losses
+            #thetas[epoch + 1, :] = thetas[epoch, :] - self.lr * grad_losses[epoch, :]
+            thetas[epoch + 1, :] = thetas[epoch, :] - self.lr * grad_losses
             sample.theta = thetas[epoch + 1, :]
 
 
         # save thetas, losses and grad_losses
-        if grad_succ:
-            self.epochs = epoch + 1
-            self.thetas = thetas[:epoch+1]
-            self.losses = losses[:epoch+1]
-            #self.grad_losses = grad_losses[:epoch+1]
-            self.N = N[:epoch+1]
-        elif not grad_succ and sample_succ:
+        if sample_succ:
             self.epochs = epoch + 1
             self.thetas = thetas
             self.losses = losses
@@ -233,8 +212,8 @@ class GradientDescent:
 
         f.write('lr: {}\n'.format(self.lr))
         f.write('epochs lim: {}\n'.format(self.epochs_lim))
-        f.write('atol: {}\n'.format(self.atol))
-        f.write('rtol: {}\n\n'.format(self.rtol))
+        #f.write('atol: {}\n'.format(self.atol))
+        #f.write('rtol: {}\n\n'.format(self.rtol))
 
         f.write('epochs needed: {}\n'.format(self.epochs))
         f.write('N total: {:,d}\n'.format(int(self.N.sum())))
