@@ -252,7 +252,7 @@ class Sampling:
 
         # set drifted sampling dir path
         dir_path = os.path.join(self.ansatz.dir_path, 'meta-importance-sampling')
-        self.set_path(dir_path)
+        self.set_dir_path(dir_path)
 
     def set_theta_from_gd(self, gd_type, gd_theta_init, gd_lr):
         '''
