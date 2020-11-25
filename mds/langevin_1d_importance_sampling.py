@@ -299,8 +299,8 @@ class Sampling:
         # compute K
         target_set_min, target_set_max = self.target_set
         idx_ts = np.where((x >= target_set_min) & (x <= target_set_max))[0]
-        K = - np.mean(value_f[idx_ts])
-        #K = - value_f[idx_ts[0]]
+        #K = - np.mean(value_f[idx_ts])
+        K = - value_f[idx_ts[0]]
 
         return value_f + K
 
