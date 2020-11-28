@@ -79,7 +79,7 @@ def main():
         #sample.set_bias_potential(meta.theta, meta.means, meta_covs)
         sample.theta = meta.theta
         sample.ansatz.means = meta.means
-        sample.ansatz.covs = meta.covs[0]
+        sample.ansatz.cov = meta.cov
 
         sample.plot_tilted_potential_surface(dir_path=meta.dir_path)
         sample.plot_tilted_potential_contour(dir_path=meta.dir_path)

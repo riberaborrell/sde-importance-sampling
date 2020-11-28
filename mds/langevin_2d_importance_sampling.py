@@ -867,7 +867,7 @@ class Sampling:
         appr_F = Vbias / 2
         appr_Psi = np.exp(- self.beta * appr_F)
         plt2d = Plot2d(dir_path, file_name)
-        plt2d.set_title(r'$\Psi(x_1, x_2)$')
+        #plt2d.set_title(r'$\Psi(x_1, x_2)$')
         plt2d.surface(X, Y, appr_Psi)
 
     def plot_appr_psi_contour(self, file_name=None, dir_path=None):
@@ -882,7 +882,7 @@ class Sampling:
         appr_F = Vbias / 2
         appr_Psi = np.exp(- self.beta * appr_F)
         plt2d = Plot2d(dir_path, file_name)
-        plt2d.set_title(r'$\Psi(x_1, x_2)$')
+        #plt2d.set_title(r'$\Psi(x_1, x_2)$')
         plt2d.contour(X, Y, appr_Psi)
 
     def plot_appr_free_energy_surface(self, file_name=None, dir_path=None):
@@ -896,7 +896,7 @@ class Sampling:
         Vbias = self.bias_potential(x).reshape(self.Nx, self.Ny)
         appr_F = Vbias / 2
         plt2d = Plot2d(dir_path, file_name)
-        plt2d.set_title(r'$F(x_1, x_2)$')
+        #plt2d.set_title(r'$F(x_1, x_2)$')
         plt2d.surface(X, Y, appr_F)
 
     def plot_appr_free_energy_contour(self, file_name=None, dir_path=None):
@@ -910,7 +910,7 @@ class Sampling:
         Vbias = self.bias_potential(x).reshape(self.Nx, self.Ny)
         appr_F = Vbias / 2
         plt2d = Plot2d(dir_path, file_name)
-        plt2d.set_title(r'$F(x_1, x_2)$')
+        #plt2d.set_title(r'$F(x_1, x_2)$')
         plt2d.contour(X, Y, appr_F)
 
     def plot_control(self, file_name=None, dir_path=None):
@@ -925,7 +925,7 @@ class Sampling:
         u_x = u[:, :, 0]
         u_y = u[:, :, 1]
         plt2d = Plot2d(dir_path, file_name)
-        plt2d.set_title(r'$u(x_1, x_2)$')
+        #plt2d.set_title(r'$u(x_1, x_2)$')
         plt2d.vector_field(X, Y, u_x, u_y, scale=8)
 
     def plot_tilted_potential_surface(self, file_name=None, dir_path=None):
@@ -942,7 +942,7 @@ class Sampling:
         else:
             Vbias = np.zeros((self.Nx, self.Ny))
         plt2d = Plot2d(dir_path, file_name)
-        plt2d.set_title(r'$\tilde{V}(x_1, x_2)$')
+        #plt2d.set_title(r'$\tilde{V}(x_1, x_2)$')
         plt2d.set_xlim(-2, 2)
         plt2d.set_ylim(-2, 2)
         plt2d.set_zlim(0, 10)
@@ -963,7 +963,7 @@ class Sampling:
             Vbias = np.zeros((self.Nx, self.Ny))
         levels = np.logspace(-2, 1, 20, endpoint=True)
         plt2d = Plot2d(dir_path, file_name)
-        plt2d.set_title(r'$\tilde{V}(x_2, x_1)$')
+        #plt2d.set_title(r'$\tilde{V}(x_2, x_1)$')
         plt2d.set_xlim(-2, 2)
         plt2d.set_ylim(-2, 2)
         plt2d.set_zlim(0, 10)
@@ -986,7 +986,7 @@ class Sampling:
         U = - dV[:, :, 0] - dVbias[:, :, 0]
         V = - dV[:, :, 1] - dVbias[:, :, 1]
         plt2d = Plot2d(dir_path, file_name)
-        plt2d.set_title(r'$-\nabla \tilde{V}(x_1, x_2)$')
+        #plt2d.set_title(r'$-\nabla \tilde{V}(x_1, x_2)$')
         plt2d.set_xlim(-1.5, 1.5)
         plt2d.set_ylim(-1.5, 1.5)
         plt2d.vector_field(X, Y, U, V, scale=50)

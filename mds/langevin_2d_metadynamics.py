@@ -27,7 +27,7 @@ class Metadynamics:
         # metadynamics coefficients
         self.theta = None
         self.means = None
-        self.covs = None
+        self.cov = None
         self.time_steps = None
 
         # succeeded
