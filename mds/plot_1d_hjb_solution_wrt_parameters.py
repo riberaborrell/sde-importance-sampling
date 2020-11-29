@@ -87,32 +87,28 @@ def main():
     # plot free energy
     file_name = 'free_energy_wrt_parameters'
     plt1d = Plot1d(dir_path, file_name)
-    plt1d.set_title('Free energy / Performance function $F(x)$')
-    plt1d.set_xlim(-3, 1)
+    plt1d.set_xlim(-3, 3)
     plt1d.set_ylim(0, 9)
     plt1d.multiple_plots(x, F, labels)
 
     # plot tilted potential
     file_name = 'optimal_tilted_potential_wrt_parameters'
     plt1d = Plot1d(dir_path, file_name)
-    plt1d.set_title(r'Tilted potential $\tilde{V}(x)$')
-    plt1d.set_xlim(-3, 1)
+    plt1d.set_xlim(-3, 3)
     plt1d.set_ylim(0, 30)
     plt1d.multiple_plots(x, V + 2*F, labels)
 
     # plot control
     file_name = 'optimal_control_wrt_parameters'
     plt1d = Plot1d(dir_path, file_name)
-    plt1d.set_title(r'Control $u(x)$')
-    plt1d.set_xlim(-3, 1)
+    plt1d.set_xlim(-3, 3)
     plt1d.set_ylim(-1, 20)
     plt1d.multiple_plots(x, u_opt, labels)
 
     # plot tilted drift 
     file_name = 'optimal_tilted_drift_wrt_parameters'
     plt1d = Plot1d(dir_path, file_name)
-    plt1d.set_title(r'Tilted drift $ - \nabla \tilde{V}(x)$')
-    plt1d.set_xlim(-3, 1)
+    plt1d.set_xlim(-3, 3)
     plt1d.set_ylim(-10, 30)
     plt1d.multiple_plots(x, -dV + np.sqrt(2) * u_opt, labels)
 
