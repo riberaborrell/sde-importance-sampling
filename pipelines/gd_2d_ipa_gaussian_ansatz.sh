@@ -25,7 +25,7 @@ do
                                           --lr $lr \
                                           --epochs-lim $epochs
   
-  python mds/sample_1d_drifted.py --alpha $alpha \
+  python mds/sample_2d_drifted.py --alpha $alpha \
                                   --beta $beta \
                                   --m $m \
                                   --sigma $sigma \
