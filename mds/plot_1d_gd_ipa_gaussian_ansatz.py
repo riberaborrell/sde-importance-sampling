@@ -54,13 +54,13 @@ def main():
         for epoch in range(gd.epochs):
             sample.theta = gd.thetas[epoch]
             epoch_stamp = '_epoch{}'.format(epoch)
-            sample.plot_appr_free_energy('appr_free_energy' + epoch_stamp, gd.epochs_dir_path)
+            sample.plot_free_energy('appr_free_energy' + epoch_stamp, gd.epochs_dir_path)
             sample.plot_control('control' + epoch_stamp, gd.epochs_dir_path)
             sample.plot_tilted_potential('tilted_potential' + epoch_stamp, gd.epochs_dir_path)
 
     # plot all epochs
     gd.plot_gd_1d_controls()
-    gd.plot_gd_1d_appr_free_energies()
+    gd.plot_gd_1d_free_energies()
     gd.plot_gd_1d_tilted_potentials()
     gd.plot_gd_losses()
     gd.plot_gd_time_steps()

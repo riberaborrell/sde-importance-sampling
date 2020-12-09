@@ -90,9 +90,10 @@ def main():
 
     if args.do_plots:
         gd.plot_gd_controls()
-        gd.plot_gd_appr_free_energies()
+        gd.plot_gd_free_energies()
         gd.plot_gd_tilted_potentials()
         gd.plot_gd_losses()
+        gd.plot_gd_time_steps()
 
 if __name__ == "__main__":
     main()

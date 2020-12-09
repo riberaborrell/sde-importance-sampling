@@ -76,8 +76,8 @@ def main():
     if args.do_plots:
         # set bias potential
         sample.set_bias_potential(meta.theta, meta.mus, meta.sigmas)
-        sample.plot_appr_psi(dir_path=meta.dir_path)
-        sample.plot_appr_free_energy(dir_path=meta.dir_path)
+        sample.plot_psi(dir_path=meta.dir_path)
+        sample.plot_free_energy(dir_path=meta.dir_path)
         sample.plot_control(dir_path=meta.dir_path)
         sample.plot_tilted_potential(dir_path=meta.dir_path)
         sample.plot_tilted_drift(dir_path=meta.dir_path)

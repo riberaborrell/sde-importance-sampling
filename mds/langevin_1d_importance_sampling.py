@@ -873,39 +873,45 @@ class Sampling:
 
         f.close()
 
-    def plot_appr_psi(self, dir_path=None, ext=''):
+    def plot_psi(self, dir_path=None, ext=''):
         if dir_path is None:
             dir_path = self.dir_path
-        file_name = 'appr_mgf' + ext
+        file_name = 'psi' + ext
 
         Vbias = self.bias_potential(self.domain_h)
-        appr_F = Vbias / 2
-        appr_Psi = np.exp(- self.beta * appr_F)
+        F = Vbias / 2
+        Psi = np.exp(- self.beta * F)
 
         self.load_reference_solution()
-        Psi = self.ref_sol['Psi']
+        Psi_hjb = self.ref_sol['Psi']
 
-        ymax = self.alpha * 2
-        ymin = 0
+        ys = np.vstack((Psi, Psi_hjb))
+        colors = ['m', 'c']
+        labels = [r'$\Psi(x)$', r'$\Psi(x)$ (hjb)']
+
         plt1d = Plot1d(dir_path, file_name)
-        plt1d.set_ylim(ymin, ymax)
-        plt1d.psi(self.domain_h, Psi, appr_Psi)
+        plt1d.set_ylim(0, self.alpha * 2)
+        plt1d.multiple_lines_plot(self.domain_h, ys, colors, labels)
 
-    def plot_appr_free_energy(self, file_name=None, dir_path=None):
+    def plot_free_energy(self, file_name=None, dir_path=None):
         if file_name is None:
-            file_name = 'appr_free_energy'
+            file_name = 'free_energy'
         if dir_path is None:
             dir_path = self.dir_path
 
         Vbias = self.bias_potential(self.domain_h)
-        appr_F = Vbias / 2
+        F = Vbias / 2
 
         self.load_reference_solution()
-        F = self.ref_sol['F']
+        F_hjb = self.ref_sol['F']
+
+        ys = np.vstack((F, F_hjb))
+        colors = ['m', 'c']
+        labels = [r'$F(x)$', r'$F(x)$ (hjb)']
 
         plt1d = Plot1d(dir_path, file_name)
         plt1d.set_ylim(0, self.alpha * 3)
-        plt1d.free_energy(self.domain_h, F, appr_F)
+        plt1d.multiple_lines_plot(self.domain_h, ys, colors, labels)
 
     def plot_control(self, file_name=None, dir_path=None):
         if file_name is None:
@@ -916,11 +922,15 @@ class Sampling:
         u = self.control(self.domain_h)
 
         self.load_reference_solution()
-        u_opt = self.ref_sol['u_opt']
+        u_hjb = self.ref_sol['u_opt']
+
+        ys = np.vstack((u, u_hjb))
+        colors = ['m', 'c']
+        labels = [r'$u(x)$', r'$u(x)$ (hjb)']
 
         plt1d = Plot1d(dir_path, file_name)
         plt1d.set_ylim(-self.alpha * 5, self.alpha * 5)
-        plt1d.control(self.domain_h, u_opt, u)
+        plt1d.multiple_lines_plot(self.domain_h, ys, colors, labels)
 
     def plot_potential_and_tilted_potential(self, file_name=None, dir_path=None):
         if file_name is None:
@@ -936,12 +946,16 @@ class Sampling:
             Vb = np.zeros(self.domain_h.shape[0])
 
         self.load_reference_solution()
-        F = self.ref_sol['F']
-        Vb_opt = 2 * F
+        Vb_hjb = 2 * self.ref_sol['F']
+
+        ys = np.vstack((V, Vb, V + Vb, Vb_hjb, V + V_hjb))
+        colors = ['b', 'r', 'm', 'y', 'c']
+        labels = [r'$V(x)$', r'$V_b(x)$', r'$\tilde{V}(x)$',
+                  r'$V_b(x)$ (hjb)', r'$\tilde{V}(x)$ (hjb)']
 
         plt1d = Plot1d(dir_path, file_name)
         plt1d.set_ylim(0, self.alpha * 10)
-        plt1d.potential_and_tilted_potential(self.domain_h, V, Vb, Vb_opt)
+        plt1d.multiple_lines_plot(self.domain_h, ys, colors, labels)
 
     def plot_tilted_potential(self, file_name=None, dir_path=None):
         if file_name is None:
@@ -957,12 +971,15 @@ class Sampling:
             Vb = np.zeros(self.domain_h.shape[0])
 
         self.load_reference_solution()
-        F = self.ref_sol['F']
-        Vb_opt = 2 * F
+        Vb_hjb = 2 * self.ref_sol['F']
+
+        ys = np.vstack((V + Vb, V + Vb_hjb))
+        colors = ['m', 'c']
+        labels = [r'$\tilde{V}(x)$', r'$\tilde{V}(x)$ (hjb)']
 
         plt1d = Plot1d(dir_path, file_name)
         plt1d.set_ylim(0, self.alpha * 10)
-        plt1d.tilted_potential(self.domain_h, V, Vb, Vb_opt)
+        plt1d.multiple_lines_plot(self.domain_h, ys, colors, labels)
 
     def plot_tilted_drift(self, file_name=None, dir_path=None):
         if file_name is None:
@@ -973,15 +990,19 @@ class Sampling:
         dV = self.gradient(self.domain_h)
 
         if self.is_drifted:
-            U = self.control(self.domain_h)
-            dVb = self.bias_gradient(U)
+            u = self.control(self.domain_h)
+            dVb = self.bias_gradient(u)
         else:
             dVb = np.zeros(self.domain_h.shape[0])
 
         self.load_reference_solution()
-        u_opt = self.ref_sol['u_opt']
-        dVb_opt = - np.sqrt(2) * u_opt
+        u_hjb = self.ref_sol['u_opt']
+        dVb_hjb = - np.sqrt(2) * u_hjb
+
+        ys = np.vstack((-dV - dVb, -dV - dVb_hjb))
+        colors = ['m', 'c']
+        labels = [r'$- \nabla \tilde{V}(x)$', r'$- \nabla \tilde{V}(x)$ (hjb)']
 
         plt1d = Plot1d(dir_path, file_name)
         plt1d.set_ylim(-self.alpha * 5, self.alpha * 5)
-        plt1d.drift_and_tilted_drift(self.domain_h, dV, dVb, dVb_opt)
+        plt1d.multiple_lines_plot(self.domain_h, ys, colors, labels)

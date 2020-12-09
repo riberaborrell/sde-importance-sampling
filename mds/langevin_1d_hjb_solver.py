@@ -252,41 +252,47 @@ class Solver():
         Psi = self.Psi
         plt1d = Plot1d(self.dir_path, 'psi')
         plt1d.set_ylim(0, 2 * self.alpha)
-        plt1d.psi(x, Psi)
+        plt1d.one_line_plot(x, Psi, color='c', label=r'$\Psi(x)$')
 
     def plot_free_energy(self):
         x = self.domain_h
         F = self.F
         plt1d = Plot1d(self.dir_path, 'free_energy')
         plt1d.set_ylim(0, 3 * self.alpha)
-        plt1d.free_energy(x, F)
+        plt1d.one_line_plot(x, F, color='c', label=r'$F(x)$')
 
     def plot_optimal_control(self):
         x = self.domain_h
         u = self.u_opt
-        plt1d = Plot1d(self.dir_path, 'optimal_control')
+        plt1d = Plot1d(self.dir_path, 'control')
         plt1d.set_ylim(- 5 * self.alpha, 5 * self.alpha)
-        plt1d.control(x, u)
+        plt1d.one_line_plot(x, u, color='c', label=r'$u(x)$')
 
     def plot_optimal_tilted_potential(self):
         x = self.domain_h
         V = self.potential(x)
         Vb_opt = 2 * self.F
-        plt1d = Plot1d(self.dir_path, 'optimal_tilted_potential')
+        ys = np.vstack((V, Vb_opt, V + Vb_opt))
+        colors = ['b', 'y', 'c']
+        labels = [r'$V(x)$', r'$V_b(x)$', r'$\tilde{V}(x)$']
+        plt1d = Plot1d(self.dir_path, 'tilted_potential')
         plt1d.set_ylim(0, 10 * self.alpha)
-        plt1d.potential_and_tilted_potential(x, V, Vbias_opt=Vb_opt)
+        plt1d.multiple_lines_plot(x, ys, colors, labels)
 
     def plot_optimal_tilted_drift(self):
         x = self.domain_h
         dV = self.gradient(x)
         dVb_opt = - np.sqrt(2) * self.u_opt
-        plt1d = Plot1d(self.dir_path, 'optimal_tilted_drift')
+        ys = np.vstack((-dV, -dVb_opt, -dV - dVb_opt))
+        colors = ['b', 'y', 'c']
+        labels = [r'$- \nabla V(x)$', r'$ - \nabla V_b(x)$', r'$ - \nabla \tilde{V}(x)$']
+        plt1d = Plot1d(self.dir_path, 'tilted_drift')
         plt1d.set_ylim(- 5 * self.alpha, 5 * self.alpha)
-        plt1d.drift_and_tilted_drift(x, dV, dVbias_opt=dVb_opt)
+        plt1d.multiple_lines_plot(x, ys, colors, labels)
 
     def plot_exp_fht(self):
         x = self.domain_h
         exp_fht = self.exp_fht
         plt1d = Plot1d(self.dir_path, 'exp_fht')
         plt1d.set_ylim(0, self.alpha * 5)
-        plt1d.exp_fht(x, exp_fht)
+        plt1d.one_line_plot(x, exp_fht)

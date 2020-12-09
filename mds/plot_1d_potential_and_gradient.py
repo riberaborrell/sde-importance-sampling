@@ -52,14 +52,12 @@ def main():
     # plot potential
     plt1d = Plot1d(dir_path, 'potential')
     plt1d.set_ylim(pot_ymin, pot_ymax)
-    #plt1d.set_title(pot_formula)
-    plt1d.potential_or_gradient(x, V, parameters)
+    plt1d.one_line_plot(x, V, label=parameters)
 
     # plot gradient
     plt1d = Plot1d(dir_path, 'gradient')
     plt1d.set_ylim(grad_ymin, grad_ymax)
-    #plt1d.set_title(grad_formula)
-    plt1d.potential_or_gradient(x, dV, parameters)
+    plt1d.one_line_plot(x, dV, label=parameters)
 
 if __name__ == "__main__":
     main()

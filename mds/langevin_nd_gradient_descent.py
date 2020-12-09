@@ -131,7 +131,7 @@ class GradientDescent:
             if self.do_epoch_plots:
                 epochs_dir_path = self.epochs_dir_path
                 epoch_stamp = '_epoch{}'.format(epoch)
-                sample.plot_appr_free_energy('appr_free_energy' + epoch_stamp, epochs_dir_path)
+                sample.plot_free_energy('appr_free_energy' + epoch_stamp, epochs_dir_path)
                 sample.plot_control('control' + epoch_stamp, epochs_dir_path)
                 sample.plot_tilted_potential('tilted_potential' + epoch_stamp, epochs_dir_path)
 
@@ -249,97 +249,129 @@ class GradientDescent:
             epochs_to_show = np.append(epochs_to_show, epochs[-1])
         return epochs_to_show
 
-    def plot_gd_1d_appr_free_energies(self):
+    def plot_gd_1d_free_energies(self):
         sample = self.sample
         x = sample.domain_h
         epochs_to_show = self.get_epochs_to_show()
 
-        F_appr = np.zeros((epochs_to_show.shape[0], x.shape[0]))
+        labels = []
+        F = np.zeros((epochs_to_show.shape[0], x.shape[0]))
         for i, epoch in enumerate(epochs_to_show):
-            label = r'epoch = {:d}'.format(epoch)
+            labels.append(r'epoch = {:d}'.format(epoch))
             sample.theta = self.thetas[epoch, :]
-            F_appr[i, :] = sample.value_function(x, sample.theta)
+            F[i, :] = sample.value_function(x, sample.theta)
 
         sample.load_reference_solution()
-        F = sample.ref_sol['F']
+        F_hjb = sample.ref_sol['F']
+        labels.append(r'hjb')
 
-        plt1d = Plot1d(self.dir_path, 'gd_appr_free_energy')
+        ys = np.vstack((F, F_hjb))
+        colors = [None for i in range(ys.shape[0])]
+        colors[-1] = 'c'
+        linestyles = ['-' for i in range(ys.shape[0])]
+        linestyles[-1] = 'dashdot'
+
+        plt1d = Plot1d(self.dir_path, 'gd_free_energy')
         #plt1d.set_ylim(0, sample.alpha * 3)
         plt1d.set_ylim(-0.25, 3)
         #plt1d.set_ylim(-0.25, 4)
         #plt1d.set_ylim(-0.25, 10)
-        plt1d.gd_appr_free_energies(x, epochs_to_show, F_appr, F)
+        #plt1d.gd_appr_free_energies(x, epochs_to_show, F_appr, F)
+        plt1d.multiple_lines_plot(x, ys, colors, linestyles, labels)
 
     def plot_gd_1d_controls(self):
         sample = self.sample
         x = sample.domain_h
         epochs_to_show = self.get_epochs_to_show()
 
+        labels = []
         u = np.zeros((epochs_to_show.shape[0], x.shape[0]))
         for i, epoch in enumerate(epochs_to_show):
-            label = r'epoch = {:d}'.format(epoch)
+            labels.append(r'epoch = {:d}'.format(epoch))
             sample.theta = self.thetas[epoch, :]
             u[i, :] = sample.control(x, sample.theta)
 
         sample.load_reference_solution()
-        u_opt = sample.ref_sol['u_opt']
+        u_hjb = sample.ref_sol['u_opt']
+        labels.append(r'hjb')
+
+        ys = np.vstack((u, u_hjb))
+        colors = [None for i in range(ys.shape[0])]
+        colors[-1] = 'c'
+        linestyles = ['-' for i in range(ys.shape[0])]
+        linestyles[-1] = 'dashdot'
 
         plt1d = Plot1d(self.dir_path, 'gd_controls')
+        plt1d.set_xlim(-2.5, 2.5)
         #plt1d.set_ylim(-sample.alpha * 5, sample.alpha * 5)
         plt1d.set_ylim(-5, 5)
-        #plt1d.set_ylim(-10, 20)
+        #plt1d.set_ylim(-10, 15)
         #plt1d.set_ylim(-15, 25)
-        plt1d.gd_controls(x, epochs_to_show, u, u_opt)
+        plt1d.multiple_lines_plot(x, ys, colors, linestyles, labels)
 
     def plot_gd_1d_tilted_potentials(self):
         sample = self.sample
         x = sample.domain_h
-
         epochs_to_show = self.get_epochs_to_show()
-        V = sample.potential(x)
-        Vbias = np.zeros((epochs_to_show.shape[0], x.shape[0]))
+
+        labels = []
+        Vb = np.zeros((epochs_to_show.shape[0], x.shape[0]))
         for i, epoch in enumerate(epochs_to_show):
-            label = r'epoch = {:d}'.format(epoch)
+            labels.append(r'epoch = {:d}'.format(epoch))
             sample.theta = self.thetas[epoch, :]
-            Vbias[i, :] = 2 * sample.value_function(x, sample.theta)
+            Vb[i, :] = 2 * sample.value_function(x, sample.theta)
 
         sample.load_reference_solution()
-        F = sample.ref_sol['F']
-        Vbias_opt = 2 * F
+        Vb_hjb = 2 * sample.ref_sol['F']
+        labels.append(r'hjb')
+
+        V = sample.potential(x)
+        ys = np.vstack((V + Vb, V + Vb_hjb))
+        colors = [None for i in range(ys.shape[0])]
+        colors[-1] = 'c'
+        linestyles = ['-' for i in range(ys.shape[0])]
+        linestyles[-1] = 'dashdot'
 
         plt1d = Plot1d(self.dir_path, 'gd_tilted_potentials')
+        plt1d.set_xlim(-2.5, 2.5)
         #plt1d.set_ylim(0, sample.alpha * 10)
         plt1d.set_ylim(-0.25, 10)
         #plt1d.set_ylim(-0.25, 40)
         #plt1d.set_ylim(-0.25, 100)
-        plt1d.gd_tilted_potentials(x, V, epochs_to_show, Vbias, Vbias_opt)
+        plt1d.multiple_lines_plot(x, ys, colors, linestyles, labels)
 
     def plot_gd_losses(self):
         sample = self.sample
         losses = self.losses
         epochs = np.arange(losses.shape[0])
-        max_loss = np.max(losses)
         sample.get_value_f_at_xzero()
-        sample.load_not_drifted(M=10)
-        value_f_ref = sample.value_f_at_xzero
-        value_f_mc = - np.log(sample.mean_I)
+        sample.load_not_drifted(M=10000000)
+        value_f_hjb = np.full(epochs.shape[0], sample.value_f_at_xzero)
+        value_f_mc = np.full(epochs.shape[0], - np.log(sample.mean_I))
+
+        ys = np.vstack((losses, value_f_hjb, value_f_mc))
+        colors = ['tab:blue', 'tab:green', 'tab:orange']
+        linestyles = ['-', 'dashed', 'dashdot']
+        labels = [r'$J(x_0)$', 'hjb', 'MC Sampling']
 
         plt1d = Plot1d(self.dir_path, 'gd_losses_bar')
-        plt1d.set_ylim(0, max_loss * 1.2)
-        plt1d.gd_losses_bar(epochs, losses, value_f_ref, value_f_mc)
+        plt1d.set_ylim(0, 1.2 * np.max(ys))
+        plt1d.gd_losses_bar(epochs, losses, value_f_hjb[0], value_f_mc[0])
 
         plt1d = Plot1d(self.dir_path, 'gd_losses_line')
-        plt1d.set_ylim(0, max_loss * 1.2)
-        plt1d.gd_losses_line(epochs, losses, value_f_ref, value_f_mc)
+        plt1d.set_ylim(0, 1.2 * np.max(ys))
+        #plt1d.gd_losses_line(epochs, losses, value_f_ref, value_f_mc)
+        plt1d.multiple_lines_plot(epochs, ys, colors, linestyles, labels)
 
     def plot_gd_time_steps(self):
         N = self.N
         epochs = np.arange(N.shape[0])
-        max_N = np.max(N)
+
         plt1d = Plot1d(self.dir_path, 'gd_time_steps_bar')
-        plt1d.set_ylim(0, max_N * 1.2)
+        plt1d.set_ylim(0, 1.2 * np.max(N))
         plt1d.gd_time_steps_bar(epochs, N)
 
         plt1d = Plot1d(self.dir_path, 'gd_time_steps_line')
-        plt1d.set_ylim(0, max_N * 1.2)
-        plt1d.gd_time_steps_line(epochs, N)
+        plt1d.set_ylim(0, 1.2 * np.max(N))
+        plt1d.one_line_plot(epochs, N, color='purple', label='TS')
+

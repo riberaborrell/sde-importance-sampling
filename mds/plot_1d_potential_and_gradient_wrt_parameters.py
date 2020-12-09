@@ -7,7 +7,7 @@ import numpy as np
 
 def get_parser():
     parser = get_base_parser()
-    parser.description = 'Plot potential landscape and gradient'
+    parser.description = 'Plot potential landscape and gradient for different parameters'
     parser.add_argument(
         '--alphas',
         dest='alphas',
@@ -58,7 +58,7 @@ def main():
 
     Vs = np.empty((num_plots, x.shape[0]))
     dVs = np.empty((num_plots, x.shape[0]))
-    alpha_dim = int(alphas.shape[0] / num_plots)
+    alpha_dim = alphas.shape[0] // num_plots
     alphas = alphas.reshape((num_plots, alpha_dim))
     labels = []
     for i in range(num_plots):
@@ -77,14 +77,12 @@ def main():
     # plot potentials
     plt1d = Plot1d(dir_path, 'potentials')
     plt1d.set_ylim(pot_ymin, pot_ymax)
-    #plt1d.set_title(pot_formula)
-    plt1d.multiple_plots(x, Vs, labels)
+    plt1d.multiple_lines_plot(x, Vs, labels)
 
     # plot gradients
     plt1d = Plot1d(dir_path, 'gradients')
     plt1d.set_ylim(grad_ymin, grad_ymax)
-    #plt1d.set_title(pot_formula)
-    plt1d.multiple_plots(x, dVs, labels)
+    plt1d.multiple_lines_plot(x, dVs, labels)
 
 if __name__ == "__main__":
     main()
