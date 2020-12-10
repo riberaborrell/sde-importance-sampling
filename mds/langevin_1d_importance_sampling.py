@@ -891,7 +891,7 @@ class Sampling:
 
         plt1d = Plot1d(dir_path, file_name)
         plt1d.set_ylim(0, self.alpha * 2)
-        plt1d.multiple_lines_plot(self.domain_h, ys, colors, labels)
+        plt1d.multiple_lines_plot(self.domain_h, ys, colors=colors, labels=labels)
 
     def plot_free_energy(self, file_name=None, dir_path=None):
         if file_name is None:
@@ -911,7 +911,7 @@ class Sampling:
 
         plt1d = Plot1d(dir_path, file_name)
         plt1d.set_ylim(0, self.alpha * 3)
-        plt1d.multiple_lines_plot(self.domain_h, ys, colors, labels)
+        plt1d.multiple_lines_plot(self.domain_h, ys, colors=colors, labels=labels)
 
     def plot_control(self, file_name=None, dir_path=None):
         if file_name is None:
@@ -930,7 +930,7 @@ class Sampling:
 
         plt1d = Plot1d(dir_path, file_name)
         plt1d.set_ylim(-self.alpha * 5, self.alpha * 5)
-        plt1d.multiple_lines_plot(self.domain_h, ys, colors, labels)
+        plt1d.multiple_lines_plot(self.domain_h, ys, colors=colors, labels=labels)
 
     def plot_potential_and_tilted_potential(self, file_name=None, dir_path=None):
         if file_name is None:
@@ -955,7 +955,7 @@ class Sampling:
 
         plt1d = Plot1d(dir_path, file_name)
         plt1d.set_ylim(0, self.alpha * 10)
-        plt1d.multiple_lines_plot(self.domain_h, ys, colors, labels)
+        plt1d.multiple_lines_plot(self.domain_h, ys, colors=colors, labels=labels)
 
     def plot_tilted_potential(self, file_name=None, dir_path=None):
         if file_name is None:
@@ -979,7 +979,7 @@ class Sampling:
 
         plt1d = Plot1d(dir_path, file_name)
         plt1d.set_ylim(0, self.alpha * 10)
-        plt1d.multiple_lines_plot(self.domain_h, ys, colors, labels)
+        plt1d.multiple_lines_plot(self.domain_h, ys, colors=colors, labels=labels)
 
     def plot_tilted_drift(self, file_name=None, dir_path=None):
         if file_name is None:
@@ -1005,4 +1005,4 @@ class Sampling:
 
         plt1d = Plot1d(dir_path, file_name)
         plt1d.set_ylim(-self.alpha * 5, self.alpha * 5)
-        plt1d.multiple_lines_plot(self.domain_h, ys, colors, labels)
+        plt1d.multiple_lines_plot(self.domain_h, ys, colors=colors, labels=labels)

@@ -277,7 +277,7 @@ class Solver():
         labels = [r'$V(x)$', r'$V_b(x)$', r'$\tilde{V}(x)$']
         plt1d = Plot1d(self.dir_path, 'tilted_potential')
         plt1d.set_ylim(0, 10 * self.alpha)
-        plt1d.multiple_lines_plot(x, ys, colors, labels)
+        plt1d.multiple_lines_plot(x, ys, colors=colors, labels=labels)
 
     def plot_optimal_tilted_drift(self):
         x = self.domain_h
@@ -288,7 +288,7 @@ class Solver():
         labels = [r'$- \nabla V(x)$', r'$ - \nabla V_b(x)$', r'$ - \nabla \tilde{V}(x)$']
         plt1d = Plot1d(self.dir_path, 'tilted_drift')
         plt1d.set_ylim(- 5 * self.alpha, 5 * self.alpha)
-        plt1d.multiple_lines_plot(x, ys, colors, labels)
+        plt1d.multiple_lines_plot(x, ys, colors=colors, labels=labels)
 
     def plot_exp_fht(self):
         x = self.domain_h

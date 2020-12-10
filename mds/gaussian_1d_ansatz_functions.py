@@ -200,13 +200,13 @@ class GaussianAnsatz:
         v = self.basis_value_f(x)
         plt1d = Plot1d(dir_path=self.dir_path, file_name='basis_value_f')
         plt1d.set_title(r'$v_{j}(x; \mu, \sigma)$')
-        plt1d.ansatz_value_f(x, v)
+        plt1d.multiple_lines_plot(x, v.T)
 
         # basis control
         b = self.basis_control(x)
         plt1d = Plot1d(dir_path=self.dir_path, file_name='basis_control')
         plt1d.set_title(r'$b_{j}(x; \mu, \sigma)$')
-        plt1d.ansatz_control(x, b)
+        plt1d.multiple_lines_plot(x, b.T)
 
 
 def bias_potential(x, omegas, mus, sigmas):

@@ -16,6 +16,10 @@ class Plot1d:
         self.title = ''
         self.label = ''
 
+        # axes labels
+        self.xlabel = 'x'
+        self.ylabel = None
+
         # axes bounds
         self.xmin = None
         self.xmax= None
@@ -50,12 +54,10 @@ class Plot1d:
         assert x.shape[0] == y.shape[0], ''
 
         plt.title(self.title)
-        if label is not None:
-            plt.plot(x, y, color=color, linestyle='-', label=label)
-        else:
-            plt.plot(x, y, color=color, linestyle='-')
-
-        plt.xlabel('x', fontsize=16)
+        plt.plot(x, y, color=color, linestyle='-', label=label)
+        plt.xlabel(self.xlabel, fontsize=16)
+        plt.ylabel(self.ylabel, fontsize=16)
+        plt.xlim(self.xmin, self.xmax)
         plt.ylim(self.ymin, self.ymax)
         plt.yticks(self.yticks)
         plt.grid(True)
@@ -74,110 +76,45 @@ class Plot1d:
             assert num_plots == len(colors), ''
         else:
             colors = [None for i in range(num_plots)]
-
         if linestyles is not None:
             assert num_plots == len(linestyles), ''
         else:
             linestyles = ['-' for i in range(num_plots)]
-
         if labels is not None:
             assert num_plots == len(labels), ''
+        else:
+            labels = [None for i in range(num_plots)]
 
         plt.title(self.title)
         for i in range(num_plots):
-            if labels:
-                plt.plot(x, ys[i], color=colors[i],
-                         linestyle=linestyles[i], label=labels[i])
-            else:
-                plt.plot(x, ys[i], color=colors[i], linestyle=linestyles[i])
+            plt.plot(x, ys[i], color=colors[i],
+                     linestyle=linestyles[i], label=labels[i])
 
-        plt.xlabel('x', fontsize=16)
+        plt.xlabel(self.xlabel, fontsize=16)
+        plt.ylabel(self.ylabel, fontsize=16)
         plt.xlim(self.xmin, self.xmax)
         plt.ylim(self.ymin, self.ymax)
         plt.yticks(self.yticks)
         plt.grid(True)
-        if labels is not None:
+        if any(label is not None for label in labels):
             plt.legend(loc='upper left', fontsize=8)
         plt.savefig(self.file_path)
         plt.close()
 
-    def ansatz_value_f(self, x, v):
-        assert v.ndim == 2, ''
-        m = v.shape[1]
-        for j in range(m):
-            plt.plot(x, v[:, j])
-        plt.title(self.title)
-        plt.xlabel('x', fontsize=16)
-        plt.savefig(self.file_path)
-        plt.close()
+    def one_bar_plot(self, x, height, color=None, label=None):
+        assert x.ndim == height.ndim == 1, ''
+        assert x.shape[0] == height.shape[0], ''
 
-    def ansatz_control(self, x, b):
-        assert b.ndim == 2, ''
-        m = b.shape[1]
-        for j in range(m):
-            plt.plot(x, b[:, j])
         plt.title(self.title)
-        plt.xlabel('x', fontsize=16)
-        plt.savefig(self.file_path)
-        plt.close()
-
-    def exp_fht(self, x, exp_fht=None, appr_exp_fht=None):
-        plt.title(self.title)
-        if exp_fht is not None:
-            plt.plot(x, exp_fht, 'c-', label=r'$E^x[\tau]$')
-        if appr_exp_fht is not None:
-            #todo
-            pass
-        plt.xlabel('x', fontsize=16)
-        plt.ylim(self.ymin, self.ymax)
-        plt.yticks(self.yticks)
-        plt.legend(loc='upper left', fontsize=8)
-        plt.grid(True)
-        plt.savefig(self.file_path)
-        plt.close()
-
-    def gd_losses_bar(self, epochs, losses, value_f_ref=None, value_f_mc=None):
-        plt.title(self.title)
-        plt.bar(
-            x=epochs,
-            height=losses,
-            width=0.8,
-            color='tab:blue',
-            align='center',
-            label=r'$J(x_0)$',
-        )
-        if value_f_ref is not None:
-            plt.plot(
-                [epochs[0]-0.4, epochs[-1] + 0.4],
-                [value_f_ref, value_f_ref],
-                color='tab:green',
-                linestyle='dashed',
-                label=r'num sol HJB pde',
-            )
-        if value_f_mc is not None:
-            plt.plot(
-                [epochs[0]-0.4, epochs[-1] + 0.4],
-                [value_f_mc, value_f_mc],
-                color='tab:orange',
-                linestyle='dashdot',
-                label=r'MC Sampling',
-            )
-        plt.xlabel('epochs', fontsize=16)
-        plt.xlim(left=epochs[0] -0.8, right=epochs[-1] + 0.8)
-        plt.ylim(self.ymin, self.ymax)
-        plt.legend(loc='upper left', fontsize=8)
-        plt.grid(True)
-        plt.savefig(self.file_path)
-        plt.close()
-
-    def gd_time_steps_bar(self, epochs, N):
-        plt.title(self.title)
-        plt.bar(x=epochs, height=N, width=0.8, color='purple', align='center', label=r'TS')
-        plt.xlabel('epochs', fontsize=16)
-        plt.xlim(left=epochs[0] -0.8, right=epochs[-1] + 0.8)
+        plt.bar(x, height, width=0.8, color=color, label=label, align='center')
+        plt.xlabel(self.xlabel, fontsize=16)
+        plt.ylabel(self.ylabel, fontsize=16)
+        #plt.xlim(left=epochs[0] -0.8, right=epochs[-1] + 0.8)
+        plt.xlim(self.xmin, self.xmax)
         plt.ylim(self.ymin, self.ymax)
         #plt.set_yticks([-1,0,1])
-        plt.legend(loc='upper left', fontsize=8)
+        if label is not None:
+            plt.legend(loc='upper left', fontsize=8)
         plt.grid(True)
         plt.savefig(self.file_path)
         plt.close()

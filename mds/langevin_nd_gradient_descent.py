@@ -354,13 +354,9 @@ class GradientDescent:
         linestyles = ['-', 'dashed', 'dashdot']
         labels = [r'$J(x_0)$', 'hjb', 'MC Sampling']
 
-        plt1d = Plot1d(self.dir_path, 'gd_losses_bar')
-        plt1d.set_ylim(0, 1.2 * np.max(ys))
-        plt1d.gd_losses_bar(epochs, losses, value_f_hjb[0], value_f_mc[0])
-
         plt1d = Plot1d(self.dir_path, 'gd_losses_line')
+        plt1d.xlabel = 'epochs'
         plt1d.set_ylim(0, 1.2 * np.max(ys))
-        #plt1d.gd_losses_line(epochs, losses, value_f_ref, value_f_mc)
         plt1d.multiple_lines_plot(epochs, ys, colors, linestyles, labels)
 
     def plot_gd_time_steps(self):
@@ -368,10 +364,12 @@ class GradientDescent:
         epochs = np.arange(N.shape[0])
 
         plt1d = Plot1d(self.dir_path, 'gd_time_steps_bar')
+        plt1d.xlabel = 'epochs'
         plt1d.set_ylim(0, 1.2 * np.max(N))
-        plt1d.gd_time_steps_bar(epochs, N)
+        plt1d.one_bar_plot(epochs, N, color='purple', label='TS')
 
         plt1d = Plot1d(self.dir_path, 'gd_time_steps_line')
+        plt1d.xlabel = 'epochs'
         plt1d.set_ylim(0, 1.2 * np.max(N))
         plt1d.one_line_plot(epochs, N, color='purple', label='TS')
 
