@@ -27,12 +27,74 @@ def empty_dir(dir_path):
             except Exception as e:
                 print('Failed to delete {}. Reason: {}'.format((file_path, e)))
 
+def get_example_dir_path(potential=None, n=None, alpha=None, beta=None, target_set=None, subdirectory=None):
+    ''' Get example data path and create its directories
+    '''
+    # get dir path
+    if (potential is not None and
+        n is not None and
+        alpha is not None and
+        beta is not None and
+        target_set is not None and
+        subdirectory is not None):
+
+        dir_path = os.path.join(
+            DATA_PATH,
+            potential,
+            get_n_stamp(n),
+            get_alpha_stamp(alpha),
+            get_beta_stamp(beta),
+            get_target_set_stamp(target_set),
+            subdirectory,
+        )
+
+    elif (potential is not None and
+          n is not None and
+          alpha is not None and
+          beta is not None and
+          target_set is not None):
+
+        dir_path = os.path.join(
+            DATA_PATH,
+            potential,
+            get_n_stamp(n),
+            get_alpha_stamp(alpha),
+            get_beta_stamp(beta),
+            get_target_set_stamp(target_set),
+        )
+
+    elif (potential is not None and
+          n is not None and
+          alpha is not None):
+
+        dir_path = os.path.join(
+            DATA_PATH,
+            potential,
+            get_n_stamp(n),
+            get_alpha_stamp(alpha),
+        )
+
+    elif (potential is not None and n is not None):
+        dir_path = os.path.join(
+            DATA_PATH,
+            potential,
+            get_n_stamp(n),
+        )
+
+    else:
+        dir_path = DATA_PATH
+
+    # create dir path if not exists
+    make_dir_path(dir_path)
+
+    return dir_path
+
+
 def get_example_data_path(potential=None, alpha=None, beta=None, target_set=None, subdirectory=None):
     ''' Get example data path and create its directories
     '''
     # get dir path
     if potential and alpha is not None and beta and target_set is not None and subdirectory:
-        target_set_min, target_set_max = target_set
         dir_path = os.path.join(
             DATA_PATH,
             potential,
@@ -42,7 +104,6 @@ def get_example_data_path(potential=None, alpha=None, beta=None, target_set=None
             subdirectory,
         )
     elif potential and alpha is not None and beta and target_set is not None:
-        target_set_min, target_set_max = target_set
         dir_path = os.path.join(
             DATA_PATH,
             potential,
@@ -101,6 +162,9 @@ def get_gd_data_path(ansatz_data_path, gd_type, theta_init, lr):
 
     return dir_path
 
+def get_n_stamp(n):
+    return 'n_{:d}'.format(n)
+
 def get_alpha_stamp(alpha):
     assert alpha.ndim == 1, ''
     alpha_stamp = 'alpha'
@@ -118,7 +182,7 @@ def get_sde_stamp(alpha, beta):
 
 def get_target_set_stamp(target_set):
     if type(target_set) == str:
-        return target_set
+        return 'ts_' + target_set
     if type(target_set) == np.ndarray and target_set.ndim > 1:
         if target_set.ndim == 2 and target_set.shape == (2, 2):
             target_set = target_set.reshape((target_set.shape[0] * target_set.shape[1]))
