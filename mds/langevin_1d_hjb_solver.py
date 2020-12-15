@@ -12,8 +12,8 @@ import os
 class Solver():
     ''' This class provides a solver of the following BVP by using a
         finite differences method:
-            0 = LΨ − β f Ψ in S
-            Ψ = exp(−βg) in ∂S,
+            0 = LΨ − f Ψ in S
+            Ψ = exp(− g) in ∂S,
         where f = 1, g = 1 and L is the infinitessimal generator
         of the not drifted 1d overdamped langevin process:
             L = - dV/dx d/dx + epsilon d^2/dx^2
@@ -84,8 +84,8 @@ class Solver():
     def solve_bvp(self):
         f = self.f
         g = self.g
-        gradient = self.gradient
         beta = self.beta
+        gradient = self.gradient
         domain_h = self.domain_h
         target_set_min, target_set_max = self.target_set
         h = self.h
@@ -104,15 +104,15 @@ class Solver():
             if k not in idx_ts and k not in idx_boundary:
                 x = self.get_x(k)
                 dV = gradient(x)
-                A[k, k] = - 2 / (beta**2 * h**2) - f(x)
-                A[k, k - 1] = 1 / (beta**2 * h**2) + dV / (beta * 2 * h)
-                A[k, k + 1] = 1 / (beta**2 * h**2) - dV / (beta * 2 * h)
+                A[k, k] = - 2 / (beta * h**2) - f(x)
+                A[k, k - 1] = 1 / (beta * h**2) + dV / (2 * h)
+                A[k, k + 1] = 1 / (beta * h**2) - dV / (2 * h)
 
             # impose condition on ∂S
             elif k in idx_ts:
                 x = self.get_x(k)
                 A[k, k] = 1
-                b[k] = np.exp(-beta * g(x))
+                b[k] = np.exp(- g(x))
 
         # stability condition on the boundary: Psi should be flat
         # i.e Psi(x_0)=Psi(x_1) and Psi(x_{N-1})=Psi(x_N)
@@ -131,10 +131,7 @@ class Solver():
         ''' this methos computes the free energy
                 F = - epsilon log (Psi)
         '''
-        beta = self.beta
-        Psi = self.Psi
-
-        self.F =  - np.log(Psi) / beta
+        self.F =  - np.log(self.Psi)
 
     def compute_optimal_control(self):
         ''' this method computes by finite differences the optimal control

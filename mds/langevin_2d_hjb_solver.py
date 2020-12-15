@@ -188,11 +188,11 @@ class Solver():
                 z = np.array([[x, y]])
                 dVx = gradient(z)[0, 0]
                 dVy = gradient(z)[0, 1]
-                A[k, k] = - 4 / (beta**2 * h**2) - 1
-                A[k, k -1] = 1 / (beta**2 * h**2) + dVx / (beta * 2 * h)
-                A[k, k +1] = 1 / (beta**2 * h**2) - dVx / (beta * 2 * h)
-                A[k, k - Nx] = 1 / (beta**2 * h**2) + dVy / (beta * 2 * h)
-                A[k, k + Nx] = 1 / (beta**2 * h**2) - dVy / (beta * 2 * h)
+                A[k, k] = - 4 / (beta * h**2) - 1
+                A[k, k -1] = 1 / (beta * h**2) + dVx / (2 * h)
+                A[k, k +1] = 1 / (beta * h**2) - dVx / (2 * h)
+                A[k, k - Nx] = 1 / (beta * h**2) + dVy / (2 * h)
+                A[k, k + Nx] = 1 / (beta * h**2) - dVy / (2 * h)
 
             # impose condition on ∂S
             elif k in idx_ts:
@@ -239,10 +239,7 @@ class Solver():
         ''' this methos computes the free energy
                 F = - epsilon log (Psi)
         '''
-        beta = self.beta
-        Psi = self.Psi
-
-        self.F =  - np.log(Psi) / beta
+        self.F =  - np.log(self.Psi)
 
     def compute_optimal_control(self):
         ''' this method computes by finite differences the optimal control vector field
