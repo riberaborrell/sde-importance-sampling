@@ -66,66 +66,57 @@ class Solver():
     def discretize_domain(self):
         ''' this method discretizes the domain interval uniformly with step-size h
         '''
-        d_min, d_max = self.domain
-        h = self.h
-        assert h is not None, ''
+        assert self.h is not None, ''
 
-        self.N = int((d_max - d_min) / h) + 1
+        d_min, d_max = self.domain
+        self.N = int((d_max - d_min) / self.h) + 1
         self.domain_h = np.around(np.linspace(d_min, d_max, self.N), decimals=3)
 
     def get_x(self, k):
         ''' returns the x-coordinate of the node k
         '''
-        N = self.N
-        domain_h = self.domain_h
-        assert k in np.arange(N), ''
-        return domain_h[k]
+        assert k in np.arange(self.N), ''
+
+        return self.domain_h[k]
 
     def solve_bvp(self):
-        f = self.f
-        g = self.g
-        beta = self.beta
-        gradient = self.gradient
-        domain_h = self.domain_h
-        target_set_min, target_set_max = self.target_set
-        h = self.h
-        N = self.N
+        # assemble linear system of equations: A \Psi = b.
+        A = np.zeros((self.N, self.N))
+        b = np.zeros(self.N)
 
         # nodes in boundary and in the target set T
-        idx_boundary = np.array([0, N-1])
-        idx_ts = np.where((domain_h >= target_set_min) & (domain_h <= target_set_max))[0]
+        target_set_min, target_set_max = self.target_set
+        idx_boundary = np.array([0, self.N - 1])
+        idx_ts = np.where(
+            (self.domain_h >= target_set_min) & (self.domain_h <= target_set_max)
+        )[0]
 
-        # assemble linear system of equations: A \Psi = b.
-        A = np.zeros((N, N))
-        b = np.zeros(N)
-
-        for k in np.arange(N):
+        for k in np.arange(self.N):
             # assemble matrix A and vector b on S
             if k not in idx_ts and k not in idx_boundary:
                 x = self.get_x(k)
-                dV = gradient(x)
-                A[k, k] = - 2 / (beta * h**2) - f(x)
-                A[k, k - 1] = 1 / (beta * h**2) + dV / (2 * h)
-                A[k, k + 1] = 1 / (beta * h**2) - dV / (2 * h)
+                dV = self.gradient(x)
+                A[k, k] = - 2 / (self.beta * self.h**2) - self.f(x)
+                A[k, k - 1] = 1 / (self.beta * self.h**2) + dV / (2 * self.h)
+                A[k, k + 1] = 1 / (self.beta * self.h**2) - dV / (2 * self.h)
 
             # impose condition on ∂S
             elif k in idx_ts:
                 x = self.get_x(k)
                 A[k, k] = 1
-                b[k] = np.exp(- g(x))
+                b[k] = np.exp(- self.g(x))
 
         # stability condition on the boundary: Psi should be flat
         # i.e Psi(x_0)=Psi(x_1) and Psi(x_{N-1})=Psi(x_N)
         A[0, 0] = 1
         A[0, 1] = -1
         b[0] = 0
-        A[N - 1 , N - 1] = 1
-        A[N - 1 , N - 2] = -1
-        b[N - 1] = 0
+        A[self.N - 1 , self.N - 1] = 1
+        A[self.N - 1 , self.N - 2] = -1
+        b[self.N - 1] = 0
 
         # solve the linear system and save the mgf
         self.Psi = np.linalg.solve(A, b)
-        #self.Psi, _, _, _ =  np.linalg.lstsq(A, b, rcond=None)
 
     def compute_free_energy(self):
         ''' this methos computes the free energy
@@ -137,18 +128,14 @@ class Solver():
         ''' this method computes by finite differences the optimal control
                 u_opt = - √2 dF/dx
         '''
-        F = self.F
-        h = self.h
-        N = self.N
-
         # central difference quotients: for any k in {1, ..., N-2}
         # u_opt(x_k) = -sqrt(2) (F(x_{k+1}) - F(x_{k-1})) / 2h 
-        u_opt = np.zeros(N)
-        u_opt[1: N-1] = - np.sqrt(2) * (F[2:] - F[:N-2]) / (2 * h)
+        u_opt = np.zeros(self.N)
+        u_opt[1: self.N - 1] = - np.sqrt(2) * (self.F[2:] - self.F[:self.N - 2]) / (2 * self.h)
 
         # stability condition on the boundary: u_opt should be flat
         u_opt[0] = u_opt[1]
-        u_opt[N-1] = u_opt[N-2]
+        u_opt[self.N - 1] = u_opt[self.N - 2]
 
         self.u_opt = u_opt
 
@@ -218,16 +205,13 @@ class Solver():
         self.t_final = ref_sol['t_final']
 
     def write_report(self, x):
-        h = self.h
-        domain_h = self.domain_h
-
         # exp fht and mgf at x
-        idx_x = np.where(domain_h == x)[0]
+        idx_x = np.where(self.domain_h == x)[0]
         if idx_x.shape[0] != 1:
             return
         #exp_fht = self.exp_fht[idx_x[0]] if self.exp_fht is not None else np.nan
-        Psi = self.Psi[idx_x[0]] if self.Psi is not None else np.nan
-        F = self.F[idx_x[0]] if self.F is not None else np.nan
+        Psi_at_x = self.Psi[idx_x[0]] if self.Psi is not None else np.nan
+        F_at_x = self.F[idx_x[0]] if self.F is not None else np.nan
 
         # file name
         h_ext = '_h{:.0e}'.format(self.h)
@@ -235,11 +219,11 @@ class Solver():
 
         # write file
         f = open(os.path.join(self.dir_path, file_name), "w")
-        f.write('h = {:2.4f}\n'.format(h))
+        f.write('h = {:2.4f}\n'.format(self.h))
         f.write('x = {:2.1f}\n'.format(x))
         #f.write('E[fht] at x = {:2.3f}\n'.format(exp_fht))
-        f.write('Psi at x = {:2.3e}\n'.format(Psi))
-        f.write('F at x = {:2.3e}\n'.format(F))
+        f.write('Psi at x = {:2.3e}\n'.format(Psi_at_x))
+        f.write('F at x = {:2.3e}\n'.format(F_at_x))
         h, m, s = get_time_in_hms(self.t_final - self.t_initial)
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
         f.close()

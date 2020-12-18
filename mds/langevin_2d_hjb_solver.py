@@ -18,8 +18,8 @@ import os
 class Solver():
     ''' This class provides a solver of the following BVP by using a
         finite differences method:
-            0 = LΨ − β f Ψ in S
-            Ψ = exp(−βg) in ∂S,
+            0 = LΨ − f Ψ in S
+            Ψ = exp(− g) in ∂S,
         where f = 1, g = 1 and L is the infinitessimal generator
         of the not drifted 2d overdamped langevin process:
             L = - ∇V·∇ + epsilon Δ
@@ -89,6 +89,7 @@ class Solver():
     def get_x(self, k):
         ''' returns the x-coordinate of the node k
         '''
+        breakpoint()
         N = self.N
         Nx = self.Nx
         X = self.domain_h[:, :, 0]
