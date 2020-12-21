@@ -89,52 +89,41 @@ class Solver():
     def get_x(self, k):
         ''' returns the x-coordinate of the node k
         '''
-        breakpoint()
-        N = self.N
-        Nx = self.Nx
-        X = self.domain_h[:, :, 0]
-        assert k in np.arange(N), ''
+        assert k in np.arange(self.N), ''
 
-        return X[np.mod(k, Nx), 0]
+        X = self.domain_h[:, :, 0]
+        return X[np.mod(k, self.Nx), 0]
 
     def get_y(self, k):
         ''' returns the y-coordinate of the node k
         '''
-        N = self.N
-        Ny = self.Ny
-        Y = self.domain_h[:, :, 1]
-        assert k in np.arange(N), ''
+        assert k in np.arange(self.N), ''
 
-        return Y[0, np.floor_divide(k, Ny)]
+        Y = self.domain_h[:, :, 1]
+        return Y[0, np.floor_divide(k, self.Ny)]
 
     def is_on_domain_boundary(self, k):
         ''' returns True if the node k is on the rectangular
             boundary of the domain
         '''
-        N = self.N
-        Nx = self.Nx
-        Ny = self.Ny
-        assert k in np.arange(N), ''
+        assert k in np.arange(self.N), ''
 
-        if np.mod(k + 1, Nx) == 1:
+        if np.mod(k + 1, self.Nx) == 1:
             return True
-        elif np.mod(k + 1, Nx) == 0:
+        elif np.mod(k + 1, self.Nx) == 0:
             return True
-        elif k + 1 <= Nx:
+        elif k + 1 <= self.Nx:
             return True
-        elif k >= Nx * (Ny -1):
+        elif k >= self.Nx * (self.Ny -1):
             return True
         return False
 
     def is_on_domain_corner(self, k):
         ''' returns True if the node k is on the corner of the rectangular boundary
         '''
-        N = self.N
-        Nx = self.Nx
-        Ny = self.Ny
-        assert k in np.arange(N), ''
+        assert k in np.arange(self.N), ''
 
-        if k in [0, Nx -1, Nx * (Ny -1), N-1]:
+        if k in [0, self.Nx -1, self.Nx * (self.Ny -1), self.N-1]:
             return True
         else:
             return False
@@ -142,58 +131,41 @@ class Solver():
     def is_on_ts(self, k):
         '''returns True if the node k is on the target set
         '''
-        N = self.N
-        assert k in np.arange(N), ''
+        assert k in np.arange(self.N), ''
 
-        target_set_x_min, target_set_x_max = self.target_set[0]
-        target_set_y_min, target_set_y_max = self.target_set[1]
         x = self.get_x(k)
         y = self.get_y(k)
 
-        if (x <= target_set_x_max and
-            x >= target_set_x_min and
-            y <= target_set_y_max and
-            y >= target_set_y_min):
+        if (x <= self.target_set[0, 1] and
+            x >= self.target_set[0, 0] and
+            y <= self.target_set[1, 1] and
+            y >= self.target_set[1, 0]):
             return True
         return False
 
     def solve_bvp(self):
-        f = self.f
-        g = self.g
-        gradient = self.gradient
-        beta = self.beta
-        target_set_x_min = self.target_set[0][0]
-        target_set_x_max = self.target_set[0][1]
-        target_set_y_min = self.target_set[1][0]
-        target_set_y_max = self.target_set[1][1]
-        h = self.h
-
-        Nx = self.Nx
-        Ny = self.Ny
-        N = self.N
-
         # assemble linear system of equations: A \Psi = b.
-        A = sparse.lil_matrix((N, N))
-        b = np.zeros(N)
+        A = sparse.lil_matrix((self.N, self.N))
+        b = np.zeros(self.N)
 
         # nodes in boundary, boundary corner and target set
-        idx_boundary = np.array([k for k in np.arange(N) if self.is_on_domain_boundary(k)])
+        idx_boundary = np.array([k for k in np.arange(self.N) if self.is_on_domain_boundary(k)])
         idx_corner = np.array([k for k in idx_boundary if self.is_on_domain_corner(k)])
-        idx_ts = np.array([k for k in np.arange(N) if self.is_on_ts(k)])
+        idx_ts = np.array([k for k in np.arange(self.N) if self.is_on_ts(k)])
 
-        for k in np.arange(N):
+        for k in np.arange(self.N):
             # assemble matrix A and vector b on S
             if k not in idx_ts and k not in idx_boundary:
                 x = self.get_x(k)
                 y = self.get_y(k)
                 z = np.array([[x, y]])
-                dVx = gradient(z)[0, 0]
-                dVy = gradient(z)[0, 1]
-                A[k, k] = - 4 / (beta * h**2) - 1
-                A[k, k -1] = 1 / (beta * h**2) + dVx / (2 * h)
-                A[k, k +1] = 1 / (beta * h**2) - dVx / (2 * h)
-                A[k, k - Nx] = 1 / (beta * h**2) + dVy / (2 * h)
-                A[k, k + Nx] = 1 / (beta * h**2) - dVy / (2 * h)
+                dVx = self.gradient(z)[0, 0]
+                dVy = self.gradient(z)[0, 1]
+                A[k, k] = - 4 / (self.beta * self.h**2) - 1
+                A[k, k -1] = 1 / (self.beta * self.h**2) + dVx / (2 * self.h)
+                A[k, k +1] = 1 / (self.beta * self.h**2) - dVx / (2 * self.h)
+                A[k, k - self.Nx] = 1 / (self.beta * self.h**2) + dVy / (2 * self.h)
+                A[k, k + self.Nx] = 1 / (self.beta * self.h**2) - dVy / (2 * self.h)
 
             # impose condition on ∂S
             elif k in idx_ts:
@@ -202,39 +174,39 @@ class Solver():
 
             # stability condition on the boundary
             elif k in idx_boundary and k not in idx_corner:
-                if k + 1 <= Nx:
+                if k + 1 <= self.Nx:
                     A[k, k] = 1
-                    A[k, k + Nx] = -1
+                    A[k, k + self.Nx] = -1
                     b[k] = 0
-                elif k >= Nx * (Ny -1):
+                elif k >= self.Nx * (self.Ny -1):
                     A[k, k] = 1
-                    A[k, k - Nx] = -1
+                    A[k, k - self.Nx] = -1
                     b[k] = 0
-                elif np.mod(k + 1, Nx) == 1:
+                elif np.mod(k + 1, self.Nx) == 1:
                     A[k, k] = 1
                     A[k, k +1] = -1
                     b[k] = 0
-                elif np.mod(k + 1, Nx) == 0:
+                elif np.mod(k + 1, self.Nx) == 0:
                     A[k, k] = 1
                     A[k, k -1] = -1
                     b[k] = 0
 
         # stability condition on the corner of the boundary
         A[0, 0] = 1
-        A[0, Nx+1] = -1
+        A[0, self.Nx + 1] = -1
         b[0] = 0
-        A[Nx -1, Nx -1] = 1
-        A[Nx -1, 2 * Nx -2] = -1
-        b[Nx - 1] = 0
-        A[Nx * (Ny -1), Nx * (Ny -1)] = 1
-        A[Nx * (Ny -1), Nx * (Ny -2) + 1] = -1
-        b[Nx * (Ny -1)] = 0
-        A[N -1, N -1] = 1
-        A[N -1, N -Nx -2] = -1
-        b[N -1] = 0
+        A[self.Nx -1, self.Nx -1] = 1
+        A[self.Nx -1, 2 * self.Nx -2] = -1
+        b[self.Nx - 1] = 0
+        A[self.Nx * (self.Ny -1), self.Nx * (self.Ny -1)] = 1
+        A[self.Nx * (self.Ny -1), self.Nx * (self.Ny -2) + 1] = -1
+        b[self.Nx * (self.Ny -1)] = 0
+        A[self.N -1, self.N - 1] = 1
+        A[self.N -1, self.N - self.Nx - 2] = -1
+        b[self.N -1] = 0
 
         # solve the linear system
-        self.Psi = linalg.spsolve(A.tocsc(), b).reshape((Nx, Ny)).T
+        self.Psi = linalg.spsolve(A.tocsc(), b).reshape((self.Nx, self.Ny)).T
 
     def compute_free_energy(self):
         ''' this methos computes the free energy
@@ -246,27 +218,22 @@ class Solver():
         ''' this method computes by finite differences the optimal control vector field
                 u_opt = - √2 ∇F
         '''
-        F = self.F
-        h = self.h
-        N = self.N
-        Nx = self.Nx
-        Ny = self.Ny
-        assert F is not None, ''
-        assert F.ndim == 2, ''
-        assert F.shape == (Nx, Ny), ''
+        assert self.F is not None, ''
+        assert self.F.ndim == 2, ''
+        assert self.F.shape == (self.Nx, self.Ny), ''
 
-        u_opt = np.zeros((Nx, Ny, 2))
-        u_opt_x = np.zeros((Nx, Ny))
-        u_opt_y = np.zeros((Nx, Ny))
+        u_opt = np.zeros((self.Nx, self.Ny, 2))
+        u_opt_x = np.zeros((self.Nx, self.Ny))
+        u_opt_y = np.zeros((self.Nx, self.Ny))
 
-        u_opt_x[1: -1, :] = - np.sqrt(2) * (F[2:, :] - F[:-2, :]) / (2 * h)
+        u_opt_x[1: -1, :] = - np.sqrt(2) * (self.F[2:, :] - self.F[:-2, :]) / (2 * self.h)
         u_opt_x[0, :] = u_opt_x[1, :]
-        u_opt_x[Nx-1, :] = u_opt_x[Nx-2, :]
+        u_opt_x[self.Nx - 1, :] = u_opt_x[self.Nx - 2, :]
         u_opt[:, :, 0] = u_opt_x
 
-        u_opt_y[:, 1: -1] = - np.sqrt(2) * (F[:, 2:] - F[:, :-2]) / (2 * h)
+        u_opt_y[:, 1: -1] = - np.sqrt(2) * (self.F[:, 2:] - self.F[:, :-2]) / (2 * self.h)
         u_opt_y[:, 0] = u_opt_y[:, 1]
-        u_opt_y[:, Ny-1] = u_opt_y[:, Ny-2]
+        u_opt_y[:, self.Ny - 1] = u_opt_y[:, self.Ny - 2]
         u_opt[:, :, 1] = u_opt_y
 
         self.u_opt = u_opt
@@ -303,13 +270,10 @@ class Solver():
         self.t_final = ref_sol['t_final']
 
     def write_report(self, x):
-        h = self.h
-        domain_h = self.domain_h
-
         # exp fht and mgf at x
         idx_x = np.where(
-            (domain_h[:, :, 0] == x[0]) &
-            (domain_h[:, :, 1] == x[1])
+            (self.domain_h[:, :, 0] == x[0]) &
+            (self.domain_h[:, :, 1] == x[1])
         )
         if idx_x[0].shape[0] != 1 or idx_x[1].shape[0] != 1:
             return
@@ -324,7 +288,8 @@ class Solver():
 
         # write file
         f = open(os.path.join(self.dir_path, file_name), "w")
-        f.write('h = {:2.4f}\n'.format(h))
+        f.write('h = {:2.4f}\n'.format(self.h))
+        f.write('N_h = {:d}\n'.format(self.N))
         f.write('(x_1, x_2) = ({:2.1f}, {:2.1f})\n'.format(x[0], x[1]))
         f.write('Psi at x = {:2.3e}\n'.format(Psi))
         f.write('F at x = {:2.3e}\n'.format(F))

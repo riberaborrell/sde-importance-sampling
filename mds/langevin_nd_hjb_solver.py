@@ -226,7 +226,7 @@ class Solver():
                     A[k, k_right] = 1 / (self.beta * self.h**2) - grad[i] / (2 * self.h)
 
             # impose condition on ∂S
-            elif k in idx_ts:
+            elif k in idx_ts and k not in idx_boundary:
                 A[k, k] = 1
                 b[k] = 1
 
@@ -236,11 +236,11 @@ class Solver():
                     k_left, k_right = self.get_flatten_idx_from_axis_neighbours(k, i)
                     if k_left is not None:
                         A[k, k] = 1
-                        A[k, k_left] = -1
+                        A[k, k_left] = - 1
                         b[k] = 0
                     elif k_right is not None:
                         A[k, k] = 1
-                        A[k, k_right] = -1
+                        A[k, k_right] = - 1
                         b[k] = 0
 
             # stability condition on the corner of the boundary
@@ -250,7 +250,7 @@ class Solver():
                 A[k, k_inside] = -1
                 b[k] = 0
 
-        # solve the linear system
+        breakpoint()
         Psi = linalg.spsolve(A.tocsc(), b)
         self.Psi = Psi.reshape(self.Nx)
 
@@ -361,6 +361,7 @@ class Solver():
         f = open(os.path.join(self.dir_path, file_name), "w")
 
         f.write('h = {:2.4f}\n'.format(self.h))
+        f.write('N_h = {:d}\n'.format(self.N))
 
         posicion = 'x: ('
         for i in range(self.n):
