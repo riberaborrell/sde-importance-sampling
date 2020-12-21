@@ -142,7 +142,7 @@ class Solver():
         return self.domain_h[idx_domain_h]
 
     def is_on_domain_boundary(self, k):
-        ''' returns True if the node k is on the rectangular
+        ''' returns True if the node k is on the
             boundary of the domain
         '''
         idx = self.get_bumpy_index(k)
@@ -211,7 +211,6 @@ class Solver():
 
         # nodes in boundary, boundary corner and target set
         idx_boundary = np.array([k for k in np.arange(self.N) if self.is_on_domain_boundary(k)])
-        idx_corner = np.array([k for k in idx_boundary if self.is_on_domain_corner(k)])
         idx_ts = np.array([k for k in np.arange(self.N) if self.is_on_ts(k)])
 
         for k in np.arange(self.N):
@@ -231,26 +230,21 @@ class Solver():
                 b[k] = 1
 
             # stability condition on the boundary
-            elif k in idx_boundary and k not in idx_corner:
-                for i in range(self.n):
+            for i in range(self.n):
+                for k in idx_boundary:
+                    # index on the boundary of the i hyperplane
+                    idx_bumpy = self.get_bumpy_index(k)
+                    if not (idx_bumpy[i] == 0 or
+                            idx_bumpy[i] == self.Nx[i] - 1):
+                        continue
                     k_left, k_right = self.get_flatten_idx_from_axis_neighbours(k, i)
                     if k_left is not None:
                         A[k, k] = 1
                         A[k, k_left] = - 1
-                        b[k] = 0
                     elif k_right is not None:
                         A[k, k] = 1
                         A[k, k_right] = - 1
-                        b[k] = 0
 
-            # stability condition on the corner of the boundary
-            elif k in idx_corner:
-                k_inside = self.get_flatten_idx_from_corner_neighbour(k)
-                A[k, k] = 1
-                A[k, k_inside] = -1
-                b[k] = 0
-
-        breakpoint()
         Psi = linalg.spsolve(A.tocsc(), b)
         self.Psi = Psi.reshape(self.Nx)
 
