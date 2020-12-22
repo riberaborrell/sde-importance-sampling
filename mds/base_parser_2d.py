@@ -64,8 +64,8 @@ def get_base_parser():
         help='Set the discretization step size. Default: 0.1',
     )
     parser.add_argument(
-        '--M',
-        dest='M',
+        '--N',
+        dest='N',
         type=int,
         default=10**4,
         help='Set number of trajectories to sample. Default: 10.000',

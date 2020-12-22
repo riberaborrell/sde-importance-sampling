@@ -30,7 +30,7 @@ def main():
     sample.set_sampling_parameters(
         seed=args.seed,
         xzero=args.xzero,
-        M=args.M,
+        N=args.N,
         dt=args.dt,
         N_lim=args.N_lim,
     )

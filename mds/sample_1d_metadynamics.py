@@ -45,7 +45,7 @@ def main():
     # set k-steps sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(
         xzero=args.xzero,
-        M=1,
+        N=1,
         dt=args.dt,
         N_lim=args.k,
     )
@@ -53,7 +53,7 @@ def main():
     # initialize meta 1d object
     meta = Metadynamics(
         sample=sample,
-        N=args.M,
+        N=args.N,
         xzero=np.array(args.xzero),
         N_lim=args.N_lim,
         k=args.k,

@@ -39,7 +39,7 @@ class Sampling:
         self.domain = domain
         self.xzero = None
         self.target_set = target_set
-        self.M = None
+        self.N = None
         self.is_drifted = is_drifted
         self.is_optimal = None
         #self.is_gd = None
@@ -61,7 +61,7 @@ class Sampling:
         # variables
 
         # trajectories which arrived
-        self.M_arrived = None
+        self.N_arrived = None
         self.been_in_target_set = None
 
         # first hitting time (fht)
@@ -126,7 +126,7 @@ class Sampling:
 
         d_min, d_max = self.domain
         self.domain_h = np.around(np.arange(d_min, d_max + h, h), decimals=3)
-        self.N = self.domain_h.shape[0]
+        self.Nh = self.domain_h.shape[0]
 
     def set_example_dir_path(self):
         self.example_dir_path = get_example_data_path(self.potential_name, self.alpha,
@@ -170,8 +170,8 @@ class Sampling:
 
     def get_idx_discretized_domain(self, x):
         assert x.ndim == 1, ''
-        assert x.shape[0] == self.M, ''
-        x = x.reshape(self.M, 1)
+        assert x.shape[0] == self.N, ''
+        x = x.reshape(self.N, 1)
         return np.argmin(np.abs(self.domain_h - x), axis=1)
 
     def load_meta_bias_potential(self):
@@ -305,7 +305,7 @@ class Sampling:
         '''This method computes the value function evaluated at x
 
         Args:
-            x ((M,)-array) : position
+            x ((N,)-array) : position
             theta ((m,)-array): parameters
             ansatz (object): ansatz functions
 
@@ -332,7 +332,7 @@ class Sampling:
         '''This method computes the control evaluated at x
 
         Args:
-            x ((M,)-array) : position
+            x ((N,)-array) : position
             theta ((m,)-array): parameters
             ansatz (object): ansatz functions
         '''
@@ -348,7 +348,7 @@ class Sampling:
         '''This method computes the bias potential at x
 
         Args:
-            x ((M,)-array) : position
+            x ((N,)-array) : position
             theta ((m,)-array): parameters
         '''
         return 2 * self.value_function(x, theta)
@@ -357,7 +357,7 @@ class Sampling:
         '''This method computes the bias gradient at x
 
         Args:
-            u ((M,)-array) : control at x
+            u ((N,)-array) : control at x
         '''
         return - np.sqrt(2) * u
 
@@ -365,7 +365,7 @@ class Sampling:
         '''This method computes the tilted potential at x
 
         Args:
-            x ((M,)-array) : position
+            x ((N,)-array) : position
             theta ((m,)-array): parameters
         '''
         return self.potential(x) + self.bias_potential(x, theta)
@@ -374,14 +374,14 @@ class Sampling:
         '''This method computes the tilted gradient at x
 
         Args:
-            x ((M,)-array) : position
-            u ((M,)-array) : control at x
+            x ((N,)-array) : position
+            u ((N,)-array) : control at x
         '''
         assert x.shape == u.shape
 
         return self.gradient(x) + self.bias_gradient(u)
 
-    def set_sampling_parameters(self, xzero, M, dt, N_lim, seed=None):
+    def set_sampling_parameters(self, xzero, N, dt, N_lim, seed=None):
         '''
         '''
         # set random seed
@@ -390,7 +390,7 @@ class Sampling:
 
         # sampling
         self.xzero = xzero
-        self.M = M
+        self.N = N
 
         # Euler-Marujama
         self.dt = dt
@@ -405,22 +405,20 @@ class Sampling:
     def initialize_fht(self):
         '''
         '''
-        assert self.M is not None, ''
-        M = self.M
+        assert self.N is not None, ''
 
-        self.been_in_target_set = np.repeat([False], M)
-        self.fht = np.empty(M)
+        self.been_in_target_set = np.repeat([False], self.N)
+        self.fht = np.empty(self.N)
 
     def initialize_girsanov_martingale_terms(self):
         '''
         '''
-        assert self.M is not None, ''
-        M = self.M
+        assert self.N is not None, ''
 
-        self.M1_fht = np.empty(M)
-        self.M2_fht = np.empty(M)
-        self.M1_k = np.empty((M, 10))
-        self.M2_k = np.empty((M, 10))
+        self.M1_fht = np.empty(self.N)
+        self.M2_fht = np.empty(self.N)
+        self.M1_k = np.empty((self.N, 10))
+        self.M2_k = np.empty((self.N, 10))
 
     def sde_update(self, x, gradient, dB):
         beta = self.beta
@@ -452,11 +450,11 @@ class Sampling:
         self.initialize_fht()
 
         # initialize xtemp
-        xtemp = np.full(self.M, self.xzero)
+        xtemp = np.full(self.N, self.xzero)
 
         for n in np.arange(1, self.N_lim +1):
             # Brownian increment
-            dB = np.sqrt(self.dt) * np.random.normal(0, 1, self.M)
+            dB = np.sqrt(self.dt) * np.random.normal(0, 1, self.N)
 
             # compute gradient
             gradient = self.gradient(xtemp)
@@ -484,16 +482,16 @@ class Sampling:
         self.initialize_girsanov_martingale_terms()
 
         # initialize xtemp
-        xtemp = np.full(self.M, self.xzero)
+        xtemp = np.full(self.N, self.xzero)
 
         # initialize Girsanov Martingale terms, M_t = e^(M1_t + M2_t)
-        M1temp = np.zeros(self.M)
-        M2temp = np.zeros(self.M)
+        M1temp = np.zeros(self.N)
+        M2temp = np.zeros(self.N)
         k = np.array([])
 
         for n in np.arange(1, self.N_lim +1):
             # Brownian increment
-            dB = np.sqrt(self.dt) * np.random.normal(0, 1, self.M)
+            dB = np.sqrt(self.dt) * np.random.normal(0, 1, self.N)
 
             # control at Xtemp
             utemp = self.control(xtemp)
@@ -541,16 +539,16 @@ class Sampling:
         self.initialize_girsanov_martingale_terms()
 
         # initialize xtemp
-        xtemp = np.full(self.M, self.xzero)
+        xtemp = np.full(self.N, self.xzero)
 
         # initialize Girsanov Martingale terms, M_t = e^(M1_t + M2_t)
-        M1temp = np.zeros(self.M)
-        M2temp = np.zeros(self.M)
+        M1temp = np.zeros(self.N)
+        M2temp = np.zeros(self.N)
         k = np.array([])
 
         # initialize cost
-        self.run_cost = np.empty(self.M)
-        run_cost_temp = np.zeros(self.M)
+        self.run_cost = np.empty(self.N)
+        run_cost_temp = np.zeros(self.N)
 
         # load optimal control
         self.load_reference_solution()
@@ -558,7 +556,7 @@ class Sampling:
 
         for n in np.arange(1, self.N_lim +1):
             # Brownian increment
-            dB = np.sqrt(self.dt) * np.random.normal(0, 1, self.M)
+            dB = np.sqrt(self.dt) * np.random.normal(0, 1, self.N)
 
             # control at Xtemp
             idx_grid = self.get_idx_discretized_domain(xtemp)
@@ -610,12 +608,12 @@ class Sampling:
         self.initialize_fht()
 
         # initialize xtemp
-        xtemp = np.empty((self.N_lim + 1, self.M))
-        xtemp[0, :] = np.full(self.M, self.xzero)
+        xtemp = np.empty((self.N_lim + 1, self.N))
+        xtemp[0, :] = np.full(self.N, self.xzero)
 
         for n in np.arange(self.N_lim):
             # Brownian increment
-            dB = np.sqrt(self.dt) * np.random.normal(0, 1, self.M)
+            dB = np.sqrt(self.dt) * np.random.normal(0, 1, self.N)
 
             if not self.is_drifted:
                 # compute gradient
@@ -635,7 +633,7 @@ class Sampling:
             idx_new = self.get_idx_new_in_target_set(xtemp[n+1])
 
             # check if the half of the trajectories have arrived to the target set
-            if np.sum(self.been_in_target_set) >= self.M / 2:
+            if np.sum(self.been_in_target_set) >= self.N / 2:
                 return True, xtemp[:n+1]
 
         return False, xtemp
@@ -648,20 +646,20 @@ class Sampling:
         m = self.ansatz.m
 
         # initialize loss and its gradient 
-        J = np.zeros(self.M)
-        grad_J = np.zeros((self.M, m))
+        J = np.zeros(self.N)
+        grad_J = np.zeros((self.N, m))
 
         # initialize xtemp
-        xtemp = np.full(self.M, self.xzero)
+        xtemp = np.full(self.N, self.xzero)
 
         # initialize temp variables
-        cost_temp = np.zeros(self.M)
-        grad_phi_temp = np.zeros((self.M, m))
-        grad_S_temp = np.zeros((self.M, m))
+        cost_temp = np.zeros(self.N)
+        grad_phi_temp = np.zeros((self.N, m))
+        grad_S_temp = np.zeros((self.N, m))
 
         for n in np.arange(1, self.N_lim+1):
             # Brownian increment
-            dB = np.sqrt(self.dt) * np.random.normal(0, 1, self.M)
+            dB = np.sqrt(self.dt) * np.random.normal(0, 1, self.N)
 
             # control
             btemp = self.ansatz.basis_control(xtemp)
@@ -728,8 +726,8 @@ class Sampling:
 
         # count trajectories which have arrived
         idx_arrived = np.where(been_in_target_set == True)
-        self.M_arrived = fht[idx_arrived].shape[0]
-        if self.M_arrived == 0:
+        self.N_arrived = fht[idx_arrived].shape[0]
+        if self.N_arrived == 0:
             return
 
         # replace trajectories which have not arrived
@@ -808,23 +806,23 @@ class Sampling:
 
     def save_not_drifted(self):
         # file name
-        M_ext = '_M{:.0e}'.format(self.M)
-        file_name = 'mc_sampling' + M_ext + '.npz'
+        N_ext = '_N{:.0e}'.format(self.N)
+        file_name = 'mc_sampling' + N_ext + '.npz'
         np.savez(
             os.path.join(self.dir_path, file_name),
-            M=self.M,
+            N=self.N,
             mean_I=self.mean_I,
             var_I=self.var_I,
             re_I=self.re_I,
         )
 
-    def load_not_drifted(self, M):
+    def load_not_drifted(self, N):
         # file name
-        M_ext = '_M{:.0e}'.format(M)
-        file_name = 'mc_sampling' + M_ext + '.npz'
+        N_ext = '_N{:.0e}'.format(N)
+        file_name = 'mc_sampling' + N_ext + '.npz'
         file_path = os.path.join(self.example_dir_path, 'not-drifted-sampling', file_name)
         data = np.load(file_path, allow_pickle=True)
-        self.M = data['M']
+        self.N = data['N']
         self.mean_I = data['mean_I']
         self.var_I = data['var_I']
         self.re_I = data['re_I']
@@ -848,7 +846,7 @@ class Sampling:
         f.write('xzero: {:2.1f}\n'.format(self.xzero))
         f.write('target set: [{:2.1f}, {:2.1f}]\n'
                 ''.format(self.target_set[0], self.target_set[1]))
-        f.write('sampled trajectories: {:,d}\n\n'.format(self.M))
+        f.write('sampled trajectories: {:,d}\n\n'.format(self.N))
 
     def write_report(self):
         '''
@@ -859,7 +857,7 @@ class Sampling:
         else:
             theta_stamp = ''
 
-        trajectories_stamp = 'M{:.0e}'.format(self.M)
+        trajectories_stamp = 'N{:.0e}'.format(self.N)
         file_name = 'report_' + theta_stamp + trajectories_stamp + '.txt'
         file_path = os.path.join(self.dir_path, file_name)
 
@@ -876,10 +874,10 @@ class Sampling:
         f.write('Statistics\n\n')
 
         f.write('trajectories which arrived: {:2.2f} %\n'
-                ''.format(100 * self.M_arrived / self.M))
+                ''.format(100 * self.N_arrived / self.N))
         f.write('used time steps: {:,d}\n\n'.format(int(self.last_fht / self.dt)))
 
-        if self.M_arrived == 0:
+        if self.N_arrived == 0:
             f.close()
             return
 
