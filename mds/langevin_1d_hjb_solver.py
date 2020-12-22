@@ -220,6 +220,7 @@ class Solver():
         # write file
         f = open(os.path.join(self.dir_path, file_name), "w")
         f.write('h = {:2.4f}\n'.format(self.h))
+        f.write('N_h = {:d}\n'.format(self.N))
         f.write('x = {:2.1f}\n'.format(x))
         #f.write('E[fht] at x = {:2.3f}\n'.format(exp_fht))
         f.write('Psi at x = {:2.3e}\n'.format(Psi_at_x))

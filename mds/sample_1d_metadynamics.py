@@ -2,7 +2,6 @@ from mds.base_parser_1d import get_base_parser
 from mds.langevin_1d_importance_sampling import Sampling
 from mds.langevin_1d_metadynamics import Metadynamics
 from mds.gaussian_1d_ansatz_functions import GaussianAnsatz
-from mds.plots_1d import Plot1d
 
 import numpy as np
 
@@ -11,13 +10,6 @@ import os
 def get_parser():
     parser = get_base_parser()
     parser.description = 'Metadynamics for the 1D overdamped Langevin SDE'
-    parser.add_argument(
-        '--num-samples',
-        dest='num_samples',
-        type=int,
-        default=5,
-        help='Number of samples. Default: 5',
-    )
     parser.add_argument(
         '--k',
         dest='k',
@@ -53,7 +45,7 @@ def main():
     # set k-steps sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(
         xzero=args.xzero,
-        M=args.M,
+        M=1,
         dt=args.dt,
         N_lim=args.k,
     )
@@ -61,7 +53,7 @@ def main():
     # initialize meta 1d object
     meta = Metadynamics(
         sample=sample,
-        num_samples=args.num_samples,
+        N=args.M,
         xzero=np.array(args.xzero),
         N_lim=args.N_lim,
         k=args.k,
@@ -75,7 +67,9 @@ def main():
     # plot potential and gradient
     if args.do_plots:
         # set bias potential
-        sample.set_bias_potential(meta.theta, meta.mus, meta.sigmas)
+        sample.set_gaussian_ansatz_functions(args.m, args.sigma)
+        sample.set_theta_from_metadynamics()
+        sample.set_bias_potential(sample.theta, sample.ansatz.mus, sample.ansatz.sigmas)
         sample.plot_psi(dir_path=meta.dir_path)
         sample.plot_free_energy(dir_path=meta.dir_path)
         sample.plot_control(dir_path=meta.dir_path)

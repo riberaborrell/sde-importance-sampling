@@ -64,7 +64,7 @@ class Sampling:
         self.M_arrived = None
         self.been_in_target_set = None
 
-        # first hitting time
+        # first hitting time (fht)
         self.fht = None
         self.first_fht = None
         self.last_fht = None
@@ -72,10 +72,21 @@ class Sampling:
         self.var_fht = None
         self.re_fht = None
 
+        # first hitting time (fhts)
+        self.mean_fhts = None
+        self.var_fhts = None
+        self.re_fhts = None
+
         # quantity of interest
         self.mean_I = None
         self.var_I = None
         self.re_I = None
+
+        # cost functional
+        self.run_cost = None
+        self.mean_cost = None
+        self.var_cost = None
+        self.re_cost = None
 
         # reweighting
         self.M1_fht = None
@@ -231,23 +242,36 @@ class Sampling:
         x = self.domain_h
 
         self.load_meta_bias_potential()
-        meta_theta = self.meta_bias_pot['theta']
+        meta_ms = self.meta_bias_pot['ms']
+        meta_thetas = self.meta_bias_pot['thetas']
         meta_mus = self.meta_bias_pot['mus']
         meta_sigmas = self.meta_bias_pot['sigmas']
-        assert meta_theta.shape == meta_mus.shape == meta_sigmas.shape, ''
+        assert meta_thetas.shape == meta_mus.shape == meta_sigmas.shape, ''
 
-        # create ansatz functions from meta
-        meta_ansatz = GaussianAnsatz(domain=self.domain)
-        meta_ansatz.set_given_ansatz_functions(meta_mus, meta_sigmas)
+        meta_N = meta_ms.shape[0]
 
-        # meta value function evaluated at the grid
-        value_f_meta = self.value_function(x, meta_theta, meta_ansatz)
+        thetas = np.empty((meta_N, self.ansatz.m))
 
-        # ansatz functions evaluated at the grid
-        v = self.ansatz.basis_value_f(x)
+        for i in np.arange(meta_N):
 
-        # solve theta V = \Phi
-        self.theta, _, _, _ = np.linalg.lstsq(v, value_f_meta, rcond=None)
+            # create ansatz functions from meta
+            meta_ansatz = GaussianAnsatz(domain=self.domain)
+            meta_ansatz.set_given_ansatz_functions(
+                mus=meta_mus[i, :meta_ms[i]],
+                sigmas=meta_sigmas[i, :meta_ms[i]],
+            )
+
+            # meta value function evaluated at the grid
+            value_f_meta = self.value_function(x, meta_thetas[i, :meta_ms[i]], meta_ansatz)
+
+            # ansatz functions evaluated at the grid
+            v = self.ansatz.basis_value_f(x)
+
+            # solve theta V = \Phi
+            thetas[i], _, _, _ = np.linalg.lstsq(v, value_f_meta, rcond=None)
+
+
+        self.theta = np.mean(thetas, axis=0)
         self.theta_type = 'meta'
 
         # set drifted sampling dir path
@@ -524,6 +548,10 @@ class Sampling:
         M2temp = np.zeros(self.M)
         k = np.array([])
 
+        # initialize cost
+        self.run_cost = np.empty(self.M)
+        run_cost_temp = np.zeros(self.M)
+
         # load optimal control
         self.load_reference_solution()
         u_opt = self.ref_sol['u_opt']
@@ -535,6 +563,9 @@ class Sampling:
             # control at Xtemp
             idx_grid = self.get_idx_discretized_domain(xtemp)
             utemp = u_opt[idx_grid]
+
+            # compute running cost
+            run_cost_temp += 0.5 * (utemp ** 2) * self.dt
 
             # compute gradient
             gradient = self.tilted_gradient(xtemp, utemp)
@@ -553,6 +584,7 @@ class Sampling:
             self.fht[idx_new] = n * self.dt
             self.M1_fht[idx_new] = M1temp[idx_new]
             self.M2_fht[idx_new] = M2temp[idx_new]
+            self.run_cost[idx_new] = run_cost_temp[idx_new]
 
             if n % 1000 == 0:
                 k = np.append(k, n)
@@ -714,12 +746,17 @@ class Sampling:
         self.var_fht, \
         self.re_fht = self.compute_mean_variance_and_rel_error(fht)
 
+        # compute mean and variance of fhts
+        self.mean_fhts, \
+        self.var_fhts, \
+        self.re_fhts = self.compute_mean_variance_and_rel_error(fht / self.dt)
+
     def compute_I_statistics(self):
         beta = self.beta
         fht = self.fht
 
         # compute mean and variance of I
-        I = np.exp(-beta * fht)
+        I = np.exp(- fht)
         self.mean_I, \
         self.var_I, \
         self.re_I = self.compute_mean_variance_and_rel_error(I)
@@ -730,7 +767,6 @@ class Sampling:
         #print('{:2.3e}'.format(np.exp(k) * a))
 
     def compute_I_u_statistics(self):
-        beta = self.beta
         fht = self.fht
         been_in_target_set = self.been_in_target_set
         M1_fht = self.M1_fht
@@ -760,10 +796,15 @@ class Sampling:
         #print('{:2.3e}'.format(np.exp(l) * b))
 
         # compute mean and variance of I_u
-        I_u = np.exp(-beta * fht) * M_fht
+        I_u = np.exp(- fht) * M_fht
         self.mean_I_u, \
         self.var_I_u, \
         self.re_I_u = self.compute_mean_variance_and_rel_error(I_u)
+
+        cost = fht + self.run_cost
+        self.mean_cost, \
+        self.var_cost, \
+        self.re_cost = self.compute_mean_variance_and_rel_error(cost)
 
     def save_not_drifted(self):
         # file name
@@ -842,12 +883,18 @@ class Sampling:
             f.close()
             return
 
-        f.write('First hitting time\n')
+        f.write('First hitting time (fht)\n')
         f.write('first fht = {:2.3f}\n'.format(self.first_fht))
         f.write('last fht = {:2.3f}\n'.format(self.last_fht))
         f.write('E[fht] = {:2.3f}\n'.format(self.mean_fht))
         f.write('Var[fht] = {:2.3f}\n'.format(self.var_fht))
         f.write('RE[fht] = {:2.3f}\n\n'.format(self.re_fht))
+
+        f.write('First hitting time step (fhts)\n')
+        f.write('E[fhts] = {:2.3f}\n'.format(self.mean_fhts))
+        f.write('Var[fhts] = {:2.3f}\n'.format(self.var_fhts))
+        f.write('RE[fhts] = {:2.3f}\n\n'.format(self.re_fhts))
+
 
         if not self.is_drifted:
             f.write('Quantity of interest\n')
@@ -867,6 +914,11 @@ class Sampling:
                     ''.format(self.var_I_u))
             f.write('RE[exp(-beta * fht) * M_fht] = {:2.3e}\n\n'
                     ''.format(self.re_I_u))
+
+            f.write('Cost functional\n')
+            f.write('E[cost] = {:2.3e}\n'.format(self.mean_cost))
+            f.write('Var[cost] = {:2.3e}\n'.format(self.var_cost))
+            f.write('RE[cost] = {:2.3e}\n\n'.format(self.re_cost))
 
         h, m, s = get_time_in_hms(self.t_final - self.t_initial)
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
