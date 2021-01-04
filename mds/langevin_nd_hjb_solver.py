@@ -47,7 +47,7 @@ class Solver():
         # discretized domain
         self.domain_h = None
         self.Nx = None
-        self.N = None
+        self.Nh = None
 
         # discretized solution
         self.Psi = None
@@ -92,7 +92,7 @@ class Solver():
         N = 1
         for i in range(self.n):
             N *= self.Nx[i]
-        self.N = N
+        self.Nh = N
 
     def get_index(self, x):
         assert x.ndim == 1, ''
@@ -119,7 +119,7 @@ class Solver():
         return k
 
     def get_bumpy_index(self, k):
-        assert k in np.arange(self.N), ''
+        assert k in np.arange(self.Nh), ''
 
         idx = [None for i in range(self.n)]
         for i in range(self.n):
@@ -206,19 +206,19 @@ class Solver():
 
     def solve_bvp(self):
         # assemble linear system of equations: A \Psi = b.
-        A = sparse.lil_matrix((self.N, self.N))
-        b = np.zeros(self.N)
+        A = sparse.lil_matrix((self.Nh, self.Nh))
+        b = np.zeros(self.Nh)
 
         # nodes in boundary, boundary corner and target set
-        idx_boundary = np.array([k for k in np.arange(self.N) if self.is_on_domain_boundary(k)])
-        idx_ts = np.array([k for k in np.arange(self.N) if self.is_on_ts(k)])
+        idx_boundary = np.array([k for k in np.arange(self.Nh) if self.is_on_domain_boundary(k)])
+        idx_ts = np.array([k for k in np.arange(self.Nh) if self.is_on_ts(k)])
 
-        for k in np.arange(self.N):
+        for k in np.arange(self.Nh):
             # assemble matrix A and vector b on S
             if k not in idx_ts and k not in idx_boundary:
                 x = self.get_x(k)
                 grad = self.gradient(np.array([x]))[0]
-                A[k, k] = - (2 * self.n) / (self.beta * self.h**2) - 1
+                A[k, k] = - (2 * self.n) / (self.beta * self.h**2) - self.f(x)
                 for i in range(self.n):
                     k_left, k_right = self.get_flatten_idx_from_axis_neighbours(k, i)
                     A[k, k_left] = 1 / (self.beta * self.h**2) + grad[i] / (2 * self.h)
@@ -227,7 +227,7 @@ class Solver():
             # impose condition on ∂S
             elif k in idx_ts and k not in idx_boundary:
                 A[k, k] = 1
-                b[k] = 1
+                b[k] = np.exp(- self.g(x))
 
             # stability condition on the boundary
             for i in range(self.n):
@@ -355,7 +355,7 @@ class Solver():
         f = open(os.path.join(self.dir_path, file_name), "w")
 
         f.write('h = {:2.4f}\n'.format(self.h))
-        f.write('N_h = {:d}\n'.format(self.N))
+        f.write('N_h = {:d}\n'.format(self.Nh))
 
         posicion = 'x: ('
         for i in range(self.n):

@@ -46,7 +46,7 @@ class Solver():
         self.target_set = target_set
         self.h = h
 
-        self.N = None
+        self.Nh = None
         self.domain_h = None
         self.Psi = None
         self.F = None
@@ -69,29 +69,29 @@ class Solver():
         assert self.h is not None, ''
 
         d_min, d_max = self.domain
-        self.N = int((d_max - d_min) / self.h) + 1
-        self.domain_h = np.around(np.linspace(d_min, d_max, self.N), decimals=3)
+        self.Nh = int((d_max - d_min) / self.h) + 1
+        self.domain_h = np.around(np.linspace(d_min, d_max, self.Nh), decimals=3)
 
     def get_x(self, k):
         ''' returns the x-coordinate of the node k
         '''
-        assert k in np.arange(self.N), ''
+        assert k in np.arange(self.Nh), ''
 
         return self.domain_h[k]
 
     def solve_bvp(self):
         # assemble linear system of equations: A \Psi = b.
-        A = np.zeros((self.N, self.N))
-        b = np.zeros(self.N)
+        A = np.zeros((self.Nh, self.Nh))
+        b = np.zeros(self.Nh)
 
         # nodes in boundary and in the target set T
         target_set_min, target_set_max = self.target_set
-        idx_boundary = np.array([0, self.N - 1])
+        idx_boundary = np.array([0, self.Nh - 1])
         idx_ts = np.where(
             (self.domain_h >= target_set_min) & (self.domain_h <= target_set_max)
         )[0]
 
-        for k in np.arange(self.N):
+        for k in np.arange(self.Nh):
             # assemble matrix A and vector b on S
             if k not in idx_ts and k not in idx_boundary:
                 x = self.get_x(k)
@@ -107,20 +107,20 @@ class Solver():
                 b[k] = np.exp(- self.g(x))
 
         # stability condition on the boundary: Psi should be flat
-        # i.e Psi(x_0)=Psi(x_1) and Psi(x_{N-1})=Psi(x_N)
+        # i.e Psi(x_0)=Psi(x_1) and Psi(x_{Nh-1})=Psi(x_Nh)
         A[0, 0] = 1
         A[0, 1] = -1
         b[0] = 0
-        A[self.N - 1 , self.N - 1] = 1
-        A[self.N - 1 , self.N - 2] = -1
-        b[self.N - 1] = 0
+        A[self.Nh - 1 , self.Nh - 1] = 1
+        A[self.Nh - 1 , self.Nh - 2] = -1
+        b[self.Nh - 1] = 0
 
         # solve the linear system and save the mgf
         self.Psi = np.linalg.solve(A, b)
 
     def compute_free_energy(self):
         ''' this methos computes the free energy
-                F = - epsilon log (Psi)
+                F = - log (Psi)
         '''
         self.F =  - np.log(self.Psi)
 
@@ -128,14 +128,14 @@ class Solver():
         ''' this method computes by finite differences the optimal control
                 u_opt = - √2 dF/dx
         '''
-        # central difference quotients: for any k in {1, ..., N-2}
+        # central difference quotients: for any k in {1, ..., Nh-2}
         # u_opt(x_k) = -sqrt(2) (F(x_{k+1}) - F(x_{k-1})) / 2h 
-        u_opt = np.zeros(self.N)
-        u_opt[1: self.N - 1] = - np.sqrt(2) * (self.F[2:] - self.F[:self.N - 2]) / (2 * self.h)
+        u_opt = np.zeros(self.Nh)
+        u_opt[1: self.Nh - 1] = - np.sqrt(2) * (self.F[2:] - self.F[:self.Nh - 2]) / (2 * self.h)
 
         # stability condition on the boundary: u_opt should be flat
         u_opt[0] = u_opt[1]
-        u_opt[self.N - 1] = u_opt[self.N - 2]
+        u_opt[self.Nh - 1] = u_opt[self.Nh - 2]
 
         self.u_opt = u_opt
 
@@ -220,7 +220,7 @@ class Solver():
         # write file
         f = open(os.path.join(self.dir_path, file_name), "w")
         f.write('h = {:2.4f}\n'.format(self.h))
-        f.write('N_h = {:d}\n'.format(self.N))
+        f.write('N_h = {:d}\n'.format(self.Nh))
         f.write('x = {:2.1f}\n'.format(x))
         #f.write('E[fht] at x = {:2.3f}\n'.format(exp_fht))
         f.write('Psi at x = {:2.3e}\n'.format(Psi_at_x))

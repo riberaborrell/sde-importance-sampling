@@ -53,7 +53,7 @@ class Solver():
         self.h = h
 
         self.domain_h = None
-        self.N = None
+        self.Nh = None
         self.Nx = None
         self.Ny = None
         self.Psi = None
@@ -84,12 +84,12 @@ class Solver():
         self.domain_h = np.dstack((X, Y))
         self.Nx = x.shape[0]
         self.Ny = y.shape[0]
-        self.N = self.Nx * self.Ny
+        self.Nh = self.Nx * self.Ny
 
     def get_x(self, k):
         ''' returns the x-coordinate of the node k
         '''
-        assert k in np.arange(self.N), ''
+        assert k in np.arange(self.Nh), ''
 
         X = self.domain_h[:, :, 0]
         return X[np.mod(k, self.Nx), 0]
@@ -97,7 +97,7 @@ class Solver():
     def get_y(self, k):
         ''' returns the y-coordinate of the node k
         '''
-        assert k in np.arange(self.N), ''
+        assert k in np.arange(self.Nh), ''
 
         Y = self.domain_h[:, :, 1]
         return Y[0, np.floor_divide(k, self.Ny)]
@@ -106,7 +106,7 @@ class Solver():
         ''' returns True if the node k is on the rectangular
             boundary of the domain
         '''
-        assert k in np.arange(self.N), ''
+        assert k in np.arange(self.Nh), ''
 
         if np.mod(k + 1, self.Nx) == 1:
             return True
@@ -121,9 +121,9 @@ class Solver():
     def is_on_domain_corner(self, k):
         ''' returns True if the node k is on the corner of the rectangular boundary
         '''
-        assert k in np.arange(self.N), ''
+        assert k in np.arange(self.Nh), ''
 
-        if k in [0, self.Nx -1, self.Nx * (self.Ny -1), self.N-1]:
+        if k in [0, self.Nx -1, self.Nx * (self.Ny -1), self.Nh-1]:
             return True
         else:
             return False
@@ -131,7 +131,7 @@ class Solver():
     def is_on_ts(self, k):
         '''returns True if the node k is on the target set
         '''
-        assert k in np.arange(self.N), ''
+        assert k in np.arange(self.Nh), ''
 
         x = self.get_x(k)
         y = self.get_y(k)
@@ -145,15 +145,15 @@ class Solver():
 
     def solve_bvp(self):
         # assemble linear system of equations: A \Psi = b.
-        A = sparse.lil_matrix((self.N, self.N))
-        b = np.zeros(self.N)
+        A = sparse.lil_matrix((self.Nh, self.Nh))
+        b = np.zeros(self.Nh)
 
         # nodes in boundary, boundary corner and target set
-        idx_boundary = np.array([k for k in np.arange(self.N) if self.is_on_domain_boundary(k)])
+        idx_boundary = np.array([k for k in np.arange(self.Nh) if self.is_on_domain_boundary(k)])
         idx_corner = np.array([k for k in idx_boundary if self.is_on_domain_corner(k)])
-        idx_ts = np.array([k for k in np.arange(self.N) if self.is_on_ts(k)])
+        idx_ts = np.array([k for k in np.arange(self.Nh) if self.is_on_ts(k)])
 
-        for k in np.arange(self.N):
+        for k in np.arange(self.Nh):
             # assemble matrix A and vector b on S
             if k not in idx_ts and k not in idx_boundary:
                 x = self.get_x(k)
@@ -161,7 +161,7 @@ class Solver():
                 z = np.array([[x, y]])
                 dVx = self.gradient(z)[0, 0]
                 dVy = self.gradient(z)[0, 1]
-                A[k, k] = - 4 / (self.beta * self.h**2) - 1
+                A[k, k] = - 4 / (self.beta * self.h**2) - self.f(x)
                 A[k, k -1] = 1 / (self.beta * self.h**2) + dVx / (2 * self.h)
                 A[k, k +1] = 1 / (self.beta * self.h**2) - dVx / (2 * self.h)
                 A[k, k - self.Nx] = 1 / (self.beta * self.h**2) + dVy / (2 * self.h)
@@ -170,7 +170,7 @@ class Solver():
             # impose condition on ∂S
             elif k in idx_ts:
                 A[k, k] = 1
-                b[k] = 1
+                b[k] = np.exp(- self.g(x))
 
             # stability condition on the boundary
             elif k in idx_boundary and k not in idx_corner:
@@ -201,16 +201,16 @@ class Solver():
         A[self.Nx * (self.Ny -1), self.Nx * (self.Ny -1)] = 1
         A[self.Nx * (self.Ny -1), self.Nx * (self.Ny -2) + 1] = -1
         b[self.Nx * (self.Ny -1)] = 0
-        A[self.N -1, self.N - 1] = 1
-        A[self.N -1, self.N - self.Nx - 2] = -1
-        b[self.N -1] = 0
+        A[self.Nh -1, self.Nh - 1] = 1
+        A[self.Nh -1, self.Nh - self.Nx - 2] = -1
+        b[self.Nh -1] = 0
 
         # solve the linear system
         self.Psi = linalg.spsolve(A.tocsc(), b).reshape((self.Nx, self.Ny)).T
 
     def compute_free_energy(self):
         ''' this methos computes the free energy
-                F = - epsilon log (Psi)
+                F = - log (Psi)
         '''
         self.F =  - np.log(self.Psi)
 
@@ -289,7 +289,7 @@ class Solver():
         # write file
         f = open(os.path.join(self.dir_path, file_name), "w")
         f.write('h = {:2.4f}\n'.format(self.h))
-        f.write('N_h = {:d}\n'.format(self.N))
+        f.write('N_h = {:d}\n'.format(self.Nh))
         f.write('(x_1, x_2) = ({:2.1f}, {:2.1f})\n'.format(x[0], x[1]))
         f.write('Psi at x = {:2.3e}\n'.format(Psi))
         f.write('F at x = {:2.3e}\n'.format(F))
