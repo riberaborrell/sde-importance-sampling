@@ -26,8 +26,8 @@ class Metadynamics:
         self.updates_lim = self.N_lim // self.k
 
         # metadynamics coefficients
-        self.m = None
-        self.theta = None
+        self.ms = None
+        self.thetas = None
         self.mus = None
         self.sigmas = None
         self.time_steps = None
@@ -66,11 +66,8 @@ class Metadynamics:
         # initialize bias potentials coefficients
         self.ms = np.empty(self.N, dtype=np.intc)
         self.thetas = np.empty((self.N, self.updates_lim))
-        self.thetas[:, :] = np.nan
         self.mus = np.empty((self.N, self.updates_lim))
-        self.mus[:, :] = np.nan
         self.sigmas = np.empty((self.N, self.updates_lim))
-        self.sigmas[:, :] = np.nan
         self.time_steps = np.empty(self.N)
 
         # boolean array telling us if the algorithm succeeded or not for each sample
@@ -89,7 +86,7 @@ class Metadynamics:
         # reset sampling
         sample = self.sample
         sample.is_drifted = False
-        sample.xzero = np.full(sample.M, self.xzero)
+        sample.xzero = np.full(sample.N, self.xzero)
 
         #preallocate means and standard deviation
         mus = np.empty(self.updates_lim)
@@ -145,7 +142,6 @@ class Metadynamics:
         self.mus[i, :j] = sample.ansatz.mus
         self.sigmas[i, :j] = sample.ansatz.sigmas
         self.time_steps[:j] = time_steps
-        return j
 
     def save_bias_potential(self):
         file_path = os.path.join(self.dir_path, 'bias_potential.npz')

@@ -246,7 +246,6 @@ class Sampling:
         meta_thetas = self.meta_bias_pot['thetas']
         meta_mus = self.meta_bias_pot['mus']
         meta_sigmas = self.meta_bias_pot['sigmas']
-        assert meta_thetas.shape == meta_mus.shape == meta_sigmas.shape, ''
 
         meta_N = meta_ms.shape[0]
 

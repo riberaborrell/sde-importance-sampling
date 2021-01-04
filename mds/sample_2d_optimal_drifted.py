@@ -27,7 +27,7 @@ def main():
     dir_path = os.path.join(
         sample.example_dir_path,
         'reference_solution',
-        'optimal-iportance-sampling',
+        'optimal-importance-sampling',
     )
     sample.set_dir_path(dir_path)
 

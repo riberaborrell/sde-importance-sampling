@@ -148,19 +148,19 @@ class Sampling:
         ansatz.set_dir_path(self.example_dir_path)
         self.ansatz = ansatz
 
-    def set_bias_potential(self, theta, means, covs):
+    def set_bias_potential(self, theta, means, cov):
         ''' set the gaussian ansatz functions and the coefficients theta
         Args:
             theta ((m,)-array): parameters
             means ((m, 2)-array): mean of each gaussian
-            covs ((m, 2, 2)-array) : covaraince matrix of each gaussian
+            cov ((m, 2, 2)-array) : covaraince matrix of each gaussian
         '''
         assert self.is_drifted, ''
-        assert theta.shape[0] == means.shape[0] == covs.shape[0], ''
+        assert theta.shape[0] == means.shape[0], ''
 
         # set gaussian ansatz functions
         ansatz = GaussianAnsatz(domain=self.domain)
-        ansatz.set_given_ansatz_functions(mus, sigmas)
+        ansatz.set_given_ansatz_functions(means, cov)
 
         self.ansatz = ansatz
         self.theta = theta
@@ -256,23 +256,34 @@ class Sampling:
         x = self.domain_h.reshape(self.Nh, 2)
 
         self.load_meta_bias_potential()
-        meta_theta = self.meta_bias_pot['theta']
+        meta_ms = self.meta_bias_pot['ms']
+        meta_thetas = self.meta_bias_pot['thetas']
         meta_means = self.meta_bias_pot['means']
         meta_cov = self.meta_bias_pot['cov']
-        assert meta_theta.shape[0] == meta_means.shape[0], ''
 
-        # create ansatz functions from meta
-        meta_ansatz = GaussianAnsatz(domain=self.domain)
-        meta_ansatz.set_given_ansatz_functions(meta_means, meta_cov)
+        meta_N = meta_ms.shape[0]
 
-        # meta value function evaluated at the grid
-        value_f_meta = self.value_function(x, meta_theta, meta_ansatz)
+        thetas = np.empty((meta_N, self.ansatz.m))
 
-        # ansatz functions evaluated at the grid
-        v = self.ansatz.basis_value_f(x)
+        for i in np.arange(meta_N):
 
-        # solve theta V = \Phi
-        self.theta, _, _, _ = np.linalg.lstsq(v, value_f_meta, rcond=None)
+            # create ansatz functions from meta
+            meta_ansatz = GaussianAnsatz(domain=self.domain)
+            meta_ansatz.set_given_ansatz_functions(
+                means=meta_means[i, :meta_ms[i]],
+                cov=meta_cov,
+            )
+
+            # meta value function evaluated at the grid
+            value_f_meta = self.value_function(x, meta_thetas[i, :meta_ms[i]], meta_ansatz)
+
+            # ansatz functions evaluated at the grid
+            v = self.ansatz.basis_value_f(x)
+
+            # solve theta V = \Phi
+            thetas[i], _, _, _ = np.linalg.lstsq(v, value_f_meta, rcond=None)
+
+        self.theta = np.mean(thetas, axis=0)
         self.theta_type = 'meta'
 
         # set drifted sampling dir path

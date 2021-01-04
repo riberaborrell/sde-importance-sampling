@@ -6,7 +6,7 @@ import os
 
 def get_parser():
     parser = get_base_parser()
-    parser.description = 'sample drifted 1D overdamped Langevin SDE'
+    parser.description = 'sample optimal drifted 1D overdamped Langevin SDE'
     return parser
 
 def main():
@@ -26,7 +26,7 @@ def main():
     dir_path = os.path.join(
         sample.example_dir_path,
         'reference_solution',
-        'optimal-iportance-sampling',
+        'optimal-importance-sampling',
     )
     sample.set_dir_path(dir_path)
 

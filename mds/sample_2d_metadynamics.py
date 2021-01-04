@@ -12,13 +12,6 @@ def get_parser():
     parser = get_base_parser()
     parser.description = 'Metadynamics for the 2D overdamped Langevin SDE'
     parser.add_argument(
-        '--num-samples',
-        dest='num_samples',
-        type=int,
-        default=5,
-        help='Number of samples. Default: 5',
-    )
-    parser.add_argument(
         '--k',
         dest='k',
         type=int,
@@ -53,7 +46,7 @@ def main():
     # set k-steps sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(
         xzero=np.array(args.xzero),
-        N=args.N,
+        N=1,
         dt=args.dt,
         N_lim=args.k,
     )
@@ -61,7 +54,7 @@ def main():
     # initialize meta 2d object
     meta = Metadynamics(
         sample=sample,
-        num_samples=args.num_samples,
+        N=args.N,
         xzero=np.array(args.xzero),
         N_lim=args.N_lim,
         k=args.k,
@@ -76,11 +69,10 @@ def main():
     # plot potential and gradient
     if args.do_plots:
         # set bias potential
-        #sample.set_bias_potential(meta.theta, meta.means, meta_covs)
-        sample.theta = meta.theta
-        sample.ansatz.means = meta.means
-        sample.ansatz.cov = meta.cov
-
+        m_x, m_y = args.m
+        sample.set_gaussian_ansatz_functions(m_x, m_y)
+        sample.set_theta_from_metadynamics()
+        sample.set_bias_potential(sample.theta, sample.ansatz.means, sample.ansatz.cov)
         sample.plot_tilted_potential_surface(dir_path=meta.dir_path)
         sample.plot_tilted_potential_contour(dir_path=meta.dir_path)
         #sample.plot_tilted_drift(dir_path=meta.dir_path)
