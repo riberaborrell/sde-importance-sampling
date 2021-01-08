@@ -42,9 +42,9 @@ class Solver():
         self.beta = beta
         self.domain = domain
         self.target_set = target_set
-        self.h = h
 
         # discretized domain
+        self.h = h
         self.domain_h = None
         self.Nx = None
         self.Nh = None
