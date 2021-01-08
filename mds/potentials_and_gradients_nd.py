@@ -6,7 +6,7 @@ POTENTIAL_NAMES = [
 ]
 
 def get_potential_and_gradient(n, potential_name, alpha=None):
-    '''Given a potential name this methods returns the corresponding
+    '''Given a potential name this method returns the corresponding
        potential function and gradient function.
     Args:
         n (int) : dimension of the potential
