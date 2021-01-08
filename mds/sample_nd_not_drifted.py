@@ -6,7 +6,7 @@ import os
 
 def get_parser():
     parser = get_base_parser()
-    parser.description = 'Sample nd overdamped Langevin SDE'
+    parser.description = 'Sample not drifted nd overdamped Langevin SDE'
     return parser
 
 def main():
