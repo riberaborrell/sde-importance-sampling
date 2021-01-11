@@ -277,6 +277,30 @@ class Sampling:
         dir_path = os.path.join(self.ansatz.dir_path, 'meta-importance-sampling')
         self.set_dir_path(dir_path)
 
+    def set_theta_flat(self):
+        '''
+        '''
+        assert self.ansatz is not None, ''
+        assert self.ansatz.dir_path is not None, ''
+
+        x = self.domain_h
+
+        breakpoint()
+        # flat control evaluated at the grid
+        control_flat = self.gradient(x) / np.sqrt(2)
+
+        # basis functions for the control evaluated at the grid
+        b = self.ansatz.basis_control(x)
+
+        # solve theta B = \Phi
+        self.theta , _, _, _ = np.linalg.lstsq(b, control_flat, rcond=None)
+        self.theta_type = 'flat'
+
+        # set drifted sampling dir path
+        dir_path = os.path.join(self.ansatz.dir_path, 'flat-importance-sampling')
+        self.set_dir_path(dir_path)
+
+
     def set_theta_from_gd(self, gd_type, gd_theta_init, gd_lr):
         '''
         '''
@@ -663,8 +687,9 @@ class Sampling:
             # control
             btemp = self.ansatz.basis_control(xtemp)
             utemp = self.control(xtemp)
-            if not is_1d_valid_control(utemp, -self.alpha * 10, self.alpha * 10):
-                return False, None, None, None
+            #if not is_1d_valid_control(utemp, -self.alpha * 10, self.alpha * 10):
+            #    breakpoint()
+            #    return False, None, None, None
 
             # ipa statistics 
             cost_temp += 0.5 * (utemp ** 2) * self.dt

@@ -196,8 +196,8 @@ class GradientDescent:
         sample = self.sample
 
         # set path
-        trajectories_stamp = 'M{:.0e}'.format(sample.M)
-        file_name = 'report_' + trajectories_stamp + '.txt'
+        trajectories_ext = 'N{:.0e}'.format(sample.N)
+        file_name = 'report_' + trajectories_ext + '.txt'
         file_path = os.path.join(self.dir_path, file_name)
 
         # write in file

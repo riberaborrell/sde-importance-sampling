@@ -108,7 +108,7 @@ def get_base_parser():
     parser.add_argument(
         '--theta-init',
         dest='theta_init',
-        choices=['null', 'meta', 'optimal'],
+        choices=['null', 'meta', 'flat', 'optimal'],
         default='null',
         help='Type of initial control. Default: null',
     )

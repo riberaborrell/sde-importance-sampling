@@ -57,6 +57,8 @@ def main():
         sample.set_theta_optimal()
     elif args.theta_init == 'meta':
         sample.set_theta_from_metadynamics()
+    elif args.theta_init == 'flat':
+        sample.set_theta_flat()
     else:
         sample.set_theta_null()
 
@@ -64,7 +66,7 @@ def main():
     sample.set_sampling_parameters(
         seed=args.seed,
         xzero=args.xzero,
-        M=args.M,
+        N=args.N,
         dt=0.001,
         N_lim=100000,
     )
