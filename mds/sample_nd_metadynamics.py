@@ -28,7 +28,7 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
-    # initialize sampling 2d object
+    # initialize sampling nd object
     sample = Sampling(
         n=args.n,
         potential_name=args.potential_name,
@@ -37,7 +37,7 @@ def main():
         is_drifted=False,
     )
 
-    # initialize gaussian ansatz
+    # initialize Gaussian Ansatz
     sample.ansatz = GaussianAnsatz(args.n, sample.domain)
 
     # set k-steps sampling and Euler-Marujama parameters

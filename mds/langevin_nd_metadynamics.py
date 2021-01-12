@@ -144,6 +144,21 @@ class Metadynamics:
             cov=self.cov,
         )
 
+    def write_means(self, f):
+        f.write('Center of the Gaussians\n')
+        f.write('i: trajectory index, j: gaussian index\n')
+        for i in np.arange(self.N):
+            for j in np.arange(self.ms[i]):
+                mean_str = '('
+                for x_i in range(self.sample.n):
+                    if x_i == 0:
+                        mean_str += '{:2.1f}'.format(self.means[i, j, x_i])
+                    else:
+                        mean_str += ', {:2.1f}'.format(self.means[i, j, x_i])
+                mean_str += ')'
+                f.write('i={:d}, j={:d}, mu_j={}\n'.format(i, j, mean_str))
+        f.write('\n')
+
     def write_report(self):
         sample = self.sample
         sample.N_lim = self.N_lim
@@ -169,9 +184,11 @@ class Metadynamics:
 
         f.write('samples succeeded: {:2.2f} %\n'
                 ''.format(100 * np.sum(self.succ) / self.N))
-        f.write('m: {:d}\n'.format(int(np.sum(self.ms))))
-        f.write('used time steps: {:,d}\n\n'.format(int(np.sum(self.time_steps))))
+        f.write('total m: {:d}\n'.format(int(np.sum(self.ms))))
+        f.write('total time steps: {:,d}\n\n'.format(int(np.sum(self.time_steps))))
 
         h, m, s = get_time_in_hms(self.t_final - self.t_initial)
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
+
+        self.write_means(f)
         f.close()
