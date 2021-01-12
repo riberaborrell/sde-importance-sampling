@@ -285,7 +285,6 @@ class Sampling:
 
         x = self.domain_h
 
-        breakpoint()
         # flat control evaluated at the grid
         control_flat = self.gradient(x) / np.sqrt(2)
 
