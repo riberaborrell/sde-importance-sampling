@@ -1,4 +1,4 @@
-#from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
+from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
 from mds.potentials_and_gradients_nd import get_potential_and_gradient
 from mds.utils import get_example_dir_path, get_gd_data_path, get_time_in_hms, make_dir_path
 
@@ -164,6 +164,33 @@ class Sampling:
         ansatz.set_dir_path(self.example_dir_path)
         self.ansatz = ansatz
 
+    def set_gaussian_ansatz_from_meta(self):
+        '''
+        '''
+        self.load_meta_bias_potential()
+        meta_ms = self.meta_bias_pot['ms']
+        meta_N = meta_ms.shape[0]
+        meta_total_m = int(np.sum(meta_ms))
+        meta_means = self.meta_bias_pot['means']
+        meta_cov = self.meta_bias_pot['cov']
+        meta_thetas = self.meta_bias_pot['thetas']
+
+        # initialize Gaussian ansatz
+        self.ansatz = GaussianAnsatz(self.n, self.domain)
+
+        # get the centers used for each trajectory
+        means = np.empty((meta_total_m, self.n))
+        thetas = np.empty(meta_total_m)
+        for i in np.arange(meta_N):
+            means[i:i+meta_ms[i]] = meta_means[i, :meta_ms[i]]
+            thetas[i:i+meta_ms[i]] = meta_thetas[i, :meta_ms[i]]
+
+        self.ansatz.set_given_ansatz_functions(means, meta_cov)
+        self.thetas = thetas
+
+        # set ansatz dir path
+        self.ansatz.set_dir_path(self.example_dir_path)
+
     #TODO: generalize for arbitrary n
     def set_bias_potential(self, theta, means, covs):
         ''' set the gaussian ansatz functions and the coefficients theta
@@ -182,23 +209,19 @@ class Sampling:
         self.ansatz = ansatz
         self.theta = theta
 
-    #TODO: generalize for arbitrary n
     def get_idx_discretized_domain(self, x):
         assert x.ndim == 2, ''
-        assert x.shape[0] == self.N, ''
-        assert x.shape[1] == 2, ''
+        assert x.shape == (self.N, self.n), ''
 
-        x1 = x[:, 0].reshape(self.N, 1)
-        x2 = x[:, 1].reshape(self.N, 1)
+        # get index of xzero
+        idx = [None for i in range(self.n)]
+        for i in range(self.n):
+            axis_i = np.linspace(self.domain[i, 0], self.domain[i, 1], self.Nx[i])
+            idx[i] = tuple(np.argmin(np.abs(axis_i - x[:, i].reshape(self.N, 1)), axis=1))
 
-        axis1_h = self.domain_h[:, 0, 0]
-        axis2_h = self.domain_h[0, :, 1]
+        idx = tuple(idx)
+        return idx
 
-        idx_x1 = np.argmin(np.abs(axis1_h - x1), axis=1)
-        idx_x2 = np.argmin(np.abs(axis2_h - x2), axis=1)
-        return idx_x1, idx_x2
-
-    #TODO: generalize for arbitrary n
     def load_meta_bias_potential(self):
         if not self.meta_bias_pot:
             file_path = os.path.join(
@@ -208,36 +231,37 @@ class Sampling:
             )
             self.meta_bias_pot = np.load(file_path)
 
-    #TODO: generalize for arbitrary n
-    def load_reference_solution(self):
+    def load_reference_solution(self, h=None):
         if not self.ref_sol:
-            h_ext = '_h{:.0e}'.format(self.h)
+            if h is None:
+                h = self.h
+            h_ext = '_h{:.0e}'.format(h)
             file_name = 'reference_solution' + h_ext + '.npz'
 
             file_path = os.path.join(
                 self.example_dir_path,
-                'reference_solution',
+                'hjb-solution',
                 file_name,
             )
             self.ref_sol = np.load(file_path)
 
-    #TODO: generalize for arbitrary n
-    def get_value_f_at_xzero(self):
+    def get_value_f_at_xzero(self, h=None):
         # load ref sol
-        self.load_reference_solution()
-        x = self.ref_sol['domain_h']
+        self.load_reference_solution(h)
+        domain_h = self.ref_sol['domain_h']
+        Nx = domain_h.shape[1:]
         F = self.ref_sol['F']
 
-        # evaluate F at xzero
-        idx_x = np.where(
-            (x[:, :, 0] == self.xzero[0]) &
-            (x[:, :, 1] == self.xzero[1])
-        )
-        assert idx_x[0].shape[0] == idx_x[1].shape[0] == 1, ''
-        idx_x1 = idx_x[0][0]
-        idx_x2 = idx_x[1][0]
+        # get index of xzero
+        idx_xzero = [None for i in range(self.n)]
+        for i in range(self.n):
+            axis_i = np.linspace(self.domain[i, 0], self.domain[i, 1], Nx[i])
+            idx_xzero[i] = np.argmin(np.abs(axis_i - self.xzero[i]))
 
-        self.value_f_at_xzero = F[idx_x1, idx_x2]
+        idx_xzero = tuple(idx_xzero)
+
+        # evaluate F at xzero
+        self.value_f_at_xzero = F[idx_xzero]
 
     #TODO: generalize for arbitrary n
     def set_theta_optimal(self):
@@ -464,18 +488,17 @@ class Sampling:
         '''
         '''
         assert self.N is not None, ''
-        N = self.N
-        self.been_in_target_set = np.repeat([False], N)
-        self.fht = np.empty(N)
+
+        self.been_in_target_set = np.repeat([False], self.N)
+        self.fht = np.empty(self.N)
 
     def initialize_girsanov_martingale_terms(self):
         '''
         '''
         assert self.N is not None, ''
-        N = self.N
 
-        self.M1_fht = np.empty(N)
-        self.M2_fht = np.empty(N)
+        self.M1_fht = np.empty(self.N)
+        self.M2_fht = np.empty(self.N)
 
     def sde_update(self, x, gradient, dB):
         beta = self.beta
@@ -589,31 +612,32 @@ class Sampling:
         self.compute_I_u_statistics()
         self.stop_timer()
 
-    #TODO: generalize for arbitrary n
     def sample_optimal_drifted(self):
         self.start_timer()
         self.initialize_fht()
         self.initialize_girsanov_martingale_terms()
 
         # initialize xtemp
-        xtemp = np.full((self.N, 2), self.xzero)
+        xtemp = np.full((self.N, self.n), self.xzero)
 
         # initialize Girsanov Martingale terms, M_t = e^(M1_t + M2_t)
         M1temp = np.zeros(self.N)
         M2temp = np.zeros(self.N)
-        k = np.array([])
 
         # load optimal control
         self.load_reference_solution()
         u_opt = self.ref_sol['u_opt']
+        #TODO moveaxis already in the hjb-solver
+        u_opt = np.moveaxis(u_opt, 0, -1)
 
-        for n in np.arange(1, self.N_lim +1):
+        for k in np.arange(1, self.k_lim +1):
             # Brownian increment
-            dB = np.sqrt(self.dt) * np.random.normal(0, 1, 2 * self.N).reshape(self.N, 2)
+            dB = np.sqrt(self.dt) \
+               * np.random.normal(0, 1, self.N * self.n).reshape(self.N, self.n)
 
             # control at xtemp
-            idx_grid_x1, idx_grid_x2 = self.get_idx_discretized_domain(xtemp)
-            utemp = u_opt[idx_grid_x1, idx_grid_x2]
+            idx = self.get_idx_discretized_domain(xtemp)
+            utemp = u_opt[idx]
 
             # compute gradient
             gradient = self.tilted_gradient(xtemp, utemp)
@@ -629,7 +653,7 @@ class Sampling:
             idx_new = self.get_idx_new_in_target_set(xtemp)
 
             # save first hitting time and Girsanov Martingale terms
-            self.fht[idx_new] = n * self.dt
+            self.fht[idx_new] = k * self.dt
             self.M1_fht[idx_new] = M1temp[idx_new]
             self.M2_fht[idx_new] = M2temp[idx_new]
 
@@ -799,7 +823,7 @@ class Sampling:
         M_fht = np.exp(self.M1_fht + self.M2_fht)
 
         # compute mean and variance of I_u
-        I_u = np.exp(- self.fht) * self.M_fht
+        I_u = np.exp(- self.fht) * M_fht
         self.mean_I_u, \
         self.var_I_u, \
         self.re_I_u = self.compute_mean_variance_and_rel_error(I_u)
