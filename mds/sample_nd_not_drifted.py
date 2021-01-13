@@ -36,8 +36,8 @@ def main():
 
     # plot potential and gradient
     if args.do_plots:
-        sample.plot_tilted_potential()
-        sample.plot_tilted_drift()
+        pass
+        return
 
     # sample and compute statistics
     sample.sample_not_drifted()
