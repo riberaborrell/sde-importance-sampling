@@ -80,13 +80,13 @@ class Solver():
             mgrid_input.append(
                 slice(self.domain[i, 0], self.domain[i, 1] + self.h, self.h)
             )
-        self.domain_h = np.mgrid[mgrid_input]
+        self.domain_h = np.moveaxis(np.mgrid[mgrid_input], 0, -1)
 
         # check shape
-        assert self.domain_h.shape[0] == self.n, ''
+        assert self.domain_h.shape[-1] == self.n, ''
 
         # save number of indices per axis
-        self.Nx = self.domain_h.shape[1:]
+        self.Nx = self.domain_h.shape[:-1]
 
         # save number of flatten indices
         N = 1
@@ -94,18 +94,10 @@ class Solver():
             N *= self.Nx[i]
         self.Nh = N
 
-    def get_index(self, x):
-        assert x.ndim == 1, ''
-        assert x.shape[0] == self.n, ''
-
-        idx = [None for i in range(self.n)]
-        for i in range(self.n):
-            axis_i = np.linspace(self.domain[i, 0], self.domain[i, 1], self.Nx[i])
-            idx[i] = np.argmin(np.abs(axis_i - x[i]))
-
-        return tuple(idx)
-
     def get_flatten_index(self, idx):
+        ''' maps the bumpy index of the node (index of each axis) to
+            the flatten index of the node, i.e. the node number.
+        '''
         assert type(idx) == tuple, ''
         assert len(idx) == self.n, ''
         k = 0
@@ -119,6 +111,9 @@ class Solver():
         return k
 
     def get_bumpy_index(self, k):
+        ''' maps the flatten index of the node (node number) to
+            the bumpy index of the node.
+        '''
         assert k in np.arange(self.Nh), ''
 
         idx = [None for i in range(self.n)]
@@ -130,16 +125,24 @@ class Solver():
             k -= idx[i] * Nx_prod
         return tuple(idx)
 
+    def get_index(self, x):
+        ''' returns the bumpy index of the point of the grid closest to x
+        '''
+        assert x.ndim == 1, ''
+        assert x.shape[0] == self.n, ''
+
+        idx = [None for i in range(self.n)]
+        for i in range(self.n):
+            axis_i = np.linspace(self.domain[i, 0], self.domain[i, 1], self.Nx[i])
+            idx[i] = np.argmin(np.abs(axis_i - x[i]))
+
+        return tuple(idx)
+
     def get_x(self, k):
-        ''' returns the coordinates of the node k
+        ''' returns the coordinates of the point determined by the flatten index k
         '''
         idx = self.get_bumpy_index(k)
-        idx_domain_h = [np.arange(self.n)]
-        for i in range(self.n):
-            idx_domain_h.append(np.array(idx[i]))
-        idx_domain_h = tuple(idx_domain_h)
-
-        return self.domain_h[idx_domain_h]
+        return self.domain_h[idx]
 
     def is_on_domain_boundary(self, k):
         ''' returns True if the node k is on the
@@ -258,15 +261,15 @@ class Solver():
 
         self.F =  - np.log(self.Psi)
 
-    def get_idx_u_type(self, i):
-        idx_u = [None for i in range(self.n + 1)]
-        idx_u[0] = i
-        for j in range(self.n):
-            idx_u[j+1] = slice(self.Nx[j])
-        return idx_u
-
     def get_idx_F_type(self, i):
         return [slice(self.Nx[i]) for i in range(self.n)]
+
+    def get_idx_u_type(self, i):
+        idx_u = [None for i in range(self.n + 1)]
+        idx_u[-1] = i
+        for j in range(self.n):
+            idx_u[j] = slice(self.Nx[j])
+        return idx_u
 
     def compute_optimal_control(self):
         ''' this method computes by finite differences the optimal control vector field
@@ -276,7 +279,7 @@ class Solver():
         assert self.F.ndim == self.n, ''
         assert self.F.shape == self.Nx, ''
 
-        u_opt = np.zeros((self.n, ) + self.Nx)
+        u_opt = np.zeros(self.Nx + (self.n, ))
 
         for i in range(self.n):
 
@@ -292,11 +295,11 @@ class Solver():
                 if j == i:
                     idx_F_k_plus[j] = slice(2, self.Nx[j])
                     idx_F_k_minus[j] = slice(0, self.Nx[j] - 2)
-                    idx_u_k[j+1] = slice(1, self.Nx[j] - 1)
-                    idx_u_0[j+1] = 0
-                    idx_u_1[j+1] = 1
-                    idx_u_N_minus[j+1] = self.Nx[j] - 2
-                    idx_u_N[j+1] = self.Nx[j] - 1
+                    idx_u_k[j] = slice(1, self.Nx[j] - 1)
+                    idx_u_0[j] = 0
+                    idx_u_1[j] = 1
+                    idx_u_N_minus[j] = self.Nx[j] - 2
+                    idx_u_N[j] = self.Nx[j] - 1
                     break
 
             u_opt[tuple(idx_u_k)] = - np.sqrt(2) * (
@@ -315,6 +318,7 @@ class Solver():
         np.savez(
             os.path.join(self.dir_path, file_name),
             domain_h=self.domain_h,
+            Nh=self.Nh,
             Psi=self.Psi,
             F=self.F,
             u_opt=self.u_opt,
@@ -332,6 +336,7 @@ class Solver():
             allow_pickle=True,
         )
         self.domain_h = hjb_sol['domain_h']
+        self.Nh = hjb_sol['Nh']
         self.Psi = hjb_sol['Psi']
         self.F = hjb_sol['F']
         self.u_opt = hjb_sol['u_opt']
