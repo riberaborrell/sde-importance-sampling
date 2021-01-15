@@ -47,7 +47,6 @@ class Sampling:
         self.domain_h = None
         self.Nx = None
         self.Nh = None
-        self.discretize_domain()
 
         # Euler-Marujama
         self.dt = None
@@ -422,9 +421,10 @@ class Sampling:
             ansatz = self.ansatz
 
         basis_control = ansatz.basis_control(x)
-        control = np.empty((N, self.n))
-        for i in range(self.n):
-            control[:, i] = np.dot(basis_control[:, :, i], theta).reshape((N,))
+        control = np.tensordot(basis_control, theta, axes=([1], [0]))
+        #control = np.empty((N, self.n))
+        #for i in range(self.n):
+        #    control[:, i] = np.dot(basis_control[:, :, i], theta).reshape((N,))
 
         return control
 
