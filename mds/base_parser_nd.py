@@ -74,6 +74,13 @@ def get_base_parser():
         help='Set maximal number of time steps. Default: 100.000.000',
     )
     parser.add_argument(
+        '--distributed',
+        dest='distributed',
+        choices=['uniform', 'meta'],
+        default='uniform',
+        help='Type of ansatz distribution. Default: uniform',
+    )
+    parser.add_argument(
         '--m',
         dest='m',
         type=int,

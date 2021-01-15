@@ -148,25 +148,24 @@ class Sampling:
         self.dir_path = dir_path
         make_dir_path(self.dir_path)
 
-    #TODO: generalize for arbitrary n
-    def set_gaussian_ansatz_functions(self, m_x, m_y, sigma_x=None, sigma_y=None):
+    def set_gaussian_ansatz_uniformly(self, m_x, sigma_x):
         '''
         '''
         assert self.is_drifted, ''
 
+        # initialize Gaussian ansatz
+        self.ansatz = GaussianAnsatz(self.n, self.domain)
+
         # set gaussian ansatz functions
-        ansatz = GaussianAnsatz(
-            domain=self.domain,
-        )
-        ansatz.set_unif_dist_ansatz_functions(m_x, m_y, sigma_x, sigma_y)
+        ansatz.set_unif_dist_ansatz_functions(m_x, sigma_x)
 
         # set ansatz dir path
         ansatz.set_dir_path(self.example_dir_path)
-        self.ansatz = ansatz
 
     def set_gaussian_ansatz_from_meta(self):
         '''
         '''
+        assert self.is_drifted, ''
         self.load_meta_bias_potential()
         meta_ms = self.meta_bias_pot['ms']
         meta_N = meta_ms.shape[0]
@@ -180,13 +179,16 @@ class Sampling:
 
         # get the centers used for each trajectory
         means = np.empty((meta_total_m, self.n))
-        thetas = np.empty(meta_total_m)
+        theta = np.empty(meta_total_m)
+        flatten_idx = 0
         for i in np.arange(meta_N):
-            means[i:i+meta_ms[i]] = meta_means[i, :meta_ms[i]]
-            thetas[i:i+meta_ms[i]] = meta_thetas[i, :meta_ms[i]]
+            means[flatten_idx:flatten_idx+meta_ms[i]] = meta_means[i, :meta_ms[i]]
+            theta[flatten_idx:flatten_idx+meta_ms[i]] = meta_thetas[i, :meta_ms[i]]
+            flatten_idx += meta_ms[i]
 
         self.ansatz.set_given_ansatz_functions(means, meta_cov)
-        self.thetas = thetas
+        self.theta = theta
+        self.theta_type = 'meta'
 
         # set ansatz dir path
         self.ansatz.set_dir_path(self.example_dir_path)
@@ -263,15 +265,15 @@ class Sampling:
         # evaluate F at xzero
         self.value_f_at_xzero = F[idx_xzero]
 
-    #TODO: generalize for arbitrary n
     def set_theta_optimal(self):
         assert self.ansatz is not None, ''
         assert self.ansatz.dir_path is not None, ''
 
         self.load_reference_solution()
-        Nx, Ny, _ = self.ref_sol['domain_h'].shape
-        x = self.ref_sol['domain_h'].reshape(Nx * Ny, 2)
-        F = self.ref_sol['F'].reshape(Nx * Ny,)
+        Nx = self.ref_sol['domain_h'].shape[:-1]
+        Nh = self.ref_sol['Nh']
+        x = self.ref_sol['domain_h'].reshape(Nh, self.n)
+        F = self.ref_sol['F'].reshape(Nh,)
 
         # compute the optimal theta given a basis of ansatz functions
         v = self.ansatz.basis_value_f(x)
@@ -282,7 +284,6 @@ class Sampling:
         dir_path = os.path.join(self.ansatz.dir_path, 'optimal-importance-sampling')
         self.set_dir_path(dir_path)
 
-    #TODO: generalize for arbitrary n
     def set_theta_null(self):
         assert self.ansatz is not None, ''
         assert self.ansatz.dir_path is not None, ''
@@ -294,34 +295,35 @@ class Sampling:
         dir_path = os.path.join(self.ansatz.dir_path, 'null-importance-sampling')
         self.set_dir_path(dir_path)
 
-    #TODO: generalize for arbitrary n
     def set_theta_from_metadynamics(self):
         '''
         '''
         assert self.ansatz is not None, ''
         assert self.ansatz.dir_path is not None, ''
 
-        x = self.domain_h.reshape(self.N, 2)
+        if self.ansatz.are_uniformly_distributed:
+            #TODO: generalize for arbitrary n
+            x = self.domain_h.reshape(self.N, 2)
 
-        self.load_meta_bias_potential()
-        meta_theta = self.meta_bias_pot['theta']
-        meta_means = self.meta_bias_pot['means']
-        meta_cov = self.meta_bias_pot['cov']
-        assert meta_theta.shape[0] == meta_means.shape[0], ''
+            self.load_meta_bias_potential()
+            meta_theta = self.meta_bias_pot['theta']
+            meta_means = self.meta_bias_pot['means']
+            meta_cov = self.meta_bias_pot['cov']
+            assert meta_theta.shape[0] == meta_means.shape[0], ''
 
-        # create ansatz functions from meta
-        meta_ansatz = GaussianAnsatz(domain=self.domain)
-        meta_ansatz.set_given_ansatz_functions(meta_means, meta_cov)
+            # create ansatz functions from meta
+            meta_ansatz = GaussianAnsatz(domain=self.domain)
+            meta_ansatz.set_given_ansatz_functions(meta_means, meta_cov)
 
-        # meta value function evaluated at the grid
-        value_f_meta = self.value_function(x, meta_theta, meta_ansatz)
+            # meta value function evaluated at the grid
+            value_f_meta = self.value_function(x, meta_theta, meta_ansatz)
 
-        # ansatz functions evaluated at the grid
-        v = self.ansatz.basis_value_f(x)
+            # ansatz functions evaluated at the grid
+            v = self.ansatz.basis_value_f(x)
 
-        # solve theta V = \Phi
-        self.theta, _, _, _ = np.linalg.lstsq(v, value_f_meta, rcond=None)
-        self.theta_type = 'meta'
+            # solve theta V = \Phi
+            self.theta, _, _, _ = np.linalg.lstsq(v, value_f_meta, rcond=None)
+            self.theta_type = 'meta'
 
         # set drifted sampling dir path
         dir_path = os.path.join(self.ansatz.dir_path, 'meta-importance-sampling')
@@ -565,23 +567,22 @@ class Sampling:
         self.compute_I_statistics()
         self.stop_timer()
 
-    #TODO: generalize for arbitrary n
     def sample_drifted(self):
         self.start_timer()
         self.initialize_fht()
         self.initialize_girsanov_martingale_terms()
 
         # initialize xtemp
-        xtemp = np.full((self.N, 2), self.xzero)
+        xtemp = np.full((self.N, self.n), self.xzero)
 
         # initialize Girsanov Martingale terms, M_t = e^(M1_t + M2_t)
         M1temp = np.zeros(self.N)
         M2temp = np.zeros(self.N)
-        k = np.array([])
 
-        for n in np.arange(1, self.N_lim +1):
+        for k in np.arange(1, self.k_lim +1):
             # Brownian increment
-            dB = np.sqrt(self.dt) * np.random.normal(0, 1, 2 * self.N).reshape(self.N, 2)
+            dB = np.sqrt(self.dt) \
+               * np.random.normal(0, 1, self.N * self.n).reshape(self.N, self.n)
 
             # control at Xtemp
             utemp = self.control(xtemp)
@@ -600,7 +601,7 @@ class Sampling:
             idx_new = self.get_idx_new_in_target_set(xtemp)
 
             # save first hitting time and Girsanov Martingale terms
-            self.fht[idx_new] = n * self.dt
+            self.fht[idx_new] = k * self.dt
             self.M1_fht[idx_new] = M1temp[idx_new]
             self.M2_fht[idx_new] = M2temp[idx_new]
 
@@ -627,8 +628,6 @@ class Sampling:
         # load optimal control
         self.load_reference_solution()
         u_opt = self.ref_sol['u_opt']
-        #TODO moveaxis already in the hjb-solver
-        u_opt = np.moveaxis(u_opt, 0, -1)
 
         for k in np.arange(1, self.k_lim +1):
             # Brownian increment
@@ -712,24 +711,21 @@ class Sampling:
         grad_J = np.zeros((self.N, m))
 
         # initialize xtemp
-        xtemp = np.full((self.N, 2), self.xzero)
+        xtemp = np.full((self.N, self.n), self.xzero)
 
         # initialize ipa variables
         cost_temp = np.zeros(self.N)
         grad_phi_temp = np.zeros((self.N, m))
         grad_S_temp = np.zeros((self.N, m))
 
-        for n in np.arange(1, self.N_lim+1):
+        for k in np.arange(1, self.k_lim+1):
             # Brownian increment
-            dB = np.sqrt(self.dt) * np.random.normal(0, 1, 2 * self.N).reshape(self.N, 2)
+            dB = np.sqrt(self.dt) \
+               * np.random.normal(0, 1, self.N * self.n).reshape(self.N, self.n)
 
             # control
             btemp = self.ansatz.basis_control(xtemp)
             utemp = self.control(xtemp)
-            lower_bound = -10 * np.ones(2)
-            upper_bound = 10 * np.ones(2)
-            if not is_2d_valid_control(utemp, lower_bound, upper_bound):
-                return False, None, None, None
 
             # ipa statistics 
             normed_utemp = np.linalg.norm(utemp, axis=1)
@@ -747,9 +743,9 @@ class Sampling:
             idx_new = self.get_idx_new_in_target_set(xtemp)
 
             # save ipa statistics
-            J[idx_new] = n * self.dt + cost_temp[idx_new]
+            J[idx_new] = k * self.dt + cost_temp[idx_new]
             grad_J[idx_new, :] = grad_phi_temp[idx_new, :] \
-                               - (n * self.dt + cost_temp[idx_new])[:, None] \
+                               - (k * self.dt + cost_temp[idx_new])[:, None] \
                                * grad_S_temp[idx_new, :]
 
             # check if all trajectories have arrived to the target set

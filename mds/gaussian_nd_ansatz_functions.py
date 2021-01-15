@@ -26,6 +26,7 @@ class GaussianAnsatz:
         self.cov = None
 
         # uniform distributed along the axis
+        self.are_uniformly_distributed = False
         self.m_x = None
         self.sigma_x = None
 
@@ -60,6 +61,7 @@ class GaussianAnsatz:
     def set_unif_dist_ansatz_functions(self, m_x, sigma_x):
         '''
         '''
+        self.m_x = m_x
         self.m = m_x ** self.n
 
         mgrid_input = []
@@ -71,8 +73,11 @@ class GaussianAnsatz:
         self.means = np.mgrid[mgrid_input]
         self.means = np.moveaxis(self.means, 0, -1).reshape((self.m, self.n))
 
+        self.sigma_x = sigma_x
         self.cov = np.eye(self.n)
         self.cov *= sigma_x
+
+        self.are_uniformly_distributed = True
 
     def mv_normal_pdf(self, x, mean=None, cov=None):
         ''' Multivariate normal probability density function (nd Gaussian)
@@ -151,7 +156,7 @@ class GaussianAnsatz:
         N = x.shape[0]
         m = means.shape[0]
 
-        norm_factor = np.sqrt(((2 * np.pi) ** self.n) * np.sqrt(np.linalg.det(cov)))
+        norm_factor = np.sqrt(((2 * np.pi) ** self.n) * np.linalg.det(cov))
         inv_cov = np.linalg.inv(cov)
         x = x[:, np.newaxis, :]
         means = means[np.newaxis, :, :]
@@ -237,10 +242,12 @@ class GaussianAnsatz:
     def write_ansatz_parameters(self, f):
         '''
         '''
-        f.write('Value function parametrization: unif distr gaussian ansatz functions)\n')
-        f.write('m: {:d}\n'.format(self.m))
-        f.write('m_x: {:d}\n'.format(self.m_x))
-        f.write('sigma_x: {:2.2f}\n'.format(self.sigma_x))
+        f.write('Value function parametrized by Gaussian ansatz functions\n')
+        f.write('uniformly distributed: {}\n'.format(self.are_uniformly_distributed))
+        if self.are_uniformly_distributed:
+            f.write('m_x: {:d}\n'.format(self.m_x))
+            f.write('sigma_x: {:2.2f}\n'.format(self.sigma_x))
+        f.write('m: {:d}\n\n'.format(self.m))
 
     def plot_1d_multivariate_normal_pdf(self, j):
         from mds.plots_1d import Plot1d
