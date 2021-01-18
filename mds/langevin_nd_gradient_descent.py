@@ -114,7 +114,6 @@ class GradientDescent:
         self.start_timer()
 
         sample = self.sample
-        x = self.sample.domain_h
         m = sample.ansatz.m
 
         # coefficients, performance function, control and free energy

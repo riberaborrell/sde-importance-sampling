@@ -70,7 +70,6 @@ def main():
         do_epoch_plots=args.do_epoch_plots,
     )
 
-    breakpoint()
     gd.gd_ipa()
     gd.save_gd()
     gd.write_report()

@@ -233,22 +233,32 @@ class Sampling:
             self.meta_bias_pot = np.load(file_path)
 
     def load_reference_solution(self, h=None):
-        if not self.ref_sol:
-            if h is None:
-                h = self.h
-            h_ext = '_h{:.0e}'.format(h)
-            file_name = 'reference_solution' + h_ext + '.npz'
+        if self.ref_sol:
+            return True
 
-            file_path = os.path.join(
-                self.example_dir_path,
-                'hjb-solution',
-                file_name,
-            )
+        if h is None:
+            h = self.h
+        h_ext = '_h{:.0e}'.format(h)
+        file_name = 'reference_solution' + h_ext + '.npz'
+
+        file_path = os.path.join(
+            self.example_dir_path,
+            'hjb-solution',
+            file_name,
+        )
+        try:
             self.ref_sol = np.load(file_path)
+            return True
+        except:
+            print('no hjb-solution found with h={:.0e}'.format(h))
+            return False
 
     def get_value_f_at_xzero(self, h=None):
         # load ref sol
-        self.load_reference_solution(h)
+        succ = self.load_reference_solution(h)
+        if not succ:
+            return
+
         domain_h = self.ref_sol['domain_h']
         Nx = domain_h.shape[1:]
         F = self.ref_sol['F']
