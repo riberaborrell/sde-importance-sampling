@@ -709,7 +709,6 @@ class Sampling:
 
         return False, xtemp
 
-    #TODO: generalize for arbitrary n
     def sample_loss(self):
         self.initialize_fht()
 
@@ -740,8 +739,8 @@ class Sampling:
             # ipa statistics 
             normed_utemp = np.linalg.norm(utemp, axis=1)
             cost_temp += 0.5 * (normed_utemp ** 2) * self.dt
-            grad_phi_temp += np.sum(utemp[:, None, :] * btemp, axis=2) * self.dt
-            grad_S_temp -= np.sqrt(self.beta) * np.sum(dB[:, None, :] * btemp, axis=2)
+            grad_phi_temp += np.sum(utemp[:, np.newaxis, :] * btemp, axis=2) * self.dt
+            grad_S_temp -= np.sqrt(self.beta) * np.sum(dB[:, np.newaxis, :] * btemp, axis=2)
 
             # compute gradient
             gradient = self.tilted_gradient(xtemp, utemp)
@@ -755,7 +754,7 @@ class Sampling:
             # save ipa statistics
             J[idx_new] = k * self.dt + cost_temp[idx_new]
             grad_J[idx_new, :] = grad_phi_temp[idx_new, :] \
-                               - (k * self.dt + cost_temp[idx_new])[:, None] \
+                               - (k * self.dt + cost_temp[idx_new])[:, np.newaxis] \
                                * grad_S_temp[idx_new, :]
 
             # check if all trajectories have arrived to the target set
@@ -766,7 +765,7 @@ class Sampling:
         mean_J = np.mean(J)
         mean_grad_J = np.mean(grad_J, axis=0)
 
-        return True, mean_J, mean_grad_J, n
+        return True, mean_J, mean_grad_J, k
 
 
     def compute_mean_variance_and_rel_error(self, x):
