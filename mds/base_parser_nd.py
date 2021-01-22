@@ -122,4 +122,10 @@ def get_base_parser():
         action='store_true',
         help='Do plots. Default: False',
     )
+    parser.add_argument(
+        '--save-trajectory',
+        dest='save_trajectory',
+        action='store_true',
+        help='Save the first trajectory sampled. Default: False',
+    )
     return parser

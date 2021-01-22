@@ -34,6 +34,9 @@ def main():
         k_lim=args.k_lim,
     )
 
+    if args.save_trajectory:
+        sample.save_trajectory = True
+
     # plot potential and gradient
     if args.do_plots:
         pass
@@ -45,6 +48,10 @@ def main():
     # print statistics and save data
     sample.save_not_drifted()
     sample.write_report()
+
+    # plot trajectory
+    if args.save_trajectory:
+        sample.plot_trajectory()
 
 
 if __name__ == "__main__":

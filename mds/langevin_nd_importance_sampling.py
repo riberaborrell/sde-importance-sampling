@@ -39,8 +39,11 @@ class Sampling:
         self.xzero = None
         self.target_set = target_set
         self.N = None
+        self.xtemp = None
         self.is_drifted = is_drifted
         self.is_optimal = None
+        self.save_trajectory = False
+        self.traj = None
 
         # domain discretization
         self.h = h
@@ -521,8 +524,7 @@ class Sampling:
         return x + drift + diffusion
 
     def get_idx_new_in_target_set(self, x):
-        # trajectories in the target set
-        # assume they are in the target set
+        # assume trajectories are in the target set
         is_in_target_set = np.repeat([True], self.N)
         for i in range(self.n):
             is_not_in_target_set_i_axis_idx = np.where(
@@ -531,7 +533,9 @@ class Sampling:
             )[0]
             # if they are NOT in the target set change flag
             is_in_target_set[is_not_in_target_set_i_axis_idx] = False
-            if is_in_target_set.all() == False:
+
+            # break if none of them is in the target set
+            if is_in_target_set.any() == False:
                 break
 
         # indices of trajectories new in the target set
@@ -552,6 +556,10 @@ class Sampling:
         # initialize xtemp
         xtemp = np.full((self.N, self.n), self.xzero)
 
+        if self.save_trajectory:
+            self.traj = np.empty((self.k_lim + 1, self.n))
+            self.traj[0] = xtemp[0, :]
+
         for k in np.arange(1, self.k_lim + 1):
             # Brownian increment
             dB = np.sqrt(self.dt) \
@@ -562,6 +570,9 @@ class Sampling:
 
             # sde update
             xtemp = self.sde_update(xtemp, gradient, dB)
+
+            if self.save_trajectory:
+                self.traj[k] = xtemp[0, :]
 
             # get indices from the trajectories which are new in target
             idx_new = self.get_idx_new_in_target_set(xtemp)
@@ -791,6 +802,11 @@ class Sampling:
         been_in_target_set = self.been_in_target_set
         fht = self.fht
 
+        # cut saved trajectory
+        if self.save_trajectory:
+            k_last = int(fht[0] / self.dt)
+            self.traj = self.traj[:k_last+1]
+
         # count trajectories which have arrived
         idx_arrived = np.where(been_in_target_set == True)
         self.N_arrived = fht[idx_arrived].shape[0]
@@ -843,6 +859,7 @@ class Sampling:
             mean_I=self.mean_I,
             var_I=self.var_I,
             re_I=self.re_I,
+            traj=self.traj,
         )
 
     def load_not_drifted(self, N):
@@ -950,3 +967,38 @@ class Sampling:
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
 
         f.close()
+
+    def plot_trajectory(self):
+        from mds.plots_1d import Plot1d
+
+        traj_fhs = self.traj.shape[0]
+        traj_fht = traj_fhs * self.dt
+        x = np.linspace(0, traj_fht, traj_fhs)
+        breakpoint()
+        for i in np.arange(self.n):
+            file_name = 'traj_x{:d}'.format(i)
+            plt1d = Plot1d(self.dir_path, file_name)
+            plt1d.one_line_plot(x, self.traj[:, i])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
