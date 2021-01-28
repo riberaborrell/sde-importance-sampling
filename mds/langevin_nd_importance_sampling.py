@@ -866,7 +866,7 @@ class Sampling:
         # file name
         N_ext = '_N{:.0e}'.format(N)
         file_name = 'mc_sampling' + N_ext + '.npz'
-        file_path = os.path.join(self.example_dir_path, 'not-drifted-sampling', file_name)
+        file_path = os.path.join(self.example_dir_path, 'mc-sampling', file_name)
         data = np.load(file_path, allow_pickle=True)
         self.N = data['N']
         self.mean_I = data['mean_I']
@@ -974,11 +974,21 @@ class Sampling:
         traj_fhs = self.traj.shape[0]
         traj_fht = traj_fhs * self.dt
         x = np.linspace(0, traj_fht, traj_fhs)
-        breakpoint()
+        ys = np.moveaxis(self.traj, 0, -1)
+        labels = [r'$x_{}$'.format(i+1) for i in np.arange(self.n)]
+
         for i in np.arange(self.n):
-            file_name = 'traj_x{:d}'.format(i)
+            file_name = 'trajectory_x{:d}'.format(i+1)
             plt1d = Plot1d(self.dir_path, file_name)
+            plt1d.xlabel = 't'
+            plt1d.ylabel = r'$x_{:d}$'.format(i+1)
             plt1d.one_line_plot(x, self.traj[:, i])
+
+        file_name = 'trajectory'
+        plt1d = Plot1d(self.dir_path, file_name)
+        plt1d.xlabel = 't'
+        plt1d.multiple_lines_plot(x, ys, labels=labels)
+
 
 
 

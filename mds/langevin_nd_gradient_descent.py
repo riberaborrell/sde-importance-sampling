@@ -344,7 +344,7 @@ class GradientDescent:
         losses = self.losses
         epochs = np.arange(losses.shape[0])
         sample.get_value_f_at_xzero()
-        sample.load_not_drifted(M=10000000)
+        sample.load_not_drifted(N=100000)
         value_f_hjb = np.full(epochs.shape[0], sample.value_f_at_xzero)
         value_f_mc = np.full(epochs.shape[0], - np.log(sample.mean_I))
 
