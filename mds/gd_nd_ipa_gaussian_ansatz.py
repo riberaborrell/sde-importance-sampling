@@ -38,7 +38,7 @@ def main():
 
     # distribute Gaussian ansatz
     if args.distributed == 'uniform':
-        sample.set_gaussian_ansatz_uniformly()
+        sample.set_gaussian_ansatz_uniformly(args.m_i, args.sigma_i)
     elif args.distributed == 'meta':
         sample.set_gaussian_ansatz_from_meta()
     else:
