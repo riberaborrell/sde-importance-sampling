@@ -8,7 +8,7 @@ class Metadynamics:
     '''
     '''
 
-    def __init__(self, sample, N, xzero, N_lim, k, seed=None, do_updates_plots=False):
+    def __init__(self, sample, N, xzero, N_lim, k, sigma_i, seed=None, do_updates_plots=False):
 
         # sampling object
         self.sample = sample
@@ -29,7 +29,7 @@ class Metadynamics:
         self.ms = None
         self.thetas = None
         self.means = None
-        self.sigma = None
+        self.sigma_i = sigma_i
         self.cov = None
         self.time_steps = None
 
@@ -68,8 +68,7 @@ class Metadynamics:
         self.ms = np.empty(self.N, dtype=np.intc)
         self.thetas = np.empty((self.N, self.updates_lim))
         self.means = np.empty((self.N, self.updates_lim, self.sample.n))
-        self.sigma = 0.75
-        self.cov = self.sigma * np.eye(self.sample.n)
+        self.cov = self.sigma_i * np.eye(self.sample.n)
         self.time_steps = np.empty(self.N)
 
         # boolean array telling us if the algorithm succeeded or not for each sample
@@ -182,7 +181,8 @@ class Metadynamics:
         if self.seed:
             f.write('seed: {:d}\n'.format(self.seed))
         f.write('number of trajectories: {:d}\n'.format(self.N))
-        f.write('k: {:d}\n\n'.format(self.k))
+        f.write('k: {:d}\n'.format(self.k))
+        f.write('sigma_i: {:2.2f}\n\n'.format(self.sigma_i))
 
         f.write('samples succeeded: {:2.2f} %\n'
                 ''.format(100 * np.sum(self.succ) / self.N))

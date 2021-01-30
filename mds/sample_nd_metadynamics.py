@@ -55,6 +55,7 @@ def main():
         xzero=np.full(args.n, args.xzero_i),
         N_lim=args.k_lim,
         k=args.k,
+        sigma_i=args.sigma_i,
         seed=args.seed,
         do_updates_plots=args.do_updates_plots,
     )

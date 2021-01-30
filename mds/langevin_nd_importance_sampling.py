@@ -1000,27 +1000,3 @@ class Sampling:
         plt1d = Plot1d(self.dir_path, file_name)
         plt1d.xlabel = 't'
         plt1d.multiple_lines_plot(x, ys, labels=labels)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
