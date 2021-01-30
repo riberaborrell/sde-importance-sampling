@@ -81,26 +81,26 @@ def get_base_parser():
         help='Type of ansatz distribution. Default: uniform',
     )
     parser.add_argument(
-        '--m',
-        dest='m',
+        '--m_i',
+        dest='m_i',
         type=int,
         default=30,
         help='Set number of uniformly distributed ansatz functions per axis \
               that you want to use. Default: 30',
     )
     parser.add_argument(
-        '--sigma',
-        dest='sigma',
+        '--sigma_i',
+        dest='sigma_i',
         type=float,
-        default=0.2,
-        help='Set the covariance matrix of the ansatz functions. Default: 0.2',
+        default=0.5,
+        help='Set the diagonal of the covariance matrix of the ansatz functions. Default: 0.5',
     )
     parser.add_argument(
         '--theta',
         dest='theta',
-        choices=['optimal', 'meta', 'gd', 'null'],
-        default='optimal',
-        help='Type of control. Default: optimal',
+        choices=['null', 'meta', 'gd', 'optimal'],
+        default='null',
+        help='Type of control. Default: null',
     )
     parser.add_argument(
         '--theta-init',

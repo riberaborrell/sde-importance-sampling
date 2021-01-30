@@ -29,16 +29,29 @@ def main():
         is_drifted=True,
     )
 
-    # distribute Gaussians like meta and start with the coefficients from meta
-    assert args.distributed == 'meta', ''
-    assert args.theta_init == 'meta', ''
-    sample.set_gaussian_ansatz_from_meta()
+    # distribute Gaussian ansatz
+    if args.distributed == 'uniform':
+        sample.set_gaussian_ansatz_uniformly()
+    elif args.distributed == 'meta':
+        sample.set_gaussian_ansatz_from_meta()
+    else:
+        return
 
-    # set xzero
+    # set initial coefficients
+    #if args.theta_init == 'null':
+    #    sample.set_theta_null()
+    #elif args.theta_init == 'meta':
+    #    sample.h = args.h
+    #    sample.set_theta_from_metadynamics()
+    #elif args.theta_init == 'optimal':
+    #    #sample.set_theta_optimal()
+    #    return
+
+    # set initial point
     sample.xzero = np.full(args.n, args.xzero_i)
 
     # get value f at xzero from the reference solution
-    sample.get_value_f_at_xzero(h=args.h)
+    #sample.get_value_f_at_xzero(h=args.h)
 
     # initialize gradient descent object
     gd = GradientDescent(
@@ -56,6 +69,9 @@ def main():
     # plot losses and time steps for all epochs
     gd.plot_gd_losses()
     gd.plot_gd_time_steps()
+
+    # write report
+    gd.write_report()
 
 if __name__ == "__main__":
     main()

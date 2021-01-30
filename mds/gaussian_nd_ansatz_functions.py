@@ -27,8 +27,11 @@ class GaussianAnsatz:
 
         # uniform distributed along the axis
         self.are_uniformly_distributed = False
-        self.m_x = None
-        self.sigma_x = None
+        self.m_i = None
+        self.sigma_i = None
+
+        # meta distributed
+        self.are_meta_distributed = False
 
         # directory path
         self.dir_path = None
@@ -58,24 +61,22 @@ class GaussianAnsatz:
         self.means = means
         self.cov = cov
 
-    def set_unif_dist_ansatz_functions(self, m_x, sigma_x):
+    def set_unif_dist_ansatz_functions(self, m_i, sigma_i):
         '''
         '''
-        self.m_x = m_x
-        self.m = m_x ** self.n
+        self.m_i = m_i
+        self.m = m_i ** self.n
 
         mgrid_input = []
         for i in range(self.n):
-            h_x = (self.domain[i, 1] - self.domain[i, 0]) / (m_x - 1)
-            mgrid_input.append(
-                slice(self.domain[i, 0], self.domain[i, 1] + h_x, h_x)
-            )
+            slice_i = slice(self.domain[i, 0], self.domain[i, 1], complex(0, m_i))
+            mgrid_input.append(slice_i)
         self.means = np.mgrid[mgrid_input]
         self.means = np.moveaxis(self.means, 0, -1).reshape((self.m, self.n))
 
-        self.sigma_x = sigma_x
+        self.sigma_i = sigma_i
         self.cov = np.eye(self.n)
-        self.cov *= sigma_x
+        self.cov *= sigma_i
 
         self.are_uniformly_distributed = True
 
@@ -245,8 +246,8 @@ class GaussianAnsatz:
         f.write('Value function parametrized by Gaussian ansatz functions\n')
         f.write('uniformly distributed: {}\n'.format(self.are_uniformly_distributed))
         if self.are_uniformly_distributed:
-            f.write('m_x: {:d}\n'.format(self.m_x))
-            f.write('sigma_x: {:2.2f}\n'.format(self.sigma_x))
+            f.write('m_i: {:d}\n'.format(self.m_i))
+            f.write('sigma_i: {:2.2f}\n'.format(self.sigma_i))
         f.write('m: {:d}\n\n'.format(self.m))
 
     def plot_1d_multivariate_normal_pdf(self, j):

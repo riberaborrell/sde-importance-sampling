@@ -2,4 +2,3 @@ matplotlib
 numpy
 scipy
 pytest
-notebook

@@ -144,13 +144,13 @@ class Sampling:
     def set_example_dir_path(self):
         assert self.alpha.all() == self.alpha[0], ''
         self.example_dir_path = get_example_dir_path(self.potential_name, self.n,
-                                                     self.alpha, self.beta, 'hypercube')
+                                                     self.alpha[0], self.beta, 'hypercube')
 
     def set_dir_path(self, dir_path):
         self.dir_path = dir_path
         make_dir_path(self.dir_path)
 
-    def set_gaussian_ansatz_uniformly(self, m_x, sigma_x):
+    def set_gaussian_ansatz_uniformly(self, m_i, sigma_i):
         '''
         '''
         assert self.is_drifted, ''
@@ -159,10 +159,10 @@ class Sampling:
         self.ansatz = GaussianAnsatz(self.n, self.domain)
 
         # set gaussian ansatz functions
-        ansatz.set_unif_dist_ansatz_functions(m_x, sigma_x)
+        self.ansatz.set_unif_dist_ansatz_functions(m_i, sigma_i)
 
         # set ansatz dir path
-        ansatz.set_dir_path(self.example_dir_path)
+        self.ansatz.set_dir_path(self.example_dir_path)
 
     def set_gaussian_ansatz_from_meta(self):
         '''
@@ -189,6 +189,7 @@ class Sampling:
             flatten_idx += meta_ms[i]
 
         self.ansatz.set_given_ansatz_functions(means, meta_cov)
+        self.ansatz.are_meta_distributed = True
         self.theta = theta
         self.theta_type = 'meta'
 
@@ -313,28 +314,39 @@ class Sampling:
         assert self.ansatz is not None, ''
         assert self.ansatz.dir_path is not None, ''
 
-        if self.ansatz.are_uniformly_distributed:
-            #TODO: generalize for arbitrary n
-            x = self.domain_h.reshape(self.N, 2)
+        if not self.ansatz.are_meta_distributed:
+            # discretize domain
+            self.discretize_domain()
+            x = self.domain_h.reshape(self.Nh, self.n)
 
             self.load_meta_bias_potential()
-            meta_theta = self.meta_bias_pot['theta']
+            meta_ms = self.meta_bias_pot['ms']
+            meta_N = meta_ms.shape[0]
+            meta_total_m = int(np.sum(meta_ms))
             meta_means = self.meta_bias_pot['means']
             meta_cov = self.meta_bias_pot['cov']
-            assert meta_theta.shape[0] == meta_means.shape[0], ''
+            meta_thetas = self.meta_bias_pot['thetas']
 
-            # create ansatz functions from meta
-            meta_ansatz = GaussianAnsatz(domain=self.domain)
-            meta_ansatz.set_given_ansatz_functions(meta_means, meta_cov)
+            thetas = np.empty((meta_N, self.ansatz.m))
 
-            # meta value function evaluated at the grid
-            value_f_meta = self.value_function(x, meta_theta, meta_ansatz)
+            for i in np.arange(meta_N):
+                # create ansatz functions from meta
+                meta_ansatz = GaussianAnsatz(self.n, self.domain)
+                meta_ansatz.set_given_ansatz_functions(
+                    means=meta_means[i, :meta_ms[i]],
+                    cov=meta_cov,
+                )
 
-            # ansatz functions evaluated at the grid
-            v = self.ansatz.basis_value_f(x)
+                # meta value function evaluated at the grid
+                value_f_meta = self.value_function(x, meta_thetas[i, :meta_ms[i]], meta_ansatz)
 
-            # solve theta V = \Phi
-            self.theta, _, _, _ = np.linalg.lstsq(v, value_f_meta, rcond=None)
+                # ansatz functions evaluated at the grid
+                v = self.ansatz.basis_value_f(x)
+
+                # solve theta V = \Phi
+                thetas[i], _, _, _ = np.linalg.lstsq(v, value_f_meta, rcond=None)
+
+            self.theta = np.mean(thetas, axis=0)
             self.theta_type = 'meta'
 
         # set drifted sampling dir path

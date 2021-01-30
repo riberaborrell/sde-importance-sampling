@@ -29,6 +29,7 @@ class Metadynamics:
         self.ms = None
         self.thetas = None
         self.means = None
+        self.sigma = None
         self.cov = None
         self.time_steps = None
 
@@ -67,7 +68,8 @@ class Metadynamics:
         self.ms = np.empty(self.N, dtype=np.intc)
         self.thetas = np.empty((self.N, self.updates_lim))
         self.means = np.empty((self.N, self.updates_lim, self.sample.n))
-        self.cov = 0.75 * np.eye(self.sample.n)
+        self.sigma = 0.75
+        self.cov = self.sigma * np.eye(self.sample.n)
         self.time_steps = np.empty(self.N)
 
         # boolean array telling us if the algorithm succeeded or not for each sample

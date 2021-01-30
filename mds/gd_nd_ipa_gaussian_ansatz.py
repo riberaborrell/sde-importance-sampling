@@ -17,13 +17,6 @@ def get_parser():
         help='Set maximal number of epochs. Default: 100',
     )
     parser.add_argument(
-        '--atol',
-        dest='atol',
-        type=float,
-        default=0.01,
-        help='Set absolute tolerance between value funtion and loss at xinit. Default: 0.01',
-    )
-    parser.add_argument(
         '--do-epoch-plots',
         dest='do_epoch_plots',
         action='store_true',
@@ -43,10 +36,23 @@ def main():
         is_drifted=True,
     )
 
-    # distribute Gaussian like meta and start with the coefficients from meta
-    assert args.distributed == 'meta', ''
-    assert args.theta_init == 'meta', ''
-    sample.set_gaussian_ansatz_from_meta()
+    # distribute Gaussian ansatz
+    if args.distributed == 'uniform':
+        sample.set_gaussian_ansatz_uniformly()
+    elif args.distributed == 'meta':
+        sample.set_gaussian_ansatz_from_meta()
+    else:
+        return
+
+    # set initial coefficients
+    if args.theta_init == 'null':
+        sample.set_theta_null()
+    elif args.theta_init == 'meta':
+        sample.h = args.h
+        sample.set_theta_from_metadynamics()
+    elif args.theta_init == 'optimal':
+        #sample.set_theta_optimal()
+        return
 
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(
@@ -56,9 +62,6 @@ def main():
         dt=args.dt,
         k_lim=100000,
     )
-
-    # get value f at xzero from the reference solution
-    sample.get_value_f_at_xzero(h=args.h)
 
     # initialize gradient descent object
     gd = GradientDescent(
@@ -70,8 +73,14 @@ def main():
         do_epoch_plots=args.do_epoch_plots,
     )
 
-    gd.gd_ipa()
-    gd.save_gd()
+    # start gd with ipa estimator for the gradient
+    try:
+        gd.gd_ipa()
+    # save statistics if job is manually interrupted
+    except KeyboardInterrupt:
+        gd.stop_timer()
+        gd.save_gd()
+
     gd.write_report()
 
     if args.do_plots:

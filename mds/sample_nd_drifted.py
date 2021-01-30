@@ -20,19 +20,21 @@ def main():
         alpha=np.full(args.n, args.alpha_i),
         beta=args.beta,
         is_drifted=True,
-        h=args.h,
     )
 
     # distribute Gaussian ansatz
     if args.distributed == 'uniform':
-        sample.set_gaussian_ansatz_uniformly()
+        sample.set_gaussian_ansatz_uniformly(args.m_i, args.sigma_i)
     elif args.distributed == 'meta':
         sample.set_gaussian_ansatz_from_meta()
+    else:
+        return
 
     # set chosen coefficients
-    if args.theta == 'optimal':
-        sample.set_theta_optimal()
+    if args.theta == 'null':
+        sample.set_theta_null()
     elif args.theta == 'meta':
+        sample.h = args.h
         sample.set_theta_from_metadynamics()
     elif args.theta == 'gd':
         #sample.set_theta_from_gd(
@@ -41,8 +43,9 @@ def main():
         #    gd_lr=args.lr,
         #)
         return
-    else:
-        sample.set_theta_null()
+    elif args.theta == 'optimal':
+        #sample.set_theta_optimal()
+        return
 
     # plot potential and gradient
     if args.do_plots:

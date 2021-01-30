@@ -42,7 +42,7 @@ def get_example_dir_path(potential=None, n=None, alpha=None, beta=None, target_s
             DATA_PATH,
             potential,
             get_n_stamp(n),
-            get_alpha_stamp(alpha),
+            get_alpha_i_stamp(alpha),
             get_beta_stamp(beta),
             get_target_set_stamp(target_set),
             subdirectory,
@@ -58,7 +58,7 @@ def get_example_dir_path(potential=None, n=None, alpha=None, beta=None, target_s
             DATA_PATH,
             potential,
             get_n_stamp(n),
-            get_alpha_stamp(alpha),
+            get_alpha_i_stamp(alpha),
             get_beta_stamp(beta),
             get_target_set_stamp(target_set),
         )
@@ -71,7 +71,7 @@ def get_example_dir_path(potential=None, n=None, alpha=None, beta=None, target_s
             DATA_PATH,
             potential,
             get_n_stamp(n),
-            get_alpha_stamp(alpha),
+            get_alpha_i_stamp(alpha),
         )
 
     elif (potential is not None and n is not None):
@@ -165,6 +165,10 @@ def get_gd_data_path(ansatz_data_path, gd_type, theta_init, lr):
 def get_n_stamp(n):
     return 'n_{:d}'.format(n)
 
+def get_alpha_i_stamp(alpha_i):
+    assert type(alpha_i) == np.int64, ''
+    return 'alpha_i_{}'.format(float(alpha_i))
+
 def get_alpha_stamp(alpha):
     assert alpha.ndim == 1, ''
     alpha_stamp = 'alpha'
@@ -204,9 +208,9 @@ def get_datetime_stamp():
     time_stamp = datetime.today().strftime('%Y%m%d_%H%M%S')
     return time_stamp
 
-def get_trajectories_stamp(M):
-    assert type(M) == int, 'Error:'
-    trajectories_stamp = 'M{:.0e}'.format(M)
+def get_trajectories_stamp(N):
+    assert type(N) == int, 'Error:'
+    trajectories_stamp = 'N{:.0e}'.format(N)
     return sde_stamp
 
 def get_time_in_hms(dt):
