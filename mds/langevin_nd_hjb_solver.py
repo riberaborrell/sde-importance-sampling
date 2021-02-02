@@ -59,7 +59,8 @@ class Solver():
         self.t_final = None
 
         # dir_path
-        self.dir_path = get_example_dir_path(potential_name, n, alpha, beta,
+        assert self.alpha.all() == self.alpha[0], ''
+        self.dir_path = get_example_dir_path(potential_name, n, alpha[0], beta,
                                              'hypercube', 'hjb-solution')
 
 
