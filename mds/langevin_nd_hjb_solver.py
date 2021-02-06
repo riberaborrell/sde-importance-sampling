@@ -1,5 +1,5 @@
 from mds.potentials_and_gradients_nd import get_potential_and_gradient
-from mds.utils import get_example_dir_path, get_time_in_hms
+from mds.utils import get_example_dir_path, get_hjb_solution_dir_path, get_time_in_hms
 
 import numpy as np
 import scipy.sparse as sparse
@@ -36,6 +36,7 @@ class Solver():
         self.n = n
         self.f = f
         self.g = g
+        self.potential_name = potential_name
         self.potential = potential
         self.gradient = gradient
         self.alpha = alpha
@@ -59,10 +60,14 @@ class Solver():
         self.t_final = None
 
         # dir_path
-        assert self.alpha.all() == self.alpha[0], ''
-        self.dir_path = get_example_dir_path(potential_name, n, alpha[0], beta,
-                                             'hypercube', 'hjb-solution')
+        self.example_dir_path = None
+        self.set_example_dir_path()
+        self.dir_path = get_hjb_solution_dir_path(self.example_dir_path, h)
 
+    def set_example_dir_path(self):
+        assert self.alpha.all() == self.alpha[0], ''
+        self.example_dir_path = get_example_dir_path(self.potential_name, self.n,
+                                                     self.alpha[0], self.beta, 'hypercube')
 
     def start_timer(self):
         self.t_initial = time.perf_counter()
@@ -311,14 +316,11 @@ class Solver():
 
         self.u_opt = u_opt
 
-    def save_reference_solution(self):
-        # file name
-        h_ext = '_h{:.0e}'.format(self.h)
-        file_name = 'reference_solution' + h_ext + '.npz'
-
+    def save_hjb_solution(self):
         np.savez(
-            os.path.join(self.dir_path, file_name),
+            os.path.join(self.dir_path, 'hjb-solution.npz'),
             domain_h=self.domain_h,
+            Nx=self.Nx,
             Nh=self.Nh,
             Psi=self.Psi,
             F=self.F,
@@ -327,16 +329,13 @@ class Solver():
             t_final=self.t_final,
         )
 
-    def load_reference_solution(self):
-        # file name
-        h_ext = '_h{:.0e}'.format(self.h)
-        file_name = 'reference_solution' + h_ext + '.npz'
-
-        ref_sol = np.load(
-            os.path.join(self.dir_path, file_name),
+    def load_hjb_solution(self):
+        hjb_sol = np.load(
+            os.path.join(self.dir_path, 'hjb-solution.npz'),
             allow_pickle=True,
         )
         self.domain_h = hjb_sol['domain_h']
+        self.Nx = hjb_sol['Nx']
         self.Nh = hjb_sol['Nh']
         self.Psi = hjb_sol['Psi']
         self.F = hjb_sol['F']
@@ -353,12 +352,8 @@ class Solver():
         Psi = self.Psi[idx_Psi] if self.Psi is not None else np.nan
         F = self.F[idx_Psi] if self.F is not None else np.nan
 
-        # file name
-        h_ext = '_h{:.0e}'.format(self.h)
-        file_name = 'report' + h_ext + '.txt'
-
         # write file
-        f = open(os.path.join(self.dir_path, file_name), "w")
+        f = open(os.path.join(self.dir_path, 'report.txt'), "w")
 
         f.write('h = {:2.4f}\n'.format(self.h))
         f.write('N_h = {:d}\n'.format(self.Nh))

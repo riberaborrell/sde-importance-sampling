@@ -1,6 +1,6 @@
-from datetime import datetime
-
 import numpy as np
+
+from datetime import datetime
 import os
 import shutil
 
@@ -27,58 +27,42 @@ def empty_dir(dir_path):
             except Exception as e:
                 print('Failed to delete {}. Reason: {}'.format((file_path, e)))
 
-def get_example_dir_path(potential=None, n=None, alpha=None, beta=None, target_set=None, subdirectory=None):
+def get_example_dir_path(potential=None, n=None, alpha_i=None,
+                         beta=None, target_set=None):
     ''' Get example data path and create its directories
     '''
     # get dir path
     if (potential is not None and
         n is not None and
-        alpha is not None and
+        alpha_i is not None and
         beta is not None and
-        target_set is not None and
-        subdirectory is not None):
+        target_set is not None):
 
         dir_path = os.path.join(
             DATA_PATH,
             potential,
-            get_n_stamp(n),
-            get_alpha_i_stamp(alpha),
-            get_beta_stamp(beta),
-            get_target_set_stamp(target_set),
-            subdirectory,
+            'n_{:d}'.format(n),
+            'alpha_i_{}'.format(float(alpha_i)),
+            'beta_{}'.format(float(beta)),
+            get_target_set_str(target_set),
         )
 
     elif (potential is not None and
           n is not None and
-          alpha is not None and
-          beta is not None and
-          target_set is not None):
+          alpha_i is not None):
 
         dir_path = os.path.join(
             DATA_PATH,
             potential,
-            get_n_stamp(n),
-            get_alpha_i_stamp(alpha),
-            get_beta_stamp(beta),
-            get_target_set_stamp(target_set),
-        )
-
-    elif (potential is not None and
-          n is not None and
-          alpha is not None):
-
-        dir_path = os.path.join(
-            DATA_PATH,
-            potential,
-            get_n_stamp(n),
-            get_alpha_i_stamp(alpha),
+            'n_{:d}'.format(n),
+            'alpha_i_{}'.format(float(alpha_i)),
         )
 
     elif (potential is not None and n is not None):
         dir_path = os.path.join(
             DATA_PATH,
             potential,
-            get_n_stamp(n),
+            'n_{:d}'.format(n),
         )
 
     else:
@@ -89,57 +73,58 @@ def get_example_dir_path(potential=None, n=None, alpha=None, beta=None, target_s
 
     return dir_path
 
-
-def get_example_data_path(potential=None, alpha=None, beta=None, target_set=None, subdirectory=None):
-    ''' Get example data path and create its directories
-    '''
+def get_hjb_solution_dir_path(example_dir_path, h):
     # get dir path
-    if potential and alpha is not None and beta and target_set is not None and subdirectory:
-        dir_path = os.path.join(
-            DATA_PATH,
-            potential,
-            get_alpha_stamp(alpha),
-            get_beta_stamp(beta),
-            get_target_set_stamp(target_set),
-            subdirectory,
-        )
-    elif potential and alpha is not None and beta and target_set is not None:
-        dir_path = os.path.join(
-            DATA_PATH,
-            potential,
-            get_alpha_stamp(alpha),
-            get_beta_stamp(beta),
-            get_target_set_stamp(target_set),
-        )
-    elif potential and alpha is not None:
-        dir_path = os.path.join(
-            DATA_PATH,
-            potential,
-            get_alpha_stamp(alpha),
-        )
-    elif potential:
-        dir_path = os.path.join(
-            DATA_PATH,
-            potential,
-        )
-    else:
-        dir_path = DATA_PATH
+    dir_path = os.path.join(
+        example_dir_path,
+        'hjb-solution',
+        'h_{:.0e}'.format(h),
+    )
 
     # create dir path if not exists
     make_dir_path(dir_path)
 
     return dir_path
 
-def get_ansatz_data_path(example_data_path, ansatz_type, m, sigma):
-    ''' Get ansatz data path and create its directories
+def get_metadynamics_dir_path(example_dir_path, sigma_i, k, N):
+    ''' Get gd data path and create its directories
     '''
     # get dir path
     dir_path = os.path.join(
-        example_data_path,
-        ansatz_type,
-        get_m_stamp(m),
-        get_sigma_stamp(sigma),
+        example_dir_path,
+        'metadynamics',
+        'sigma_i_{}'.format(sigma_i),
+        'k_{}'.format(k),
+        'N_{}'.format(N),
     )
+
+    # create dir path if not exists
+    make_dir_path(dir_path)
+
+    return dir_path
+
+def get_gaussian_ansatz_dir_path(example_dir_path, distributed, m_i=None,
+                                 sigma_i=None, k=None, N_meta=None):
+    ''' Get ansatz data path and create its directories
+    '''
+    # get dir path
+    if distributed == 'uniform':
+        dir_path = os.path.join(
+            example_dir_path,
+            'gaussian-ansatz',
+            distributed,
+            'm_i_{}'.format(m_i),
+            'sigma_i_{}'.format(float(sigma_i)),
+        )
+    elif distributed == 'meta':
+        dir_path = os.path.join(
+            example_dir_path,
+            'gaussian-ansatz',
+            distributed,
+            'sigma_i_{}'.format(float(sigma_i)),
+            'k_{}'.format(k),
+            'N_meta_{}'.format(N_meta),
+        )
 
     # create dir path if not exists
     make_dir_path(dir_path)
@@ -162,13 +147,6 @@ def get_gd_data_path(ansatz_data_path, gd_type, theta_init, lr):
 
     return dir_path
 
-def get_n_stamp(n):
-    return 'n_{:d}'.format(n)
-
-def get_alpha_i_stamp(alpha_i):
-    assert type(alpha_i) == np.int64, ''
-    return 'alpha_i_{}'.format(float(alpha_i))
-
 def get_alpha_stamp(alpha):
     assert alpha.ndim == 1, ''
     alpha_stamp = 'alpha'
@@ -184,22 +162,17 @@ def get_sde_stamp(alpha, beta):
     sde_stamp += get_beta_stamp(beta)
     return sde_stamp
 
-def get_target_set_stamp(target_set):
+def get_target_set_str(target_set):
     if type(target_set) == str:
         return 'ts_' + target_set
     if type(target_set) == np.ndarray and target_set.ndim > 1:
         if target_set.ndim == 2 and target_set.shape == (2, 2):
             target_set = target_set.reshape((target_set.shape[0] * target_set.shape[1]))
-    target_set_stamp = 'target_set'
+    target_set_str = 'target_set'
     for entry in target_set:
-        target_set_stamp += '_{}'.format(float(entry))
-    return target_set_stamp
+        target_set_str += '_{}'.format(float(entry))
+    return target_set_str
 
-def get_m_stamp(m):
-    return 'm_{}'.format(m)
-
-def get_sigma_stamp(sigma):
-    return 'sigma_{}'.format(float(sigma))
 
 def get_lr_stamp(lr):
     return 'lr_{}'.format(float(lr))
@@ -217,3 +190,7 @@ def get_time_in_hms(dt):
     m, s = divmod(dt, 60)
     h, m = divmod(m, 60)
     return int(h), int(m), s
+
+#TODO: clean deprecated
+def get_example_data_path():
+    pass

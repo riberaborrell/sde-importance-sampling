@@ -1,6 +1,11 @@
 from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
 from mds.potentials_and_gradients_nd import get_potential_and_gradient
-from mds.utils import get_example_dir_path, get_gd_data_path, get_time_in_hms, make_dir_path
+from mds.utils import get_example_dir_path, \
+                      get_hjb_solution_dir_path, \
+                      get_metadynamics_dir_path, \
+                      get_gd_data_path, \
+                      get_time_in_hms, \
+                      make_dir_path
 
 import numpy as np
 import time
@@ -102,7 +107,7 @@ class Sampling:
         self.t_final = None
 
         # reference solution
-        self.ref_sol = None
+        self.hjb_sol = None
         self.value_f_at_xzero = None
 
         # metadynamics
@@ -164,32 +169,35 @@ class Sampling:
         # set ansatz dir path
         self.ansatz.set_dir_path(self.example_dir_path)
 
-    def set_gaussian_ansatz_from_meta(self):
+    def set_gaussian_ansatz_from_meta(self, sigma_i, k, N_meta):
         '''
         '''
         assert self.is_drifted, ''
-        self.load_meta_bias_potential()
+
+        self.load_meta_bias_potential(sigma_i, k, N_meta)
         meta_ms = self.meta_bias_pot['ms']
-        meta_N = meta_ms.shape[0]
         meta_total_m = int(np.sum(meta_ms))
         meta_means = self.meta_bias_pot['means']
         meta_cov = self.meta_bias_pot['cov']
         meta_thetas = self.meta_bias_pot['thetas']
-
-        # initialize Gaussian ansatz
-        self.ansatz = GaussianAnsatz(self.n, self.domain)
+        assert N_meta == meta_ms.shape[0], ''
 
         # get the centers used for each trajectory
         means = np.empty((meta_total_m, self.n))
         theta = np.empty(meta_total_m)
         flatten_idx = 0
-        for i in np.arange(meta_N):
+        for i in np.arange(N_meta):
             means[flatten_idx:flatten_idx+meta_ms[i]] = meta_means[i, :meta_ms[i]]
             theta[flatten_idx:flatten_idx+meta_ms[i]] = meta_thetas[i, :meta_ms[i]]
             flatten_idx += meta_ms[i]
 
+        # initialize Gaussian ansatz
+        self.ansatz = GaussianAnsatz(self.n, self.domain)
         self.ansatz.set_given_ansatz_functions(means, meta_cov)
         self.ansatz.are_meta_distributed = True
+        self.ansatz.sigma_i = sigma_i
+        self.ansatz.k = k
+        self.ansatz.N_meta = N_meta
         self.theta = theta
         self.theta_type = 'meta'
 
@@ -221,37 +229,31 @@ class Sampling:
         # get index of xzero
         idx = [None for i in range(self.n)]
         for i in range(self.n):
-            axis_i = np.linspace(self.domain[i, 0], self.domain[i, 1], self.Nx[i])
+            axis_i = np.linspace(self.domain[i, 0], self.domain[i, 1], self.hjb_sol['Nx'][i])
             idx[i] = tuple(np.argmin(np.abs(axis_i - x[:, i].reshape(self.N, 1)), axis=1))
 
         idx = tuple(idx)
         return idx
 
-    def load_meta_bias_potential(self):
+    def load_meta_bias_potential(self, sigma_i, k, meta_N):
         if not self.meta_bias_pot:
-            file_path = os.path.join(
-                self.example_dir_path,
-                'metadynamics',
-                'bias_potential.npz',
-            )
+            meta_dir_path = get_metadynamics_dir_path(self.example_dir_path, sigma_i, k, meta_N)
+            file_path = os.path.join(meta_dir_path, 'bias_potential.npz')
             self.meta_bias_pot = np.load(file_path)
 
-    def load_reference_solution(self, h=None):
-        if self.ref_sol:
+    def load_hjb_solution(self, h=None):
+        if self.hjb_sol:
             return True
 
         if h is None:
             h = self.h
-        h_ext = '_h{:.0e}'.format(h)
-        file_name = 'reference_solution' + h_ext + '.npz'
 
-        file_path = os.path.join(
-            self.example_dir_path,
-            'hjb-solution',
-            file_name,
-        )
         try:
-            self.ref_sol = np.load(file_path)
+            hjb_dir_path = get_hjb_solution_dir_path(self.example_dir_path, h)
+            self.hjb_sol = np.load(
+                os.path.join(hjb_dir_path, 'hjb-solution.npz'),
+                allow_pickle=True,
+            )
             return True
         except:
             print('no hjb-solution found with h={:.0e}'.format(h))
@@ -259,13 +261,13 @@ class Sampling:
 
     def get_value_f_at_xzero(self, h=None):
         # load ref sol
-        succ = self.load_reference_solution(h)
+        succ = self.load_hjb_solution(h)
         if not succ:
             return
 
-        domain_h = self.ref_sol['domain_h']
+        domain_h = self.hjb_sol['domain_h']
         Nx = domain_h.shape[1:]
-        F = self.ref_sol['F']
+        F = self.hjb_sol['F']
 
         # get index of xzero
         idx_xzero = [None for i in range(self.n)]
@@ -282,11 +284,11 @@ class Sampling:
         assert self.ansatz is not None, ''
         assert self.ansatz.dir_path is not None, ''
 
-        self.load_reference_solution()
-        Nx = self.ref_sol['domain_h'].shape[:-1]
-        Nh = self.ref_sol['Nh']
-        x = self.ref_sol['domain_h'].reshape(Nh, self.n)
-        F = self.ref_sol['F'].reshape(Nh,)
+        self.load_hjb_solution()
+        Nx = self.hjb_sol['domain_h'].shape[:-1]
+        Nh = self.hjb_sol['Nh']
+        x = self.hjb_sol['domain_h'].reshape(Nh, self.n)
+        F = self.hjb_sol['F'].reshape(Nh,)
 
         # compute the optimal theta given a basis of ansatz functions
         v = self.ansatz.basis_value_f(x)
@@ -308,7 +310,7 @@ class Sampling:
         dir_path = os.path.join(self.ansatz.dir_path, 'null-importance-sampling')
         self.set_dir_path(dir_path)
 
-    def set_theta_from_metadynamics(self):
+    def set_theta_from_metadynamics(self, sigma_i, k, meta_N):
         '''
         '''
         assert self.ansatz is not None, ''
@@ -319,7 +321,7 @@ class Sampling:
             self.discretize_domain()
             x = self.domain_h.reshape(self.Nh, self.n)
 
-            self.load_meta_bias_potential()
+            self.load_meta_bias_potential(sigma_i, k, meta_N)
             meta_ms = self.meta_bias_pot['ms']
             meta_N = meta_ms.shape[0]
             meta_total_m = int(np.sum(meta_ms))
@@ -659,8 +661,8 @@ class Sampling:
         M2temp = np.zeros(self.N)
 
         # load optimal control
-        self.load_reference_solution()
-        u_opt = self.ref_sol['u_opt']
+        self.load_hjb_solution()
+        u_opt = self.hjb_sol['u_opt']
 
         for k in np.arange(1, self.k_lim +1):
             # Brownian increment

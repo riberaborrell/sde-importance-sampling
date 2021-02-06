@@ -1,4 +1,4 @@
-from mds.utils import make_dir_path, empty_dir, get_time_in_hms
+from mds.utils import get_metadynamics_dir_path, make_dir_path, empty_dir, get_time_in_hms
 
 import time
 import numpy as np
@@ -49,10 +49,15 @@ class Metadynamics:
         self.do_updates_plots = do_updates_plots
 
     def set_dir_path(self):
-        self.dir_path = os.path.join(self.sample.example_dir_path, 'metadynamics')
-        self.updates_dir_path = os.path.join(self.dir_path, 'updates')
-        make_dir_path(self.updates_dir_path)
-        empty_dir(self.updates_dir_path)
+        self.dir_path = get_metadynamics_dir_path(
+            self.sample.example_dir_path,
+            self.sigma_i,
+            self.k,
+            self.N,
+        )
+        #self.updates_dir_path = os.path.join(self.dir_path, 'updates')
+        #make_dir_path(self.updates_dir_path)
+        #empty_dir(self.updates_dir_path)
 
     def start_timer(self):
         self.t_initial = time.perf_counter()
@@ -166,9 +171,7 @@ class Metadynamics:
         sample.xzero = np.full((sample.N, sample.n), self.xzero)
         sample.xzero = self.xzero
 
-        k_steps_ext = '_k{:d}'.format(self.k)
-        file_name = 'report' + k_steps_ext + '.txt'
-        file_path = os.path.join(self.dir_path, file_name)
+        file_path = os.path.join(self.dir_path, 'report.txt')
 
         # write in file
         f = open(file_path, "w")

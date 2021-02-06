@@ -60,6 +60,13 @@ def get_base_parser():
         help='Set number of trajectories to sample. Default: 10.000',
     )
     parser.add_argument(
+        '--N-meta',
+        dest='N_meta',
+        type=int,
+        default=10,
+        help='Set number of trajectories to sample. Default: 10',
+    )
+    parser.add_argument(
         '--dt',
         dest='dt',
         type=float,
@@ -94,6 +101,13 @@ def get_base_parser():
         type=float,
         default=0.5,
         help='Set the diagonal of the covariance matrix of the ansatz functions. Default: 0.5',
+    )
+    parser.add_argument(
+        '--k',
+        dest='k',
+        type=int,
+        default=100,
+        help='Steps before adding a bias function. Default: 100',
     )
     parser.add_argument(
         '--theta',

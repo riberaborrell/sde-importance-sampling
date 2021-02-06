@@ -1,6 +1,7 @@
 from mds.base_parser_nd import get_base_parser
 from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
 from mds.langevin_nd_importance_sampling import Sampling
+from mds.utils import get_hjb_solution_dir_path
 
 import numpy as np
 import os
@@ -24,9 +25,9 @@ def main():
     )
 
     # set path
+    hjb_dir_path = get_hjb_solution_dir_path(sample.example_dir_path, sample.h)
     dir_path = os.path.join(
-        sample.example_dir_path,
-        'hjb-solution',
+        hjb_dir_path,
         'optimal-importance-sampling',
     )
     sample.set_dir_path(dir_path)

@@ -1,4 +1,4 @@
-from mds.utils import make_dir_path
+from mds.utils import make_dir_path, get_gaussian_ansatz_dir_path
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -32,6 +32,9 @@ class GaussianAnsatz:
 
         # meta distributed
         self.are_meta_distributed = False
+        self.sigma_i = None
+        self.k = None
+        self.N_meta = None
 
         # directory path
         self.dir_path = None
@@ -39,14 +42,22 @@ class GaussianAnsatz:
     def set_dir_path(self, example_dir_path):
         '''
         '''
-        assert self.m is not None, ''
-
         # get dir path
-        dir_path = os.path.join(
-            example_dir_path,
-            'gaussian-ansatz',
-            'm_{}'.format(self.m)
-        )
+        if self.are_uniformly_distributed:
+            dir_path = get_gaussian_ansatz_dir_path(
+                example_dir_path,
+                distributed='uniform',
+                m_i=self.m_i,
+                sigma_i=self.sigma_i,
+            )
+        elif self.are_meta_distributed:
+            dir_path = get_gaussian_ansatz_dir_path(
+                example_dir_path,
+                distributed='meta',
+                sigma_i=self.sigma_i,
+                k=self.k,
+                N_meta=self.N_meta,
+            )
 
         # create dir path if not exists
         make_dir_path(dir_path)

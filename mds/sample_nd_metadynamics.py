@@ -11,13 +11,6 @@ def get_parser():
     parser = get_base_parser()
     parser.description = 'Metadynamics for the nd overdamped Langevin SDE'
     parser.add_argument(
-        '--k',
-        dest='k',
-        type=int,
-        default=100,
-        help='Steps before adding a bias function. Default: 100',
-    )
-    parser.add_argument(
         '--do-updates-plots',
         dest='do_updates_plots',
         action='store_true',
@@ -51,7 +44,7 @@ def main():
     # initialize meta nd object
     meta = Metadynamics(
         sample=sample,
-        N=args.N,
+        N=args.N_meta,
         xzero=np.full(args.n, args.xzero_i),
         N_lim=args.k_lim,
         k=args.k,

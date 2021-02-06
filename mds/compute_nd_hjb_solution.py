@@ -34,7 +34,7 @@ def main():
     sol.compute_free_energy()
     sol.compute_optimal_control()
     sol.stop_timer()
-    sol.save_reference_solution()
+    sol.save_hjb_solution()
     sol.write_report(x=np.full(args.n, args.xzero_i))
 
     if args.do_plots:

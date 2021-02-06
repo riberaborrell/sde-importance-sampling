@@ -26,7 +26,7 @@ def main():
     if args.distributed == 'uniform':
         sample.set_gaussian_ansatz_uniformly(args.m_i, args.sigma_i)
     elif args.distributed == 'meta':
-        sample.set_gaussian_ansatz_from_meta()
+        sample.set_gaussian_ansatz_from_meta(args.sigma_i, args.k, args.N_meta)
     else:
         return
 
@@ -35,7 +35,7 @@ def main():
         sample.set_theta_null()
     elif args.theta == 'meta':
         sample.h = args.h
-        sample.set_theta_from_metadynamics()
+        sample.set_theta_from_metadynamics(args.sigma_i, args.k, args.N_meta)
     elif args.theta == 'gd':
         #sample.set_theta_from_gd(
         #    gd_type='ipa-value-f',
