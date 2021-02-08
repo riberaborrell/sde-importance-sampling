@@ -131,15 +131,15 @@ def get_gaussian_ansatz_dir_path(example_dir_path, distributed, m_i=None,
 
     return dir_path
 
-def get_gd_data_path(ansatz_data_path, gd_type, theta_init, lr):
+def get_gd_dir_path(ansatz_dir_path, gd_type, theta_init, lr):
     ''' Get gd data path and create its directories
     '''
     # get dir path
     dir_path = os.path.join(
-        ansatz_data_path,
+        ansatz_dir_path,
         gd_type,
         'theta_init_{}'.format(theta_init),
-        get_lr_stamp(lr),
+        'lr_{}'.format(float(lr)),
     )
 
     # create dir path if not exists
@@ -172,10 +172,6 @@ def get_target_set_str(target_set):
     for entry in target_set:
         target_set_str += '_{}'.format(float(entry))
     return target_set_str
-
-
-def get_lr_stamp(lr):
-    return 'lr_{}'.format(float(lr))
 
 def get_datetime_stamp():
     time_stamp = datetime.today().strftime('%Y%m%d_%H%M%S')
