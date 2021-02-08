@@ -3,7 +3,7 @@ from mds.potentials_and_gradients_nd import get_potential_and_gradient
 from mds.utils import get_example_dir_path, \
                       get_hjb_solution_dir_path, \
                       get_metadynamics_dir_path, \
-                      get_gd_data_path, \
+                      get_gd_dir_path, \
                       get_time_in_hms, \
                       make_dir_path
 
@@ -15,46 +15,22 @@ class Sampling:
     '''
     '''
 
-    def __init__(self, n, potential_name, alpha, beta,
-                 target_set=None, domain=None, h=0.1, is_drifted=False):
+    def __init__(self, sde, is_controlled=None, is_optimal=None):
         '''
         '''
-        # get potential and gradient functions
-        potential, gradient, _ = get_potential_and_gradient(n, potential_name, alpha)
 
-        # domain and target set
-        if domain is None:
-            domain = np.full((n, 2), [-3, 3])
-        if target_set is None:
-            target_set = np.full((n, 2), [1, 3])
-
-        #seed
-        self.seed = None
-
-        # sde parameters
-        self.n = n
-        self.potential_name = potential_name
-        self.potential = potential
-        self.gradient = gradient
-        self.alpha = alpha
-        self.beta = beta
+        #sde
+        self.sde = sde
 
         # sampling
-        self.domain = domain
+        self.is_controlled = is_controlled
+        self.is_optimal = is_optimal
+        self.seed = None
         self.xzero = None
-        self.target_set = target_set
         self.N = None
         self.xtemp = None
-        self.is_drifted = is_drifted
-        self.is_optimal = None
         self.save_trajectory = False
         self.traj = None
-
-        # domain discretization
-        self.h = h
-        self.domain_h = None
-        self.Nx = None
-        self.Nh = None
 
         # Euler-Marujama
         self.dt = None
@@ -114,42 +90,7 @@ class Sampling:
         self.meta_bias_pot = None
 
         # dir_path
-        self.example_dir_path = None
         self.dir_path = None
-        self.set_example_dir_path()
-
-    def discretize_domain(self, h=None):
-        ''' this method discretizes the hyper-rectangular domain uniformly with step-size h
-        Args:
-            h (float): step-size
-        '''
-        if h is None:
-            h = self.h
-
-        # construct not sparse nd grid
-        mgrid_input = []
-        for i in range(self.n):
-            mgrid_input.append(
-                slice(self.domain[i, 0], self.domain[i, 1] + h, h)
-            )
-        self.domain_h = np.mgrid[mgrid_input]
-
-        # check shape
-        assert self.domain_h.shape[0] == self.n, ''
-
-        # save number of indices per axis
-        self.Nx = self.domain_h.shape[1:]
-
-        # save number of flatten indices
-        N = 1
-        for i in range(self.n):
-            N *= self.Nx[i]
-        self.Nh = N
-
-    def set_example_dir_path(self):
-        assert self.alpha.all() == self.alpha[0], ''
-        self.example_dir_path = get_example_dir_path(self.potential_name, self.n,
-                                                     self.alpha[0], self.beta, 'hypercube')
 
     def set_dir_path(self, dir_path):
         self.dir_path = dir_path
@@ -530,20 +471,17 @@ class Sampling:
         self.M2_fht = np.empty(self.N)
 
     def sde_update(self, x, gradient, dB):
-        beta = self.beta
-        dt = self.dt
-
-        drift = - gradient * dt
-        diffusion = np.dot(dB, np.sqrt(2 / beta) * np.eye(self.n))
+        drift = - gradient * self.dt
+        diffusion = np.dot(dB, np.sqrt(2 / self.sde.beta) * np.eye(self.sde.n))
         return x + drift + diffusion
 
     def get_idx_new_in_target_set(self, x):
         # assume trajectories are in the target set
         is_in_target_set = np.repeat([True], self.N)
-        for i in range(self.n):
+        for i in range(self.sde.n):
             is_not_in_target_set_i_axis_idx = np.where(
-                (x[:, i] < self.target_set[i, 0]) |
-                (x[:, i] > self.target_set[i, 1])
+                (x[:, i] < self.sde.target_set[i, 0]) |
+                (x[:, i] > self.sde.target_set[i, 1])
             )[0]
             # if they are NOT in the target set change flag
             is_in_target_set[is_not_in_target_set_i_axis_idx] = False
@@ -563,24 +501,24 @@ class Sampling:
 
         return idx_new
 
-    def sample_not_drifted(self):
+    def sample_not_controlled(self):
         self.start_timer()
         self.initialize_fht()
 
         # initialize xtemp
-        xtemp = np.full((self.N, self.n), self.xzero)
+        xtemp = np.full((self.N, self.sde.n), self.xzero)
 
         if self.save_trajectory:
-            self.traj = np.empty((self.k_lim + 1, self.n))
+            self.traj = np.empty((self.k_lim + 1, self.sde.n))
             self.traj[0] = xtemp[0, :]
 
         for k in np.arange(1, self.k_lim + 1):
             # Brownian increment
             dB = np.sqrt(self.dt) \
-               * np.random.normal(0, 1, self.N * self.n).reshape(self.N, self.n)
+               * np.random.normal(0, 1, self.N * self.sde.n).reshape(self.N, self.sde.n)
 
             # compute gradient
-            gradient = self.gradient(xtemp)
+            gradient = self.sde.gradient(xtemp)
 
             # sde update
             xtemp = self.sde_update(xtemp, gradient, dB)
@@ -863,38 +801,27 @@ class Sampling:
         self.var_I_u, \
         self.re_I_u = self.compute_mean_variance_and_rel_error(I_u)
 
-    def save_not_drifted(self):
-        # file name
-        N_ext = '_N{:.0e}'.format(self.N)
-        file_name = 'mc_sampling' + N_ext + '.npz'
+    def save_not_controlled(self):
         np.savez(
-            os.path.join(self.dir_path, file_name),
-            N=self.N,
+            os.path.join(self.dir_path, 'mc-sampling.npz'),
             mean_I=self.mean_I,
             var_I=self.var_I,
             re_I=self.re_I,
             traj=self.traj,
         )
 
-    def load_not_drifted(self, N):
-        # file name
-        N_ext = '_N{:.0e}'.format(N)
-        file_name = 'mc_sampling' + N_ext + '.npz'
-        file_path = os.path.join(self.example_dir_path, 'mc-sampling', file_name)
+    def load_not_controlled(self, N):
+        dir_path = os.path.join(
+            sample.example_dir_path,
+            'mc-sampling',
+            'N_{:.0e}'.format(self.N),
+        )
+        file_path = os.path.join(dir_path, 'mc-sampling.npz')
         data = np.load(file_path, allow_pickle=True)
-        self.N = data['N']
         self.mean_I = data['mean_I']
         self.var_I = data['var_I']
         self.re_I = data['re_I']
-
-    def write_sde_parameters(self, f):
-        '''
-        '''
-        f.write('SDE parameters\n')
-        f.write('potential: {}\n'.format(self.potential_name))
-        f.write('alpha: {}\n'.format(self.alpha))
-        f.write('beta: {:2.1f}\n'.format(self.beta))
-        f.write('drifted process: {}\n\n'.format(self.is_drifted))
+        self.N = N
 
     def write_euler_maruyama_parameters(self, f):
         f.write('Euler-Maruyama discretization parameters\n')
@@ -903,11 +830,13 @@ class Sampling:
 
     def write_sampling_parameters(self, f):
         f.write('Sampling parameters\n')
+        f.write('controlled process: {}\n'.format(self.is_controlled))
+
         if self.seed:
             f.write('seed: {:2.1f}'.format(self.seed))
 
         initial_posicion = 'xzero: ('
-        for i in range(self.n):
+        for i in range(self.sde.n):
             if i == 0:
                 initial_posicion += '{:2.1f}'.format(self.xzero[i])
             else:
@@ -915,14 +844,6 @@ class Sampling:
         initial_posicion += ')\n'
         f.write(initial_posicion)
 
-        target_set = 'target set: ['
-        for i in range(self.n):
-            if i == 0:
-                target_set += '[{:2.1f}, {:2.1f}]'.format(self.target_set[i, 0], self.target_set[i, 1])
-            else:
-                target_set += ', [{:2.1f}, {:2.1f}]'.format(self.target_set[i, 0], self.target_set[i, 1])
-        target_set += ']\n'
-        f.write(target_set)
         f.write('sampled trajectories: {:,d}\n\n'.format(self.N))
 
     def write_report(self):
@@ -930,18 +851,16 @@ class Sampling:
         '''
         # set file path
 
-        trajectories_ext = 'N{:.0e}'.format(self.N)
-        file_name = 'report_' + trajectories_ext + '.txt'
-        file_path = os.path.join(self.dir_path, file_name)
+        file_path = os.path.join(self.dir_path, 'report.txt')
 
         # write in file
         f = open(file_path, "w")
 
-        self.write_sde_parameters(f)
+        self.sde.write_setting(f)
         self.write_euler_maruyama_parameters(f)
         self.write_sampling_parameters(f)
 
-        if self.is_drifted and not self.is_optimal:
+        if self.is_controlled and not self.is_optimal:
             self.ansatz.write_ansatz_parameters(f)
 
         f.write('Statistics\n\n')
@@ -965,7 +884,7 @@ class Sampling:
         f.write('Var[fhts] = {:2.3f}\n'.format(self.var_fhts))
         f.write('RE[fhts] = {:2.3f}\n\n'.format(self.re_fhts))
 
-        if not self.is_drifted:
+        if not self.is_controlled:
             f.write('Quantity of interest\n')
             f.write('E[exp(- fht)] = {:2.3e}\n'.format(self.mean_I))
             f.write('Var[exp(- fht)] = {:2.3e}\n'.format(self.var_I))
@@ -989,9 +908,9 @@ class Sampling:
         traj_fht = traj_fhs * self.dt
         x = np.linspace(0, traj_fht, traj_fhs)
         ys = np.moveaxis(self.traj, 0, -1)
-        labels = [r'$x_{}$'.format(i+1) for i in np.arange(self.n)]
+        labels = [r'$x_{}$'.format(i+1) for i in np.arange(self.sde.n)]
 
-        for i in np.arange(self.n):
+        for i in np.arange(self.sde.n):
             file_name = 'trajectory_x{:d}'.format(i+1)
             plt1d = Plot1d(self.dir_path, file_name)
             plt1d.xlabel = 't'
