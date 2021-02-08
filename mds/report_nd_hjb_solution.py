@@ -4,10 +4,12 @@ from mds.langevin_nd_sde import LangevinSDE
 
 import numpy as np
 
+import os
+
 def get_parser():
     parser = get_base_parser()
-    parser.description = 'Computes the numerical solution of the HJB equation associated to' \
-                         'the overdamped Langevin SDE'
+    parser.description = 'Reports the numerical solution of the HJB equation associated to' \
+                         'the overdamped Langevin SDE for different xzero'
     return parser
 
 def main():
@@ -35,27 +37,11 @@ def main():
         g=g,
     )
 
-    # discretize domain
-    sol.start_timer()
-    sol.sde.discretize_domain()
+    # load already computed solution
+    sol.load_hjb_solution()
 
-    # compute hjb solution 
-    sol.solve_bvp()
-    sol.compute_free_energy()
-    sol.compute_optimal_control()
-    sol.stop_timer()
-
-    # save solution and write report
-    sol.save_hjb_solution()
+    # write report
     sol.write_report(x=np.full(args.n, args.xzero_i))
-
-    if args.do_plots:
-        sol.plot_psi()
-        sol.plot_free_energy()
-        sol.plot_optimal_tilted_potential()
-        sol.plot_optimal_control()
-        sol.plot_optimal_tilted_drift()
-
 
 if __name__ == "__main__":
     main()

@@ -22,33 +22,14 @@ class Solver():
         to the overdamped langevin sde.
    '''
 
-    def __init__(self, n, f, g, potential_name, alpha, beta, h, target_set=None, domain=None):
+    def __init__(self, sde, f, g):
 
-        # get potential and gradient functions
-        potential, gradient, _ = get_potential_and_gradient(n, potential_name, alpha)
+        # langevin sde
+        self.sde = sde
 
-        # domain and target set
-        if domain is None:
-            domain = np.full((n, 2), [-3, 3])
-        if target_set is None:
-            target_set = np.full((n, 2), [1, 3])
-
-        self.n = n
+        # work functional
         self.f = f
         self.g = g
-        self.potential_name = potential_name
-        self.potential = potential
-        self.gradient = gradient
-        self.alpha = alpha
-        self.beta = beta
-        self.domain = domain
-        self.target_set = target_set
-
-        # discretized domain
-        self.h = h
-        self.domain_h = None
-        self.Nx = None
-        self.Nh = None
 
         # discretized solution
         self.Psi = None
@@ -60,14 +41,7 @@ class Solver():
         self.t_final = None
 
         # dir_path
-        self.example_dir_path = None
-        self.set_example_dir_path()
-        self.dir_path = get_hjb_solution_dir_path(self.example_dir_path, h)
-
-    def set_example_dir_path(self):
-        assert self.alpha.all() == self.alpha[0], ''
-        self.example_dir_path = get_example_dir_path(self.potential_name, self.n,
-                                                     self.alpha[0], self.beta, 'hypercube')
+        self.dir_path = get_hjb_solution_dir_path(self.sde.example_dir_path, self.sde.h)
 
     def start_timer(self):
         self.t_initial = time.perf_counter()
@@ -75,43 +49,18 @@ class Solver():
     def stop_timer(self):
         self.t_final = time.perf_counter()
 
-    def discretize_domain(self):
-        ''' this method discretizes the rectangular domain uniformly with step-size h
-        '''
-        assert self.h is not None, ''
-
-        # construct not sparse nd grid
-        mgrid_input = []
-        for i in range(self.n):
-            mgrid_input.append(
-                slice(self.domain[i, 0], self.domain[i, 1] + self.h, self.h)
-            )
-        self.domain_h = np.moveaxis(np.mgrid[mgrid_input], 0, -1)
-
-        # check shape
-        assert self.domain_h.shape[-1] == self.n, ''
-
-        # save number of indices per axis
-        self.Nx = self.domain_h.shape[:-1]
-
-        # save number of flatten indices
-        N = 1
-        for i in range(self.n):
-            N *= self.Nx[i]
-        self.Nh = N
-
     def get_flatten_index(self, idx):
         ''' maps the bumpy index of the node (index of each axis) to
             the flatten index of the node, i.e. the node number.
         '''
         assert type(idx) == tuple, ''
-        assert len(idx) == self.n, ''
+        assert len(idx) == self.sde.n, ''
         k = 0
-        for i in range(self.n):
-            assert idx[i] in np.arange(self.Nx[i]), ''
+        for i in range(self.sde.n):
+            assert idx[i] in np.arange(self.sde.Nx[i]), ''
             Nx_prod = 1
-            for j in range(i+1, self.n):
-                Nx_prod *= self.Nx[j]
+            for j in range(i+1, self.sde.n):
+                Nx_prod *= self.sde.Nx[j]
             k += idx[i] * Nx_prod
 
         return k
@@ -120,44 +69,25 @@ class Solver():
         ''' maps the flatten index of the node (node number) to
             the bumpy index of the node.
         '''
-        assert k in np.arange(self.Nh), ''
+        assert k in np.arange(self.sde.Nh), ''
 
-        idx = [None for i in range(self.n)]
-        for i in range(self.n):
+        idx = [None for i in range(self.sde.n)]
+        for i in range(self.sde.n):
             Nx_prod = 1
-            for j in range(i+1, self.n):
-                Nx_prod *= self.Nx[j]
+            for j in range(i+1, self.sde.n):
+                Nx_prod *= self.sde.Nx[j]
             idx[i] = k // Nx_prod
             k -= idx[i] * Nx_prod
         return tuple(idx)
-
-    def get_index(self, x):
-        ''' returns the bumpy index of the point of the grid closest to x
-        '''
-        assert x.ndim == 1, ''
-        assert x.shape[0] == self.n, ''
-
-        idx = [None for i in range(self.n)]
-        for i in range(self.n):
-            axis_i = np.linspace(self.domain[i, 0], self.domain[i, 1], self.Nx[i])
-            idx[i] = np.argmin(np.abs(axis_i - x[i]))
-
-        return tuple(idx)
-
-    def get_x(self, k):
-        ''' returns the coordinates of the point determined by the flatten index k
-        '''
-        idx = self.get_bumpy_index(k)
-        return self.domain_h[idx]
 
     def is_on_domain_boundary(self, k):
         ''' returns True if the node k is on the
             boundary of the domain
         '''
         idx = self.get_bumpy_index(k)
-        for i in range(self.n):
+        for i in range(self.sde.n):
             if (idx[i] == 0 or
-                idx[i] == self.Nx[i] - 1):
+                idx[i] == self.sde.Nx[i] - 1):
                 return True
         return False
 
@@ -165,19 +95,20 @@ class Solver():
         ''' returns True if the node k is on the corner of the rectangular boundary
         '''
         idx = self.get_bumpy_index(k)
-        for i in range(self.n):
+        for i in range(self.sde.n):
             if (idx[i] != 0 and
-                idx[i] != self.Nx[i] - 1):
+                idx[i] != self.sde.Nx[i] - 1):
                 return False
         return True
 
     def is_on_ts(self, k):
         '''returns True if the node k is on the target set
         '''
-        x = self.get_x(k)
-        for i in range(self.n):
-            if (x[i] < self.target_set[i, 0] or
-                x[i] > self.target_set[i, 1]):
+        idx = self.get_bumpy_index(k)
+        x = self.sde.get_x(idx)
+        for i in range(self.sde.n):
+            if (x[i] < self.sde.target_set[i, 0] or
+                x[i] > self.sde.target_set[i, 1]):
                 return False
         return True
 
@@ -193,7 +124,7 @@ class Solver():
             k_left = self.get_flatten_index(tuple(idx_left))
 
         # find flatten index of right neighbour wrt the i axis
-        if idx[i] == self.Nx[i] - 1:
+        if idx[i] == self.sde.Nx[i] - 1:
             k_right = None
         else:
             idx_right = list(idx)
@@ -205,33 +136,36 @@ class Solver():
     def get_flatten_idx_from_corner_neighbour(self, k):
         idx = self.get_bumpy_index(k)
 
-        idx_inside = [None for i in range(self.n)]
-        for i in range(self.n):
+        idx_inside = [None for i in range(self.sde.n)]
+        for i in range(self.sde.n):
             if idx[i] == 0:
                 idx_inside[i] = idx[i] + 1
-            elif idx[i] == self.Nx[i] - 1 :
+            elif idx[i] == self.sde.Nx[i] - 1 :
                 idx_inside[i] = idx[i] - 1
         return self.get_flatten_index(tuple(idx_inside))
 
     def solve_bvp(self):
         # assemble linear system of equations: A \Psi = b.
-        A = sparse.lil_matrix((self.Nh, self.Nh))
-        b = np.zeros(self.Nh)
+        A = sparse.lil_matrix((self.sde.Nh, self.sde.Nh))
+        b = np.zeros(self.sde.Nh)
 
         # nodes in boundary, boundary corner and target set
-        idx_boundary = np.array([k for k in np.arange(self.Nh) if self.is_on_domain_boundary(k)])
-        idx_ts = np.array([k for k in np.arange(self.Nh) if self.is_on_ts(k)])
+        idx_boundary = np.array(
+            [k for k in np.arange(self.sde.Nh) if self.is_on_domain_boundary(k)]
+        )
+        idx_ts = np.array([k for k in np.arange(self.sde.Nh) if self.is_on_ts(k)])
 
-        for k in np.arange(self.Nh):
+        for k in np.arange(self.sde.Nh):
             # assemble matrix A and vector b on S
             if k not in idx_ts and k not in idx_boundary:
-                x = self.get_x(k)
-                grad = self.gradient(np.array([x]))[0]
-                A[k, k] = - (2 * self.n) / (self.beta * self.h**2) - self.f(x)
-                for i in range(self.n):
+                idx = self.get_bumpy_index(k)
+                x = self.sde.get_x(idx)
+                grad = self.sde.gradient(np.array([x]))[0]
+                A[k, k] = - (2 * self.sde.n) / (self.sde.beta * self.sde.h**2) - self.f(x)
+                for i in range(self.sde.n):
                     k_left, k_right = self.get_flatten_idx_from_axis_neighbours(k, i)
-                    A[k, k_left] = 1 / (self.beta * self.h**2) + grad[i] / (2 * self.h)
-                    A[k, k_right] = 1 / (self.beta * self.h**2) - grad[i] / (2 * self.h)
+                    A[k, k_left] = 1 / (self.sde.beta * self.sde.h**2) + grad[i] / (2 * self.sde.h)
+                    A[k, k_right] = 1 / (self.sde.beta * self.sde.h**2) - grad[i] / (2 * self.sde.h)
 
             # impose condition on ∂S
             elif k in idx_ts and k not in idx_boundary:
@@ -239,12 +173,12 @@ class Solver():
                 b[k] = np.exp(- self.g(x))
 
             # stability condition on the boundary
-            for i in range(self.n):
+            for i in range(self.sde.n):
                 for k in idx_boundary:
                     # index on the boundary of the i hyperplane
-                    idx_bumpy = self.get_bumpy_index(k)
-                    if not (idx_bumpy[i] == 0 or
-                            idx_bumpy[i] == self.Nx[i] - 1):
+                    idx = self.get_bumpy_index(k)
+                    if not (idx[i] == 0 or
+                            idx[i] == self.sde.Nx[i] - 1):
                         continue
                     k_left, k_right = self.get_flatten_idx_from_axis_neighbours(k, i)
                     if k_left is not None:
@@ -255,26 +189,26 @@ class Solver():
                         A[k, k_right] = - 1
 
         Psi = linalg.spsolve(A.tocsc(), b)
-        self.Psi = Psi.reshape(self.Nx)
+        self.Psi = Psi.reshape(self.sde.Nx)
 
     def compute_free_energy(self):
         ''' this methos computes the free energy
                 F = - epsilon log (Psi)
         '''
         assert self.Psi is not None, ''
-        assert self.Psi.ndim == self.n, ''
-        assert self.Psi.shape == self.Nx, ''
+        assert self.Psi.ndim == self.sde.n, ''
+        assert self.Psi.shape == self.sde.Nx, ''
 
         self.F =  - np.log(self.Psi)
 
     def get_idx_F_type(self, i):
-        return [slice(self.Nx[i]) for i in range(self.n)]
+        return [slice(self.sde.Nx[i]) for i in range(self.sde.n)]
 
     def get_idx_u_type(self, i):
-        idx_u = [None for i in range(self.n + 1)]
+        idx_u = [None for i in range(self.sde.n + 1)]
         idx_u[-1] = i
-        for j in range(self.n):
-            idx_u[j] = slice(self.Nx[j])
+        for j in range(self.sde.n):
+            idx_u[j] = slice(self.sde.Nx[j])
         return idx_u
 
     def compute_optimal_control(self):
@@ -282,12 +216,12 @@ class Solver():
                 u_opt = - √2 ∇F
         '''
         assert self.F is not None, ''
-        assert self.F.ndim == self.n, ''
-        assert self.F.shape == self.Nx, ''
+        assert self.F.ndim == self.sde.n, ''
+        assert self.F.shape == self.sde.Nx, ''
 
-        u_opt = np.zeros(self.Nx + (self.n, ))
+        u_opt = np.zeros(self.sde.Nx + (self.sde.n, ))
 
-        for i in range(self.n):
+        for i in range(self.sde.n):
 
             idx_F_k_plus = self.get_idx_F_type(i)
             idx_F_k_minus = self.get_idx_F_type(i)
@@ -297,20 +231,20 @@ class Solver():
             idx_u_N_minus = self.get_idx_u_type(i)
             idx_u_N = self.get_idx_u_type(i)
 
-            for j in range(self.n):
+            for j in range(self.sde.n):
                 if j == i:
-                    idx_F_k_plus[j] = slice(2, self.Nx[j])
-                    idx_F_k_minus[j] = slice(0, self.Nx[j] - 2)
-                    idx_u_k[j] = slice(1, self.Nx[j] - 1)
+                    idx_F_k_plus[j] = slice(2, self.sde.Nx[j])
+                    idx_F_k_minus[j] = slice(0, self.sde.Nx[j] - 2)
+                    idx_u_k[j] = slice(1, self.sde.Nx[j] - 1)
                     idx_u_0[j] = 0
                     idx_u_1[j] = 1
-                    idx_u_N_minus[j] = self.Nx[j] - 2
-                    idx_u_N[j] = self.Nx[j] - 1
+                    idx_u_N_minus[j] = self.sde.Nx[j] - 2
+                    idx_u_N[j] = self.sde.Nx[j] - 1
                     break
 
             u_opt[tuple(idx_u_k)] = - np.sqrt(2) * (
                 self.F[tuple(idx_F_k_plus)] - self.F[tuple(idx_F_k_minus)]
-            ) / (2 * self.h)
+            ) / (2 * self.sde.h)
             u_opt[tuple(idx_u_0)] = u_opt[tuple(idx_u_1)]
             u_opt[tuple(idx_u_N)] = u_opt[tuple(idx_u_N_minus)]
 
@@ -319,9 +253,9 @@ class Solver():
     def save_hjb_solution(self):
         np.savez(
             os.path.join(self.dir_path, 'hjb-solution.npz'),
-            domain_h=self.domain_h,
-            Nx=self.Nx,
-            Nh=self.Nh,
+            domain_h=self.sde.domain_h,
+            Nx=self.sde.Nx,
+            Nh=self.sde.Nh,
             Psi=self.Psi,
             F=self.F,
             u_opt=self.u_opt,
@@ -334,9 +268,9 @@ class Solver():
             os.path.join(self.dir_path, 'hjb-solution.npz'),
             allow_pickle=True,
         )
-        self.domain_h = hjb_sol['domain_h']
-        self.Nx = hjb_sol['Nx']
-        self.Nh = hjb_sol['Nh']
+        self.sde.domain_h = hjb_sol['domain_h']
+        self.sde.Nx = hjb_sol['Nx']
+        self.sde.Nh = hjb_sol['Nh']
         self.Psi = hjb_sol['Psi']
         self.F = hjb_sol['F']
         self.u_opt = hjb_sol['u_opt']
@@ -345,21 +279,20 @@ class Solver():
 
     def write_report(self, x):
         # get index of x
-        idx = self.get_index(x)
-        idx_Psi = tuple([idx[i] for i in range(self.n)])
+        idx = self.sde.get_index(x)
 
         # Psi at x
-        Psi = self.Psi[idx_Psi] if self.Psi is not None else np.nan
-        F = self.F[idx_Psi] if self.F is not None else np.nan
+        Psi = self.Psi[idx] if self.Psi is not None else np.nan
+        F = self.F[idx] if self.F is not None else np.nan
 
         # write file
         f = open(os.path.join(self.dir_path, 'report.txt'), "w")
 
-        f.write('h = {:2.4f}\n'.format(self.h))
-        f.write('N_h = {:d}\n'.format(self.Nh))
+        f.write('h = {:2.4f}\n'.format(self.sde.h))
+        f.write('N_h = {:d}\n'.format(self.sde.Nh))
 
         posicion = 'x: ('
-        for i in range(self.n):
+        for i in range(self.sde.n):
             if i == 0:
                 posicion += '{:2.1f}'.format(x[i])
             else:
