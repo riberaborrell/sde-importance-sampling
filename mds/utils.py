@@ -103,8 +103,8 @@ def get_metadynamics_dir_path(example_dir_path, sigma_i, k, N):
 
     return dir_path
 
-def get_gaussian_ansatz_dir_path(example_dir_path, distributed, m_i=None,
-                                 sigma_i=None, k=None, N_meta=None):
+def get_gaussian_ansatz_dir_path(example_dir_path, distributed, theta, m_i=None,
+                                 sigma_i=None, sigma_i_meta=None, k=None, N_meta=None, h=None):
     ''' Get ansatz data path and create its directories
     '''
     # get dir path
@@ -121,9 +121,27 @@ def get_gaussian_ansatz_dir_path(example_dir_path, distributed, m_i=None,
             example_dir_path,
             'gaussian-ansatz',
             distributed,
-            'sigma_i_{}'.format(float(sigma_i)),
+            'sigma_i_meta_{}'.format(float(sigma_i_meta)),
             'k_{}'.format(k),
             'N_meta_{}'.format(N_meta),
+        )
+    if theta == 'null':
+        dir_path = os.path.join(dir_path, 'theta_' + theta)
+    elif distributed == 'uniform' and theta == 'meta':
+        dir_path = os.path.join(
+            dir_path,
+            'theta_' + theta,
+            'sigma_i_meta_{}'.format(float(sigma_i_meta)),
+            'k_{}'.format(k),
+            'N_meta_{}'.format(N_meta),
+        )
+    elif distributed == 'meta' and theta == 'meta':
+        dir_path = os.path.join(dir_path, 'theta_' + theta)
+    elif theta == 'optimal':
+        dir_path = os.path.join(
+            dir_path,
+            'theta_' + theta,
+            'h_{:.0e}'.format(h),
         )
 
     # create dir path if not exists
