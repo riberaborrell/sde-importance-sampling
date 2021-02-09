@@ -420,7 +420,7 @@ class GaussianAnsatz:
 
         return value_f + K
 
-    def control(self, x, theta=None, ansatz=None):
+    def control(self, x, theta=None):
         '''This method computes the control evaluated at x
 
         Args:

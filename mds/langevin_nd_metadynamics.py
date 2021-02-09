@@ -91,7 +91,7 @@ class Metadynamics:
         '''
         # reset sampling
         sample = self.sample
-        sample.is_drifted = False
+        sample.is_controlled = False
         sample.xzero = np.full((sample.N, self.sample.sde.n), self.xzero)
 
         # preallocate means and cov matrix of the gaussiansbias functions
@@ -126,9 +126,9 @@ class Metadynamics:
             means[j] = np.mean(xtemp, axis=(0, 1))
             #print('({:2.3f}, {:2.3f})'.format(means[j, 0], means[j, 1]))
 
-            sample.is_drifted = True
-            sample.theta = omegas[:j+1] / 2
+            sample.is_controlled = True
             sample.ansatz.set_given_ansatz_functions(means[:j+1], self.cov)
+            sample.ansatz.theta = omegas[:j+1] / 2
             sample.xzero = np.full((sample.N, self.sample.sde.n), np.mean(xtemp[-1]))
 
             # update used time steps
@@ -136,7 +136,7 @@ class Metadynamics:
 
         # save bias functions added for this trajectory
         self.ms[i] = j
-        self.thetas[i, :j] = sample.theta
+        self.thetas[i, :j] = sample.ansatz.theta
         self.means[i, :j] = sample.ansatz.means
         self.time_steps[:j] = time_steps
 

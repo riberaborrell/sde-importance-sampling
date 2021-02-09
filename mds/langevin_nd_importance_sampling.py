@@ -372,13 +372,13 @@ class Sampling:
             dB = np.sqrt(self.dt) \
                * np.random.normal(0, 1, self.N * self.sde.n).reshape(self.N, self.sde.n)
 
-            if not self.is_drifted:
+            if not self.is_controlled:
                 # compute gradient
                 gradient = self.sde.gradient(xtemp[k - 1])
 
             else:
                 # control at xtemp
-                utemp = self.control(xtemp[k - 1])
+                utemp = self.ansatz.control(xtemp[k - 1])
 
                 # compute gradient
                 gradient = self.tilted_gradient(xtemp[k - 1], utemp)
