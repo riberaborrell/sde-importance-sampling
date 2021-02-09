@@ -10,18 +10,15 @@ class GaussianAnsatz:
     '''
     '''
 
-    def __init__(self, n, domain=None, m=None):
+    def __init__(self, sde):
         '''
         '''
-        if domain is None:
-            domain = np.full((n, 2), [-3, 3])
 
-        # dimension and domain
-        self.n = n
-        self.domain = domain
+        #sde
+        self.sde = sde
 
         # number of ansatz, means and cov
-        self.m = m
+        self.m = None
         self.means = None
         self.cov = None
 
@@ -39,20 +36,20 @@ class GaussianAnsatz:
         # directory path
         self.dir_path = None
 
-    def set_dir_path(self, example_dir_path):
+    def set_dir_path(self):
         '''
         '''
         # get dir path
         if self.are_uniformly_distributed:
             dir_path = get_gaussian_ansatz_dir_path(
-                example_dir_path,
+                self.sde.example_dir_path,
                 distributed='uniform',
                 m_i=self.m_i,
                 sigma_i=self.sigma_i,
             )
         elif self.are_meta_distributed:
             dir_path = get_gaussian_ansatz_dir_path(
-                example_dir_path,
+                self.sde.example_dir_path,
                 distributed='meta',
                 sigma_i=self.sigma_i,
                 k=self.k,
@@ -66,8 +63,8 @@ class GaussianAnsatz:
     def set_given_ansatz_functions(self, means, cov):
         '''
         '''
-        assert means.shape[1] == self.n, ''
-        assert cov.shape == (self.n, self.n), ''
+        assert means.shape[1] == self.sde.n, ''
+        assert cov.shape == (self.sde.n, self.sde.n), ''
         self.m = means.shape[0]
         self.means = means
         self.cov = cov
@@ -76,17 +73,17 @@ class GaussianAnsatz:
         '''
         '''
         self.m_i = m_i
-        self.m = m_i ** self.n
+        self.m = m_i ** self.sde.n
 
         mgrid_input = []
-        for i in range(self.n):
-            slice_i = slice(self.domain[i, 0], self.domain[i, 1], complex(0, m_i))
+        for i in range(self.sde.n):
+            slice_i = slice(self.sde.domain[i, 0], self.sde.domain[i, 1], complex(0, m_i))
             mgrid_input.append(slice_i)
         self.means = np.mgrid[mgrid_input]
-        self.means = np.moveaxis(self.means, 0, -1).reshape((self.m, self.n))
+        self.means = np.moveaxis(self.means, 0, -1).reshape((self.m, self.sde.n))
 
         self.sigma_i = sigma_i
-        self.cov = np.eye(self.n)
+        self.cov = np.eye(self.sde.n)
         self.cov *= sigma_i
 
         self.are_uniformly_distributed = True
@@ -99,13 +96,13 @@ class GaussianAnsatz:
             cov ((n, n)-array) : covariance matrix
         '''
         assert x.ndim == 2, ''
-        assert x.shape[1] == self.n, ''
+        assert x.shape[1] == self.sde.n, ''
         if mean is None:
-            mean = np.zeros(self.n)
+            mean = np.zeros(self.sde.n)
         if cov is None:
-            cov = np.eye(self.n)
-        assert mean.shape == (self.n,), ''
-        assert cov.shape == (self.n, self.n), ''
+            cov = np.eye(self.sde.n)
+        assert mean.shape == (self.sde.n,), ''
+        assert cov.shape == (self.sde.n, self.sde.n), ''
 
         N = x.shape[0]
         mvn_pdf = np.empty(N)
@@ -123,13 +120,13 @@ class GaussianAnsatz:
             cov ((n, n)-array) : covariance matrix
         '''
         assert x.ndim == 2, ''
-        assert x.shape[1] == self.n, ''
+        assert x.shape[1] == self.sde.n, ''
         if mean is None:
-            mean = np.zeros(self.n)
+            mean = np.zeros(self.sde.n)
         if cov is None:
-            cov = np.eye(self.n)
-        assert mean.shape == (self.n,), ''
-        assert cov.shape == (self.n, self.n), ''
+            cov = np.eye(self.sde.n)
+        assert mean.shape == (self.sde.n,), ''
+        assert cov.shape == (self.sde.n, self.sde.n), ''
 
         N = x.shape[0]
         mvn_pdf = np.empty(N)
@@ -137,10 +134,10 @@ class GaussianAnsatz:
         rv = stats.multivariate_normal(mean, cov, allow_singular=False)
         mvn_pdf[:] = rv.pdf(x)
 
-        grad_exp_term = np.zeros((N, self.n))
+        grad_exp_term = np.zeros((N, self.sde.n))
         inv_cov = np.linalg.inv(cov)
-        for i in range(self.n):
-            for j in range(self.n):
+        for i in range(self.sde.n):
+            for j in range(self.sde.n):
                 grad_exp_term[:, i] += (x[:, i] - mean[i]) * (inv_cov[i, j] + inv_cov[j, i])
         grad_exp_term *= - 0.5
 
@@ -155,25 +152,25 @@ class GaussianAnsatz:
             cov ((n, n)-array) : covariance matrix
         '''
         assert x.ndim == 2, ''
-        assert x.shape[1] == self.n, ''
+        assert x.shape[1] == self.sde.n, ''
         if means is None:
-            means = np.zeros(self.n)[np.newaxis, :]
+            means = np.zeros(self.sde.n)[np.newaxis, :]
         if cov is None:
-            cov = np.eye(self.n)
+            cov = np.eye(self.sde.n)
         assert means.ndim == 2, ''
-        assert means.shape[1] == self.n, ''
+        assert means.shape[1] == self.sde.n, ''
         assert cov.ndim == 2, ''
-        assert cov.shape == (self.n, self.n), ''
+        assert cov.shape == (self.sde.n, self.sde.n), ''
 
         N = x.shape[0]
         m = means.shape[0]
 
-        norm_factor = np.sqrt(((2 * np.pi) ** self.n) * np.linalg.det(cov))
+        norm_factor = np.sqrt(((2 * np.pi) ** self.sde.n) * np.linalg.det(cov))
         inv_cov = np.linalg.inv(cov)
         x = x[:, np.newaxis, :]
         means = means[np.newaxis, :, :]
 
-        x_centered = (x - means).reshape(N*m, self.n)
+        x_centered = (x - means).reshape(N*m, self.sde.n)
         exp_term = np.matmul(x_centered, inv_cov)
         exp_term = np.sum(exp_term * x_centered, axis=1).reshape(N, m)
         exp_term *= - 0.5
@@ -189,15 +186,15 @@ class GaussianAnsatz:
             cov ((n, n)-array) : covariance matrix
         '''
         assert x.ndim == 2, ''
-        assert x.shape[1] == self.n, ''
+        assert x.shape[1] == self.sde.n, ''
         if means is None:
-            means = np.zeros(self.n)[np.newaxis, :]
+            means = np.zeros(self.sde.n)[np.newaxis, :]
         if cov is None:
-            cov = np.eye(self.n)
+            cov = np.eye(self.sde.n)
         assert means.ndim == 2, ''
-        assert means.shape[1] == self.n, ''
+        assert means.shape[1] == self.sde.n, ''
         assert cov.ndim == 2, ''
-        assert cov.shape == (self.n, self.n), ''
+        assert cov.shape == (self.sde.n, self.sde.n), ''
 
         N = x.shape[0]
         m = means.shape[0]
@@ -207,10 +204,10 @@ class GaussianAnsatz:
         means = means[np.newaxis, :, :]
         inv_cov = np.linalg.inv(cov)
 
-        grad_mvn_pdf = np.empty((N, m, self.n))
-        grad_exp_term = np.zeros((N, m, self.n))
-        for i in range(self.n):
-            for j in range(self.n):
+        grad_mvn_pdf = np.empty((N, m, self.sde.n))
+        grad_exp_term = np.zeros((N, m, self.sde.n))
+        for i in range(self.sde.n):
+            for j in range(self.sde.n):
                 grad_exp_term[:, :, i] += (x[:, :, i] - means[:, :, i]) * (inv_cov[i, j] + inv_cov[j, i])
         grad_exp_term *= - 0.5
 
@@ -225,7 +222,7 @@ class GaussianAnsatz:
             x ((N, n)-ndarray) : positions
         '''
         assert x.ndim == 2, ''
-        assert x.shape[1] == self.n, ''
+        assert x.shape[1] == self.sde.n, ''
 
         #N = x.shape[0]
         #basis_value_f = np.zeros((N, self.m))
@@ -241,10 +238,10 @@ class GaussianAnsatz:
             x ((N, n)-ndarray) : positions
         '''
         assert x.ndim == 2, ''
-        assert x.shape[1] == self.n, ''
+        assert x.shape[1] == self.sde.n, ''
 
         #N = x.shape[0]
-        #basis_control = np.zeros((N, self.m, self.n))
+        #basis_control = np.zeros((N, self.m, self.sde.n))
         #for j in np.arange(self.m):
         #    basis_control[:, j, :] = - np.sqrt(2) \
         #                           *  self.grad_mv_normal_pdf(x, self.means[j], self.cov)
@@ -263,7 +260,7 @@ class GaussianAnsatz:
 
     def plot_1d_multivariate_normal_pdf(self, j):
         from mds.plots_1d import Plot1d
-        assert self.n == 1, ''
+        assert self.sde.n == 1, ''
 
         h = 0.01
         grid_input = [slice(self.domain[0, 0], self.domain[0, 1] + h, h)]
@@ -287,7 +284,7 @@ class GaussianAnsatz:
 
     def plot_2d_multivariate_normal_pdf(self, j):
         from mds.plots_2d import Plot2d
-        assert self.n == 2, ''
+        assert self.sde.n == 2, ''
 
         h = 0.1
         grid_input = [

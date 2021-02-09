@@ -1,7 +1,8 @@
 from mds.base_parser_nd import get_base_parser
+from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
 from mds.langevin_nd_importance_sampling import Sampling
 from mds.langevin_nd_metadynamics import Metadynamics
-from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
+from mds.langevin_nd_sde import LangevinSDE
 
 import numpy as np
 
@@ -21,17 +22,23 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
-    # initialize sampling nd object
-    sample = Sampling(
+    # initialize langevin sde object
+    sde = LangevinSDE(
         n=args.n,
         potential_name=args.potential_name,
         alpha=np.full(args.n, args.alpha_i),
         beta=args.beta,
-        is_drifted=False,
+        h=args.h,
+    )
+
+    # initialize sampling object
+    sample = Sampling(
+        sde,
+        is_controlled=True,
     )
 
     # initialize Gaussian Ansatz
-    sample.ansatz = GaussianAnsatz(args.n, sample.domain)
+    sample.ansatz = GaussianAnsatz(sde)
 
     # set k-steps sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(
