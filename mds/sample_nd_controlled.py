@@ -59,6 +59,15 @@ def main():
         #sample.ansatz.set_theta_optimal()
         return
 
+    # set sampling and Euler-Marujama parameters
+    sample.set_sampling_parameters(
+        seed=args.seed,
+        xzero=np.full(args.n, args.xzero_i),
+        N=args.N,
+        dt=args.dt,
+        k_lim=args.k_lim,
+    )
+
     # set controlled sampling dir path
     sample.ansatz.set_dir_path()
     dir_path = os.path.join(
@@ -71,15 +80,6 @@ def main():
     # plot potential and gradient
     if args.do_plots:
         return
-
-    # set sampling and Euler-Marujama parameters
-    sample.set_sampling_parameters(
-        seed=args.seed,
-        xzero=np.full(args.n, args.xzero_i),
-        N=args.N,
-        dt=args.dt,
-        k_lim=args.k_lim,
-    )
 
     # sample and compute statistics
     sample.sample_controlled()
