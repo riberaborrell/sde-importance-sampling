@@ -61,7 +61,11 @@ def main():
 
     # set controlled sampling dir path
     sample.ansatz.set_dir_path()
-    dir_path = os.path.join(sample.ansatz.dir_path, 'importance-sampling')
+    dir_path = os.path.join(
+        sample.ansatz.dir_path,
+        'importance-sampling',
+        'N_{:.0e}'.format(sample.N),
+    )
     sample.set_dir_path(dir_path)
 
     # plot potential and gradient

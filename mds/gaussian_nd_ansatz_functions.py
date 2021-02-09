@@ -44,7 +44,6 @@ class GaussianAnsatz:
         '''
         '''
         # get dir path
-        breakpoint()
         dir_path = get_gaussian_ansatz_dir_path(
             self.sde.example_dir_path,
             self.distributed,
