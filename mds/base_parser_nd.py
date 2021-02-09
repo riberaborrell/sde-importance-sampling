@@ -39,7 +39,7 @@ def get_base_parser():
         help='Set the beta parameter. Default: 1',
     )
     parser.add_argument(
-        '--xzero_i',
+        '--xzero-i',
         dest='xzero_i',
         type=float,
         default=-1,
@@ -88,7 +88,7 @@ def get_base_parser():
         help='Type of ansatz distribution. Default: uniform',
     )
     parser.add_argument(
-        '--m_i',
+        '--m-i',
         dest='m_i',
         type=int,
         default=30,
@@ -96,8 +96,15 @@ def get_base_parser():
               that you want to use. Default: 30',
     )
     parser.add_argument(
-        '--sigma_i',
+        '--sigma-i',
         dest='sigma_i',
+        type=float,
+        default=0.5,
+        help='Set the diagonal of the covariance matrix of the ansatz functions. Default: 0.5',
+    )
+    parser.add_argument(
+        '--sigma-i-meta',
+        dest='sigma_i_meta',
         type=float,
         default=0.5,
         help='Set the diagonal of the covariance matrix of the ansatz functions. Default: 0.5',

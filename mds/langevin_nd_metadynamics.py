@@ -183,9 +183,10 @@ class Metadynamics:
         f.write('Metadynamics parameters and statistics\n')
         if self.seed:
             f.write('seed: {:d}\n'.format(self.seed))
-        f.write('number of trajectories: {:d}\n'.format(self.N))
+
+        f.write('sigma_i_meta: {:2.2f}\n'.format(self.sigma_i))
         f.write('k: {:d}\n'.format(self.k))
-        f.write('sigma_i: {:2.2f}\n\n'.format(self.sigma_i))
+        f.write('number of trajectories: {:d}\n\n'.format(self.N))
 
         f.write('samples succeeded: {:2.2f} %\n'
                 ''.format(100 * np.sum(self.succ) / self.N))
