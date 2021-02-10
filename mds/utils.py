@@ -149,15 +149,15 @@ def get_gaussian_ansatz_dir_path(example_dir_path, distributed, theta, m_i=None,
 
     return dir_path
 
-def get_gd_dir_path(ansatz_dir_path, gd_type, theta_init, lr):
+def get_gd_dir_path(ansatz_dir_path, gd_type, lr, N):
     ''' Get gd data path and create its directories
     '''
     # get dir path
     dir_path = os.path.join(
         ansatz_dir_path,
         gd_type,
-        'theta_init_{}'.format(theta_init),
         'lr_{}'.format(float(lr)),
+        'N_{}'.format(N),
     )
 
     # create dir path if not exists

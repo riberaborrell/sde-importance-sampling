@@ -14,8 +14,8 @@ def get_base_parser():
         '--n',
         dest='n',
         type=int,
-        default=3,
-        help='Set the dimension n. Default: 3',
+        default=1,
+        help='Set the dimension n. Default: 1',
     )
     parser.add_argument(
         '--potential-name',
@@ -63,8 +63,15 @@ def get_base_parser():
         '--N-meta',
         dest='N_meta',
         type=int,
-        default=10,
-        help='Set number of trajectories to sample. Default: 10',
+        default=1,
+        help='Set number of trajectories to sample. Default: 1',
+    )
+    parser.add_argument(
+        '--N-gd',
+        dest='N_gd',
+        type=int,
+        default=1000,
+        help='Set number of trajectories to sample. Default: 1000',
     )
     parser.add_argument(
         '--dt',

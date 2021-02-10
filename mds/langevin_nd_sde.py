@@ -138,7 +138,7 @@ class LangevinSDE:
     def get_not_controlled(self, N):
         try:
             dir_path = os.path.join(
-                sample.example_dir_path,
+                self.example_dir_path,
                 'mc-sampling',
                 'N_{:.0e}'.format(N),
             )

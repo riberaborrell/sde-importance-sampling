@@ -8,12 +8,11 @@ import os
 class GradientDescent:
     '''
     '''
-    def __init__(self, sample, grad_type, theta_init, lr, epochs_lim,
+    def __init__(self, sample, grad_type, lr, epochs_lim,
                  do_epoch_plots=False):
         '''
         '''
         self.sample = sample
-        self.theta_init = theta_init
 
         self.grad_type = grad_type
 
@@ -41,11 +40,12 @@ class GradientDescent:
             self.epochs_dir_path = None
 
     def set_dir_path(self):
-        ansatz_dir_path = self.sample.ansatz.dir_path
-        grad_type = self.grad_type
-        theta_init = self.theta_init
-        lr = self.lr
-        self.dir_path = get_gd_dir_path(ansatz_dir_path, grad_type, theta_init, lr)
+        self.dir_path = get_gd_dir_path(
+            self.sample.ansatz.dir_path,
+            self.grad_type,
+            self.lr,
+            self.sample.N,
+        )
 
     def set_epochs_dir_path(self):
         self.epochs_dir_path = os.path.join(self.dir_path, 'epochs')
@@ -91,7 +91,7 @@ class GradientDescent:
             self.time_steps = np.append(self.time_steps, time_steps)
 
             # update coefficients
-            sample.theta = self.thetas[epoch, :] - self.lr * self.grad_losses[epoch, :]
+            sample.ansatz.theta = self.thetas[epoch, :] - self.lr * self.grad_losses[epoch, :]
 
         self.stop_timer()
         self.save_gd()
@@ -124,14 +124,12 @@ class GradientDescent:
         sample = self.sample
 
         # set path
-        trajectories_ext = 'N{:.0e}'.format(sample.N)
-        file_name = 'report_' + trajectories_ext + '.txt'
-        file_path = os.path.join(self.dir_path, file_name)
+        file_path = os.path.join(self.dir_path, 'report.txt')
 
         # write in file
         f = open(file_path, "w")
 
-        sample.sde.write_setting(f)
+        sample.write_setting(f)
         sample.write_sampling_parameters(f)
         sample.ansatz.write_ansatz_parameters(f)
 

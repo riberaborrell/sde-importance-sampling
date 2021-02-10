@@ -74,7 +74,7 @@ def main():
     sample.set_sampling_parameters(
         seed=args.seed,
         xzero=np.full(args.n, args.xzero_i),
-        N=args.N,
+        N=args.N_gd,
         dt=args.dt,
         k_lim=100000,
     )
@@ -83,7 +83,6 @@ def main():
     gd = GradientDescent(
         sample=sample,
         grad_type='ipa-value-f',
-        theta_init=args.theta_init,
         lr=args.lr,
         epochs_lim=args.epochs_lim,
         do_epoch_plots=args.do_epoch_plots,
