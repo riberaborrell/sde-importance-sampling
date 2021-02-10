@@ -13,18 +13,13 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
-    # initialize langevin sde object
-    sde = LangevinSDE(
+    # initialize sampling object
+    sample = Sampling(
         n=args.n,
         potential_name=args.potential_name,
         alpha=np.full(args.n, args.alpha_i),
         beta=args.beta,
         h=args.h,
-    )
-
-    # initialize sampling object
-    sample = Sampling(
-        sde,
         is_controlled=False,
     )
 
@@ -39,7 +34,7 @@ def main():
 
     # set path
     dir_path = os.path.join(
-        sample.sde.example_dir_path,
+        sample.example_dir_path,
         'mc-sampling',
         'N_{:.0e}'.format(sample.N),
     )

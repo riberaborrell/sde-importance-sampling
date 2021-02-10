@@ -1,26 +1,22 @@
 from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
-from mds.potentials_and_gradients_nd import get_potential_and_gradient
-from mds.utils import get_example_dir_path, \
-                      get_hjb_solution_dir_path, \
-                      get_metadynamics_dir_path, \
-                      get_gd_dir_path, \
-                      get_time_in_hms, \
-                      make_dir_path
+from mds.langevin_nd_sde import LangevinSDE
+from mds.utils import get_time_in_hms, make_dir_path
 
 import numpy as np
 import time
 import os
 
-class Sampling:
+class Sampling(LangevinSDE):
     '''
     '''
 
-    def __init__(self, sde, is_controlled=None, is_optimal=None):
+    def __init__(self, n, potential_name, alpha, beta, target_set=None,
+                 domain=None, h=None, is_controlled=None, is_optimal=None):
         '''
         '''
 
-        #sde
-        self.sde = sde
+        super().__init__(n, potential_name, alpha, beta,
+                         target_set, domain, h)
 
         # sampling
         self.is_controlled = is_controlled
@@ -154,7 +150,7 @@ class Sampling:
         '''
         assert x.shape == u.shape
 
-        return self.sde.gradient(x) + self.bias_gradient(u)
+        return self.gradient(x) + self.bias_gradient(u)
 
     def set_sampling_parameters(self, xzero, N, dt, k_lim, seed=None):
         '''
@@ -195,16 +191,16 @@ class Sampling:
 
     def sde_update(self, x, gradient, dB):
         drift = - gradient * self.dt
-        diffusion = np.dot(dB, np.sqrt(2 / self.sde.beta) * np.eye(self.sde.n))
+        diffusion = np.dot(dB, np.sqrt(2 / self.beta) * np.eye(self.n))
         return x + drift + diffusion
 
     def get_idx_new_in_target_set(self, x):
         # assume trajectories are in the target set
         is_in_target_set = np.repeat([True], self.N)
-        for i in range(self.sde.n):
+        for i in range(self.n):
             is_not_in_target_set_i_axis_idx = np.where(
-                (x[:, i] < self.sde.target_set[i, 0]) |
-                (x[:, i] > self.sde.target_set[i, 1])
+                (x[:, i] < self.target_set[i, 0]) |
+                (x[:, i] > self.target_set[i, 1])
             )[0]
             # if they are NOT in the target set change flag
             is_in_target_set[is_not_in_target_set_i_axis_idx] = False
@@ -229,19 +225,19 @@ class Sampling:
         self.initialize_fht()
 
         # initialize xtemp
-        xtemp = np.full((self.N, self.sde.n), self.xzero)
+        xtemp = np.full((self.N, self.n), self.xzero)
 
         if self.save_trajectory:
-            self.traj = np.empty((self.k_lim + 1, self.sde.n))
+            self.traj = np.empty((self.k_lim + 1, self.n))
             self.traj[0] = xtemp[0, :]
 
         for k in np.arange(1, self.k_lim + 1):
             # Brownian increment
             dB = np.sqrt(self.dt) \
-               * np.random.normal(0, 1, self.N * self.sde.n).reshape(self.N, self.sde.n)
+               * np.random.normal(0, 1, self.N * self.n).reshape(self.N, self.n)
 
             # compute gradient
-            gradient = self.sde.gradient(xtemp)
+            gradient = self.gradient(xtemp)
 
             # sde update
             xtemp = self.sde_update(xtemp, gradient, dB)
@@ -269,7 +265,7 @@ class Sampling:
         self.initialize_girsanov_martingale_terms()
 
         # initialize xtemp
-        xtemp = np.full((self.N, self.sde.n), self.xzero)
+        xtemp = np.full((self.N, self.n), self.xzero)
 
         # initialize Girsanov Martingale terms, M_t = e^(M1_t + M2_t)
         M1temp = np.zeros(self.N)
@@ -278,7 +274,7 @@ class Sampling:
         for k in np.arange(1, self.k_lim +1):
             # Brownian increment
             dB = np.sqrt(self.dt) \
-               * np.random.normal(0, 1, self.N * self.sde.n).reshape(self.N, self.sde.n)
+               * np.random.normal(0, 1, self.N * self.n).reshape(self.N, self.n)
 
             # control at Xtemp
             utemp = self.ansatz.control(xtemp)
@@ -290,8 +286,8 @@ class Sampling:
             xtemp = self.sde_update(xtemp, gradient, dB)
 
             # Girsanov Martingale terms
-            M1temp -= np.sqrt(self.sde.beta) * np.matmul(utemp, dB.T).diagonal()
-            M2temp -= self.sde.beta * 0.5 * (np.linalg.norm(utemp, axis=1) ** 2) * self.dt
+            M1temp -= np.sqrt(self.beta) * np.matmul(utemp, dB.T).diagonal()
+            M2temp -= self.beta * 0.5 * (np.linalg.norm(utemp, axis=1) ** 2) * self.dt
 
             # get indices from the trajectories which are new in target set
             idx_new = self.get_idx_new_in_target_set(xtemp)
@@ -364,17 +360,17 @@ class Sampling:
         self.initialize_fht()
 
         # initialize xtemp
-        xtemp = np.empty((self.k_lim + 1, self.N, self.sde.n))
-        xtemp[0] = np.full((self.N, self.sde.n), self.xzero)
+        xtemp = np.empty((self.k_lim + 1, self.N, self.n))
+        xtemp[0] = np.full((self.N, self.n), self.xzero)
 
         for k in np.arange(1, self.k_lim + 1):
             # Brownian increment
             dB = np.sqrt(self.dt) \
-               * np.random.normal(0, 1, self.N * self.sde.n).reshape(self.N, self.sde.n)
+               * np.random.normal(0, 1, self.N * self.n).reshape(self.N, self.n)
 
             if not self.is_controlled:
                 # compute gradient
-                gradient = self.sde.gradient(xtemp[k - 1])
+                gradient = self.gradient(xtemp[k - 1])
 
             else:
                 # control at xtemp
@@ -406,7 +402,7 @@ class Sampling:
         grad_J = np.zeros((self.N, m))
 
         # initialize xtemp
-        xtemp = np.full((self.N, self.sde.n), self.xzero)
+        xtemp = np.full((self.N, self.n), self.xzero)
 
         # initialize ipa variables
         cost_temp = np.zeros(self.N)
@@ -416,7 +412,7 @@ class Sampling:
         for k in np.arange(1, self.k_lim+1):
             # Brownian increment
             dB = np.sqrt(self.dt) \
-               * np.random.normal(0, 1, self.N * self.sde.n).reshape(self.N, self.sde.n)
+               * np.random.normal(0, 1, self.N * self.n).reshape(self.N, self.n)
 
             # control
             btemp = self.ansatz.basis_control(xtemp)
@@ -426,7 +422,7 @@ class Sampling:
             normed_utemp = np.linalg.norm(utemp, axis=1)
             cost_temp += 0.5 * (normed_utemp ** 2) * self.dt
             grad_phi_temp += np.sum(utemp[:, np.newaxis, :] * btemp, axis=2) * self.dt
-            grad_S_temp -= np.sqrt(self.sde.beta) * np.sum(dB[:, np.newaxis, :] * btemp, axis=2)
+            grad_S_temp -= np.sqrt(self.beta) * np.sum(dB[:, np.newaxis, :] * btemp, axis=2)
 
             # compute gradient
             gradient = self.tilted_gradient(xtemp, utemp)
@@ -546,6 +542,7 @@ class Sampling:
         self.re_I = data['re_I']
         self.N = N
 
+
     def write_euler_maruyama_parameters(self, f):
         f.write('Euler-Maruyama discretization parameters\n')
         f.write('dt: {:2.4f}\n'.format(self.dt))
@@ -559,7 +556,7 @@ class Sampling:
             f.write('seed: {:2.1f}'.format(self.seed))
 
         initial_posicion = 'xzero: ('
-        for i in range(self.sde.n):
+        for i in range(self.n):
             if i == 0:
                 initial_posicion += '{:2.1f}'.format(self.xzero[i])
             else:
@@ -579,7 +576,7 @@ class Sampling:
         # write in file
         f = open(file_path, "w")
 
-        self.sde.write_setting(f)
+        self.write_setting(f)
         self.write_euler_maruyama_parameters(f)
         self.write_sampling_parameters(f)
 
@@ -631,9 +628,9 @@ class Sampling:
         traj_fht = traj_fhs * self.dt
         x = np.linspace(0, traj_fht, traj_fhs)
         ys = np.moveaxis(self.traj, 0, -1)
-        labels = [r'$x_{}$'.format(i+1) for i in np.arange(self.sde.n)]
+        labels = [r'$x_{}$'.format(i+1) for i in np.arange(self.n)]
 
-        for i in np.arange(self.sde.n):
+        for i in np.arange(self.n):
             file_name = 'trajectory_x{:d}'.format(i+1)
             plt1d = Plot1d(self.dir_path, file_name)
             plt1d.xlabel = 't'
