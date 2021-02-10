@@ -6,8 +6,6 @@ import scipy.sparse as sparse
 import scipy.sparse.linalg as linalg
 import time
 
-from inspect import isfunction
-
 import os
 
 class Solver(LangevinSDE):
@@ -25,8 +23,8 @@ class Solver(LangevinSDE):
     def __init__(self, n, potential_name, alpha, beta,
                  target_set=None, domain=None, h=None):
 
-        super().__init__(n, potential_name, alpha, beta, target_set,
-                         domain, h)
+        super().__init__(n, potential_name, alpha, beta,
+                         target_set, domain, h)
 
         def f(x):
             return 1

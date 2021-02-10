@@ -1,6 +1,5 @@
 from mds.potentials_and_gradients_nd import get_potential_and_gradient
 from mds.utils import get_example_dir_path, \
-                      get_hjb_solution_dir_path, \
                       get_metadynamics_dir_path
 
 import numpy as np
@@ -91,17 +90,48 @@ class LangevinSDE:
         '''
         return self.domain_h[idx]
 
+    def get_hjb_solver(self, h):
+        from mds.langevin_nd_hjb_solver import Solver
+        # initialize hjb solver
+        sol = Solver(
+            n=self.n,
+            potential_name=self.potential_name,
+            alpha=self.alpha,
+            beta=self.beta,
+            h=h,
+        )
 
-    def load_meta_bias_potential(self, sigma_i, k, meta_N):
-        if not self.meta_bias_pot:
+        # load already computed solution
+        sol.load_hjb_solution()
+        return sol
+
+    def get_meta_bias_potential(self, sigma_i_meta, k, N_meta):
+        try:
             meta_dir_path = get_metadynamics_dir_path(
                 self.example_dir_path,
                 sigma_i,
                 k,
-                meta_N,
+                N_meta,
             )
             file_path = os.path.join(meta_dir_path, 'bias-potential.npz')
-            self.meta_bias_pot = np.load(file_path)
+            meta_bias_pot = np.load(file_path)
+            return meta_bias_pot
+        except:
+            print('no metadynamics-sampling found with sigma_i_meta={:.0e}, k={}, meta_N:{}'
+                  ''.format(sigma_i_meta, k, N_meta))
+
+    def get_not_controlled(self, N):
+        try:
+            dir_path = os.path.join(
+                sample.example_dir_path,
+                'mc-sampling',
+                'N_{:.0e}'.format(N),
+            )
+            file_path = os.path.join(dir_path, 'mc-sampling.npz')
+            mcs = np.load(file_path, allow_pickle=True)
+            return mcs
+        except:
+            print('no mc-sampling found with N={:.0e}'.format(N))
 
     def write_setting(self, f):
         '''
@@ -114,7 +144,7 @@ class LangevinSDE:
         for i in range(self.n):
             i_axis_str = '[{:2.1f}, {:2.1f}]'.format(self.target_set[i, 0], self.target_set[i, 1])
             if i == 0:
-                target_set += '[' + i_axis_str
+                target_set += i_axis_str
             else:
                 target_set += ', ' + i_axis_str
         target_set += ']\n\n'

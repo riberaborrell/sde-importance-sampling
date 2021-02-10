@@ -2,7 +2,6 @@ from mds.base_parser_nd import get_base_parser
 from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
 from mds.langevin_nd_gradient_descent import GradientDescent
 from mds.langevin_nd_importance_sampling import Sampling
-from mds.langevin_nd_sde import LangevinSDE
 
 import numpy as np
 
@@ -29,23 +28,22 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
-    # initialize langevin sde object
-    sde = LangevinSDE(
+    # initialize sampling object
+    sample = Sampling(
         n=args.n,
         potential_name=args.potential_name,
         alpha=np.full(args.n, args.alpha_i),
         beta=args.beta,
-        h=args.h,
-    )
-
-    # initialize sampling object
-    sample = Sampling(
-        sde,
         is_controlled=True,
     )
 
     # initialize Gaussian ansatz
-    sample.ansatz = GaussianAnsatz(sde)
+    sample.ansatz = GaussianAnsatz(
+        n=args.n,
+        potential_name=args.potential_name,
+        alpha=np.full(args.n, args.alpha_i),
+        beta=args.beta,
+    )
 
     # distribute Gaussian ansatz
     if args.distributed == 'uniform':

@@ -50,7 +50,7 @@ class Metadynamics:
 
     def set_dir_path(self):
         self.dir_path = get_metadynamics_dir_path(
-            self.sample.sde.example_dir_path,
+            self.sample.example_dir_path,
             self.sigma_i,
             self.k,
             self.N,
@@ -72,8 +72,8 @@ class Metadynamics:
         # initialize bias potentials coefficients
         self.ms = np.empty(self.N, dtype=np.intc)
         self.thetas = np.empty((self.N, self.updates_lim))
-        self.means = np.empty((self.N, self.updates_lim, self.sample.sde.n))
-        self.cov = self.sigma_i * np.eye(self.sample.sde.n)
+        self.means = np.empty((self.N, self.updates_lim, self.sample.n))
+        self.cov = self.sigma_i * np.eye(self.sample.n)
         self.time_steps = np.empty(self.N)
 
         # boolean array telling us if the algorithm succeeded or not for each sample
@@ -92,10 +92,10 @@ class Metadynamics:
         # reset sampling
         sample = self.sample
         sample.is_controlled = False
-        sample.xzero = np.full((sample.N, self.sample.sde.n), self.xzero)
+        sample.xzero = np.full((sample.N, self.sample.n), self.xzero)
 
         # preallocate means and cov matrix of the gaussiansbias functions
-        means = np.empty((self.updates_lim, self.sample.sde.n))
+        means = np.empty((self.updates_lim, self.sample.n))
 
         # set the weights of the bias functions
         #omegas = 1 * np.ones(updates)
@@ -129,7 +129,7 @@ class Metadynamics:
             sample.is_controlled = True
             sample.ansatz.set_given_ansatz_functions(means[:j+1], self.cov)
             sample.ansatz.theta = omegas[:j+1] / 2
-            sample.xzero = np.full((sample.N, self.sample.sde.n), np.mean(xtemp[-1]))
+            sample.xzero = np.full((sample.N, self.sample.n), np.mean(xtemp[-1]))
 
             # update used time steps
             time_steps += sample.k_lim
@@ -156,7 +156,7 @@ class Metadynamics:
         for i in np.arange(self.N):
             for j in np.arange(self.ms[i]):
                 mean_str = '('
-                for x_i in range(self.sample.sde.n):
+                for x_i in range(self.sample.n):
                     if x_i == 0:
                         mean_str += '{:2.1f}'.format(self.means[i, j, x_i])
                     else:
@@ -168,7 +168,7 @@ class Metadynamics:
     def write_report(self):
         sample = self.sample
         sample.N_lim = self.N_lim
-        sample.xzero = np.full((sample.N, sample.sde.n), self.xzero)
+        sample.xzero = np.full((sample.N, sample.n), self.xzero)
         sample.xzero = self.xzero
 
         file_path = os.path.join(self.dir_path, 'report.txt')
@@ -176,7 +176,7 @@ class Metadynamics:
         # write in file
         f = open(file_path, "w")
 
-        sample.sde.write_setting(f)
+        sample.write_setting(f)
         sample.write_euler_maruyama_parameters(f)
         sample.write_sampling_parameters(f)
 

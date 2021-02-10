@@ -22,23 +22,24 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
-    # initialize langevin sde object
-    sde = LangevinSDE(
+    # initialize sampling object
+    sample = Sampling(
+        n=args.n,
+        potential_name=args.potential_name,
+        alpha=np.full(args.n, args.alpha_i),
+        beta=args.beta,
+        h=args.h,
+        is_controlled=True,
+    )
+
+    # initialize Gaussian Ansatz
+    sample.ansatz = GaussianAnsatz(
         n=args.n,
         potential_name=args.potential_name,
         alpha=np.full(args.n, args.alpha_i),
         beta=args.beta,
         h=args.h,
     )
-
-    # initialize sampling object
-    sample = Sampling(
-        sde,
-        is_controlled=True,
-    )
-
-    # initialize Gaussian Ansatz
-    sample.ansatz = GaussianAnsatz(sde)
 
     # set k-steps sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(

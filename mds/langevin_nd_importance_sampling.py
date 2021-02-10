@@ -529,20 +529,6 @@ class Sampling(LangevinSDE):
             traj=self.traj,
         )
 
-    def load_not_controlled(self, N):
-        dir_path = os.path.join(
-            sample.example_dir_path,
-            'mc-sampling',
-            'N_{:.0e}'.format(self.N),
-        )
-        file_path = os.path.join(dir_path, 'mc-sampling.npz')
-        data = np.load(file_path, allow_pickle=True)
-        self.mean_I = data['mean_I']
-        self.var_I = data['var_I']
-        self.re_I = data['re_I']
-        self.N = N
-
-
     def write_euler_maruyama_parameters(self, f):
         f.write('Euler-Maruyama discretization parameters\n')
         f.write('dt: {:2.4f}\n'.format(self.dt))
