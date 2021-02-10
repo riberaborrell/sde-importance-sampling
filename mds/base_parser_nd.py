@@ -18,14 +18,14 @@ def get_base_parser():
         help='Set the dimension n. Default: 3',
     )
     parser.add_argument(
-        '--potential',
+        '--potential-name',
         dest='potential_name',
         choices=POTENTIAL_NAMES,
         default='nd_2well',
         help='Set type of potential. Default: double well',
     )
     parser.add_argument(
-        '--alpha_i',
+        '--alpha-i',
         dest='alpha_i',
         type=float,
         default=1,
