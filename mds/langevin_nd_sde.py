@@ -44,7 +44,7 @@ class LangevinSDE:
         self.set_example_dir_path()
 
     def set_example_dir_path(self):
-        assert self.alpha.all() == self.alpha[0], ''
+        assert (self.alpha == self.alpha[0]).all(), ''
         self.example_dir_path = get_example_dir_path(self.potential_name, self.n,
                                                      self.alpha[0], self.beta, 'hypercube')
     def discretize_domain(self):
