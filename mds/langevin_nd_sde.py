@@ -40,13 +40,6 @@ class LangevinSDE:
         self.Nx = None
         self.Nh = None
 
-        # hjb solution
-        self.hjb_sol = None
-        self.hjb_F_at_xzero = None
-
-        # metadynamics
-        self.meta_bias_pot = None
-
         # dir_path
         self.example_dir_path = None
         self.set_example_dir_path()
@@ -98,21 +91,6 @@ class LangevinSDE:
         '''
         return self.domain_h[idx]
 
-    def load_hjb_solution(self, h=None):
-        if self.hjb_sol:
-            return
-
-        if h is None:
-            h = self.h
-
-        try:
-            hjb_dir_path = get_hjb_solution_dir_path(self.example_dir_path, h)
-            self.hjb_sol = np.load(
-                os.path.join(hjb_dir_path, 'hjb-solution.npz'),
-                allow_pickle=True,
-            )
-        except:
-            print('no hjb-solution found with h={:.0e}'.format(h))
 
     def load_meta_bias_potential(self, sigma_i, k, meta_N):
         if not self.meta_bias_pot:
@@ -125,24 +103,9 @@ class LangevinSDE:
             file_path = os.path.join(meta_dir_path, 'bias-potential.npz')
             self.meta_bias_pot = np.load(file_path)
 
-    def get_hjb_F_at_xzero(self, xzero, h=None):
-        # load ref sol
-        self.load_hjb_solution(h)
-        if not self.hjb_sol:
-            return
-
-        # get index of xzero
-        idx = self.get_index(xzero)
-
-        # evaluate F at xzero
-        F = self.hjb_sol['F']
-        self.hjb_F_at_xzero = F[idx]
-
     def write_setting(self, f):
         '''
         '''
-        f.write('SDE parameters\n')
-        f.write('n: {}\n'.format(self.n))
         f.write('potential: {}\n'.format(self.potential_name))
         f.write('alpha: {}\n'.format(self.alpha))
         f.write('beta: {:2.1f}\n'.format(self.beta))

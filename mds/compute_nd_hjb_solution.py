@@ -1,6 +1,5 @@
 from mds.base_parser_nd import get_base_parser
 from mds.langevin_nd_hjb_solver import Solver
-from mds.langevin_nd_sde import LangevinSDE
 
 import numpy as np
 
@@ -13,8 +12,8 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
-    # initialize langevin sde object
-    lang_sde = LangevinSDE(
+    # initialize hjb solver
+    sol = Solver(
         n=args.n,
         potential_name=args.potential_name,
         alpha=np.full(args.n, args.alpha_i),
@@ -22,22 +21,9 @@ def main():
         h=args.h,
     )
 
-    def f(x):
-        return 1
-
-    def g(x):
-        return 0
-
-    # initialize solver
-    sol = Solver(
-        sde=lang_sde,
-        f=f,
-        g=g,
-    )
-
     # discretize domain
     sol.start_timer()
-    sol.sde.discretize_domain()
+    sol.discretize_domain()
 
     # compute hjb solution 
     sol.solve_bvp()
@@ -55,7 +41,6 @@ def main():
         sol.plot_optimal_tilted_potential()
         sol.plot_optimal_control()
         sol.plot_optimal_tilted_drift()
-
 
 if __name__ == "__main__":
     main()
