@@ -52,19 +52,15 @@ def main():
         sample.ansatz.set_meta_dist_ansatz_functions(args.sigma_i_meta, args.k, args.N_meta)
     elif args.distributed == 'meta' and args.theta_init == 'meta':
         sample.ansatz.set_meta_ansatz_functions(args.sigma_i_meta, args.k, args.N_meta)
-    else:
-        return
 
     # set initial coefficients
     if args.theta_init == 'null':
         sample.ansatz.set_theta_null()
-    elif args.theta_init == 'meta':
-        sample.sde.h = args.h
+    elif args.theta_init == 'meta' and args.distributed != 'meta':
+        sample.ansatz.h = args.h
         sample.ansatz.set_theta_from_metadynamics(args.sigma_i_meta, args.k, args.N_meta)
     elif args.theta_init == 'optimal':
         #sample.set_theta_optimal()
-        return
-    else:
         return
 
     # set dir path for gaussian ansatz
