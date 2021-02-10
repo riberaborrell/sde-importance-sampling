@@ -1,6 +1,8 @@
 from mds.base_parser_nd import get_base_parser
+from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
 from mds.langevin_nd_gradient_descent import GradientDescent
 from mds.langevin_nd_importance_sampling import Sampling
+from mds.langevin_nd_sde import LangevinSDE
 
 import numpy as np
 
@@ -27,32 +29,48 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
-    # initialize Sampling object
-    sample = Sampling(
+    # initialize langevin sde object
+    sde = LangevinSDE(
         n=args.n,
         potential_name=args.potential_name,
         alpha=np.full(args.n, args.alpha_i),
         beta=args.beta,
-        is_drifted=True,
+        h=args.h,
     )
+
+    # initialize sampling object
+    sample = Sampling(
+        sde,
+        is_controlled=True,
+    )
+
+    # initialize Gaussian ansatz
+    sample.ansatz = GaussianAnsatz(sde)
 
     # distribute Gaussian ansatz
     if args.distributed == 'uniform':
-        sample.set_gaussian_ansatz_uniformly(args.m_i, args.sigma_i)
-    elif args.distributed == 'meta':
-        sample.set_gaussian_ansatz_from_meta()
+        sample.ansatz.set_unif_dist_ansatz_functions(args.m_i, args.sigma_i)
+    elif args.distributed == 'meta' and args.theta_init != 'meta':
+        sample.ansatz.set_meta_dist_ansatz_functions(args.sigma_i_meta, args.k, args.N_meta)
+    elif args.distributed == 'meta' and args.theta_init == 'meta':
+        sample.ansatz.set_meta_ansatz_functions(args.sigma_i_meta, args.k, args.N_meta)
     else:
         return
 
     # set initial coefficients
     if args.theta_init == 'null':
-        sample.set_theta_null()
+        sample.ansatz.set_theta_null()
     elif args.theta_init == 'meta':
-        sample.h = args.h
-        sample.set_theta_from_metadynamics()
+        sample.sde.h = args.h
+        sample.ansatz.set_theta_from_metadynamics(args.sigma_i_meta, args.k, args.N_meta)
     elif args.theta_init == 'optimal':
         #sample.set_theta_optimal()
         return
+    else:
+        return
+
+    # set dir path for gaussian ansatz
+    sample.ansatz.set_dir_path()
 
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(
@@ -73,6 +91,15 @@ def main():
         do_epoch_plots=args.do_epoch_plots,
     )
 
+    if args.do_plots:
+        # load already run gd
+        gd.load_gd()
+
+        # plot
+        gd.plot_gd_losses()
+        gd.plot_gd_time_steps()
+        return
+
     # start gd with ipa estimator for the gradient
     try:
         gd.gd_ipa()
@@ -83,9 +110,6 @@ def main():
 
     gd.write_report()
 
-    if args.do_plots:
-        gd.plot_gd_losses()
-        gd.plot_gd_time_steps()
 
 if __name__ == "__main__":
     main()

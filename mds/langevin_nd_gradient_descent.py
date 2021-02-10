@@ -1,5 +1,5 @@
 from mds.plots_1d import Plot1d
-from mds.utils import get_gd_data_path, make_dir_path, get_time_in_hms
+from mds.utils import get_gd_dir_path, make_dir_path, get_time_in_hms
 
 import time
 import numpy as np
@@ -45,7 +45,7 @@ class GradientDescent:
         grad_type = self.grad_type
         theta_init = self.theta_init
         lr = self.lr
-        self.dir_path = get_gd_data_path(ansatz_dir_path, grad_type, theta_init, lr)
+        self.dir_path = get_gd_dir_path(ansatz_dir_path, grad_type, theta_init, lr)
 
     def set_epochs_dir_path(self):
         self.epochs_dir_path = os.path.join(self.dir_path, 'epochs')
@@ -85,7 +85,7 @@ class GradientDescent:
 
             # allocate
             self.epochs = np.append(self.epochs, epoch)
-            self.thetas = np.vstack((self.thetas, sample.theta))
+            self.thetas = np.vstack((self.thetas, sample.ansatz.theta))
             self.losses = np.append(self.losses, loss)
             self.grad_losses = np.vstack((self.grad_losses, grad_loss))
             self.time_steps = np.append(self.time_steps, time_steps)
@@ -131,7 +131,7 @@ class GradientDescent:
         # write in file
         f = open(file_path, "w")
 
-        sample.write_sde_parameters(f)
+        sample.sde.write_setting(f)
         sample.write_sampling_parameters(f)
         sample.ansatz.write_ansatz_parameters(f)
 
@@ -162,8 +162,11 @@ class GradientDescent:
             f.write('time steps = {}\n'.format(self.time_steps[epoch]))
 
     def plot_gd_losses(self):
+        breakpoint()
         self.sample.get_value_f_at_xzero()
+        N_gd = self.sample.N
         self.sample.load_not_drifted(N=100000)
+        self.sample.N = N_gd
         value_f_hjb = np.full(self.epochs.shape[0], self.sample.value_f_at_xzero)
         value_f_mc = np.full(self.epochs.shape[0], - np.log(self.sample.mean_I))
 

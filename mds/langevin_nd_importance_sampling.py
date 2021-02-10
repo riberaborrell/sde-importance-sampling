@@ -406,7 +406,7 @@ class Sampling:
         grad_J = np.zeros((self.N, m))
 
         # initialize xtemp
-        xtemp = np.full((self.N, self.n), self.xzero)
+        xtemp = np.full((self.N, self.sde.n), self.xzero)
 
         # initialize ipa variables
         cost_temp = np.zeros(self.N)
@@ -416,17 +416,17 @@ class Sampling:
         for k in np.arange(1, self.k_lim+1):
             # Brownian increment
             dB = np.sqrt(self.dt) \
-               * np.random.normal(0, 1, self.N * self.n).reshape(self.N, self.n)
+               * np.random.normal(0, 1, self.N * self.sde.n).reshape(self.N, self.sde.n)
 
             # control
             btemp = self.ansatz.basis_control(xtemp)
-            utemp = self.control(xtemp)
+            utemp = self.ansatz.control(xtemp)
 
             # ipa statistics 
             normed_utemp = np.linalg.norm(utemp, axis=1)
             cost_temp += 0.5 * (normed_utemp ** 2) * self.dt
             grad_phi_temp += np.sum(utemp[:, np.newaxis, :] * btemp, axis=2) * self.dt
-            grad_S_temp -= np.sqrt(self.beta) * np.sum(dB[:, np.newaxis, :] * btemp, axis=2)
+            grad_S_temp -= np.sqrt(self.sde.beta) * np.sum(dB[:, np.newaxis, :] * btemp, axis=2)
 
             # compute gradient
             gradient = self.tilted_gradient(xtemp, utemp)

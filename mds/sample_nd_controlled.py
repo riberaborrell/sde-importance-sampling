@@ -59,6 +59,9 @@ def main():
         #sample.ansatz.set_theta_optimal()
         return
 
+    # set dir path for gaussian ansatz
+    sample.ansatz.set_dir_path()
+
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(
         seed=args.seed,
@@ -69,7 +72,6 @@ def main():
     )
 
     # set controlled sampling dir path
-    sample.ansatz.set_dir_path()
     dir_path = os.path.join(
         sample.ansatz.dir_path,
         'importance-sampling',
