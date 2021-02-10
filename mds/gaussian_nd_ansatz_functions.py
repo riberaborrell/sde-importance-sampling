@@ -91,11 +91,11 @@ class GaussianAnsatz(LangevinSDE):
     def set_meta_dist_ansatz_functions(self, sigma_i_meta, k, N_meta):
         '''
         '''
-        self.load_meta_bias_potential(sigma_i_meta, k, N_meta)
-        meta_ms = self.meta_bias_pot['ms']
+        meta_bias_potential = self.get_meta_bias_potential(sigma_i_meta, k, N_meta)
+        meta_ms = meta_bias_pot['ms']
         meta_total_m = int(np.sum(meta_ms))
-        meta_means = self.meta_bias_pot['means']
-        meta_cov = self.meta_bias_pot['cov']
+        meta_means = meta_bias_pot['means']
+        meta_cov = meta_bias_pot['cov']
         assert N_meta == meta_ms.shape[0], ''
 
         # get the centers used for each trajectory
@@ -114,12 +114,12 @@ class GaussianAnsatz(LangevinSDE):
     def set_meta_ansatz_functions(self, sigma_i_meta, k, N_meta):
         '''
         '''
-        self.load_meta_bias_potential(sigma_i_meta, k, N_meta)
-        meta_ms = self.meta_bias_pot['ms']
+        meta_bias_pot = self.get_meta_bias_potential(sigma_i_meta, k, N_meta)
+        meta_ms = meta_bias_pot['ms']
         meta_total_m = int(np.sum(meta_ms))
-        meta_means = self.meta_bias_pot['means']
-        meta_cov = self.meta_bias_pot['cov']
-        meta_thetas = self.meta_bias_pot['thetas']
+        meta_means = meta_bias_pot['means']
+        meta_cov = meta_bias_pot['cov']
+        meta_thetas = meta_bias_pot['thetas']
         assert N_meta == meta_ms.shape[0], ''
 
         # get the centers used for each trajectory
@@ -170,19 +170,24 @@ class GaussianAnsatz(LangevinSDE):
         self.discretize_domain()
         x = self.domain_h.reshape(self.Nh, self.n)
 
-        self.load_meta_bias_potential(sigma_i_meta, k, N_meta)
-        meta_ms = self.meta_bias_pot['ms']
+        meta_bias_pot = self.get_meta_bias_potential(sigma_i_meta, k, N_meta)
+        meta_ms = meta_bias_pot['ms']
         meta_total_m = int(np.sum(meta_ms))
-        meta_means = self.meta_bias_pot['means']
-        meta_cov = self.meta_bias_pot['cov']
-        meta_thetas = self.meta_bias_pot['thetas']
+        meta_means = meta_bias_pot['means']
+        meta_cov = meta_bias_pot['cov']
+        meta_thetas = meta_bias_pot['thetas']
         assert meta_ms.shape[0] == N_meta, ''
 
         thetas = np.empty((N_meta, self.m))
 
         for i in np.arange(N_meta):
             # create ansatz functions from meta
-            meta_ansatz = GaussianAnsatz(self.sde)
+            meta_ansatz = GaussianAnsatz(
+                n=self.n,
+                potential_name=self.potential_name,
+                alpha=self.alpha,
+                beta=self.beta,
+            )
             meta_ansatz.set_given_ansatz_functions(
                 means=meta_means[i, :meta_ms[i]],
                 cov=meta_cov,

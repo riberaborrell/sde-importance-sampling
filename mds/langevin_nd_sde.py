@@ -124,7 +124,7 @@ class LangevinSDE:
         try:
             meta_dir_path = get_metadynamics_dir_path(
                 self.example_dir_path,
-                sigma_i,
+                sigma_i_meta,
                 k,
                 N_meta,
             )
