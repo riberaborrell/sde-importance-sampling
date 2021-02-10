@@ -305,7 +305,7 @@ class Sampling(LangevinSDE):
         self.compute_I_u_statistics()
         self.stop_timer()
 
-    def sample_optimal_drifted(self):
+    def sample_optimal_controlled(self, h):
         self.start_timer()
         self.initialize_fht()
         self.initialize_girsanov_martingale_terms()
@@ -318,8 +318,10 @@ class Sampling(LangevinSDE):
         M2temp = np.zeros(self.N)
 
         # load optimal control
-        self.load_hjb_solution()
-        u_opt = self.hjb_sol['u_opt']
+        sol = self.get_hjb_solver(h)
+        sol.load_hjb_solution()
+        u_opt = sol.u_opt
+        self.Nx = sol.Nx
 
         for k in np.arange(1, self.k_lim +1):
             # Brownian increment
@@ -327,7 +329,7 @@ class Sampling(LangevinSDE):
                * np.random.normal(0, 1, self.N * self.n).reshape(self.N, self.n)
 
             # control at xtemp
-            idx = self.get_idx_discretized_domain(xtemp)
+            idx = self.get_index_vectorized(xtemp)
             utemp = u_opt[idx]
 
             # compute gradient

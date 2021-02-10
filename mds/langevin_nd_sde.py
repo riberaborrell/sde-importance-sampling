@@ -85,6 +85,21 @@ class LangevinSDE:
 
         return tuple(idx)
 
+    def get_index_vectorized(self, x):
+        ''' returns the index of the point of the grid closest to x
+        '''
+        assert x.ndim == 2, ''
+        assert x.shape[1] == self.n, ''
+
+        # get index of xzero
+        idx = [None for i in range(self.n)]
+        for i in range(self.n):
+            axis_i = np.linspace(self.domain[i, 0], self.domain[i, 1], self.Nx[i])
+            idx[i] = tuple(np.argmin(np.abs(axis_i - x[:, i].reshape(x.shape[0], 1)), axis=1))
+
+        idx = tuple(idx)
+        return idx
+
     def get_x(self, idx):
         ''' returns the coordinates of the point determined by the axis indices idx
         '''
