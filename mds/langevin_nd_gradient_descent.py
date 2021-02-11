@@ -159,9 +159,9 @@ class GradientDescent:
                     ''.format(np.linalg.norm(self.grad_losses[epoch])))
             f.write('time steps = {}\n'.format(self.time_steps[epoch]))
 
-    def plot_gd_losses(self):
+    def plot_gd_losses(self, h_hjb, N_mc):
         # hjb F at xzero
-        sol = self.sample.get_hjb_solver(h=0.1)
+        sol = self.sample.get_hjb_solver(h_hjb)
         hjb_f_at_x = sol.get_f_at_x(self.sample.xzero)
         if hjb_f_at_x is not None:
             value_f_hjb = np.full(self.epochs.shape[0], hjb_f_at_x)
@@ -169,7 +169,7 @@ class GradientDescent:
             value_f_hjb = np.full(self.epochs.shape[0], np.nan)
 
         # mc F
-        mcs = self.sample.get_not_controlled(N=100000)
+        mcs = self.sample.get_not_controlled(N_mc)
         if mcs is not None:
             mc_psi = mcs['mean_I']
             mc_f = - np.log(mc_psi)
@@ -180,7 +180,11 @@ class GradientDescent:
         ys = np.vstack((self.losses, value_f_hjb, value_f_mc))
         colors = ['tab:blue', 'tab:green', 'tab:orange']
         linestyles = ['-', 'dashed', 'dashdot']
-        labels = [r'$J(x_0)$', 'hjb', 'MC Sampling']
+        labels = [
+            r'$J(x_0)$',
+            'hjb (h={:.0e})'.format(h_hjb),
+            'MC Sampling (N={:.0e})'.format(N_mc),
+        ]
 
         plt1d = Plot1d(self.dir_path, 'gd_losses_line')
         plt1d.xlabel = 'epochs'

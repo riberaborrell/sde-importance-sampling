@@ -18,7 +18,7 @@ def main():
         potential_name=args.potential_name,
         alpha=np.full(args.n, args.alpha_i),
         beta=args.beta,
-        h=args.h,
+        h=args.h_hjb,
     )
 
     # load already computed solution

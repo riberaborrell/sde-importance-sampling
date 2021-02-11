@@ -53,6 +53,13 @@ def get_base_parser():
         help='Set the discretization step size. Default: 0.1',
     )
     parser.add_argument(
+        '--h-hjb',
+        dest='h_hjb',
+        type=float,
+        default=0.1,
+        help='Set the discretization step size for the hjb sol. Default: 0.1',
+    )
+    parser.add_argument(
         '--N',
         dest='N',
         type=int,

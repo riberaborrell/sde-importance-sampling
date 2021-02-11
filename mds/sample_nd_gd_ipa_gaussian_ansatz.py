@@ -89,7 +89,7 @@ def main():
         gd.load_gd()
 
         # plot
-        gd.plot_gd_losses()
+        gd.plot_gd_losses(args.h_hjb, args.N)
         gd.plot_gd_time_steps()
         return
 
