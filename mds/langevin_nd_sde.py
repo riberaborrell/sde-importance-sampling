@@ -164,3 +164,11 @@ class LangevinSDE:
                 target_set += ', ' + i_axis_str
         target_set += ']\n\n'
         f.write(target_set)
+
+    def print_report(self, dir_path):
+        try:
+            with open(os.path.join(dir_path, 'report.txt'), 'r') as f:
+                print(f.read())
+        except:
+            print('no report file found with path: {}'.format(dir_path))
+

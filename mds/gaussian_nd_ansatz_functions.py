@@ -91,7 +91,7 @@ class GaussianAnsatz(LangevinSDE):
     def set_meta_dist_ansatz_functions(self, sigma_i_meta, k, N_meta):
         '''
         '''
-        meta_bias_potential = self.get_meta_bias_potential(sigma_i_meta, k, N_meta)
+        meta_bias_pot = self.get_meta_bias_potential(sigma_i_meta, k, N_meta)
         meta_ms = meta_bias_pot['ms']
         meta_total_m = int(np.sum(meta_ms))
         meta_means = meta_bias_pot['means']
