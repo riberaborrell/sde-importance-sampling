@@ -135,7 +135,7 @@ class GaussianAnsatz(LangevinSDE):
         self.sigma_i_meta = sigma_i_meta
         self.k = k
         self.N_meta = N_meta
-        self.theta = theta
+        self.theta = theta / N_meta
         self.distributed = 'meta'
         self.theta_type = 'meta'
 
