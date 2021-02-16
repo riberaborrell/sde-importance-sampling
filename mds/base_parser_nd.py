@@ -158,6 +158,12 @@ def get_base_parser():
         help='Do plots. Default: False',
     )
     parser.add_argument(
+        '--do-report',
+        dest='do_report',
+        action='store_true',
+        help='Write / Print report. Default: False',
+    )
+    parser.add_argument(
         '--save-trajectory',
         dest='save_trajectory',
         action='store_true',

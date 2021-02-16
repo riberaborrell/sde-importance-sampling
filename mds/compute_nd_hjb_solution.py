@@ -7,6 +7,12 @@ def get_parser():
     parser = get_base_parser()
     parser.description = 'Computes the numerical solution of the HJB equation associated to' \
                          'the overdamped Langevin SDE'
+    parser.add_argument(
+        '--load-hjb-sol',
+        dest='load_hjb_sol',
+        action='store_true',
+        help='Load already computed hjb solution. Default: False',
+    )
     return parser
 
 def main():
@@ -21,26 +27,58 @@ def main():
         h=args.h_hjb,
     )
 
-    # discretize domain
-    sol.start_timer()
-    sol.discretize_domain()
+    # compute soltuion
+    if not args.load_hjb_sol:
 
-    # compute hjb solution 
-    sol.solve_bvp()
-    sol.compute_free_energy()
-    sol.compute_optimal_control()
-    sol.stop_timer()
+        # discretize domain
+        sol.start_timer()
+        sol.discretize_domain()
 
-    # save solution and write report
-    sol.save_hjb_solution()
-    sol.write_report(x=np.full(args.n, args.xzero_i))
+        # compute hjb solution 
+        sol.solve_bvp()
+        sol.compute_free_energy()
+        sol.compute_optimal_control()
+        sol.stop_timer()
 
+        # save solution
+        sol.save_hjb_solution()
+
+    # load already computed solution
+    else:
+        sol.load_hjb_solution()
+
+    # report solution
+    if args.do_report:
+        sol.write_report(x=np.full(args.n, args.xzero_i))
+
+    # print solution
     if args.do_plots:
-        sol.plot_psi()
-        sol.plot_free_energy()
-        sol.plot_optimal_tilted_potential()
-        sol.plot_optimal_control()
-        sol.plot_optimal_tilted_drift()
+
+        # flatten domain_h
+        x = sol.domain_h.reshape(sol.Nh, sol.n)
+
+        # psi, free energy
+        psi = sol.Psi
+        free = sol.F
+
+        # potential, bias potential and tilted potential
+        V = sol.potential(x).reshape(sol.Nx)
+        Vbias = 2 * sol.F
+        Vtilted = V + Vbias
+
+        # gradient, control and tilted drift
+        dV = sol.gradient(x).reshape(sol.domain_h.shape)
+        u_opt = sol.u_opt
+        dVtilted = - dV + np.sqrt(2) * sol.u_opt
+
+        if sol.n == 1:
+            pass
+        elif sol.n == 2:
+            sol.plot_2d_psi(psi)
+            sol.plot_2d_free_energy(free)
+            sol.plot_2d_tilted_potential(Vtilted)
+            sol.plot_2d_control(u_opt)
+            sol.plot_2d_tilted_drift(dVtilted)
 
 if __name__ == "__main__":
     main()

@@ -1,4 +1,5 @@
 from mds.potentials_and_gradients_nd import get_potential_and_gradient
+from mds.plots import Plot
 from mds.utils import get_example_dir_path, \
                       get_metadynamics_dir_path
 
@@ -47,9 +48,11 @@ class LangevinSDE:
         assert (self.alpha == self.alpha[0]).all(), ''
         self.example_dir_path = get_example_dir_path(self.potential_name, self.n,
                                                      self.alpha[0], self.beta, 'hypercube')
-    def discretize_domain(self):
+    def discretize_domain(self, h=None):
         ''' this method discretizes the hyper-rectangular domain uniformly with step-size h
         '''
+        if h is not None:
+            self.h = h
         assert self.h is not None, ''
 
         # construct not sparse nd grid
@@ -71,6 +74,13 @@ class LangevinSDE:
         for i in range(self.n):
             N *= self.Nx[i]
         self.Nh = N
+
+    def get_flatted_domain_h(self):
+        ''' this method returns the flatten discretized domain
+        '''
+        breakpoint()
+        flat_shape = tuple(self.N, self.n)
+        x = self.domain_h.reshape(self.N, 2)
 
     def get_index(self, x):
         ''' returns the index of the point of the grid closest to x
@@ -172,3 +182,104 @@ class LangevinSDE:
         except:
             print('no report file found with path: {}'.format(dir_path))
 
+    def plot_1d_psi(self, psi, hjb_psi=None, dir_path=None, ext=''):
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        x = self.domain_h[:, 0]
+
+        # surface plot
+        plt = Plot2d(dir_path, 'psi_surface' + ext)
+        plt.surface(X, Y, psi)
+
+        # contour plot
+        plt2d = Plot2d(self.dir_path, 'psi_contour' + ext)
+        plt2d.contour(X, Y, self.Psi)
+
+    def plot_2d_psi(self, psi, dir_path=None, ext=''):
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        X = self.domain_h[:, :, 0]
+        Y = self.domain_h[:, :, 1]
+
+        # surface plot
+        plt = Plot(dir_path, 'psi_surface' + ext)
+        plt.surface(X, Y, psi)
+
+        # contour plot
+        plt = Plot(self.dir_path, 'psi_contour' + ext)
+        plt.contour(X, Y, psi)
+
+    def plot_2d_free_energy(self, free, dir_path=None, ext=''):
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        X = self.domain_h[:, :, 0]
+        Y = self.domain_h[:, :, 1]
+
+        # surface plot
+        plt = Plot(dir_path, 'free_energy_surface' + ext)
+        plt.surface(X, Y, free)
+
+        # contour plot
+        levels = np.linspace(-0.5, 3.5, 21)
+        plt = Plot(dir_path, 'free_energy_contour' + ext)
+        plt.set_zlim(0, 3)
+        plt.contour(X, Y, free)
+
+    def plot_2d_tilted_potential(self, Vtilted, dir_path=None, ext=''):
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        X = self.domain_h[:, :, 0]
+        Y = self.domain_h[:, :, 1]
+
+        # surface plot
+        plt = Plot(dir_path, 'tilted_potential_surface' + ext)
+        plt.set_xlim(-2, 2)
+        plt.set_ylim(-2, 2)
+        plt.set_zlim(0, 10)
+        plt.surface(X, Y, Vtilted)
+
+        # contour plot
+        levels = np.logspace(-2, 1, 20, endpoint=True)
+        plt = Plot(dir_path, 'tilted_potential_contour' + ext)
+        plt.set_xlim(-2, 2)
+        plt.set_ylim(-2, 2)
+        plt.set_zlim(0, 10)
+        plt.contour(X, Y, Vtilted, levels)
+
+    def plot_2d_control(self, u, dir_path=None, ext=''):
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        X = self.domain_h[:, :, 0]
+        Y = self.domain_h[:, :, 1]
+        U = u[:, :, 0]
+        V = u[:, :, 1]
+
+        # gradient plot
+        plt = Plot(self.dir_path, 'control' + ext)
+        plt.vector_field(X, Y, U, V, scale=8)
+        return
+
+        # zoom gradient plot
+        plt = Plot2d(self.dir_path, 'control_zoom_ts' + ext)
+        plt.set_xlim(0, 2)
+        plt.set_ylim(0, 2)
+        plt.vector_field(X, Y, U, V, scale=30)
+
+    def plot_2d_tilted_drift(self, dVtilted, dir_path=None, ext=''):
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        X = self.domain_h[:, :, 0]
+        Y = self.domain_h[:, :, 1]
+        U = dVtilted[:, :, 0]
+        V = dVtilted[:, :, 1]
+
+        plt = Plot(self.dir_path, 'tilted_drift')
+        plt.set_xlim(-1.5, 1.5)
+        plt.set_ylim(-1.5, 1.5)
+        plt.vector_field(X, Y, U, V, scale=50)

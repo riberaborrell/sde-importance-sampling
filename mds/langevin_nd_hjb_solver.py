@@ -1,4 +1,5 @@
 from mds.langevin_nd_sde import LangevinSDE
+from mds.plots_2d import Plot2d
 from mds.utils import get_hjb_solution_dir_path, get_time_in_hms
 
 import numpy as np
@@ -306,7 +307,7 @@ class Solver(LangevinSDE):
         F = self.get_f_at_x(x)
 
         # write file
-        f = open(os.path.join(self.dir_path, 'report.txt'), "w")
+        f = open(os.path.join(self.dir_path, 'report.txt'), 'w')
 
         f.write('h = {:2.4f}\n'.format(self.h))
         f.write('N_h = {:d}\n'.format(self.Nh))
@@ -323,5 +324,13 @@ class Solver(LangevinSDE):
         f.write('Psi at x = {:2.3e}\n'.format(Psi))
         f.write('F at x = {:2.3e}\n'.format(F))
         h, m, s = get_time_in_hms(self.t_final - self.t_initial)
-        f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
+        f.write('Computational time: {:d}:{:02d}:{:02.2f}\n'.format(h, m, s))
         f.close()
+
+        # print file
+        f = open(os.path.join(self.dir_path, 'report.txt'), 'r')
+        print(f.read())
+        f.close()
+
+
+
