@@ -196,6 +196,7 @@ class Solver(LangevinSDE):
 
         Psi = linalg.spsolve(A.tocsc(), b)
         self.Psi = Psi.reshape(self.Nx)
+        self.solved = True
 
     def compute_free_energy(self):
         ''' this methos computes the free energy
@@ -283,8 +284,10 @@ class Solver(LangevinSDE):
             self.u_opt = hjb_sol['u_opt']
             self.t_initial = hjb_sol['t_initial']
             self.t_final = hjb_sol['t_final']
+            return True
         except:
             print('no hjb-solution found with h={:.0e}'.format(self.h))
+            return False
 
     def get_psi_at_x(self, x):
         # get index of x

@@ -45,7 +45,8 @@ def main():
 
     # load already computed solution
     else:
-        sol.load_hjb_solution()
+        if not sol.load_hjb_solution():
+            return
 
     # report solution
     if args.do_report:
