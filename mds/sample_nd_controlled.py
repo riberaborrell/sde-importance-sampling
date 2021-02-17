@@ -33,17 +33,15 @@ def main():
     # distribute Gaussian ansatz
     if args.distributed == 'uniform':
         sample.ansatz.set_unif_dist_ansatz_functions(args.m_i, args.sigma_i)
-    elif args.distributed == 'meta' and args.theta != 'meta':
+    elif args.distributed == 'meta':
         sample.ansatz.set_meta_dist_ansatz_functions(args.sigma_i_meta, args.k, args.N_meta)
-    elif args.distributed == 'meta' and args.theta == 'meta':
-        sample.ansatz.set_meta_ansatz_functions(args.sigma_i_meta, args.k, args.N_meta)
     else:
         return
 
     # set chosen coefficients
     if args.theta == 'null':
         sample.ansatz.set_theta_null()
-    elif args.theta == 'meta' and args.distributed != 'meta':
+    elif args.theta == 'meta':
         sample.ansatz.h = args.h
         sample.ansatz.set_theta_from_metadynamics(args.sigma_i_meta, args.k, args.N_meta)
     elif args.theta == 'gd':

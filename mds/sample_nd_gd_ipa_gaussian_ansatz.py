@@ -48,15 +48,13 @@ def main():
     # distribute Gaussian ansatz
     if args.distributed == 'uniform':
         sample.ansatz.set_unif_dist_ansatz_functions(args.m_i, args.sigma_i)
-    elif args.distributed == 'meta' and args.theta_init != 'meta':
+    elif args.distributed == 'meta':
         sample.ansatz.set_meta_dist_ansatz_functions(args.sigma_i_meta, args.k, args.N_meta)
-    elif args.distributed == 'meta' and args.theta_init == 'meta':
-        sample.ansatz.set_meta_ansatz_functions(args.sigma_i_meta, args.k, args.N_meta)
 
     # set initial coefficients
     if args.theta_init == 'null':
         sample.ansatz.set_theta_null()
-    elif args.theta_init == 'meta' and args.distributed != 'meta':
+    elif args.theta_init == 'meta':
         sample.ansatz.h = args.h
         sample.ansatz.set_theta_from_metadynamics(args.sigma_i_meta, args.k, args.N_meta)
     elif args.theta_init == 'optimal':
@@ -89,8 +87,11 @@ def main():
         gd.load_gd()
 
         # plot
-        gd.plot_gd_losses(args.h_hjb, args.N)
-        gd.plot_gd_time_steps()
+        gd.plot_losses(args.h_hjb, args.N)
+        gd.plot_time_steps()
+        #gd.plot_1d_epoch(epoch=5)
+        #gd.plot_1d_epochs()
+        gd.plot_2d_epoch(epoch=0)
         return
 
     # start gd with ipa estimator for the gradient

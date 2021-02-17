@@ -1,4 +1,4 @@
-from mds.plots_1d import Plot1d
+from mds.plots import Plot
 from mds.utils import get_gd_dir_path, make_dir_path, get_time_in_hms
 
 import time
@@ -159,7 +159,7 @@ class GradientDescent:
                     ''.format(np.linalg.norm(self.grad_losses[epoch])))
             f.write('time steps = {}\n'.format(self.time_steps[epoch]))
 
-    def plot_gd_losses(self, h_hjb, N_mc):
+    def plot_losses(self, h_hjb, N_mc):
         # hjb F at xzero
         sol = self.sample.get_hjb_solver(h_hjb)
         hjb_f_at_x = sol.get_f_at_x(self.sample.xzero)
@@ -186,18 +186,110 @@ class GradientDescent:
             'MC Sampling (N={:.0e})'.format(N_mc),
         ]
 
-        plt1d = Plot1d(self.dir_path, 'gd_losses_line')
-        plt1d.xlabel = 'epochs'
-        #plt1d.set_ylim(0, 1.2 * np.max(ys))
-        plt1d.multiple_lines_plot(self.epochs, ys, colors, linestyles, labels)
+        plt = Plot(self.dir_path, 'gd_losses_line')
+        plt.xlabel = 'epochs'
+        #plt.set_ylim(0, 1.2 * np.max(ys))
+        plt.multiple_lines_plot(self.epochs, ys, colors, linestyles, labels)
 
-    def plot_gd_time_steps(self):
-        plt1d = Plot1d(self.dir_path, 'gd_time_steps_bar')
-        plt1d.xlabel = 'epochs'
-        plt1d.set_ylim(0, 1.2 * np.max(self.time_steps))
-        plt1d.one_bar_plot(self.epochs, self.time_steps, color='purple', label='TS')
+    def plot_time_steps(self):
+        plt = Plot(self.dir_path, 'gd_time_steps_bar')
+        plt.xlabel = 'epochs'
+        plt.set_ylim(0, 1.2 * np.max(self.time_steps))
+        plt.one_bar_plot(self.epochs, self.time_steps, color='purple', label='TS')
 
-        plt1d = Plot1d(self.dir_path, 'gd_time_steps_line')
-        plt1d.xlabel = 'epochs'
-        plt1d.set_ylim(0, 1.2 * np.max(self.time_steps))
-        plt1d.one_line_plot(self.epochs, self.time_steps, color='purple', label='TS')
+        plt = Plot(self.dir_path, 'gd_time_steps_line')
+        plt.xlabel = 'epochs'
+        plt.set_ylim(0, 1.2 * np.max(self.time_steps))
+        plt.one_line_plot(self.epochs, self.time_steps, color='purple', label='TS')
+
+    def plot_1d_epoch(self, epoch):
+        assert epoch in self.epochs, ''
+
+        self.set_epochs_dir_path()
+        ext = '_epoch{}'.format(epoch)
+        label = r'epoch: {}'.format(epoch)
+
+        # set theta
+        self.sample.ansatz.theta = self.thetas[epoch]
+
+        # discretize domain and evaluate in grid
+        self.sample.discretize_domain(h=0.001)
+        self.sample.get_grid_value_function_and_control()
+
+        # get hjb solution
+        sol = self.sample.get_hjb_solver(h=0.001)
+        sol.get_controlled_potential_and_drift()
+
+        self.sample.plot_1d_free_energy(self.sample.grid_value_function, sol.F,
+                                        label=label, dir_path=self.epochs_dir_path, ext=ext)
+
+    def get_epochs_to_show(self, num_epochs_to_show=5):
+        num_epochs = self.epochs.shape[0]
+        k = num_epochs // num_epochs_to_show
+        epochs_to_show = np.where(self.epochs % k == 0)[0]
+        if self.epochs[-1] != epochs_to_show[-1]:
+            epochs_to_show = np.append(epochs_to_show, self.epochs[-1])
+        return epochs_to_show
+
+    def plot_1d_epochs(self):
+        # discretize domain and evaluate in grid
+        self.sample.discretize_domain(h=0.001)
+        x = self.sample.domain_h[:, 0]
+
+        # filter epochs to show
+        epochs_to_show = self.get_epochs_to_show()
+
+        # preallocate functions
+        labels = []
+        frees = np.zeros((epochs_to_show.shape[0], x.shape[0]))
+        controls = np.zeros((epochs_to_show.shape[0], x.shape[0]))
+        controlled_potentials = np.zeros((epochs_to_show.shape[0], x.shape[0]))
+
+        for i, epoch in enumerate(epochs_to_show):
+            labels.append(r'epoch = {:d}'.format(epoch))
+
+            # set theta
+            self.sample.ansatz.theta = self.thetas[epoch]
+            self.sample.get_grid_value_function_and_control()
+
+            # update functions
+            controlled_potentials[i, :] = self.sample.grid_controlled_potential
+            frees[i, :] = self.sample.grid_value_function
+            controls[i, :] = self.sample.grid_control[:, 0]
+
+        # get hjb solution
+        sol = self.sample.get_hjb_solver(h=0.001)
+        sol.get_controlled_potential_and_drift()
+
+        self.sample.plot_1d_free_energies(frees, F_hjb=sol.F,
+                                          labels=labels[:], dir_path=self.dir_path)
+        self.sample.plot_1d_controls(controls, u_hjb=sol.u_opt[:, 0],
+                                     labels=labels[:], dir_path=self.dir_path)
+        self.sample.plot_1d_controlled_potentials(controls, controlledV_hjb=sol.controlled_potential,
+                                                  labels=labels[:], dir_path=self.dir_path)
+
+    def plot_2d_epoch(self, epoch):
+        assert epoch in self.epochs, ''
+
+        self.set_epochs_dir_path()
+        ext = '_epoch{}'.format(epoch)
+
+        # set theta
+        self.sample.ansatz.theta = self.thetas[epoch]
+
+        # discretize domain and evaluate in grid
+        self.sample.discretize_domain(h=0.05)
+        self.sample.get_grid_value_function_and_control()
+
+        self.sample.plot_2d_controlled_potential(self.sample.grid_controlled_potential,
+                                                 self.epochs_dir_path, ext)
+        self.sample.plot_2d_control(self.sample.grid_control, self.epochs_dir_path, ext)
+        self.sample.plot_2d_controlled_drift(self.sample.grid_controlled_drift,
+                                             self.epochs_dir_path, ext)
+
+
+
+
+
+
+

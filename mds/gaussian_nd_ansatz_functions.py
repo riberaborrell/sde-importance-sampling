@@ -166,13 +166,19 @@ class GaussianAnsatz(LangevinSDE):
     def set_theta_from_metadynamics(self, sigma_i_meta, k, N_meta):
         '''
         '''
+        if self.distributed == 'meta':
+            assert self.sigma_i_meta ==sigma_i_meta, ''
+            assert self.k == k, ''
+            assert self.N_meta == N_meta, ''
+
         # discretize domain
         self.discretize_domain()
+
+        # flatten domain_h
         x = self.domain_h.reshape(self.Nh, self.n)
 
         meta_bias_pot = self.get_meta_bias_potential(sigma_i_meta, k, N_meta)
         meta_ms = meta_bias_pot['ms']
-        meta_total_m = int(np.sum(meta_ms))
         meta_means = meta_bias_pot['means']
         meta_cov = meta_bias_pot['cov']
         meta_thetas = meta_bias_pot['thetas']

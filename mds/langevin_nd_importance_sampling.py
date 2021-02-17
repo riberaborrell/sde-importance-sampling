@@ -35,6 +35,14 @@ class Sampling(LangevinSDE):
         # ansatz functions (gaussians) and coefficients
         self.ansatz = None
 
+        # grid evalutations
+        self.grid_bias_potential = None
+        self.grid_controlled_potential = None
+        self.grid_value_function = None
+
+        self.grid_control = None
+        self.grid_controlled_drift = None
+
         # variables
 
         # trajectories which arrived
@@ -122,7 +130,7 @@ class Sampling(LangevinSDE):
             x ((N, n)-array) : position
             theta ((m,)-array): parameters
         '''
-        return 2 * self.value_function(x, theta)
+        return 2 * self.ansatz.value_function(x, theta)
 
     def bias_gradient(self, u):
         '''This method computes the bias gradient at x
@@ -608,6 +616,22 @@ class Sampling(LangevinSDE):
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
 
         f.close()
+
+    def get_grid_value_function_and_control(self):
+
+        # flatten domain_h
+        x = self.domain_h.reshape(self.Nh, self.n)
+
+        # potential bias, bias potential, controlled potential and value function
+        V = self.potential(x).reshape(self.Nx)
+        self.grid_bias_potential = self.bias_potential(x).reshape(self.Nx)
+        self.grid_controlled_potential = V + self.grid_bias_potential
+        self.grid_value_function = self.ansatz.value_function(x)
+
+        # gradient und control
+        gradient = self.gradient(x).reshape(self.domain_h.shape)
+        self.grid_control = self.ansatz.control(x).reshape(self.domain_h.shape)
+        self.grid_controlled_drift = - gradient + np.sqrt(2) * self.grid_control
 
     def plot_trajectory(self):
         from mds.plots_1d import Plot1d
