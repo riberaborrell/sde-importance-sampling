@@ -37,10 +37,15 @@ class Solver(LangevinSDE):
         self.f = f
         self.g = g
 
-        # discretized solution
+        # solution in the grid
         self.Psi = None
         self.F = None
         self.u_opt = None
+
+        # bias, controlled potential and controlled drift in the grid
+        self.bias_potential = None
+        self.controlled_potential = None
+        self.controlled_drift = None
 
         # computational time
         self.t_initial = None
@@ -302,6 +307,20 @@ class Solver(LangevinSDE):
 
         # evaluate psi at idx
         return self.F[idx] if self.F is not None else None
+
+    def get_controlled_potential_and_drift(self):
+
+        # flatten domain_h
+        x = self.domain_h.reshape(self.Nh, self.n)
+
+        # potential, bias potential and tilted potential
+        V = self.potential(x).reshape(self.Nx)
+        self.bias_potential = 2 * self.F
+        self.controlled_potential = V + self.bias_potential
+
+        # gradient and tilted drift
+        dV = self.gradient(x).reshape(self.domain_h.shape)
+        self.controlled_drift = - dV + np.sqrt(2) * self.u_opt
 
     def write_report(self, x):
 

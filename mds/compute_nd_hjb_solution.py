@@ -8,8 +8,8 @@ def get_parser():
     parser.description = 'Computes the numerical solution of the HJB equation associated to' \
                          'the overdamped Langevin SDE'
     parser.add_argument(
-        '--load-hjb-sol',
-        dest='load_hjb_sol',
+        '--load',
+        dest='load',
         action='store_true',
         help='Load already computed hjb solution. Default: False',
     )
@@ -28,7 +28,7 @@ def main():
     )
 
     # compute soltuion
-    if not args.load_hjb_sol:
+    if not args.load:
 
         # discretize domain
         sol.start_timer()
@@ -55,31 +55,24 @@ def main():
     # print solution
     if args.do_plots:
 
-        # flatten domain_h
-        x = sol.domain_h.reshape(sol.Nh, sol.n)
-
-        # psi, free energy
-        psi = sol.Psi
-        free = sol.F
-
-        # potential, bias potential and tilted potential
-        V = sol.potential(x).reshape(sol.Nx)
-        Vbias = 2 * sol.F
-        Vtilted = V + Vbias
-
-        # gradient, control and tilted drift
-        dV = sol.gradient(x).reshape(sol.domain_h.shape)
-        u_opt = sol.u_opt
-        dVtilted = - dV + np.sqrt(2) * sol.u_opt
+        # evaluate in grid
+        sol.get_controlled_potential_and_drift()
 
         if sol.n == 1:
-            pass
+            sol.plot_1d_psi(sol.Psi, label='num sol HJB PDE')
+            sol.plot_1d_free_energy(sol.F, label='num sol HJB PDE')
+            sol.plot_1d_controlled_potential(sol.controlled_potential, label='num sol HJB PDE')
+            sol.plot_1d_control(sol.u_opt[:, 0], label='num sol HJB PDE')
+            sol.plot_1d_controlled_drift(sol.controlled_drift[:, 0], label='num sol HJB PDE')
+
         elif sol.n == 2:
-            sol.plot_2d_psi(psi)
-            sol.plot_2d_free_energy(free)
-            sol.plot_2d_tilted_potential(Vtilted)
-            sol.plot_2d_control(u_opt)
-            sol.plot_2d_tilted_drift(dVtilted)
+            sol.plot_2d_psi(sol.Psi)
+            sol.plot_2d_free_energy(sol.F)
+            sol.plot_2d_controlled_potential(sol.controlled_potential)
+            sol.plot_2d_control(sol.u_opt)
+            sol.plot_2d_controlled_drift(sol.controlled_drift)
+        else:
+            pass
 
 if __name__ == "__main__":
     main()

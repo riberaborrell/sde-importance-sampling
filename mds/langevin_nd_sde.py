@@ -182,19 +182,160 @@ class LangevinSDE:
         except:
             print('no report file found with path: {}'.format(dir_path))
 
-    def plot_1d_psi(self, psi, hjb_psi=None, dir_path=None, ext=''):
+    def plot_1d_psi(self, psi, psi_hjb=None, color='m', label='', dir_path=None, ext=''):
         if dir_path is None:
             dir_path = self.dir_path
 
         x = self.domain_h[:, 0]
 
-        # surface plot
-        plt = Plot2d(dir_path, 'psi_surface' + ext)
-        plt.surface(X, Y, psi)
+        plt = Plot(dir_path, 'psi' + ext)
+        plt.xlabel = 'x'
+        plt.set_ylim(0, 2 * self.alpha)
 
-        # contour plot
-        plt2d = Plot2d(self.dir_path, 'psi_contour' + ext)
-        plt2d.contour(X, Y, self.Psi)
+        if psi_hjb is None:
+            plt.one_line_plot(x, psi, label=label)
+        else:
+            ys = np.vstack((psi, psi_hjb))
+            colors = [color, 'c']
+            labels = [label, 'num sol HJB PDE']
+
+            plt.multiple_lines_plot(x, ys, colors=colors, labels=labels)
+
+    def plot_1d_free_energy(self, free, free_hjb=None, color=None,
+                            label=None, dir_path=None, ext=''):
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        x = self.domain_h[:, 0]
+
+        plt = Plot(dir_path, 'free_energy' + ext)
+        plt.xlabel = 'x'
+        plt.set_ylim(0, 2 * self.alpha)
+
+        if free_hjb is None:
+            plt.one_line_plot(x, free, color=color, label=label)
+        else:
+            ys = np.vstack((free, free_hjb))
+            colors = [color, 'c']
+            labels = [label, 'num sol HJB PDE']
+            plt.multiple_lines_plot(x, ys, colors=colors, labels=labels)
+
+    def plot_1d_controlled_potential(self, Vcontrolled, Vcontrolled_hjb=None, color=None,
+                                     label=None, dir_path=None, ext=''):
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        x = self.domain_h[:, 0]
+
+        plt = Plot(dir_path, 'controlled_potential' + ext)
+        plt.xlabel = 'x'
+        plt.set_ylim(0, 10 * self.alpha)
+
+        if Vcontrolled_hjb is None:
+            plt.one_line_plot(x, Vcontrolled, color=color, label=label)
+        else:
+            ys = np.vstack((Vcontrolled, Vcontrolled_hjb))
+            colors = [color, 'c']
+            labels = [label, 'num sol HJB PDE']
+            plt.multiple_lines_plot(x, ys, colors=colors, labels=labels)
+
+    def plot_1d_control(self, control, control_hjb=None, color=None,
+                        label=None, dir_path=None, ext=''):
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        x = self.domain_h[:, 0]
+
+        plt = Plot(dir_path, 'control' + ext)
+        plt.xlabel = 'x'
+        plt.set_ylim(- 5 * self.alpha, 5 * self.alpha)
+
+        if control_hjb is None:
+            plt.one_line_plot(x, control, color=color, label=label)
+        else:
+            ys = np.vstack((control, control_hjb))
+            colors = [color, 'c']
+            labels = [label, 'num sol HJB PDE']
+            plt.multiple_lines_plot(x, ys, colors=colors, labels=labels)
+
+    def plot_1d_controlled_drift(self, dVcontrolled, dVcontrolled_hjb=None, color=None,
+                                 label=None, dir_path=None, ext=''):
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        x = self.domain_h[:, 0]
+
+        plt = Plot(dir_path, 'controlled_drift' + ext)
+        plt.xlabel = 'x'
+        plt.set_ylim(- 5 * self.alpha, 5 * self.alpha)
+
+        if dVcontrolled_hjb is None:
+            plt.one_line_plot(x, dVcontrolled, color=color, label=label)
+        else:
+            ys = np.vstack((dVcontrolled, dVcontrolled_hjb))
+            colors = [color, 'c']
+            labels = [label, 'num sol HJB PDE']
+            plt.multiple_lines_plot(x, ys, colors=colors, labels=labels)
+
+    def plot_1d_free_energies(self, Fs, F_hjb=None,
+                              labels=None, dir_path=None, ext=''):
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        x = self.domain_h[:, 0]
+
+        plt = Plot(dir_path, 'free_energies' + ext)
+        plt.xlabel = 'x'
+        plt.set_ylim(0, self.alpha * 2)
+
+        if F_hjb is None:
+            plt.multiple_lines_plot(x, Fs, labels=labels)
+        else:
+            ys = np.vstack((Fs, F_hjb))
+            colors = [None for i in range(ys.shape[0])]
+            colors[-1] = 'c'
+            labels.append('num sol HJB PDE')
+            plt.multiple_lines_plot(x, ys, colors=colors, labels=labels)
+
+    def plot_1d_controls(self, us, u_hjb=None,
+                         labels=None, dir_path=None, ext=''):
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        x = self.domain_h[:, 0]
+
+        plt = Plot(dir_path, 'controls' + ext)
+        plt.xlabel = 'x'
+        plt.set_ylim(- 5 * self.alpha, 5 * self.alpha)
+
+        if u_hjb is None:
+            plt.multiple_lines_plot(x, us, labels=labels)
+        else:
+            ys = np.vstack((us, u_hjb))
+            colors = [None for i in range(ys.shape[0])]
+            colors[-1] = 'c'
+            labels.append('num sol HJB PDE')
+            plt.multiple_lines_plot(x, ys, colors=colors, labels=labels)
+
+    def plot_1d_controlled_potentials(self, controlledVs, controlledV_hjb=None,
+                                      labels=None, dir_path=None, ext=''):
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        x = self.domain_h[:, 0]
+
+        plt = Plot(dir_path, 'controlled_potentials' + ext)
+        plt.xlabel = 'x'
+        plt.set_ylim(0, 10 * self.alpha)
+
+        if controlledV_hjb is None:
+            plt.multiple_lines_plot(x, controlledVs, labels=labels)
+        else:
+            ys = np.vstack((controlledVs, controlledV_hjb))
+            colors = [None for i in range(ys.shape[0])]
+            colors[-1] = 'c'
+            labels.append('num sol HJB PDE')
+            plt.multiple_lines_plot(x, ys, colors=colors, labels=labels)
 
     def plot_2d_psi(self, psi, dir_path=None, ext=''):
         if dir_path is None:
@@ -208,7 +349,7 @@ class LangevinSDE:
         plt.surface(X, Y, psi)
 
         # contour plot
-        plt = Plot(self.dir_path, 'psi_contour' + ext)
+        plt = Plot(dir_path, 'psi_contour' + ext)
         plt.contour(X, Y, psi)
 
     def plot_2d_free_energy(self, free, dir_path=None, ext=''):
@@ -228,7 +369,7 @@ class LangevinSDE:
         plt.set_zlim(0, 3)
         plt.contour(X, Y, free)
 
-    def plot_2d_tilted_potential(self, Vtilted, dir_path=None, ext=''):
+    def plot_2d_controlled_potential(self, Vcontrolled, dir_path=None, ext=''):
         if dir_path is None:
             dir_path = self.dir_path
 
@@ -236,19 +377,19 @@ class LangevinSDE:
         Y = self.domain_h[:, :, 1]
 
         # surface plot
-        plt = Plot(dir_path, 'tilted_potential_surface' + ext)
+        plt = Plot(dir_path, 'controlled_potential_surface' + ext)
         plt.set_xlim(-2, 2)
         plt.set_ylim(-2, 2)
         plt.set_zlim(0, 10)
-        plt.surface(X, Y, Vtilted)
+        plt.surface(X, Y, Vcontrolled)
 
         # contour plot
         levels = np.logspace(-2, 1, 20, endpoint=True)
-        plt = Plot(dir_path, 'tilted_potential_contour' + ext)
+        plt = Plot(dir_path, 'controlled_potential_contour' + ext)
         plt.set_xlim(-2, 2)
         plt.set_ylim(-2, 2)
         plt.set_zlim(0, 10)
-        plt.contour(X, Y, Vtilted, levels)
+        plt.contour(X, Y, Vcontrolled, levels)
 
     def plot_2d_control(self, u, dir_path=None, ext=''):
         if dir_path is None:
@@ -260,26 +401,26 @@ class LangevinSDE:
         V = u[:, :, 1]
 
         # gradient plot
-        plt = Plot(self.dir_path, 'control' + ext)
+        plt = Plot(dir_path, 'control' + ext)
         plt.vector_field(X, Y, U, V, scale=8)
         return
 
         # zoom gradient plot
-        plt = Plot2d(self.dir_path, 'control_zoom_ts' + ext)
+        plt = Plot(dir_path, 'control_zoom_ts' + ext)
         plt.set_xlim(0, 2)
         plt.set_ylim(0, 2)
         plt.vector_field(X, Y, U, V, scale=30)
 
-    def plot_2d_tilted_drift(self, dVtilted, dir_path=None, ext=''):
+    def plot_2d_controlled_drift(self, dVcontrolled, dir_path=None, ext=''):
         if dir_path is None:
             dir_path = self.dir_path
 
         X = self.domain_h[:, :, 0]
         Y = self.domain_h[:, :, 1]
-        U = dVtilted[:, :, 0]
-        V = dVtilted[:, :, 1]
+        U = dVcontrolled[:, :, 0]
+        V = dVcontrolled[:, :, 1]
 
-        plt = Plot(self.dir_path, 'tilted_drift')
+        plt = Plot(dir_path, 'controlled_drift' + ext)
         plt.set_xlim(-1.5, 1.5)
         plt.set_ylim(-1.5, 1.5)
         plt.vector_field(X, Y, U, V, scale=50)
