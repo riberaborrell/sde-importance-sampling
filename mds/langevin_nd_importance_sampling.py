@@ -36,10 +36,12 @@ class Sampling(LangevinSDE):
         self.ansatz = None
 
         # grid evalutations
+        self.grid_potential = None
         self.grid_bias_potential = None
         self.grid_controlled_potential = None
         self.grid_value_function = None
 
+        self.grid_gradient = None
         self.grid_control = None
         self.grid_controlled_drift = None
 
@@ -586,22 +588,31 @@ class Sampling(LangevinSDE):
         f.close()
 
     def get_grid_value_function_and_control(self):
-        # set value f constant
-        self.ansatz.set_value_function_constant_corner(self.h)
-
         # flatten domain_h
         x = self.domain_h.reshape(self.Nh, self.n)
 
-        # potential bias, bias potential, controlled potential and value function
-        V = self.potential(x).reshape(self.Nx)
-        self.grid_bias_potential = self.bias_potential(x).reshape(self.Nx)
-        self.grid_controlled_potential = V + self.grid_bias_potential
-        self.grid_value_function = self.ansatz.value_function(x)
+        # potential and gradient
+        self.grid_potential = self.potential(x).reshape(self.Nx)
+        self.grid_gradient = self.gradient(x).reshape(self.domain_h.shape)
 
-        # gradient und control
-        gradient = self.gradient(x).reshape(self.domain_h.shape)
-        self.grid_control = self.ansatz.control(x).reshape(self.domain_h.shape)
-        self.grid_controlled_drift = - gradient + np.sqrt(2) * self.grid_control
+        if not self.is_controlled:
+            # bias potential, value function and control
+            self.grid_bias_potential = np.zeros(self.Nx)
+            self.grid_value_function = np.zeros(self.Nx)
+            self.grid_control = np.zeros(self.domain_h.shape)
+
+        else:
+            # set value f constant
+            self.ansatz.set_value_function_constant_corner(self.h)
+
+            # bias potential, value function and control
+            self.grid_bias_potential = self.bias_potential(x).reshape(self.Nx)
+            self.grid_value_function = self.ansatz.value_function(x)
+            self.grid_control = self.ansatz.control(x).reshape(self.domain_h.shape)
+
+        # controlled potential and drift
+        self.grid_controlled_potential = self.grid_potential + self.grid_bias_potential
+        self.grid_controlled_drift = - self.grid_gradient + np.sqrt(2) * self.grid_control
 
     def plot_trajectory(self):
         from mds.plots_1d import Plot1d

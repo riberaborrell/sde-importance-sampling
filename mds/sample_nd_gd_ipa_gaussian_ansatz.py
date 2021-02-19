@@ -104,9 +104,9 @@ def main():
     # do plots 
     if args.do_plots:
         #gd.plot_losses(args.h_hjb, args.N)
-        #gd.plot_time_steps()
+        gd.plot_time_steps()
         #gd.plot_1d_epoch(epoch=5)
-        gd.plot_1d_epochs()
+        #gd.plot_1d_epochs()
         #gd.plot_2d_epoch(epoch=0)
 
 

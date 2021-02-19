@@ -205,15 +205,18 @@ class GradientDescent:
         plt.multiple_lines_plot(self.epochs, ys, colors, linestyles, labels)
 
     def plot_time_steps(self):
+        plt = Plot(self.dir_path, 'gd_time_steps_line')
+        plt.set_scientific_notation('y')
+        plt.xlabel = 'epochs'
+        plt.set_ylim(0, 1.2 * np.max(self.time_steps))
+        plt.one_line_plot(self.epochs, self.time_steps, color='purple', label='TS')
+
+        return
         plt = Plot(self.dir_path, 'gd_time_steps_bar')
         plt.xlabel = 'epochs'
         plt.set_ylim(0, 1.2 * np.max(self.time_steps))
         plt.one_bar_plot(self.epochs, self.time_steps, color='purple', label='TS')
 
-        plt = Plot(self.dir_path, 'gd_time_steps_line')
-        plt.xlabel = 'epochs'
-        plt.set_ylim(0, 1.2 * np.max(self.time_steps))
-        plt.one_line_plot(self.epochs, self.time_steps, color='purple', label='TS')
 
     def plot_1d_epoch(self, epoch):
         assert epoch in self.epochs, ''

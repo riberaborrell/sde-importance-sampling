@@ -357,6 +357,3 @@ class Solver(LangevinSDE):
         f = open(file_path, 'r')
         print(f.read())
         f.close()
-
-
-

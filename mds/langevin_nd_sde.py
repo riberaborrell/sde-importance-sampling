@@ -311,7 +311,7 @@ class LangevinSDE:
 
         plt = Plot(dir_path, 'free_energies' + ext)
         plt.xlabel = 'x'
-        plt.set_ylim(0, self.alpha * 2)
+        plt.set_ylim(0, 2.5 * self.alpha)
 
         if F_hjb is None:
             plt.multiple_lines_plot(x, Fs, labels=labels)
@@ -331,7 +331,7 @@ class LangevinSDE:
 
         plt = Plot(dir_path, 'controls' + ext)
         plt.xlabel = 'x'
-        plt.set_ylim(- 5 * self.alpha, 5 * self.alpha)
+        plt.set_ylim(- 4 * self.alpha, 4 * self.alpha)
 
         if u_hjb is None:
             plt.multiple_lines_plot(x, us, labels=labels)
@@ -371,6 +371,7 @@ class LangevinSDE:
 
         # surface plot
         plt = Plot(dir_path, 'psi_surface' + ext)
+        plt.set_title('hola')
         plt.surface(X, Y, psi)
 
         # contour plot

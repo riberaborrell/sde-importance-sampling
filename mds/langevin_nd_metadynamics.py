@@ -141,14 +141,29 @@ class Metadynamics:
         self.time_steps[:j] = time_steps
 
     def save_bias_potential(self):
-        file_path = os.path.join(self.dir_path, 'bias-potential.npz')
         np.savez(
-            file_path,
+            os.path.join(self.dir_path, 'bias-potential.npz'),
             ms=self.ms,
             thetas=self.thetas,
             means=self.means,
             cov=self.cov,
         )
+
+    def load_bias_potential(self):
+        try:
+            bias_pot = np.load(
+                os.path.join(self.dir_path, 'bias-potential.npz'),
+                allow_pickle=True,
+            )
+            self.ms = bias_pot['ms']
+            self.thetas = bias_pot['thetas']
+            self.means = bias_pot['means']
+            self.cov = bias_pot['cov']
+            return True
+
+        except:
+            print('no bias potential found')
+            return False
 
     def write_means(self, f):
         f.write('Center of the Gaussians\n')
@@ -166,19 +181,19 @@ class Metadynamics:
         f.write('\n')
 
     def write_report(self):
-        sample = self.sample
-        sample.N_lim = self.N_lim
-        sample.xzero = np.full((sample.N, sample.n), self.xzero)
-        sample.xzero = self.xzero
-
+        # set path
         file_path = os.path.join(self.dir_path, 'report.txt')
 
         # write in file
-        f = open(file_path, "w")
+        f = open(file_path, 'w')
 
-        sample.write_setting(f)
-        sample.write_euler_maruyama_parameters(f)
-        sample.write_sampling_parameters(f)
+        self.sample.N_lim = self.N_lim
+        #self.sample.xzero = np.full((self.sample.N, self.sample.n), self.xzero)
+        self.sample.xzero = self.xzero
+
+        self.sample.write_setting(f)
+        self.sample.write_euler_maruyama_parameters(f)
+        self.sample.write_sampling_parameters(f)
 
         f.write('Metadynamics parameters and statistics\n')
         f.write('seed: {:d}\n'.format(self.seed))
@@ -196,3 +211,73 @@ class Metadynamics:
 
         self.write_means(f)
         f.close()
+
+        # print file
+        f = open(file_path, 'r')
+        print(f.read())
+        f.close()
+
+    def get_updates_to_show(self, i=0, num_updates_to_show=5):
+        num_updates = self.ms[i]
+        k = num_updates // num_updates_to_show
+        updates = np.arange(num_updates)
+        updates_to_show = np.where(updates % k == 0)[0]
+        if updates[-1] != updates_to_show[-1]:
+            updates_to_show = np.append(updates_to_show, updates[-1])
+        return updates_to_show
+
+    def plot_1d_updates(self, i=0):
+        # get sampling object
+        sample = self.sample
+
+        # discretize domain and evaluate in grid
+        sample.discretize_domain(h=0.001)
+        x = sample.domain_h[:, 0]
+
+        # filter updates to show
+        updates_to_show = self.get_updates_to_show()
+
+        # preallocate functions
+        labels = []
+        frees = np.zeros((updates_to_show.shape[0] + 1, x.shape[0]))
+        controls = np.zeros((updates_to_show.shape[0] + 1, x.shape[0]))
+        controlled_potentials = np.zeros((updates_to_show.shape[0] + 1, x.shape[0]))
+
+        # not controlled case
+        labels.append(r'not controlled')
+        sample.is_controlled = False
+        sample.get_grid_value_function_and_control()
+        controlled_potentials[0, :] = sample.grid_controlled_potential
+        frees[0, :] = sample.grid_value_function
+        controls[0, :] = sample.grid_control[:, 0]
+
+        sample.is_controlled = True
+        for index, update in enumerate(updates_to_show):
+            labels.append(r'update = {:d}'.format(update+1))
+
+            # set theta
+            sample.ansatz.set_given_ansatz_functions(
+                self.means[0, :update+1],
+                self.cov,
+            )
+            sample.ansatz.theta = self.thetas[i, :update+1]
+            sample.get_grid_value_function_and_control()
+
+            # update functions
+            controlled_potentials[index+1, :] = sample.grid_controlled_potential
+            frees[index+1, :] = sample.grid_value_function
+            controls[index+1, :] = sample.grid_control[:, 0]
+
+        # get hjb solution
+        sol = sample.get_hjb_solver(h=0.001)
+        sol.get_controlled_potential_and_drift()
+
+        sample.plot_1d_free_energies(frees, F_hjb=sol.F, labels=labels[:],
+                                     dir_path=self.dir_path)
+        sample.plot_1d_controls(controls, u_hjb=sol.u_opt[:, 0],
+                                labels=labels[:], dir_path=self.dir_path)
+        sample.plot_1d_controlled_potentials(controlled_potentials,
+                                             controlledV_hjb=sol.controlled_potential,
+                                             labels=labels[:], dir_path=self.dir_path)
+
+

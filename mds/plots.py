@@ -13,6 +13,9 @@ class Plot:
         self.file_type = file_type
         self.dir_path = dir_path
 
+        # initialize matplotlib object
+        self.plt = plt
+
         # title and label
         self.title = ''
         self.label = ''
@@ -43,7 +46,7 @@ class Plot:
             return None
 
     def set_title(self, title):
-        self.title = title
+        self.plt.title(title)
 
     def set_label(self, label):
         self.label = label
@@ -62,11 +65,17 @@ class Plot:
         self.zmin = zmin
         self.zmax = zmax
 
+    def set_scientific_notation(self, axis='both'):
+        assert axis in ['x', 'y', 'both']
+
+        self.plt.ticklabel_format(axis=axis, style='sci', scilimits=(-1, 1))
+
     def one_line_plot(self, x, y, color=None, label=None):
         assert x.ndim == y.ndim == 1, ''
         assert x.shape[0] == y.shape[0], ''
 
-        plt.title(self.title)
+        plt = self.plt
+
         plt.plot(x, y, color=color, linestyle='-', label=label)
         plt.xlabel(self.xlabel, fontsize=16)
         plt.ylabel(self.ylabel, fontsize=16)

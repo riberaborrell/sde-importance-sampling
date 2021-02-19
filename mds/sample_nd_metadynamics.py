@@ -61,9 +61,23 @@ def main():
         do_updates_plots=args.do_updates_plots,
     )
 
-    meta.metadynamics_algorithm()
-    meta.save_bias_potential()
-    meta.write_report()
+    if not args.load:
+        # sample metadynamics trjectories
+        meta.metadynamics_algorithm()
+
+        # save bias potential
+        meta.save_bias_potential()
+
+    # load already sampled bias potential
+    else:
+        if not meta.load_bias_potential():
+            return
+
+    if args.do_report:
+        meta.write_report()
+
+    if args.do_plots:
+        meta.plot_1d_updates()
 
 if __name__ == "__main__":
     main()
