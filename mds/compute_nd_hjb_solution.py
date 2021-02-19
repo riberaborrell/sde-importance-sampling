@@ -7,12 +7,6 @@ def get_parser():
     parser = get_base_parser()
     parser.description = 'Computes the numerical solution of the HJB equation associated to' \
                          'the overdamped Langevin SDE'
-    parser.add_argument(
-        '--load',
-        dest='load',
-        action='store_true',
-        help='Load already computed hjb solution. Default: False',
-    )
     return parser
 
 def main():

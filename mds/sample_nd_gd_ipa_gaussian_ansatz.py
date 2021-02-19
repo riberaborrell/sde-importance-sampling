@@ -82,27 +82,34 @@ def main():
         do_epoch_plots=args.do_epoch_plots,
     )
 
-    if args.do_plots:
-        # load already run gd
-        gd.load_gd()
-
-        # plot
-        gd.plot_losses(args.h_hjb, args.N)
-        gd.plot_time_steps()
-        #gd.plot_1d_epoch(epoch=5)
-        #gd.plot_1d_epochs()
-        gd.plot_2d_epoch(epoch=0)
-        return
-
     # start gd with ipa estimator for the gradient
-    try:
-        gd.gd_ipa()
-    # save statistics if job is manually interrupted
-    except KeyboardInterrupt:
-        gd.stop_timer()
-        gd.save_gd()
+    if not args.load:
+        try:
+            gd.gd_ipa()
 
-    gd.write_report()
+        # save if job is manually interrupted
+        except KeyboardInterrupt:
+            gd.stop_timer()
+            gd.save_gd()
+
+    # load already run gd
+    else:
+        if not gd.load_gd():
+            return
+
+    # report gd
+    if args.do_report:
+        gd.write_report()
+
+    # do plots 
+    if args.do_plots:
+        #gd.plot_losses(args.h_hjb, args.N)
+        #gd.plot_time_steps()
+        #gd.plot_1d_epoch(epoch=5)
+        gd.plot_1d_epochs()
+        #gd.plot_2d_epoch(epoch=0)
+
+
 
 
 if __name__ == "__main__":

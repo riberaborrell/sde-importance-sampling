@@ -290,6 +290,7 @@ class Solver(LangevinSDE):
             self.t_initial = hjb_sol['t_initial']
             self.t_final = hjb_sol['t_final']
             return True
+
         except:
             print('no hjb-solution found with h={:.0e}'.format(self.h))
             return False
@@ -328,8 +329,11 @@ class Solver(LangevinSDE):
         Psi = self.get_psi_at_x(x)
         F = self.get_f_at_x(x)
 
+        # set path
+        file_path = os.path.join(self.dir_path, 'report.txt')
+
         # write file
-        f = open(os.path.join(self.dir_path, 'report.txt'), 'w')
+        f = open(file_path, 'w')
 
         f.write('h = {:2.4f}\n'.format(self.h))
         f.write('N_h = {:d}\n'.format(self.Nh))
@@ -350,7 +354,7 @@ class Solver(LangevinSDE):
         f.close()
 
         # print file
-        f = open(os.path.join(self.dir_path, 'report.txt'), 'r')
+        f = open(file_path, 'r')
         print(f.read())
         f.close()
 

@@ -110,15 +110,23 @@ class GradientDescent:
         )
 
     def load_gd(self):
-        file_path = os.path.join(self.dir_path, 'gd.npz')
-        gd = np.load(file_path, allow_pickle=True)
-        self.epochs = gd['epochs']
-        self.thetas = gd['thetas']
-        self.losses = gd['losses']
-        self.grad_losses = gd['grad_losses']
-        self.time_steps = gd['time_steps']
-        self.t_initial = gd['t_initial']
-        self.t_final = gd['t_final']
+        try:
+            gd = np.load(
+                os.path.join(self.dir_path, 'gd.npz'),
+                allow_pickle=True,
+            )
+            self.epochs = gd['epochs']
+            self.thetas = gd['thetas']
+            self.losses = gd['losses']
+            self.grad_losses = gd['grad_losses']
+            self.time_steps = gd['time_steps']
+            self.t_initial = gd['t_initial']
+            self.t_final = gd['t_final']
+            return True
+
+        except:
+            print('no gd found')
+            return False
 
     def write_report(self):
         sample = self.sample
@@ -127,7 +135,7 @@ class GradientDescent:
         file_path = os.path.join(self.dir_path, 'report.txt')
 
         # write in file
-        f = open(file_path, "w")
+        f = open(file_path, 'w')
 
         sample.write_setting(f)
         sample.write_sampling_parameters(f)
@@ -147,6 +155,11 @@ class GradientDescent:
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
 
         #self.write_epoch_report(f)
+        f.close()
+
+        # print file
+        f = open(file_path, 'r')
+        print(f.read())
         f.close()
 
     def write_epoch_report(self, f):
@@ -232,9 +245,12 @@ class GradientDescent:
         return epochs_to_show
 
     def plot_1d_epochs(self):
+        # get sampling object
+        sample = self.sample
+
         # discretize domain and evaluate in grid
-        self.sample.discretize_domain(h=0.001)
-        x = self.sample.domain_h[:, 0]
+        sample.discretize_domain(h=0.001)
+        x = sample.domain_h[:, 0]
 
         # filter epochs to show
         epochs_to_show = self.get_epochs_to_show()
@@ -249,24 +265,25 @@ class GradientDescent:
             labels.append(r'epoch = {:d}'.format(epoch))
 
             # set theta
-            self.sample.ansatz.theta = self.thetas[epoch]
-            self.sample.get_grid_value_function_and_control()
+            sample.ansatz.theta = self.thetas[epoch]
+            sample.get_grid_value_function_and_control()
 
             # update functions
-            controlled_potentials[i, :] = self.sample.grid_controlled_potential
-            frees[i, :] = self.sample.grid_value_function
-            controls[i, :] = self.sample.grid_control[:, 0]
+            controlled_potentials[i, :] = sample.grid_controlled_potential
+            frees[i, :] = sample.grid_value_function
+            controls[i, :] = sample.grid_control[:, 0]
 
         # get hjb solution
-        sol = self.sample.get_hjb_solver(h=0.001)
+        sol = sample.get_hjb_solver(h=0.001)
         sol.get_controlled_potential_and_drift()
 
-        self.sample.plot_1d_free_energies(frees, F_hjb=sol.F,
-                                          labels=labels[:], dir_path=self.dir_path)
-        self.sample.plot_1d_controls(controls, u_hjb=sol.u_opt[:, 0],
-                                     labels=labels[:], dir_path=self.dir_path)
-        self.sample.plot_1d_controlled_potentials(controls, controlledV_hjb=sol.controlled_potential,
-                                                  labels=labels[:], dir_path=self.dir_path)
+        sample.plot_1d_free_energies(frees, F_hjb=sol.F, labels=labels[:],
+                                     dir_path=self.dir_path)
+        sample.plot_1d_controls(controls, u_hjb=sol.u_opt[:, 0],
+                                labels=labels[:], dir_path=self.dir_path)
+        sample.plot_1d_controlled_potentials(controlled_potentials,
+                                             controlledV_hjb=sol.controlled_potential,
+                                             labels=labels[:], dir_path=self.dir_path)
 
     def plot_2d_epoch(self, epoch):
         assert epoch in self.epochs, ''

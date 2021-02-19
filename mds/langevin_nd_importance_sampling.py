@@ -91,38 +91,6 @@ class Sampling(LangevinSDE):
         self.dir_path = dir_path
         make_dir_path(self.dir_path)
 
-
-    #TODO: generalize for arbitrary n
-    def set_bias_potential(self, theta, means, covs):
-        ''' set the gaussian ansatz functions and the coefficients theta
-        Args:
-            theta ((m,)-array): parameters
-            means ((m, 2)-array): mean of each gaussian
-            covs ((m, 2, 2)-array) : covaraince matrix of each gaussian
-        '''
-        assert self.is_drifted, ''
-        assert theta.shape[0] == means.shape[0] == covs.shape[0], ''
-
-        # set gaussian ansatz functions
-        ansatz = GaussianAnsatz(domain=self.domain)
-        ansatz.set_given_ansatz_functions(mus, sigmas)
-
-        self.ansatz = ansatz
-        self.theta = theta
-
-    def get_idx_discretized_domain(self, x):
-        assert x.ndim == 2, ''
-        assert x.shape == (self.N, self.n), ''
-
-        # get index of xzero
-        idx = [None for i in range(self.n)]
-        for i in range(self.n):
-            axis_i = np.linspace(self.domain[i, 0], self.domain[i, 1], self.hjb_sol['Nx'][i])
-            idx[i] = tuple(np.argmin(np.abs(axis_i - x[:, i].reshape(self.N, 1)), axis=1))
-
-        idx = tuple(idx)
-        return idx
-
     def bias_potential(self, x, theta=None):
         '''This method computes the bias potential at x
 
@@ -618,6 +586,8 @@ class Sampling(LangevinSDE):
         f.close()
 
     def get_grid_value_function_and_control(self):
+        # set value f constant
+        self.ansatz.set_value_function_constant_corner(self.h)
 
         # flatten domain_h
         x = self.domain_h.reshape(self.Nh, self.n)

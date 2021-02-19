@@ -36,6 +36,9 @@ class GaussianAnsatz(LangevinSDE):
 
         self.theta_type = None
 
+        # value function constanct
+        self.K_value_f = None
+
         # directory path
         self.dir_path = None
 
@@ -389,6 +392,37 @@ class GaussianAnsatz(LangevinSDE):
         basis_control = - np.sqrt(2) * self.vec_grad_mv_normal_pdf(x, self.means, self.cov)
         return basis_control
 
+    def set_value_function_constant_target_set(self):
+
+        # discretize domain
+        self.discretize_domain()
+
+        # get idx in the target set
+        idx_ts = self.get_idx_target_set()
+
+        # impose value function in the target set to be null
+        self.K_value_f = - np.mean(value_f[idx_ts])
+
+    def set_value_function_constant_boarder(self):
+        pass
+        #self.K_value_f = 
+
+    def set_value_function_constant_corner(self, h):
+        # discretize domain
+        self.discretize_domain(h)
+
+        # get idx of corner (1, ..., 1)
+        #idx_corner = self.get_index(np.ones(self.n))
+
+        # define target set corner (1, ..., 1)
+        x = np.ones((1, self.n))
+
+        # evaluate value function at x
+        basis_value_f_at_x = self.basis_value_f(x)
+        value_f_at_x =  np.dot(basis_value_f_at_x, self.theta)
+
+        self.K_value_f = - value_f_at_x
+
     def value_function(self, x, theta=None):
         '''This method computes the value function evaluated at x
 
@@ -401,33 +435,13 @@ class GaussianAnsatz(LangevinSDE):
         if theta is None:
             theta = self.theta
 
-        # value function with constant K=0
+        # value function without constant K
         basis_value_f = self.basis_value_f(x)
         value_f =  np.dot(basis_value_f, theta)
 
-        # assume they are in the target set
-        N = x.shape[0]
-        is_in_target_set = np.repeat([True], N)
+        return value_f + self.K_value_f
 
-        for i in range(self.n):
-            is_not_in_target_set_i_axis_idx = np.where(
-                (x[:, i] < self.target_set[i, 0]) |
-                (x[:, i] > self.target_set[i, 1])
-            )[0]
-            # if they are NOT in the target set change flag
-            is_in_target_set[is_not_in_target_set_i_axis_idx] = False
 
-           # break loop for the dimensions if all positions are switched to False
-            if is_in_target_set.all() == False:
-                break
-
-        # compute constant
-        idx_ts = np.where(is_in_target_set == True)[0]
-
-        # impose value function in the target set to be null
-        K = - np.mean(value_f[idx_ts])
-
-        return value_f + K
 
     def control(self, x, theta=None):
         '''This method computes the control evaluated at x

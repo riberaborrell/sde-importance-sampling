@@ -115,6 +115,31 @@ class LangevinSDE:
         '''
         return self.domain_h[idx]
 
+    def get_idx_target_set(self):
+        assert self.domain_h is not None, ''
+
+        # flatten domain_h
+        x = self.domain_h.reshape(self.Nh, self.n)
+
+        # assume all nodes are in the target set
+        is_in_target_set = np.repeat([True], self.Nh)
+
+        for i in range(self.n):
+            # get index of nodes which are not in the i axis target set
+            not_in_target_set_i_idx = np.where(
+                (x[:, i] < self.target_set[i, 0]) |
+                (x[:, i] > self.target_set[i, 1])
+            )[0]
+            # if they are NOT in the target set change flag
+            is_in_target_set[not_in_target_set_i_idx] = False
+
+           # break loop for the dimensions if all positions are switched to False
+            if is_in_target_set.all() == False:
+                break
+
+        # get index
+        return np.where(is_in_target_set == True)[0]
+
     def get_hjb_solver(self, h):
         from mds.langevin_nd_hjb_solver import Solver
         # initialize hjb solver

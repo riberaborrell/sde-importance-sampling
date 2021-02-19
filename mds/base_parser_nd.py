@@ -164,6 +164,12 @@ def get_base_parser():
         help='Write / Print report. Default: False',
     )
     parser.add_argument(
+        '--load',
+        dest='load',
+        action='store_true',
+        help='Load already computed hjb results. Default: False',
+    )
+    parser.add_argument(
         '--save-trajectory',
         dest='save_trajectory',
         action='store_true',
