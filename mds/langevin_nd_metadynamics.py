@@ -71,8 +71,8 @@ class Metadynamics:
 
         # initialize bias potentials coefficients
         self.ms = np.empty(self.N, dtype=np.intc)
-        self.thetas = np.empty((self.N, self.updates_lim))
-        self.means = np.empty((self.N, self.updates_lim, self.sample.n))
+        self.thetas = np.empty(0)
+        self.means = np.empty((0, self.sample.n))
         self.cov = self.sigma_i * np.eye(self.sample.n)
         self.time_steps = np.empty(self.N)
 
@@ -95,7 +95,7 @@ class Metadynamics:
         sample.xzero = np.full((sample.N, self.sample.n), self.xzero)
 
         # preallocate means and cov matrix of the gaussiansbias functions
-        means = np.empty((self.updates_lim, self.sample.n))
+        means = np.empty((0, self.sample.n))
 
         # set the weights of the bias functions
         #omegas = 1 * np.ones(updates)
@@ -123,11 +123,11 @@ class Metadynamics:
                 break
 
             # add new bias ansatz function
-            means[j] = np.mean(xtemp, axis=(0, 1))
+            means = np.vstack((means, np.mean(xtemp, axis=(0, 1))))
             #print('({:2.3f}, {:2.3f})'.format(means[j, 0], means[j, 1]))
 
             sample.is_controlled = True
-            sample.ansatz.set_given_ansatz_functions(means[:j+1], self.cov)
+            sample.ansatz.set_given_ansatz_functions(means, self.cov)
             sample.ansatz.theta = omegas[:j+1] / 2
             sample.xzero = np.full((sample.N, self.sample.n), np.mean(xtemp[-1]))
 
@@ -136,17 +136,21 @@ class Metadynamics:
 
         # save bias functions added for this trajectory
         self.ms[i] = j
-        self.thetas[i, :j] = sample.ansatz.theta
-        self.means[i, :j] = sample.ansatz.means
+        self.thetas = np.append(self.thetas, sample.ansatz.theta)
+        self.means = np.vstack((self.means, sample.ansatz.means))
         self.time_steps[:j] = time_steps
 
     def save_bias_potential(self):
         np.savez(
             os.path.join(self.dir_path, 'bias-potential.npz'),
+            succ=self.succ,
             ms=self.ms,
             thetas=self.thetas,
             means=self.means,
             cov=self.cov,
+            time_steps=self.time_steps,
+            t_initial=self.t_initial,
+            t_final=self.t_final,
         )
 
     def load_bias_potential(self):
@@ -155,10 +159,14 @@ class Metadynamics:
                 os.path.join(self.dir_path, 'bias-potential.npz'),
                 allow_pickle=True,
             )
+            self.succ = bias_pot['succ']
             self.ms = bias_pot['ms']
             self.thetas = bias_pot['thetas']
             self.means = bias_pot['means']
             self.cov = bias_pot['cov']
+            self.time_steps = bias_pot['time_steps']
+            self.t_initial = bias_pot['t_initial']
+            self.t_final = bias_pot['t_final']
             return True
 
         except:
@@ -169,13 +177,15 @@ class Metadynamics:
         f.write('Center of the Gaussians\n')
         f.write('i: trajectory index, j: gaussian index\n')
         for i in np.arange(self.N):
+            idx_i = slice(np.sum(self.ms[:i]), np.sum(self.ms[:i]) + self.ms[i])
+            means_i = self.means[idx_i]
             for j in np.arange(self.ms[i]):
                 mean_str = '('
                 for x_i in range(self.sample.n):
                     if x_i == 0:
-                        mean_str += '{:2.1f}'.format(self.means[i, j, x_i])
+                        mean_str += '{:2.1f}'.format(means_i[j, x_i])
                     else:
-                        mean_str += ', {:2.1f}'.format(self.means[i, j, x_i])
+                        mean_str += ', {:2.1f}'.format(means_i[j, x_i])
                 mean_str += ')'
                 f.write('i={:d}, j={:d}, mu_j={}\n'.format(i, j, mean_str))
         f.write('\n')
@@ -252,15 +262,18 @@ class Metadynamics:
         controls[0, :] = sample.grid_control[:, 0]
 
         sample.is_controlled = True
+        idx_i = slice(np.sum(self.ms[:i]), np.sum(self.ms[:i]) + self.ms[i])
+        means = self.means[idx_i]
+        thetas = self.thetas[idx_i]
         for index, update in enumerate(updates_to_show):
             labels.append(r'update = {:d}'.format(update+1))
 
             # set theta
             sample.ansatz.set_given_ansatz_functions(
-                self.means[0, :update+1],
+                means[:update+1],
                 self.cov,
             )
-            sample.ansatz.theta = self.thetas[i, :update+1]
+            sample.ansatz.theta = thetas[:update+1]
             sample.get_grid_value_function_and_control()
 
             # update functions
@@ -272,12 +285,16 @@ class Metadynamics:
         sol = sample.get_hjb_solver(h=0.001)
         sol.get_controlled_potential_and_drift()
 
+        # file extension
+        ext = '_i_{}'.format(i)
+
         sample.plot_1d_free_energies(frees, F_hjb=sol.F, labels=labels[:],
-                                     dir_path=self.dir_path)
-        sample.plot_1d_controls(controls, u_hjb=sol.u_opt[:, 0],
-                                labels=labels[:], dir_path=self.dir_path)
+                                     dir_path=self.dir_path, ext=ext)
+        sample.plot_1d_controls(controls, u_hjb=sol.u_opt[:, 0], labels=labels[:],
+                                dir_path=self.dir_path, ext=ext)
         sample.plot_1d_controlled_potentials(controlled_potentials,
                                              controlledV_hjb=sol.controlled_potential,
-                                             labels=labels[:], dir_path=self.dir_path)
+                                             labels=labels[:], dir_path=self.dir_path,
+                                             ext=ext)
 
 

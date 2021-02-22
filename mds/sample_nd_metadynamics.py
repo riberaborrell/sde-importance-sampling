@@ -77,7 +77,7 @@ def main():
         meta.write_report()
 
     if args.do_plots:
-        meta.plot_1d_updates()
+        meta.plot_1d_updates(i=1)
 
 if __name__ == "__main__":
     main()
