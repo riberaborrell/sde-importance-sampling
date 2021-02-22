@@ -606,6 +606,7 @@ class Sampling(LangevinSDE):
             self.ansatz.set_value_function_constant_corner(self.h)
 
             # bias potential, value function and control
+            self.ansatz.set_value_function_constant_corner()
             self.grid_bias_potential = self.bias_potential(x).reshape(self.Nx)
             self.grid_value_function = self.ansatz.value_function(x)
             self.grid_control = self.ansatz.control(x).reshape(self.domain_h.shape)

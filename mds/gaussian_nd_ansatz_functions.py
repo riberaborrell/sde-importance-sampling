@@ -134,29 +134,26 @@ class GaussianAnsatz(LangevinSDE):
         self.distributed = 'meta'
         self.theta_type = 'meta'
 
-    #TODO: test for gen n
-    def set_theta_optimal(self):
-        assert self.ansatz is not None, ''
-        assert self.ansatz.dir_path is not None, ''
-
-        self.load_hjb_solution()
-        Nx = self.hjb_sol['domain_h'].shape[:-1]
-        Nh = self.hjb_sol['Nh']
-        x = self.hjb_sol['domain_h'].reshape(Nh, self.n)
-        F = self.hjb_sol['F'].reshape(Nh,)
-
-        # compute the optimal theta given a basis of ansatz functions
-        v = self.ansatz.basis_value_f(x)
-        self.theta, _, _, _ = np.linalg.lstsq(v, F, rcond=None)
-        self.theta_type = 'optimal'
-
-        # set drifted sampling dir path
-        dir_path = os.path.join(self.ansatz.dir_path, 'optimal-importance-sampling')
-        self.set_dir_path(dir_path)
-
     def set_theta_null(self):
         self.theta = np.zeros(self.m)
         self.theta_type = 'null'
+
+    def set_theta_from_hjb_solution(self, h):
+        '''
+        '''
+        # get hjb solver
+        hjb_sol = self.get_hjb_solver(h)
+
+        # flatten domain and free energy
+        Nh = hjb_sol.Nh
+        x = hjb_sol.domain_h.reshape(Nh, self.n)
+        F = hjb_sol.F.reshape(Nh,)
+
+        # compute the optimal theta given a basis of ansatz functions
+        v = self.basis_value_f(x)
+        self.theta, _, _, _ = np.linalg.lstsq(v, F, rcond=None)
+        self.h = h
+        self.theta_type = 'optimal'
 
     def set_theta_from_metadynamics(self, sigma_i_meta, k, N_meta):
         '''
@@ -214,30 +211,6 @@ class GaussianAnsatz(LangevinSDE):
         self.sigma_i_meta = sigma_i_meta
         self.k = k
         self.N_meta = N_meta
-
-    #TODO: generalize for arbitrary n
-    def set_theta_from_gd(self, gd_type, gd_theta_init, gd_lr):
-        '''
-        '''
-        assert self.ansatz is not None, ''
-        assert self.ansatz.dir_path is not None, ''
-
-        # get gd dir path
-        ansatz_dir_path = self.ansatz.dir_path
-        gd_dir_path = get_gd_data_path(ansatz_dir_path, gd_type, gd_theta_init, gd_lr)
-
-        # load gd
-        file_path = os.path.join(gd_dir_path, 'gd.npz')
-        gd = np.load(file_path)
-
-        # get last theta
-        last_epoch = gd['epochs'] - 1
-        self.theta = gd['thetas'][last_epoch, :]
-        self.theta_type = 'gd'
-
-        # set drifted sampling dir path
-        dir_path = os.path.join(gd_dir_path, 'gd-importance-sampling')
-        self.set_dir_path(dir_path)
 
     def mv_normal_pdf(self, x, mean=None, cov=None):
         ''' Multivariate normal probability density function (nd Gaussian)

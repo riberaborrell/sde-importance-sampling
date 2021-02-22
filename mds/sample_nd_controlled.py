@@ -44,16 +44,8 @@ def main():
     elif args.theta == 'meta':
         sample.ansatz.h = args.h
         sample.ansatz.set_theta_from_metadynamics(args.sigma_i_meta, args.k, args.N_meta)
-    elif args.theta == 'gd':
-        #sample.ansatz.set_theta_from_gd(
-        #    gd_type='ipa-value-f',
-        #    gd_theta_init=args.theta_init,
-        #    gd_lr=args.lr,
-        #)
-        return
     elif args.theta == 'optimal':
-        #sample.ansatz.set_theta_optimal()
-        return
+        sample.ansatz.set_theta_from_hjb_solution(args.h_hjb)
 
     # set dir path for gaussian ansatz
     sample.ansatz.set_dir_path()

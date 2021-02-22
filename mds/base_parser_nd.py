@@ -133,7 +133,7 @@ def get_base_parser():
     parser.add_argument(
         '--theta',
         dest='theta',
-        choices=['null', 'meta', 'gd', 'optimal'],
+        choices=['null', 'meta', 'optimal'],
         default='null',
         help='Type of control. Default: null',
     )

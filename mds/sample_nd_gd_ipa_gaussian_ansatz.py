@@ -5,6 +5,8 @@ from mds.langevin_nd_importance_sampling import Sampling
 
 import numpy as np
 
+import os
+
 def get_parser():
     parser = get_base_parser()
     parser.description = 'Performs GD method using ipa estimator for the gradient of the loss' \
@@ -22,6 +24,12 @@ def get_parser():
         dest='do_epoch_plots',
         action='store_true',
         help='Do plots for each epoch. Default: False',
+    )
+    parser.add_argument(
+        '--do-importance-sampling',
+        dest='do_importance_sampling',
+        action='store_true',
+        help='Sample controlled dynamics',
     )
     return parser
 
@@ -60,7 +68,6 @@ def main():
     elif args.theta_init == 'optimal':
         #sample.set_theta_optimal()
         return
-    breakpoint()
 
     # set dir path for gaussian ansatz
     sample.ansatz.set_dir_path()
@@ -104,13 +111,37 @@ def main():
 
     # do plots 
     if args.do_plots:
-        #gd.plot_losses(args.h_hjb, args.N)
+        gd.plot_losses(args.h_hjb, args.N)
         gd.plot_time_steps()
         #gd.plot_1d_epoch(epoch=5)
-        #gd.plot_1d_epochs()
+        gd.plot_1d_epochs()
         #gd.plot_2d_epoch(epoch=0)
 
+    if args.do_importance_sampling:
+        # set sampling and Euler-Marujama parameters
+        sample.set_sampling_parameters(
+            seed=args.seed,
+            xzero=np.full(args.n, args.xzero_i),
+            N=args.N,
+            dt=args.dt,
+            k_lim=args.k_lim,
+        )
 
+        # set controlled sampling dir path
+        dir_path = os.path.join(
+            gd.dir_path,
+            'is',
+            'N_{:.0e}'.format(sample.N),
+        )
+        sample.set_dir_path(dir_path)
+
+        # sample and compute statistics
+        breakpoint()
+        sample.ansatz.theta = gd.thetas[-1]
+        sample.sample_controlled()
+
+        # print statistics
+        sample.write_report()
 
 
 if __name__ == "__main__":
