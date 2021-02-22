@@ -60,6 +60,7 @@ def main():
     elif args.theta_init == 'optimal':
         #sample.set_theta_optimal()
         return
+    breakpoint()
 
     # set dir path for gaussian ansatz
     sample.ansatz.set_dir_path()

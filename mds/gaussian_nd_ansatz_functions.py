@@ -96,19 +96,11 @@ class GaussianAnsatz(LangevinSDE):
         '''
         meta_bias_pot = self.get_meta_bias_potential(sigma_i_meta, k, N_meta)
         meta_ms = meta_bias_pot['ms']
-        meta_total_m = int(np.sum(meta_ms))
         meta_means = meta_bias_pot['means']
         meta_cov = meta_bias_pot['cov']
         assert N_meta == meta_ms.shape[0], ''
 
-        # get the centers used for each trajectory
-        means = np.empty((meta_total_m, self.n))
-        flatten_idx = 0
-        for i in np.arange(N_meta):
-            means[flatten_idx:flatten_idx+meta_ms[i]] = meta_means[i, :meta_ms[i]]
-            flatten_idx += meta_ms[i]
-
-        self.set_given_ansatz_functions(means, meta_cov)
+        self.set_given_ansatz_functions(meta_means, meta_cov)
         self.sigma_i_meta = sigma_i_meta
         self.k = k
         self.N_meta = N_meta
@@ -190,6 +182,11 @@ class GaussianAnsatz(LangevinSDE):
         thetas = np.empty((N_meta, self.m))
 
         for i in np.arange(N_meta):
+            # get means and thetas for each trajectory
+            idx_i = slice(np.sum(meta_ms[:i]), np.sum(meta_ms[:i]) + meta_ms[i])
+            meta_means_i = meta_means[idx_i]
+            meta_thetas_i = meta_thetas[idx_i]
+
             # create ansatz functions from meta
             meta_ansatz = GaussianAnsatz(
                 n=self.n,
@@ -198,12 +195,13 @@ class GaussianAnsatz(LangevinSDE):
                 beta=self.beta,
             )
             meta_ansatz.set_given_ansatz_functions(
-                means=meta_means[i, :meta_ms[i]],
+                means=meta_means_i,
                 cov=meta_cov,
             )
 
             # meta value function evaluated at the grid
-            value_f_meta = meta_ansatz.value_function(x, meta_thetas[i, :meta_ms[i]])
+            meta_ansatz.set_value_function_constant_corner(meta_thetas_i)
+            value_f_meta = meta_ansatz.value_function(x, meta_thetas_i)
 
             # ansatz functions evaluated at the grid
             v = self.basis_value_f(x)
@@ -407,19 +405,16 @@ class GaussianAnsatz(LangevinSDE):
         pass
         #self.K_value_f = 
 
-    def set_value_function_constant_corner(self, h):
-        # discretize domain
-        self.discretize_domain(h)
-
-        # get idx of corner (1, ..., 1)
-        #idx_corner = self.get_index(np.ones(self.n))
+    def set_value_function_constant_corner(self, theta=None):
+        if theta is None:
+            theta = self.theta
 
         # define target set corner (1, ..., 1)
         x = np.ones((1, self.n))
 
         # evaluate value function at x
         basis_value_f_at_x = self.basis_value_f(x)
-        value_f_at_x =  np.dot(basis_value_f_at_x, self.theta)
+        value_f_at_x =  np.dot(basis_value_f_at_x, theta)
 
         self.K_value_f = - value_f_at_x
 
