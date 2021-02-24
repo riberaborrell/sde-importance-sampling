@@ -136,7 +136,6 @@ def main():
         sample.set_dir_path(dir_path)
 
         # sample and compute statistics
-        breakpoint()
         sample.ansatz.theta = gd.thetas[-1]
         sample.sample_controlled()
 
