@@ -5,6 +5,7 @@ POTENTIAL_NAMES = [
     '1d_sym_1well',
     '1d_sym_2well',
     '1d_asym_2well',
+    '1d_polynomial',
 ]
 
 def get_potential_and_gradient(potential_name, alpha=None):
@@ -41,9 +42,16 @@ def get_potential_and_gradient(potential_name, alpha=None):
         a, b, c, d = alpha
         potential = asymmetric_double_well_1d_potential
         gradient = asymmetric_double_well_1d_gradient
-        pot_formula = r'$V(x; a, b, c, d) = a(x^2 - b)^2 + c x + d$'
-        grad_formula = r'$\nabla V(x; a, b, c, d) = 4 a x (x^2 - b) + c$'
+        pot_formula = r'$V(x; alpha) = a(x^2 - b)^2 + c x + d$'
+        grad_formula = r'$\nabla V(x; alpha) = 4 a x (x^2 - b) + c$'
         parameters = r'a = {}, b = {}, c = {}, d = {}'.format(a, b, c, d)
+
+    elif potential_name == '1d_polynomial':
+        potential = functools.partial(anharmonic_1d_potential, alpha=alpha)
+        gradient = functools.partial(anharmonic_1d_gradient, alpha=alpha)
+        pot_formula = r''
+        grad_formula = r''
+        parameters = r''
 
     return potential, gradient, pot_formula, grad_formula, parameters
 
@@ -61,7 +69,7 @@ def one_well_1d_gradient(x, a=1):
         x (float or float array) : posicion/s
         a (float) : parameter
     '''
-    return 2 * a * x 
+    return 2 * a * x
 
 def symmetric_double_well_1d_potential(x, a=1):
     ''' Potential V(x; a) = a(x^2-1)^2 evaluated at x
@@ -100,6 +108,34 @@ def asymmetric_double_well_1d_gradient(x, a=1, b=1, c=-0.2, d=0.3):
         d (float) : parameter
     '''
     return 4 * a * x * (x**2 - 1) + c
+
+def anharmonic_1d_potential(x, alpha):
+    ''' Potential V(x; alpha) = \sum_{k=1}^K a_k x^k
+    Args:
+        x (float or float array) : posicion/s
+        alpha (float) : parameter
+    '''
+    assert alpha.ndim == 1, ''
+    K = alpha.shape[0]
+    pot = 0
+    for k in range(K):
+        pot += alpha[k] * x**k
+
+    return pot
+
+def anharmonic_1d_gradient(x, alpha):
+    ''' Potential dV(x; alpha) = \sum_{k=1}^K a_k k x^{k-1}
+    Args:
+        x (float or float array) : posicion/s
+        alpha (float) : parameter
+    '''
+    assert alpha.ndim == 1, ''
+    K = alpha.shape[0]
+    grad = 0
+    for k in range(1, K):
+        grad += k * alpha[k] * x**(k-1)
+
+    return grad
 
 def symmetric_triple_well_1d_potential(x):
     #return 35*x**2 - 12*x**4 + x**6
