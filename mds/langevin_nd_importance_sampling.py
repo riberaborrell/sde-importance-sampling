@@ -1,6 +1,7 @@
 from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
 from mds.langevin_nd_sde import LangevinSDE
 from mds.utils import get_time_in_hms, make_dir_path
+from mds.plots import Plot
 
 import numpy as np
 import time
@@ -59,12 +60,6 @@ class Sampling(LangevinSDE):
         self.var_fht = None
         self.re_fht = None
 
-        # first hitting time step (fhts)
-        self.fhts = None
-        self.mean_fhts = None
-        self.var_fhts = None
-        self.re_fhts = None
-
         # quantity of interest
         self.mean_I = None
         self.var_I = None
@@ -91,6 +86,16 @@ class Sampling(LangevinSDE):
 
     def set_dir_path(self, dir_path):
         self.dir_path = dir_path
+        make_dir_path(self.dir_path)
+
+    def set_not_controlled_dir_path(self):
+        assert self.N is not None, ''
+
+        self.dir_path = os.path.join(
+            self.example_dir_path,
+            'mc-sampling',
+            'N_{:.0e}'.format(self.N),
+        )
         make_dir_path(self.dir_path)
 
     def bias_potential(self, x, theta=None):
@@ -478,11 +483,6 @@ class Sampling(LangevinSDE):
         self.var_fht, \
         self.re_fht = self.compute_mean_variance_and_rel_error(fht)
 
-        # compute mean and variance of fhts
-        self.mean_fhts, \
-        self.var_fhts, \
-        self.re_fhts = self.compute_mean_variance_and_rel_error(fht / self.dt)
-
     def compute_I_statistics(self):
         # compute mean and variance of I
         I = np.exp(- self.fht)
@@ -500,14 +500,53 @@ class Sampling(LangevinSDE):
         self.var_I_u, \
         self.re_I_u = self.compute_mean_variance_and_rel_error(I_u)
 
-    def save_not_controlled(self):
+    def save_not_controlled_statistics(self):
         np.savez(
             os.path.join(self.dir_path, 'mc-sampling.npz'),
+            seed=self.seed,
+            xzero=self.xzero,
+            dt=self.dt,
+            k_lim=self.k_lim,
+            N_arrived=self.N_arrived,
+            first_fht=self.first_fht,
+            last_fht=self.last_fht,
+            mean_fht=self.mean_fht,
+            var_fht=self.var_fht,
+            re_fht=self.re_fht,
             mean_I=self.mean_I,
             var_I=self.var_I,
             re_I=self.re_I,
             traj=self.traj,
+            t_initial=self.t_initial,
+            t_final=self.t_final,
         )
+
+    def load_not_controlled_statistics(self):
+        try:
+            mcs = np.load(
+                os.path.join(self.dir_path, 'mc-sampling.npz'),
+                allow_pickle=True,
+            )
+            self.seed = mcs['seed']
+            self.xzero = mcs['xzero']
+            self.dt = mcs['dt']
+            self.k_lim = mcs['k_lim']
+            self.N_arrived = mcs['N_arrived']
+            self.first_fht = mcs['first_fht']
+            self.last_fht = mcs['last_fht']
+            self.mean_fht = mcs['mean_fht']
+            self.var_fht = mcs['var_fht']
+            self.re_fht = mcs['re_fht']
+            self.mean_I = mcs['mean_I']
+            self.var_I = mcs['var_I']
+            self.re_I = mcs['re_I']
+            self.traj = mcs['traj']
+            self.t_initial = mcs['t_initial']
+            self.t_final = mcs['t_final']
+            return True
+        except:
+            print('no mc-sampling found with N={:.0e}'.format(self.N))
+            return False
 
     def write_euler_maruyama_parameters(self, f):
         f.write('Euler-Maruyama discretization parameters\n')
@@ -518,9 +557,6 @@ class Sampling(LangevinSDE):
         f.write('Sampling parameters\n')
         f.write('controlled process: {}\n'.format(self.is_controlled))
 
-        if self.seed:
-            f.write('seed: {:2.1f}'.format(self.seed))
-
         initial_posicion = 'xzero: ('
         for i in range(self.n):
             if i == 0:
@@ -530,16 +566,21 @@ class Sampling(LangevinSDE):
         initial_posicion += ')\n'
         f.write(initial_posicion)
 
-        f.write('sampled trajectories: {:,d}\n\n'.format(self.N))
+        f.write('sampled trajectories: {:,d}\n'.format(self.N))
+
+        if self.seed:
+            f.write('seed: {:2.1f}'.format(self.seed))
+        else:
+            f.write('seed: -\n\n')
 
     def write_report(self):
         '''
         '''
-        # set file path
+        # set path
 
         file_path = os.path.join(self.dir_path, 'report.txt')
 
-        # write in file
+        # write file
         f = open(file_path, "w")
 
         self.write_setting(f)
@@ -566,9 +607,9 @@ class Sampling(LangevinSDE):
         f.write('RE[fht] = {:2.3f}\n\n'.format(self.re_fht))
 
         f.write('First hitting time step (fhts)\n')
-        f.write('E[fhts] = {:2.3f}\n'.format(self.mean_fhts))
-        f.write('Var[fhts] = {:2.3f}\n'.format(self.var_fhts))
-        f.write('RE[fhts] = {:2.3f}\n\n'.format(self.re_fhts))
+        f.write('E[fhts] = {:2.3f}\n'.format(self.mean_fht / self.dt))
+        f.write('Var[fhts] = {:2.3f}\n'.format(self.var_fht / (self.dt **2)))
+        f.write('RE[fhts] = {:2.3f}\n\n'.format(self.re_fht))
 
         if not self.is_controlled:
             f.write('Quantity of interest\n')
@@ -585,6 +626,11 @@ class Sampling(LangevinSDE):
         h, m, s = get_time_in_hms(self.t_final - self.t_initial)
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
 
+        f.close()
+
+        # print file
+        f = open(file_path, 'r')
+        print(f.read())
         f.close()
 
     def get_grid_value_function_and_control(self):
@@ -616,8 +662,6 @@ class Sampling(LangevinSDE):
         self.grid_controlled_drift = - self.grid_gradient + np.sqrt(2) * self.grid_control
 
     def plot_trajectory(self):
-        from mds.plots_1d import Plot1d
-
         traj_fhs = self.traj.shape[0]
         traj_fht = traj_fhs * self.dt
         x = np.linspace(0, traj_fht, traj_fhs)
@@ -626,12 +670,12 @@ class Sampling(LangevinSDE):
 
         for i in np.arange(self.n):
             file_name = 'trajectory_x{:d}'.format(i+1)
-            plt1d = Plot1d(self.dir_path, file_name)
-            plt1d.xlabel = 't'
-            plt1d.ylabel = r'$x_{:d}$'.format(i+1)
-            plt1d.one_line_plot(x, self.traj[:, i])
+            plt = Plot(self.dir_path, file_name)
+            plt.xlabel = 't'
+            plt.ylabel = r'$x_{:d}$'.format(i+1)
+            plt.one_line_plot(x, self.traj[:, i])
 
         file_name = 'trajectory'
-        plt1d = Plot1d(self.dir_path, file_name)
-        plt1d.xlabel = 't'
-        plt1d.multiple_lines_plot(x, ys, labels=labels)
+        plt = Plot(self.dir_path, file_name)
+        plt.xlabel = 't'
+        plt.multiple_lines_plot(x, ys, labels=labels)

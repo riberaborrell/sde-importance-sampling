@@ -1,5 +1,4 @@
 from mds.langevin_nd_sde import LangevinSDE
-from mds.plots_2d import Plot2d
 from mds.utils import get_hjb_solution_dir_path, get_time_in_hms
 
 import numpy as np

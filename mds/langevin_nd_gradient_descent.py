@@ -182,10 +182,9 @@ class GradientDescent:
             value_f_hjb = np.full(self.epochs.shape[0], np.nan)
 
         # mc F
-        mcs = self.sample.get_not_controlled(N_mc)
-        if mcs is not None:
-            mc_psi = mcs['mean_I']
-            mc_f = - np.log(mc_psi)
+        sample_mc = self.sample.get_not_controlled_sampling(N_mc)
+        if sample_mc.mean_I is not None:
+            mc_f = - np.log(sample_mc.mean_I)
             value_f_mc = np.full(self.epochs.shape[0], mc_f)
         else:
             value_f_mc = np.full(self.epochs.shape[0], np.nan)

@@ -31,30 +31,32 @@ def main():
     )
 
     # set path
-    dir_path = os.path.join(
-        sample.example_dir_path,
-        'mc-sampling',
-        'N_{:.0e}'.format(sample.N),
-    )
-    sample.set_dir_path(dir_path)
+    sample.set_not_controlled_dir_path()
 
-    if args.save_trajectory:
-        sample.save_trajectory = True
+    # sample not controlled trajectories
+    if not args.load:
 
-    # plot potential and gradient
-    if args.do_plots:
-        pass
-        return
+        # save trajectory flag
+        if args.save_trajectory:
+            sample.save_trajectory = True
 
-    # sample and compute statistics
-    sample.sample_not_controlled()
+        # sample and compute statistics
+        sample.sample_not_controlled()
 
-    # print statistics and save data
-    sample.save_not_controlled()
-    sample.write_report()
+        # save statistics
+        sample.save_not_controlled_statistics()
+
+    # load already sampled statistics
+    else:
+        if not sample.load_not_controlled_statistics():
+            return
+
+    # report statistics
+    if args.do_report:
+        sample.write_report()
 
     # plot trajectory
-    if args.save_trajectory:
+    if args.do_plots and args.save_trajectory:
         sample.plot_trajectory()
 
 

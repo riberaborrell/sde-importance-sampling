@@ -142,6 +142,7 @@ class LangevinSDE:
 
     def get_hjb_solver(self, h):
         from mds.langevin_nd_hjb_solver import Solver
+
         # initialize hjb solver
         sol = Solver(
             n=self.n,
@@ -170,22 +171,32 @@ class LangevinSDE:
             print('no metadynamics-sampling found with sigma_i_meta={:.0e}, k={}, meta_N:{}'
                   ''.format(sigma_i_meta, k, N_meta))
 
-    def get_not_controlled(self, N):
-        try:
-            dir_path = os.path.join(
-                self.example_dir_path,
-                'mc-sampling',
-                'N_{:.0e}'.format(N),
-            )
-            file_path = os.path.join(dir_path, 'mc-sampling.npz')
-            mcs = np.load(file_path, allow_pickle=True)
-            return mcs
-        except:
-            print('no mc-sampling found with N={:.0e}'.format(N))
+    def get_not_controlled_sampling(self, N):
+        from mds.langevin_nd_importance_sampling import Sampling
+
+        # initialize not controlled sampling object
+        sample = Sampling(
+            n=self.n,
+            potential_name=self.potential_name,
+            alpha=self.alpha,
+            beta=self.beta,
+            is_controlled=False,
+        )
+
+        # set number of trajectories
+        sample.N = N
+
+        # set path
+        sample.set_not_controlled_dir_path()
+
+        # load already sampled statistics
+        sample.load_not_controlled_statistics()
+        return sample
 
     def write_setting(self, f):
         '''
         '''
+        f.write('\n')
         f.write('potential: {}\n'.format(self.potential_name))
         f.write('alpha: {}\n'.format(self.alpha))
         f.write('beta: {:2.1f}\n'.format(self.beta))

@@ -46,7 +46,7 @@ def main():
     if args.do_report:
         sol.write_report(x=np.full(args.n, args.xzero_i))
 
-    # print solution
+    # do plots
     if args.do_plots:
 
         # evaluate in grid
