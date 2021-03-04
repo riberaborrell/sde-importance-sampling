@@ -10,33 +10,44 @@ import torch.optim as optim
 def get_parser():
     parser = get_base_parser()
     parser.description = ''
+    parser.add_argument(
+        '--updates-lim',
+        dest='updates_lim',
+        type=int,
+        default=100,
+        help='Set maximal number of updates. Default: 100',
+    )
+    parser.add_argument(
+        '--hidden-layer-dim',
+        dest='hidden_layer_dim',
+        type=int,
+        default=10,
+        help='Set dimension of the hidden layer. Default: 10',
+    )
     return parser
 
 def main():
     args = get_parser().parse_args()
 
     # initialize control parametrization by a nn 
-    dim_in, dim_1, dim_out = 1, 3, 1
+    dim_in, dim_1, dim_out = args.n, args.hidden_layer_dim, args.n
     model = TwoLayerNet(dim_in, dim_1, dim_out)
 
     # zeros parameters
     model.zero_parameters()
 
-    # gd
-    updates_max = 100
-
     # define optimizer
     optimizer = optim.Adam(
         model.parameters(),
-        lr=0.01,
+        lr=args.lr,
     )
 
-    for update in np.arange(updates_max):
+    for update in np.arange(args.updates_lim):
         # reset gradients
         optimizer.zero_grad()
 
         # compute loss
-        loss, tilted_loss = sample_loss(model)
+        loss, tilted_loss = sample_loss(model, args.N_gd)
         print('{:d}, {:2.3f}'.format(update, loss))
 
         # compute gradients
@@ -52,38 +63,22 @@ def double_well_1d_gradient(x):
     alpha = 1
     return 4 * alpha * x * (x**2 - 1)
 
-def sample_loss(model):
+def sample_loss(model, N):
     beta = 1
-
-    N = 100
 
     dt = 0.001
     k_max = 100000
 
-    #states = torch.empty(0, dtype=np.float)
-    #fhts = np.empty(N, dtype=np.int)
-
     loss = np.zeros(N)
     tilted_loss = torch.empty(0)
-    #a = torch.empty(0)
-    #b = torch.empty(0)
-    #c = torch.empty(0)
-
-    #tilted_loss = torch.zeros(N)
-    #a = torch.zeros(N)
-    #b = torch.zeros(N)
-    #c = torch.zeros(N)
 
     for i in np.arange(N):
 
         # initialize trajectory
-        xtemp = -1
-        #tilted_loss_temp = torch.zeros(1)
-        a_temp = torch.zeros(1)
-        b_temp = torch.zeros(1)
-        c_temp = torch.zeros(1)
-        #states = np.append(states, xtemp)
-        #print(id(a), id(b), id(c))
+        xt_traj = -1
+        a_traj = torch.zeros(1)
+        b_traj = torch.zeros(1)
+        c_traj = torch.zeros(1)
 
         for k in np.arange(1, k_max + 1):
 
@@ -91,68 +86,37 @@ def sample_loss(model):
             dB = np.sqrt(dt) * np.random.normal(0, 1)
 
             # control
-            xtemp_tensor = torch.tensor([xtemp], dtype=torch.float)
-            utemp_tensor = model.forward(xtemp_tensor)
-            utemp_tensor_det = model.forward(xtemp_tensor).detach()
-            utemp = model.forward(xtemp_tensor).detach().numpy()[0]
+            xt_traj_tensor = torch.tensor([xt_traj], dtype=torch.float)
+            ut_traj_tensor = model.forward(xt_traj_tensor)
+            ut_traj_tensor_det = model.forward(xt_traj_tensor).detach()
+            ut_traj = model.forward(xt_traj_tensor).detach().numpy()[0]
 
             # sde update
-            drift = (- double_well_1d_gradient(xtemp) + np.sqrt(2) * utemp) * dt
+            drift = (- double_well_1d_gradient(xt_traj) + np.sqrt(2) * ut_traj) * dt
             diffusion = np.sqrt(2 / beta) * dB
-            xtemp += drift + diffusion
-            #states = np.append(states, xtemp)
+            xt_traj += drift + diffusion
 
             # update statistics
-            loss[i] += 0.5 * (utemp ** 2) * dt
-            #tilted_loss_temp = tilted_loss_temp + utemp_tensor_det * utemp_tensor * dt
-            a_temp = a_temp + utemp_tensor_det * utemp_tensor * dt
-            b_temp = b_temp + 0.5 * (utemp_tensor_det ** 2) * dt
-            c_temp = c_temp - np.sqrt(beta) * dB * utemp_tensor
-            #a = torch.cat((a, utemp_tensor_det * utemp_tensor * dt))
-            #b = torch.cat((b, 0.5 * (utemp_tensor_det ** 2) * dt))
-            #c = torch.cat((c, - np.sqrt(beta) * dB * utemp_tensor))
+            loss[i] += 0.5 * (ut_traj ** 2) * dt
 
-            #a[i] = a[i] + utemp_tensor_det * utemp_tensor * dt
-            #b[i] = b[i] + 0.5 * (utemp_tensor_det ** 2) * dt
-            #c[i] = c[i] - np.sqrt(beta) * dB * utemp_tensor
+            a_traj = a_traj + ut_traj_tensor_det * ut_traj_tensor * dt
+            b_traj = b_traj + 0.5 * (ut_traj_tensor_det ** 2) * dt
+            c_traj = c_traj - np.sqrt(beta) * dB * ut_traj_tensor
 
-            # stop if xtemp in target set
-            if xtemp >= 1:
+            # stop if xt_traj in target set
+            if xt_traj >= 1:
+
+                # update statistics
                 loss[i] += k * dt
-                b_temp = b_temp + k * dt
-                tilted_loss_temp = a_temp - b_temp * c_temp
-                tilted_loss = torch.cat((tilted_loss, tilted_loss_temp))
-                #b = torch.cat((b,  torch.tensor([k * dt])))
-                #tilted_loss = torch.cat((tilted_loss, a[i] - b[i] * c[i]))
 
-                #b[i] = b[i] + k * dt
-                #tilted_loss[i] = a[i] - b[i] * c[i]
+                b_traj = b_traj + k * dt
+                tilted_loss_traj = a_traj - b_traj * c_traj
+
+                # save tilted loss for the given trajectory
+                tilted_loss = torch.cat((tilted_loss, tilted_loss_traj))
                 break
 
     return np.mean(loss), torch.mean(tilted_loss)
-
-def compute_loss(model, states, fhts):
-
-    N = fhts.shape[0]
-
-    loss = torch.zeros(N)
-    a = torch.zeros(N)
-    b = torch.zeros(N)
-    c = torch.zeros(N)
-
-    # control
-    inputs = torch.tensor([[xtemp]], dtype=torch.float)
-    utemp = model.forward(inputs)[0, 0]
-    utemp_det = model.forward(inputs)[0, 0].detach()
-
-    # ipa statistics 
-    a[i] += utemp_det * utemp * dt
-    b[i] += 0.5 * (utemp_det ** 2) * dt
-    c[i] -= np.sqrt(beta) * dB * utemp
-
-    b[i] += k * dt
-    loss[i] = a[i] - b[i] * c[i]
-
 
 
 if __name__ == "__main__":
