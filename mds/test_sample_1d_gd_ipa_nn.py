@@ -51,7 +51,8 @@ def main():
         optimizer.zero_grad()
 
         # compute loss
-        loss, tilted_loss = sample_loss(model, args.N_gd)
+        #loss, tilted_loss = sample_loss(model, args.N_gd)
+        loss, tilted_loss = sample_loss_vect(model, args.N_gd)
         print('{:d}, {:2.3f}'.format(update, loss))
 
         # compute gradients
@@ -136,6 +137,73 @@ def sample_loss(model, N):
 
     return np.mean(loss), torch.mean(tilted_loss)
 
+
+def sample_loss_vect(model, N):
+    beta = 1
+
+    dt = 0.001
+    k_max = 100000
+
+    loss = np.zeros(N)
+    tilted_loss = torch.empty(0)
+
+    # initialize trajectory
+    xt = np.full(N, -1.).reshape(N, 1)
+    a = torch.zeros((N, 1))
+    b = torch.zeros((N, 1))
+    c = torch.zeros((N, 1))
+    been_in_target_set = np.repeat([False], N).reshape(N, 1)
+
+
+    for k in np.arange(1, k_max + 1):
+
+        # Brownian increment
+        dB = np.sqrt(dt) * np.random.normal(0, 1, N).reshape(N, 1)
+        dB_tensor = torch.tensor(dB, requires_grad=False)
+
+        # control
+        xt_tensor = torch.tensor(xt, dtype=torch.float)
+        ut_tensor = model.forward(xt_tensor)
+        ut_tensor_det = model.forward(xt_tensor).detach()
+        ut = model.forward(xt_tensor).detach().numpy()
+
+        # sde update
+        drift = (- double_well_1d_gradient(xt) + np.sqrt(2) * ut) * dt
+        diffusion = np.sqrt(2 / beta) * dB
+        xt += drift + diffusion
+
+        # update statistics
+        loss += (0.5 * (ut ** 2) * dt).reshape(N,)
+
+        a = a + ut_tensor_det * ut_tensor * dt
+        b = b + 0.5 * (ut_tensor_det ** 2) * dt
+        c = c - np.sqrt(beta) * dB_tensor * ut_tensor
+
+        # update statistics for trajectories which arrived
+        idx_new = get_idx_new_in_ts(xt, been_in_target_set)
+
+        loss[idx_new] += k * dt
+        for idx in idx_new:
+            b[idx] = b[idx] + k * dt
+            tilted_loss = torch.cat((tilted_loss, a[idx] - b[idx] * c[idx]))
+
+        # stop if xt_traj in target set
+        if been_in_target_set.all() == True:
+           break
+
+    return np.mean(loss), torch.mean(tilted_loss)
+
+def get_idx_new_in_ts(x, been_in_target_set):
+    is_in_target_set = x > 1
+
+    idx_new = np.where(
+            (is_in_target_set == True) &
+            (been_in_target_set == False)
+    )[0]
+
+    been_in_target_set[idx_new] = True
+
+    return idx_new
 
 if __name__ == "__main__":
     main()
