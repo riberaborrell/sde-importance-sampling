@@ -33,9 +33,6 @@ def main():
     d_in, d_1, d_out = args.n, args.hidden_layer_dim, args.n
     model = TwoLayerNet(d_in, d_1, d_out)
 
-    # zeros parameters
-    model.zero_parameters()
-
     # define optimizer
     optimizer = optim.Adam(
         model.parameters(),
