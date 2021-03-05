@@ -30,8 +30,8 @@ def main():
     args = get_parser().parse_args()
 
     # initialize control parametrization by a nn 
-    dim_in, dim_1, dim_out = args.n, args.hidden_layer_dim, args.n
-    model = TwoLayerNet(dim_in, dim_1, dim_out)
+    d_in, d_1, d_out = args.n, args.hidden_layer_dim, args.n
+    model = TwoLayerNet(d_in, d_1, d_out)
 
     # zeros parameters
     model.zero_parameters()
@@ -41,6 +41,13 @@ def main():
         model.parameters(),
         lr=args.lr,
     )
+
+    # preallocate parameters
+    thetas = np.empty((args.updates_lim, model.d_flatten))
+
+    # save initial parameters
+    thetas[0] = model.get_flatten_parameters()
+    print(thetas[0])
 
     for update in np.arange(args.updates_lim):
         # reset gradients
@@ -56,8 +63,22 @@ def main():
         # update parameters
         optimizer.step()
 
-def save_nn_coefficients():
-    pass
+        # save parameters
+        thetas[update] = model.get_flatten_parameters()
+        print(thetas[update])
+
+    save_nn_coefficients(thetas)
+
+def save_nn_coefficients(thetas):
+    from mds.utils import make_dir_path
+    import os
+    dir_path = 'mds/data/testing_gd_nn'
+    make_dir_path(dir_path)
+    file_path = os.path.join(dir_path, 'gd.npz')
+    np.savez(
+        file_path,
+        thetas=thetas,
+    )
 
 def double_well_1d_gradient(x):
     alpha = 1
