@@ -90,31 +90,38 @@ class Solver(LangevinSDE):
             k -= idx[i] * Nx_prod
         return tuple(idx)
 
-    def is_on_domain_boundary(self, k):
-        ''' returns True if the node k is on the
+    def is_on_domain_boundary(self, idx):
+        ''' returns True if the idx is on the
             boundary of the domain
         '''
-        idx = self.get_bumpy_index(k)
         for i in range(self.n):
             if (idx[i] == 0 or
                 idx[i] == self.Nx[i] - 1):
                 return True
         return False
 
-    def is_on_domain_corner(self, k):
-        ''' returns True if the node k is on the corner of the rectangular boundary
+    def is_on_domain_boundary_i_axis(self, idx, i):
+        ''' returns True if the idx is on the
+            i axis boundary of the domain
         '''
-        idx = self.get_bumpy_index(k)
+        if (idx[i] == 0 or
+            idx[i] == self.Nx[i] - 1):
+            return True
+        else:
+            return False
+
+    def is_on_domain_corner(self, idx):
+        ''' returns True if the idx is on the corner of the rectangular boundary
+        '''
         for i in range(self.n):
             if (idx[i] != 0 and
                 idx[i] != self.Nx[i] - 1):
                 return False
         return True
 
-    def is_on_ts(self, k):
-        '''returns True if the node k is on the target set
+    def is_on_ts(self, idx):
+        '''returns True if the idx is on the target set
         '''
-        idx = self.get_bumpy_index(k)
         x = self.get_x(idx)
         for i in range(self.n):
             if (x[i] < self.target_set[i, 0] or
@@ -122,8 +129,7 @@ class Solver(LangevinSDE):
                 return False
         return True
 
-    def get_flatten_idx_from_axis_neighbours(self, k, i):
-        idx = self.get_bumpy_index(k)
+    def get_flatten_idx_from_axis_neighbours(self, idx, i):
 
         # find flatten index of left neighbour wrt the i axis
         if idx[i] == 0:
@@ -159,44 +165,48 @@ class Solver(LangevinSDE):
         A = sparse.lil_matrix((self.Nh, self.Nh))
         b = np.zeros(self.Nh)
 
-        # nodes in boundary, boundary corner and target set
-        idx_boundary = np.array(
-            [k for k in np.arange(self.Nh) if self.is_on_domain_boundary(k)]
-        )
-        idx_ts = np.array([k for k in np.arange(self.Nh) if self.is_on_ts(k)])
-
         for k in np.arange(self.Nh):
+
+            # get discretized domain index
+            idx = self.get_bumpy_index(k)
+
+            # classify type of node
+            is_on_ts = self.is_on_ts(idx)
+            is_on_boundary = self.is_on_domain_boundary(idx)
+
             # assemble matrix A and vector b on S
-            if k not in idx_ts and k not in idx_boundary:
-                idx = self.get_bumpy_index(k)
+            if not is_on_ts and not is_on_boundary:
                 x = self.get_x(idx)
                 grad = self.gradient(np.array([x]))[0]
                 A[k, k] = - (2 * self.n) / (self.beta * self.h**2) - self.f(x)
                 for i in range(self.n):
-                    k_left, k_right = self.get_flatten_idx_from_axis_neighbours(k, i)
+                    k_left, k_right = self.get_flatten_idx_from_axis_neighbours(idx, i)
                     A[k, k_left] = 1 / (self.beta * self.h**2) + grad[i] / (2 * self.h)
                     A[k, k_right] = 1 / (self.beta * self.h**2) - grad[i] / (2 * self.h)
 
             # impose condition on ∂S
-            elif k in idx_ts and k not in idx_boundary:
+            elif is_on_ts and not is_on_boundary:
                 A[k, k] = 1
                 b[k] = np.exp(- self.g(x))
 
             # stability condition on the boundary
-            for i in range(self.n):
-                for k in idx_boundary:
-                    # index on the boundary of the i hyperplane
-                    idx = self.get_bumpy_index(k)
-                    if not (idx[i] == 0 or
-                            idx[i] == self.Nx[i] - 1):
-                        continue
-                    k_left, k_right = self.get_flatten_idx_from_axis_neighbours(k, i)
-                    if k_left is not None:
-                        A[k, k] = 1
-                        A[k, k_left] = - 1
-                    elif k_right is not None:
-                        A[k, k] = 1
-                        A[k, k_right] = - 1
+            elif is_on_boundary:
+                neighbour_counter = 0
+                for i in range(self.n):
+                    if self.is_on_domain_boundary_i_axis(idx, i):
+
+                        # update counter
+                        neighbour_counter += 1
+
+                        # add neighbour
+                        k_left, k_right = self.get_flatten_idx_from_axis_neighbours(idx, i)
+                        if k_left is not None:
+                            A[k, k_left] = - 1
+                        elif k_right is not None:
+                            A[k, k_right] = - 1
+
+                # normalize
+                A[k, k] = neighbour_counter
 
         Psi = linalg.spsolve(A.tocsc(), b)
         self.Psi = Psi.reshape(self.Nx)
