@@ -29,6 +29,10 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
+    # fix seed
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+
     # initialize control parametrization by a nn 
     d_in, d_1, d_out = args.n, args.hidden_layer_dim, args.n
     model = TwoLayerNet(d_in, d_1, d_out)
@@ -51,8 +55,8 @@ def main():
         optimizer.zero_grad()
 
         # compute loss
-        #loss, tilted_loss = sample_loss(model, args.N_gd)
-        loss, tilted_loss = sample_loss_vect(model, args.N_gd)
+        loss, tilted_loss = sample_loss(model, args.N_gd)
+        #loss, tilted_loss = sample_loss_vect(model, args.N_gd)
         print('{:d}, {:2.3f}'.format(update, loss))
 
         # compute gradients
