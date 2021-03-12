@@ -29,13 +29,16 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
+    # define device
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     # fix seed
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
 
     # initialize control parametrization by a nn 
     d_in, d_1, d_out = args.n, args.hidden_layer_dim, args.n
-    model = TwoLayerNet(d_in, d_1, d_out)
+    model = TwoLayerNet(d_in, d_1, d_out).to(device)
 
     # define optimizer
     optimizer = optim.Adam(
@@ -55,8 +58,8 @@ def main():
         optimizer.zero_grad()
 
         # compute loss
-        loss, tilted_loss = sample_loss(model, args.N_gd)
-        #loss, tilted_loss = sample_loss_vect(model, args.N_gd)
+        loss, tilted_loss = sample_loss(model, args.N_gd, device)
+        #loss, tilted_loss = sample_loss_vect(model, args.N_gd, device)
         print('{:d}, {:2.3f}'.format(update, loss))
 
         # compute gradients
@@ -74,7 +77,7 @@ def main():
 def save_nn_coefficients(thetas):
     from mds.utils import make_dir_path
     import os
-    dir_path = 'mds/data/testing_gd_nn'
+    dir_path = 'mds/data/testing_1d_gd_nn'
     make_dir_path(dir_path)
     file_path = os.path.join(dir_path, 'gd.npz')
     np.savez(
@@ -86,22 +89,22 @@ def double_well_1d_gradient(x):
     alpha = 1
     return 4 * alpha * x * (x**2 - 1)
 
-def sample_loss(model, N):
+def sample_loss(model, N, device):
     beta = 1
 
     dt = 0.001
     k_max = 100000
 
     loss = np.zeros(N)
-    tilted_loss = torch.empty(0)
+    tilted_loss = torch.empty(0).to(device)
 
     for i in np.arange(N):
 
         # initialize trajectory
-        xt_traj = -1
-        a_traj = torch.zeros(1)
-        b_traj = torch.zeros(1)
-        c_traj = torch.zeros(1)
+        xt_traj = -1.
+        a_traj_tensor = torch.zeros(1).to(device)
+        b_traj_tensor = torch.zeros(1).to(device)
+        c_traj_tensor = torch.zeros(1).to(device)
 
         for k in np.arange(1, k_max + 1):
 
@@ -109,10 +112,10 @@ def sample_loss(model, N):
             dB = np.sqrt(dt) * np.random.normal(0, 1)
 
             # control
-            xt_traj_tensor = torch.tensor([xt_traj], dtype=torch.float)
-            ut_traj_tensor = model.forward(xt_traj_tensor)
-            ut_traj_tensor_det = model.forward(xt_traj_tensor).detach()
-            ut_traj = model.forward(xt_traj_tensor).detach().numpy()[0]
+            xt_traj_tensor = torch.tensor([xt_traj], dtype=torch.float).to(device)
+            ut_traj_tensor = model.forward(xt_traj_tensor).to(device)
+            ut_traj_tensor_det = ut_traj_tensor.detach()
+            ut_traj = ut_traj_tensor_det.numpy()[0]
 
             # sde update
             drift = (- double_well_1d_gradient(xt_traj) + np.sqrt(2) * ut_traj) * dt
@@ -122,9 +125,9 @@ def sample_loss(model, N):
             # update statistics
             loss[i] += 0.5 * (ut_traj ** 2) * dt
 
-            a_traj = a_traj + ut_traj_tensor_det * ut_traj_tensor * dt
-            b_traj = b_traj + 0.5 * (ut_traj_tensor_det ** 2) * dt
-            c_traj = c_traj - np.sqrt(beta) * dB * ut_traj_tensor
+            a_traj_tensor = a_traj_tensor + ut_traj_tensor_det * ut_traj_tensor * dt
+            b_traj_tensor = b_traj_tensor + 0.5 * (ut_traj_tensor_det ** 2) * dt
+            c_traj_tensor = c_traj_tensor - np.sqrt(beta) * dB * ut_traj_tensor
 
             # stop if xt_traj in target set
             if xt_traj >= 1:
@@ -132,8 +135,8 @@ def sample_loss(model, N):
                 # update statistics
                 loss[i] += k * dt
 
-                b_traj = b_traj + k * dt
-                tilted_loss_traj = a_traj - b_traj * c_traj
+                b_traj_tensor = b_traj_tensor + k * dt
+                tilted_loss_traj = a_traj_tensor - b_traj_tensor * c_traj_tensor
 
                 # save tilted loss for the given trajectory
                 tilted_loss = torch.cat((tilted_loss, tilted_loss_traj))
@@ -142,20 +145,20 @@ def sample_loss(model, N):
     return np.mean(loss), torch.mean(tilted_loss)
 
 
-def sample_loss_vect(model, N):
+def sample_loss_vect(model, N, device):
     beta = 1
 
     dt = 0.001
     k_max = 100000
 
     loss = np.zeros(N)
-    tilted_loss = torch.empty(0)
+    tilted_loss = torch.empty(0).to(device)
 
     # initialize trajectory
     xt = np.full(N, -1.).reshape(N, 1)
-    a = torch.zeros((N, 1))
-    b = torch.zeros((N, 1))
-    c = torch.zeros((N, 1))
+    a_tensor = torch.zeros((N, 1)).to(device)
+    b_tensor = torch.zeros((N, 1)).to(device)
+    c_tensor = torch.zeros((N, 1)).to(device)
     been_in_target_set = np.repeat([False], N).reshape(N, 1)
 
 
@@ -163,13 +166,13 @@ def sample_loss_vect(model, N):
 
         # Brownian increment
         dB = np.sqrt(dt) * np.random.normal(0, 1, N).reshape(N, 1)
-        dB_tensor = torch.tensor(dB, requires_grad=False)
+        dB_tensor = torch.tensor(dB, requires_grad=False).to(device)
 
         # control
-        xt_tensor = torch.tensor(xt, dtype=torch.float)
-        ut_tensor = model.forward(xt_tensor)
-        ut_tensor_det = model.forward(xt_tensor).detach()
-        ut = model.forward(xt_tensor).detach().numpy()
+        xt_tensor = torch.tensor(xt, dtype=torch.float).to(device)
+        ut_tensor = model.forward(xt_tensor).to(device)
+        ut_tensor_det = model.forward(xt_tensor).detach().to(device)
+        ut = ut_tensor_det.numpy()
 
         # sde update
         drift = (- double_well_1d_gradient(xt) + np.sqrt(2) * ut) * dt
@@ -179,17 +182,17 @@ def sample_loss_vect(model, N):
         # update statistics
         loss += (0.5 * (ut ** 2) * dt).reshape(N,)
 
-        a = a + ut_tensor_det * ut_tensor * dt
-        b = b + 0.5 * (ut_tensor_det ** 2) * dt
-        c = c - np.sqrt(beta) * dB_tensor * ut_tensor
+        a_tensor = a_tensor + ut_tensor_det * ut_tensor * dt
+        b_tensor = b_tensor + 0.5 * (ut_tensor_det ** 2) * dt
+        c_tensor = c_tensor - np.sqrt(beta) * dB_tensor * ut_tensor
 
         # update statistics for trajectories which arrived
         idx_new = get_idx_new_in_ts(xt, been_in_target_set)
 
         loss[idx_new] += k * dt
         for idx in idx_new:
-            b[idx] = b[idx] + k * dt
-            tilted_loss = torch.cat((tilted_loss, a[idx] - b[idx] * c[idx]))
+            b_tensor[idx] = b_tensor[idx] + k * dt
+            tilted_loss = torch.cat((tilted_loss, a_tensor[idx] - b_tensor[idx] * c_tensor[idx]))
 
         # stop if xt_traj in target set
         if been_in_target_set.all() == True:
