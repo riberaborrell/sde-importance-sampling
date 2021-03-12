@@ -58,12 +58,12 @@ def main():
         optimizer.zero_grad()
 
         # compute loss
-        loss, tilted_loss = sample_loss(model, args.N_gd, device)
-        #loss, tilted_loss = sample_loss_vect(model, args.N_gd, device)
+        #loss, tilted_loss = sample_loss(model, args.N_gd, device)
+        loss, tilted_loss = sample_loss_vect(model, args.N_gd, device)
         print('{:d}, {:2.3f}'.format(update, loss))
 
         # compute gradients
-        tilted_loss.backward()
+        tilted_loss.backward(retain_graph=True)
 
         # update parameters
         optimizer.step()
@@ -152,26 +152,26 @@ def sample_loss_vect(model, N, device):
     k_max = 100000
 
     loss = np.zeros(N)
-    tilted_loss = torch.empty(0).to(device)
+    tilted_loss = torch.zeros(N).to(device)
 
     # initialize trajectory
     xt = np.full(N, -1.).reshape(N, 1)
-    a_tensor = torch.zeros((N, 1)).to(device)
-    b_tensor = torch.zeros((N, 1)).to(device)
-    c_tensor = torch.zeros((N, 1)).to(device)
-    been_in_target_set = np.repeat([False], N).reshape(N, 1)
+    a_tensor = torch.zeros(N).to(device)
+    b_tensor = torch.zeros(N).to(device)
+    c_tensor = torch.zeros(N).to(device)
 
+    been_in_target_set = np.repeat([False], N).reshape(N, 1)
 
     for k in np.arange(1, k_max + 1):
 
         # Brownian increment
         dB = np.sqrt(dt) * np.random.normal(0, 1, N).reshape(N, 1)
-        dB_tensor = torch.tensor(dB, requires_grad=False).to(device)
+        dB_tensor = torch.tensor(dB, requires_grad=False, dtype=torch.float32).to(device)
 
         # control
         xt_tensor = torch.tensor(xt, dtype=torch.float).to(device)
         ut_tensor = model.forward(xt_tensor).to(device)
-        ut_tensor_det = model.forward(xt_tensor).detach().to(device)
+        ut_tensor_det = ut_tensor.detach()
         ut = ut_tensor_det.numpy()
 
         # sde update
@@ -182,17 +182,24 @@ def sample_loss_vect(model, N, device):
         # update statistics
         loss += (0.5 * (ut ** 2) * dt).reshape(N,)
 
-        a_tensor = a_tensor + ut_tensor_det * ut_tensor * dt
-        b_tensor = b_tensor + 0.5 * (ut_tensor_det ** 2) * dt
-        c_tensor = c_tensor - np.sqrt(beta) * dB_tensor * ut_tensor
+        a_tensor = a_tensor + (ut_tensor_det * ut_tensor * dt).reshape(N,)
+        b_tensor = b_tensor + ((1 + 0.5 * (ut_tensor_det ** 2)) * dt).reshape(N,)
+        c_tensor = c_tensor - (np.sqrt(beta) * dB_tensor * ut_tensor).reshape(N,)
 
-        # update statistics for trajectories which arrived
-        idx_new = get_idx_new_in_ts(xt, been_in_target_set)
+        # get indices of trajectories which are new to the target set
+        idx = get_idx_new_in_ts(xt, been_in_target_set)
 
-        loss[idx_new] += k * dt
-        for idx in idx_new:
-            b_tensor[idx] = b_tensor[idx] + k * dt
-            tilted_loss = torch.cat((tilted_loss, a_tensor[idx] - b_tensor[idx] * c_tensor[idx]))
+        # update statistics
+        if idx.shape[0] != 0:
+
+            # update loss
+            loss[idx] += k * dt
+
+            # update tilted loss
+            idx_tensor = torch.tensor(idx, dtype=torch.long).to(device)
+            tilted_loss[idx_tensor] = a_tensor.index_select(0, idx_tensor) \
+                                    - b_tensor.index_select(0, idx_tensor) \
+                                    * c_tensor.index_select(0, idx_tensor)
 
         # stop if xt_traj in target set
         if been_in_target_set.all() == True:
@@ -203,14 +210,14 @@ def sample_loss_vect(model, N, device):
 def get_idx_new_in_ts(x, been_in_target_set):
     is_in_target_set = x > 1
 
-    idx_new = np.where(
+    idx = np.where(
             (is_in_target_set == True) &
             (been_in_target_set == False)
     )[0]
 
-    been_in_target_set[idx_new] = True
+    been_in_target_set[idx] = True
 
-    return idx_new
+    return idx
 
 if __name__ == "__main__":
     main()
