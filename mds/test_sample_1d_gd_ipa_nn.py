@@ -58,12 +58,11 @@ def main():
         optimizer.zero_grad()
 
         # compute loss
-        #loss, tilted_loss = sample_loss(model, args.N_gd, device)
-        loss, tilted_loss = sample_loss_vect(model, args.N_gd, device)
+        loss, tilted_loss = sample_loss(device, model, args.dt, args.N_gd)
         print('{:d}, {:2.3f}'.format(update, loss))
 
         # compute gradients
-        tilted_loss.backward(retain_graph=True)
+        tilted_loss.backward()
 
         # update parameters
         optimizer.step()
@@ -89,59 +88,10 @@ def double_well_1d_gradient(x):
     alpha = 1
     return 4 * alpha * x * (x**2 - 1)
 
-def sample_loss(model, N, device):
+
+def sample_loss(device, model, dt, N):
     beta = 1
 
-    dt = 0.01
-    k_max = 100000
-
-    loss = np.zeros(N)
-    tilted_loss = torch.empty(N).to(device)
-
-    for i in np.arange(N):
-
-        # initialize trajectory
-        xt_traj = -1.
-        a_traj_tensor = torch.zeros(1).to(device)
-        b_traj_tensor = torch.zeros(1).to(device)
-        c_traj_tensor = torch.zeros(1).to(device)
-
-        for k in np.arange(1, k_max + 1):
-
-            # Brownian increment
-            dB = np.sqrt(dt) * np.random.normal(0, 1)
-
-            # control
-            xt_traj_tensor = torch.tensor([xt_traj], dtype=torch.float).to(device)
-            ut_traj_tensor = model.forward(xt_traj_tensor).to(device)
-            ut_traj_tensor_det = ut_traj_tensor.detach()
-            ut_traj = ut_traj_tensor_det.numpy()[0]
-
-            # sde update
-            drift = (- double_well_1d_gradient(xt_traj) + np.sqrt(2) * ut_traj) * dt
-            diffusion = np.sqrt(2 / beta) * dB
-            xt_traj += drift + diffusion
-
-            # update statistics
-            a_traj_tensor = a_traj_tensor + ut_traj_tensor_det * ut_traj_tensor * dt
-            b_traj_tensor = b_traj_tensor + (1 + 0.5 * (ut_traj_tensor_det ** 2)) * dt
-            c_traj_tensor = c_traj_tensor - np.sqrt(beta) * dB * ut_traj_tensor
-
-            # stop if xt_traj in target set
-            if xt_traj >= 1:
-
-                # save loss and tilted loss
-                loss[i] = b_traj_tensor.numpy()
-                tilted_loss[i] = a_traj_tensor - b_traj_tensor * c_traj_tensor
-                break
-
-    return np.mean(loss), torch.mean(tilted_loss)
-
-
-def sample_loss_vect(model, N, device):
-    beta = 1
-
-    dt = 0.01
     k_max = 100000
 
     loss = np.zeros(N)
