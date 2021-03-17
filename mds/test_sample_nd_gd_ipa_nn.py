@@ -161,19 +161,20 @@ def sample_loss(device, model, dt, N):
         xt += drift + diffusion
 
         # update statistics
-
-        # TODO: avoid to use torch.tensordot.
-        # This vectorized scalar product should be done like: 
-        # np.sum(ut_tensor_det[:, np.newaxis, :] * ut_tensor, axis=2)
-
         a_tensor = a_tensor \
-                 + torch.tensordot(ut_tensor_det, ut_tensor, dims=([1],[1])).diagonal() * dt
+                 + torch.bmm(
+                     torch.unsqueeze(ut_tensor_det, 1),
+                     torch.unsqueeze(ut_tensor, 2),
+                 ).reshape(N,) * dt
 
         ut_norm_det = torch.linalg.norm(ut_tensor_det, axis=1)
         b_tensor = b_tensor + ((1 + 0.5 * (ut_norm_det ** 2)) * dt).reshape(N,)
 
         c_tensor = c_tensor \
-                 - np.sqrt(beta) * torch.tensordot(ut_tensor, dB_tensor, dims=([1], [1])).diagonal()
+                 - np.sqrt(beta) * torch.bmm(
+                     torch.unsqueeze(ut_tensor, 1),
+                     torch.unsqueeze(dB_tensor, 2),
+                 ).reshape(N,)
 
         # get indices of trajectories which are new to the target set
         idx = get_idx_new_in_ts(xt, been_in_target_set)

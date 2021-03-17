@@ -27,7 +27,7 @@ def get_parser():
 
 def main():
     args = get_parser().parse_args()
-    assert args.n == 1, ''
+    assert args.n == 2, ''
 
     # initialize control parametrization by a nn 
     d_in, d_1, d_out = args.n, args.hidden_layer_dim, args.n
@@ -38,23 +38,32 @@ def main():
 
     # define discretize domain
     h = 0.01
-    x = np.arange(-3, 3 + h, h)
-    N = x.shape[0]
+    h = 0.01
+    mgrid_input = [
+        slice(-3, 3 + h, h),
+        slice(-3, 3 + h, h),
+    ]
+    domain_h = np.moveaxis(np.mgrid[mgrid_input], 0, -1)
+    Nx = domain_h.shape[0]
+    Ny = domain_h.shape[1]
+    Nh = Nx * Ny
+    domain_h_flattened = domain_h.reshape(Nh, args.n)
 
-    # load flatten parameters in the network
+    # load flattened parameters in the network
     model.load_parameters(thetas[-1])
 
-    # evaluate control in x
-    input = torch.tensor(x.reshape(N, d_in), dtype=torch.float)
-    control = model(input).detach().numpy().reshape(N,)
+    # evaluate control in flattened discretized domain
+    input = torch.tensor(domain_h_flattened, dtype=torch.float)
+    control_flattened = model(input).detach().numpy()
+    control = control_flattened.reshape(Nx, Ny, args.n)
 
     # plot
-    plot_1d_control(x, control)
+    plot_2d_control(domain_h, control)
 
 def load_nn_coefficients():
     from mds.utils import make_dir_path
     import os
-    dir_path = 'mds/data/testing_1d_gd_nn'
+    dir_path = 'mds/data/testing_nd_gd_nn'
     make_dir_path(dir_path)
     file_path = os.path.join(dir_path, 'gd.npz')
     gd = np.load(
@@ -63,14 +72,18 @@ def load_nn_coefficients():
     )
     return gd['thetas']
 
-def plot_1d_control(x, control):
+def plot_2d_control(domain_h, control):
     from mds.plots import Plot
 
-    dir_path = 'mds/data/testing_1d_gd_nn'
+    X = domain_h[:, :, 0]
+    Y = domain_h[:, :, 1]
+    U = control[:, :, 0]
+    V = control[:, :, 1]
+
+    dir_path = 'mds/data/testing_nd_gd_nn'
     plt = Plot(dir_path, 'control')
-    plt.xlabel = 'x'
-    plt.set_ylim(- 5, 5)
-    plt.one_line_plot(x, control)
+    plt.vector_field(X, Y, U, V, scale=8)
+
 
 if __name__ == "__main__":
     main()
