@@ -153,7 +153,7 @@ def sample_loss_vect(model, N, device):
     b_tensor = torch.zeros(N).to(device)
     c_tensor = torch.zeros(N).to(device)
 
-    been_in_target_set = np.repeat([False], N)
+    been_in_target_set = np.repeat([False], N).reshape(N, 1)
 
     for k in np.arange(1, k_max + 1):
 
