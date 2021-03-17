@@ -88,6 +88,17 @@ def double_well_1d_gradient(x):
     alpha = 1
     return 4 * alpha * x * (x**2 - 1)
 
+def get_idx_new_in_ts(x, been_in_target_set):
+    is_in_target_set = x > 1
+
+    idx = np.where(
+            (is_in_target_set == True) &
+            (been_in_target_set == False)
+    )[0]
+
+    been_in_target_set[idx] = True
+
+    return idx
 
 def sample_loss(device, model, dt, N):
     beta = 1
@@ -147,17 +158,6 @@ def sample_loss(device, model, dt, N):
 
     return np.mean(loss), torch.mean(tilted_loss)
 
-def get_idx_new_in_ts(x, been_in_target_set):
-    is_in_target_set = x > 1
-
-    idx = np.where(
-            (is_in_target_set == True) &
-            (been_in_target_set == False)
-    )[0]
-
-    been_in_target_set[idx] = True
-
-    return idx
 
 if __name__ == "__main__":
     main()
