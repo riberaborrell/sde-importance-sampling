@@ -58,7 +58,7 @@ def main():
         optimizer.zero_grad()
 
         # compute loss
-        loss, tilted_loss = sample_loss_vect(model, args.N_gd, device)
+        loss, tilted_loss = sample_loss(device, model, args.dt, args.N_gd)
         print('{:d}, {:2.3f}'.format(update, loss))
 
         # compute gradients
@@ -84,7 +84,7 @@ def save_nn_coefficients(thetas):
         thetas=thetas,
     )
 
-def double_well_nd_gradient_vect(x):
+def double_well_nd_gradient(x):
     assert x.ndim == 2, ''
     N = x.shape[0]
     n = x.shape[1]
@@ -93,22 +93,43 @@ def double_well_nd_gradient_vect(x):
         grad[:, i] = 4 * x[:, i] * (np.power(x[:, i], 2) - 1)
     return grad
 
-def is_in_ts(x):
-    is_in_target_set = x > 1
+def get_idx_new_in_ts(x, been_in_target_set):
+    # get num of trajectories and dimension n
+    N = x.shape[0]
+    n = x.shape[1]
 
-    if is_in_target_set.all():
-        return True
-    else:
-        return False
+    #TODO: try to avoid loop over the dimension. Check np.where
 
-def sample_loss_vect(model, N, device):
+    # assume trajectories are in the target set
+    is_in_target_set = np.repeat([True], N).reshape(N, 1)
+    for i in range(n):
+        is_not_in_target_set_i_axis_idx = np.where(x[:, i] < 1)[0]
+
+        # if they are NOT in the target set change flag
+        is_in_target_set[is_not_in_target_set_i_axis_idx] = False
+
+        # break if none of them is in the target set
+        if is_in_target_set.any() == False:
+            break
+
+    # indices of trajectories new in the target set
+    idx = np.where(
+        (is_in_target_set == True) &
+        (been_in_target_set == False)
+    )[0]
+
+    # update list of indices whose trajectories have been in the target set
+    been_in_target_set[idx] = True
+
+    return idx
+
+def sample_loss(device, model, dt, N):
     assert model.d_in == model.d_out, ''
 
     n = model.d_in
 
     beta = 1
 
-    dt = 0.01
     k_max = 100000
 
     loss = np.zeros(N)
@@ -120,7 +141,7 @@ def sample_loss_vect(model, N, device):
     b_tensor = torch.zeros(N).to(device)
     c_tensor = torch.zeros(N).to(device)
 
-    been_in_target_set = np.repeat([False], N)
+    been_in_target_set = np.repeat([False], N).reshape(N, 1)
 
     for k in np.arange(1, k_max + 1):
 
@@ -135,11 +156,16 @@ def sample_loss_vect(model, N, device):
         ut = ut_tensor_det.numpy()
 
         # sde update
-        drift = (- double_well_nd_gradient_vect(xt) + np.sqrt(2) * ut) * dt
+        drift = (- double_well_nd_gradient(xt) + np.sqrt(2) * ut) * dt
         diffusion = np.dot(dB, np.sqrt(2 / beta) * np.eye(n))
         xt += drift + diffusion
 
         # update statistics
+
+        # TODO: avoid to use torch.tensordot.
+        # This vectorized scalar product should be done like: 
+        # np.sum(ut_tensor_det[:, np.newaxis, :] * ut_tensor, axis=2)
+
         a_tensor = a_tensor \
                  + torch.tensordot(ut_tensor_det, ut_tensor, dims=([1],[1])).diagonal() * dt
 
@@ -169,33 +195,6 @@ def sample_loss_vect(model, N, device):
 
     return np.mean(loss), torch.mean(tilted_loss)
 
-def get_idx_new_in_ts(x, been_in_target_set):
-    # get num of trajectories and dimension n
-    N = x.shape[0]
-    n = x.shape[1]
-
-    # assume trajectories are in the target set
-    is_in_target_set = np.repeat([True], N)
-    for i in range(n):
-        is_not_in_target_set_i_axis_idx = np.where(x[:, i] < 1)[0]
-
-        # if they are NOT in the target set change flag
-        is_in_target_set[is_not_in_target_set_i_axis_idx] = False
-
-        # break if none of them is in the target set
-        if is_in_target_set.any() == False:
-            break
-
-    # indices of trajectories new in the target set
-    idx = np.where(
-        (is_in_target_set == True) &
-        (been_in_target_set == False)
-    )[0]
-
-    # update list of indices whose trajectories have been in the target set
-    been_in_target_set[idx] = True
-
-    return idx
 
 if __name__ == "__main__":
     main()
