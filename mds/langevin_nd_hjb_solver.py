@@ -13,8 +13,8 @@ class Solver(LangevinSDE):
         finite differences method:
             0 = LΨ − f Ψ in S
             Ψ = exp(− g) in ∂S,
-        where f = 1, g = 1 and L is the infinitessimal generator
-        of the not drifted 2d overdamped langevin process:
+        where f = 1, g = 0 and L is the infinitessimal generator
+        of the not drifted nd overdamped langevin process:
             L = - ∇V·∇ + epsilon Δ
         Its solution is the moment generating function associated
         to the overdamped langevin sde.
