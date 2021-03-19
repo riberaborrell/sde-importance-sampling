@@ -6,6 +6,7 @@ from mds.utils import get_example_dir_path, \
 import numpy as np
 
 import os
+import sys
 
 class LangevinSDE:
     '''
@@ -56,12 +57,16 @@ class LangevinSDE:
         assert self.h is not None, ''
 
         # construct not sparse nd grid
-        mgrid_input = []
-        for i in range(self.n):
-            mgrid_input.append(
-                slice(self.domain[i, 0], self.domain[i, 1] + self.h, self.h)
-            )
-        self.domain_h = np.moveaxis(np.mgrid[mgrid_input], 0, -1)
+        try:
+            mgrid_input = []
+            for i in range(self.n):
+                mgrid_input.append(
+                    slice(self.domain[i, 0], self.domain[i, 1] + self.h, self.h)
+                )
+            self.domain_h = np.moveaxis(np.mgrid[mgrid_input], 0, -1)
+        except MemoryError as e:
+            print(e)
+            sys.exit()
 
         # check shape
         assert self.domain_h.shape[-1] == self.n, ''
