@@ -1,5 +1,15 @@
 import numpy as np
 
+def arange_generator(m):
+    '''this method provides a generator as a alternative to the np.arange method'''
+    assert type(m) == int, ''
+    assert m >= 0, ''
+
+    n = 0
+    while n < m:
+        yield n
+        n += 1
+
 def coarse_vector(x, k=2):
     assert x.ndim == 1, ''
     n = x.shape[0]

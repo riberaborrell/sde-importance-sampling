@@ -65,7 +65,7 @@ class LangevinSDE:
                 )
             self.domain_h = np.moveaxis(np.mgrid[mgrid_input], 0, -1)
         except MemoryError as e:
-            print(e)
+            print('MemoryError: {}'.format(e))
             sys.exit()
 
         # check shape

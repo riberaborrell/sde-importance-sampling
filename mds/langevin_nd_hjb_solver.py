@@ -1,5 +1,6 @@
 from mds.langevin_nd_sde import LangevinSDE
 from mds.utils import get_hjb_solution_dir_path, get_time_in_hms
+from mds.numeric_utils import arange_generator
 
 import numpy as np
 import scipy.sparse as sparse
@@ -7,6 +8,7 @@ import scipy.sparse.linalg as linalg
 import time
 
 import os
+
 
 class Solver(LangevinSDE):
     ''' This class provides a solver of the following BVP by using a
@@ -165,7 +167,8 @@ class Solver(LangevinSDE):
         A = sparse.lil_matrix((self.Nh, self.Nh))
         b = np.zeros(self.Nh)
 
-        for k in np.arange(self.Nh):
+        #for k in np.arange(self.Nh):
+        for k in arange_generator(self.Nh):
 
             # get discretized domain index
             idx = self.get_bumpy_index(k)
