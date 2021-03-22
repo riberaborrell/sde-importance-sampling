@@ -2,10 +2,12 @@ import numpy as np
 
 from datetime import datetime
 import os
+from pathlib import Path
 import shutil
 
-MDS_PATH = os.path.abspath(os.path.dirname(__file__))
-DATA_PATH = os.path.join(MDS_PATH, 'data')
+MDS_PATH = Path(os.path.dirname(__file__))
+PROJECT_PATH = MDS_PATH.parent
+DATA_PATH = os.path.join(PROJECT_PATH, 'data')
 
 def make_dir_path(dir_path):
     ''' Create directories of the given path if they do not already exist

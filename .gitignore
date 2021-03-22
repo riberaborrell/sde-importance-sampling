@@ -1,6 +1,9 @@
 # ignore virtual environment
 *-env/
 
+# ignore data files
+data/
+
 # ignore state files
 *.swp
 
@@ -12,6 +15,3 @@
 
 # ignore mathlab files
 *.m
-
-# ignore data directories
-mds/data/
