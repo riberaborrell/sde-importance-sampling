@@ -69,7 +69,7 @@ class Solver(LangevinSDE):
         assert len(idx) == self.n, ''
         k = 0
         for i in range(self.n):
-            assert idx[i] in np.arange(self.Nx[i]), ''
+            assert 0 <= idx[i] <= self.Nx[i] - 1, ''
             Nx_prod = 1
             for j in range(i+1, self.n):
                 Nx_prod *= self.Nx[j]
@@ -81,7 +81,8 @@ class Solver(LangevinSDE):
         ''' maps the flatten index of the node (node number) to
             the bumpy index of the node.
         '''
-        assert k in np.arange(self.Nh), ''
+        assert type(k) == int, ''
+        assert 0 <= k <= self.Nh -1, ''
 
         idx = [None for i in range(self.n)]
         for i in range(self.n):
@@ -167,7 +168,6 @@ class Solver(LangevinSDE):
         A = sparse.lil_matrix((self.Nh, self.Nh))
         b = np.zeros(self.Nh)
 
-        #for k in np.arange(self.Nh):
         for k in arange_generator(self.Nh):
 
             # get discretized domain index
