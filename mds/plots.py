@@ -1,5 +1,3 @@
-from mds.utils import get_example_dir_path
-
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm

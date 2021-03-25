@@ -29,9 +29,9 @@ def empty_dir(dir_path):
             except Exception as e:
                 print('Failed to delete {}. Reason: {}'.format((file_path, e)))
 
-def get_example_dir_path(potential=None, n=None, alpha_i=None,
+def get_settings_dir_path(potential=None, n=None, alpha_i=None,
                          beta=None, target_set=None):
-    ''' Get example data path and create its directories
+    ''' Get absolute path of the directory for the chosen settings and create its directories
     '''
     # get dir path
     if (potential is not None and
@@ -75,10 +75,10 @@ def get_example_dir_path(potential=None, n=None, alpha_i=None,
 
     return dir_path
 
-def get_hjb_solution_dir_path(example_dir_path, h):
+def get_hjb_solution_dir_path(settings_dir_path, h):
     # get dir path
     dir_path = os.path.join(
-        example_dir_path,
+        settings_dir_path,
         'hjb-solution',
         'h_{:.0e}'.format(h),
     )
@@ -88,12 +88,12 @@ def get_hjb_solution_dir_path(example_dir_path, h):
 
     return dir_path
 
-def get_metadynamics_dir_path(example_dir_path, sigma_i, k, N):
+def get_metadynamics_dir_path(settings_dir_path, sigma_i, k, N):
     ''' Get gd data path and create its directories
     '''
     # get dir path
     dir_path = os.path.join(
-        example_dir_path,
+        settings_dir_path,
         'metadynamics',
         'sigma_i_{}'.format(sigma_i),
         'k_{}'.format(k),
@@ -105,14 +105,14 @@ def get_metadynamics_dir_path(example_dir_path, sigma_i, k, N):
 
     return dir_path
 
-def get_gaussian_ansatz_dir_path(example_dir_path, distributed, theta, m_i=None,
+def get_gaussian_ansatz_dir_path(settings_dir_path, distributed, theta, m_i=None,
                                  sigma_i=None, sigma_i_meta=None, k=None, N_meta=None, h=None):
     ''' Get ansatz data path and create its directories
     '''
     # get dir path
     if distributed == 'uniform':
         dir_path = os.path.join(
-            example_dir_path,
+            settings_dir_path,
             'gaussian-ansatz',
             distributed,
             'm_i_{}'.format(m_i),
@@ -120,7 +120,7 @@ def get_gaussian_ansatz_dir_path(example_dir_path, distributed, theta, m_i=None,
         )
     elif distributed == 'meta':
         dir_path = os.path.join(
-            example_dir_path,
+            settings_dir_path,
             'gaussian-ansatz',
             distributed,
             'sigma_i_meta_{}'.format(float(sigma_i_meta)),
@@ -206,7 +206,3 @@ def get_time_in_hms(dt):
     m, s = divmod(dt, 60)
     h, m = divmod(m, 60)
     return int(h), int(m), s
-
-#TODO: clean deprecated
-def get_example_data_path():
-    pass

@@ -53,7 +53,7 @@ class Solver(LangevinSDE):
         self.t_final = None
 
         # dir_path
-        self.dir_path = get_hjb_solution_dir_path(self.example_dir_path, self.h)
+        self.dir_path = get_hjb_solution_dir_path(self.settings_dir_path, self.h)
 
     def start_timer(self):
         self.t_initial = time.perf_counter()

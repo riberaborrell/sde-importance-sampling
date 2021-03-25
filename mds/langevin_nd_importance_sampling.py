@@ -92,7 +92,7 @@ class Sampling(LangevinSDE):
         assert self.N is not None, ''
 
         self.dir_path = os.path.join(
-            self.example_dir_path,
+            self.settings_dir_path,
             'mc-sampling',
             'N_{:.0e}'.format(self.N),
         )

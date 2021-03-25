@@ -35,7 +35,7 @@ def main():
     )
 
     # set path
-    hjb_dir_path = get_hjb_solution_dir_path(sample.example_dir_path, args.h)
+    hjb_dir_path = get_hjb_solution_dir_path(sample.settings_dir_path, args.h)
     dir_path = os.path.join(
         hjb_dir_path,
         'optimal-is',

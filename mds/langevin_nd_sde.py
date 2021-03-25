@@ -1,6 +1,6 @@
 from mds.potentials_and_gradients_nd import get_potential_and_gradient
 from mds.plots import Plot
-from mds.utils import get_example_dir_path, \
+from mds.utils import get_settings_dir_path, \
                       get_metadynamics_dir_path
 
 import numpy as np
@@ -42,13 +42,13 @@ class LangevinSDE:
         self.Nh = None
 
         # dir_path
-        self.example_dir_path = None
-        self.set_example_dir_path()
+        self.settings_dir_path = None
+        self.set_settings_dir_path()
 
-    def set_example_dir_path(self):
+    def set_settings_dir_path(self):
         assert (self.alpha == self.alpha[0]).all(), ''
-        self.example_dir_path = get_example_dir_path(self.potential_name, self.n,
-                                                     self.alpha[0], self.beta, 'hypercube')
+        self.settings_dir_path = get_settings_dir_path(self.potential_name, self.n,
+                                                      self.alpha[0], self.beta, 'hypercube')
     def discretize_domain(self, h=None):
         ''' this method discretizes the hyper-rectangular domain uniformly with step-size h
         '''
@@ -164,7 +164,7 @@ class LangevinSDE:
     def get_meta_bias_potential(self, sigma_i_meta, k, N_meta):
         try:
             meta_dir_path = get_metadynamics_dir_path(
-                self.example_dir_path,
+                self.settings_dir_path,
                 sigma_i_meta,
                 k,
                 N_meta,

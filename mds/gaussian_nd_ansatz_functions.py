@@ -47,7 +47,7 @@ class GaussianAnsatz(LangevinSDE):
         '''
         # get dir path
         dir_path = get_gaussian_ansatz_dir_path(
-            self.example_dir_path,
+            self.settings_dir_path,
             self.distributed,
             self.theta_type,
             self.m_i,

@@ -50,7 +50,7 @@ class Metadynamics:
 
     def set_dir_path(self):
         self.dir_path = get_metadynamics_dir_path(
-            self.sample.example_dir_path,
+            self.sample.settings_dir_path,
             self.sigma_i,
             self.k,
             self.N,
