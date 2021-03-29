@@ -101,11 +101,11 @@ def main():
 
     # do plots 
     if args.do_plots:
-        #adam.plot_losses(args.h_hjb, N_mc=100000)
-        #adam.plot_time_steps()
+        adam.plot_losses(args.h_hjb, N_mc=100000)
+        adam.plot_time_steps()
         adam.plot_1d_iteration(i=4)
-        #adam.plot_1d_epochs()
-        #sgd.plot_2d_epoch(epoch=0)
+        adam.plot_1d_iterations()
+        #adam.plot_2d_epoch(i=0)
 
 
 

@@ -65,6 +65,7 @@ class StochasticOptimizationMethod:
             self.grad_estimator,
             self.optimizer,
             self.lr,
+            self.sample.dt,
             self.sample.N,
         )
 
@@ -323,7 +324,7 @@ class StochasticOptimizationMethod:
         sol = self.sample.get_hjb_solver(h=0.001)
         sol.get_controlled_potential_and_drift()
 
-        # plot
+        # do plots
         if self.sample.grid_value_function is not None:
             self.sample.plot_1d_free_energy(self.sample.grid_value_function, sol.F,
                                             label=label, dir_path=self.iterations_dir_path,
@@ -332,55 +333,59 @@ class StochasticOptimizationMethod:
         self.sample.plot_1d_control(self.sample.grid_control[:, 0], sol.u_opt[:, 0],
                                     label=label, dir_path=self.iterations_dir_path, ext=ext)
 
-    def get_iterations_to_show(self, num_iterations_to_show=5):
-        num_iterations = self.iterations.shape[0]
-        k = num_iterations // num_iterations_to_show
-        iterations_to_show = np.where(self.iterations % k == 0)[0]
-        if self.iterations[-1] != iterations_to_show[-1]:
-            iterations_to_show = np.append(iterations_to_show, self.iterations[-1])
-        return iterations_to_show
+    def get_sliced_iterations(self, n_sliced_iterations=5, start=None, stop=None):
+        step = self.iterations[start:stop].shape[0] // n_sliced_iterations
+        sliced_iterations = self.iterations[start:stop:step]
+        if self.iterations[-1] != sliced_iterations[-1]:
+            sliced_iterations = np.append(sliced_iterations, self.iterations[-1])
+        return sliced_iterations
 
     def plot_1d_iterations(self):
-        # get sampling object
-        sample = self.sample
 
         # discretize domain and evaluate in grid
-        sample.discretize_domain(h=0.001)
-        x = sample.domain_h[:, 0]
+        self.sample.discretize_domain(h=0.001)
+        x = self.sample.domain_h[:, 0]
 
         # filter iterations to show
-        iterations_to_show = self.get_iterations_to_show()
+        sliced_iterations = self.get_sliced_iterations()
 
         # preallocate functions
         labels = []
-        frees = np.zeros((iterations_to_show.shape[0], x.shape[0]))
-        controls = np.zeros((iterations_to_show.shape[0], x.shape[0]))
-        controlled_potentials = np.zeros((iterations_to_show.shape[0], x.shape[0]))
+        controlled_potentials = np.zeros((sliced_iterations.shape[0], x.shape[0]))
+        frees = np.zeros((sliced_iterations.shape[0], x.shape[0]))
+        controls = np.zeros((sliced_iterations.shape[0], x.shape[0]))
 
-        for idx, i in enumerate(iterations_to_show):
+        for idx, i in enumerate(sliced_iterations):
             labels.append(r'iteration = {:d}'.format(i))
 
             # set theta
-            sample.ansatz.theta = self.thetas[i]
-            sample.get_grid_value_function()
-            sample.get_grid_control()
+            if self.parametrization == 'gaussian-value-f':
+                self.sample.ansatz.theta = self.thetas[i]
+            elif self.parametrization == 'two-layer-nn-control':
+                self.sample.nn_model.load_parameters(self.thetas[i])
+
+            self.sample.get_grid_value_function()
+            self.sample.get_grid_control()
 
             # update functions
-            controlled_potentials[idx, :] = sample.grid_controlled_potential
-            frees[idx, :] = sample.grid_value_function
-            controls[idx, :] = sample.grid_control[:, 0]
+            if self.sample.grid_value_function is not None:
+                controlled_potentials[idx, :] = self.sample.grid_controlled_potential
+                frees[idx, :] = self.sample.grid_value_function
+            controls[idx, :] = self.sample.grid_control[:, 0]
 
         # get hjb solution
-        sol = sample.get_hjb_solver(h=0.001)
+        sol = self.sample.get_hjb_solver(h=0.001)
         sol.get_controlled_potential_and_drift()
 
-        sample.plot_1d_free_energies(frees, F_hjb=sol.F, labels=labels[:],
-                                     dir_path=self.dir_path)
-        sample.plot_1d_controls(controls, u_hjb=sol.u_opt[:, 0],
-                                labels=labels[:], dir_path=self.dir_path)
-        sample.plot_1d_controlled_potentials(controlled_potentials,
-                                             controlledV_hjb=sol.controlled_potential,
-                                             labels=labels[:], dir_path=self.dir_path)
+        # do plots
+        if self.sample.grid_value_function is not None:
+            self.sample.plot_1d_controlled_potentials(controlled_potentials,
+                                                      controlledV_hjb=sol.controlled_potential,
+                                                      labels=labels[:], dir_path=self.dir_path)
+            self.sample.plot_1d_free_energies(frees, F_hjb=sol.F, labels=labels[:],
+                                              dir_path=self.dir_path)
+        self.sample.plot_1d_controls(controls, u_hjb=sol.u_opt[:, 0],
+                                     labels=labels[:], dir_path=self.dir_path)
 
     def plot_2d_iteration(self, i):
         assert i in self.iterations, ''
