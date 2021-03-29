@@ -89,7 +89,7 @@ def get_hjb_solution_dir_path(settings_dir_path, h):
     return dir_path
 
 def get_metadynamics_dir_path(settings_dir_path, sigma_i, k, N):
-    ''' Get gd data path and create its directories
+    ''' Get metadynamics dir path and create its directories
     '''
     # get dir path
     dir_path = os.path.join(
@@ -107,13 +107,13 @@ def get_metadynamics_dir_path(settings_dir_path, sigma_i, k, N):
 
 def get_gaussian_ansatz_dir_path(settings_dir_path, distributed, theta, m_i=None,
                                  sigma_i=None, sigma_i_meta=None, k=None, N_meta=None, h=None):
-    ''' Get ansatz data path and create its directories
+    ''' Get gaussian ansatz dir path and create its directories
     '''
     # get dir path
     if distributed == 'uniform':
         dir_path = os.path.join(
             settings_dir_path,
-            'gaussian-ansatz',
+            'gaussian-value-f',
             distributed,
             'm_i_{}'.format(m_i),
             'sigma_i_{}'.format(float(sigma_i)),
@@ -121,7 +121,7 @@ def get_gaussian_ansatz_dir_path(settings_dir_path, distributed, theta, m_i=None
     elif distributed == 'meta':
         dir_path = os.path.join(
             settings_dir_path,
-            'gaussian-ansatz',
+            'gaussian-value-f',
             distributed,
             'sigma_i_meta_{}'.format(float(sigma_i_meta)),
             'k_{}'.format(k),
@@ -151,13 +151,28 @@ def get_gaussian_ansatz_dir_path(settings_dir_path, distributed, theta, m_i=None
 
     return dir_path
 
-def get_gd_dir_path(ansatz_dir_path, gd_type, lr, N):
-    ''' Get gd data path and create its directories
+def get_two_layer_nn_dir_path(settings_dir_path, hidden_layer_dim, parameters):
+    dir_path = os.path.join(
+        settings_dir_path,
+        'two-layer-nn-control',
+        'd1_{}'.format(hidden_layer_dim),
+        'theta_{}'.format(parameters),
+    )
+
+    # create dir path if not exists
+    make_dir_path(dir_path)
+
+    return dir_path
+
+
+def get_som_dir_path(parametrization_dir_path, grad_estimator, optimizer, lr, N):
+    ''' Get stochastic optimization method dir path and create its directories
     '''
     # get dir path
     dir_path = os.path.join(
-        ansatz_dir_path,
-        gd_type,
+        parametrization_dir_path,
+        grad_estimator,
+        optimizer,
         'lr_{}'.format(float(lr)),
         'N_{}'.format(N),
     )

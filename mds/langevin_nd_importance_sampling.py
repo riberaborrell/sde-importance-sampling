@@ -4,6 +4,8 @@ from mds.utils import get_time_in_hms, make_dir_path
 from mds.plots import Plot
 
 import numpy as np
+import torch
+
 import time
 import os
 
@@ -35,6 +37,9 @@ class Sampling(LangevinSDE):
 
         # ansatz functions (gaussians) and coefficients
         self.ansatz = None
+
+        # neuronal network model
+        self.nn_model = None
 
         # grid evalutations
         self.grid_potential = None
@@ -161,7 +166,7 @@ class Sampling(LangevinSDE):
         '''
         assert self.N is not None, ''
 
-        self.been_in_target_set = np.repeat([False], self.N)
+        self.been_in_target_set = np.repeat([False], self.N).reshape(self.N, 1)
         self.fht = np.empty(self.N)
 
     def initialize_girsanov_martingale_terms(self):
@@ -178,13 +183,17 @@ class Sampling(LangevinSDE):
         return x + drift + diffusion
 
     def get_idx_new_in_target_set(self, x):
+        #TODO: try to avoid loop over the dimension. Check np.where
+
         # assume trajectories are in the target set
-        is_in_target_set = np.repeat([True], self.N)
+        is_in_target_set = np.repeat([True], self.N).reshape(self.N, 1)
+
         for i in range(self.n):
             is_not_in_target_set_i_axis_idx = np.where(
                 (x[:, i] < self.target_set[i, 0]) |
                 (x[:, i] > self.target_set[i, 1])
             )[0]
+
             # if they are NOT in the target set change flag
             is_in_target_set[is_not_in_target_set_i_axis_idx] = False
 
@@ -193,15 +202,15 @@ class Sampling(LangevinSDE):
                 break
 
         # indices of trajectories new in the target set
-        idx_new = np.where(
+        idx = np.where(
             (is_in_target_set == True) &
             (self.been_in_target_set == False)
         )[0]
 
         # update list of indices whose trajectories have been in the target set
-        self.been_in_target_set[idx_new] = True
+        self.been_in_target_set[idx] = True
 
-        return idx_new
+        return idx
 
     def sample_not_controlled(self):
         self.start_timer()
@@ -376,7 +385,7 @@ class Sampling(LangevinSDE):
 
         return False, xtemp
 
-    def sample_loss(self):
+    def sample_loss_ansatz(self):
         self.initialize_fht()
 
         # number of ansatz functions
@@ -405,7 +414,7 @@ class Sampling(LangevinSDE):
 
             # ipa statistics 
             normed_utemp = np.linalg.norm(utemp, axis=1)
-            cost_temp += 0.5 * (normed_utemp ** 2) * self.dt
+            cost_temp += (1 + 0.5 * (normed_utemp ** 2)) * self.dt
             grad_phi_temp += np.sum(utemp[:, np.newaxis, :] * btemp, axis=2) * self.dt
             grad_S_temp -= np.sqrt(self.beta) * np.sum(dB[:, np.newaxis, :] * btemp, axis=2)
 
@@ -416,15 +425,16 @@ class Sampling(LangevinSDE):
             xtemp = self.sde_update(xtemp, gradient, dB)
 
             # get indices from the trajectories which are new in target set
-            idx_new = self.get_idx_new_in_target_set(xtemp)
+            idx = self.get_idx_new_in_target_set(xtemp)
 
             # save ipa statistics
-            J[idx_new] = k * self.dt + cost_temp[idx_new]
-            grad_J[idx_new, :] = grad_phi_temp[idx_new, :] \
-                               - (k * self.dt + cost_temp[idx_new])[:, np.newaxis] \
-                               * grad_S_temp[idx_new, :]
+            if idx.shape[0] != 0:
+                J[idx] = cost_temp[idx]
+                grad_J[idx, :] = grad_phi_temp[idx, :] \
+                               - (cost_temp[idx])[:, np.newaxis] \
+                               * grad_S_temp[idx, :]
 
-            # check if all trajectories have arrived to the target set
+            # stop if all trajectories have arrived to the target set
             if self.been_in_target_set.all() == True:
                 break
 
@@ -433,6 +443,78 @@ class Sampling(LangevinSDE):
         mean_grad_J = np.mean(grad_J, axis=0)
 
         return True, mean_J, mean_grad_J, k
+
+
+    def sample_loss_nn(self, device):
+        self.initialize_fht()
+
+        # number of flattened parameters
+        m = self.nn_model.d_flatten
+
+        loss = np.zeros(self.N)
+        tilted_loss = torch.zeros(self.N)
+
+        # initialize trajectory
+        #xt = np.full(N * n, -1.).reshape(self.N, self.n)
+        xt = np.full((self.N, self.n), self.xzero)
+
+        #
+        a_tensor = torch.zeros(self.N).to(device)
+        b_tensor = torch.zeros(self.N).to(device)
+        c_tensor = torch.zeros(self.N).to(device)
+
+        for k in np.arange(1, self.k_lim + 1):
+
+            # Brownian increment
+            dB = np.sqrt(self.dt) \
+               * np.random.normal(0, 1, self.N * self.n).reshape(self.N, self.n)
+            dB_tensor = torch.tensor(dB, requires_grad=False, dtype=torch.float32).to(device)
+
+            # control
+            xt_tensor = torch.tensor(xt, dtype=torch.float)
+            ut_tensor = self.nn_model.forward(xt_tensor)
+            ut_tensor_det = ut_tensor.detach()
+            ut = ut_tensor_det.numpy()
+
+            # sde update
+            controlled_gradient = self.gradient(xt) - np.sqrt(2) * ut
+            xt = self.sde_update(xt, controlled_gradient, dB)
+
+            # update statistics
+            a_tensor = a_tensor \
+                     + torch.bmm(
+                         torch.unsqueeze(ut_tensor_det, 1),
+                         torch.unsqueeze(ut_tensor, 2),
+                     ).reshape(self.N,) * self.dt
+
+            ut_norm_det = torch.linalg.norm(ut_tensor_det, axis=1)
+            b_tensor = b_tensor + ((1 + 0.5 * (ut_norm_det ** 2)) * self.dt).reshape(self.N,)
+
+            c_tensor = c_tensor \
+                     - np.sqrt(self.beta) * torch.bmm(
+                         torch.unsqueeze(ut_tensor, 1),
+                         torch.unsqueeze(dB_tensor, 2),
+                     ).reshape(self.N,)
+
+            # get indices of trajectories which are new in the target set
+            idx = self.get_idx_new_in_target_set(xt)
+
+            if idx.shape[0] != 0:
+
+                # get tensor indices if there are new trajectories 
+                idx_tensor = torch.tensor(idx, dtype=torch.long).to(device)
+
+                # save loss and tilted loss for the arrived trajectorries
+                loss[idx] = b_tensor.numpy()[idx]
+                tilted_loss[idx_tensor] = a_tensor.index_select(0, idx_tensor) \
+                                        - b_tensor.index_select(0, idx_tensor) \
+                                        * c_tensor.index_select(0, idx_tensor)
+
+            # stop if all trajectories have arrived to the target set
+            if self.been_in_target_set.all() == True:
+               break
+
+        return True, np.mean(loss), torch.mean(tilted_loss), k
 
 
     def compute_mean_variance_and_rel_error(self, x):
@@ -633,32 +715,52 @@ class Sampling(LangevinSDE):
         print(f.read())
         f.close()
 
-    def get_grid_value_function_and_control(self):
+    def get_grid_value_function(self):
         # flatten domain_h
         x = self.domain_h.reshape(self.Nh, self.n)
 
-        # potential and gradient
+        # potential
         self.grid_potential = self.potential(x).reshape(self.Nx)
-        self.grid_gradient = self.gradient(x).reshape(self.domain_h.shape)
 
         if not self.is_controlled:
-            # bias potential, value function and control
+            # bias potential and value function
             self.grid_bias_potential = np.zeros(self.Nx)
             self.grid_value_function = np.zeros(self.Nx)
-            self.grid_control = np.zeros(self.domain_h.shape)
 
-        else:
+        elif self.is_controlled and self.ansatz is not None:
             # set value f constant
-            self.ansatz.set_value_function_constant_corner(self.h)
-
-            # bias potential, value function and control
             self.ansatz.set_value_function_constant_corner()
+
+            # bias potential and value function
             self.grid_bias_potential = self.bias_potential(x).reshape(self.Nx)
             self.grid_value_function = self.ansatz.value_function(x)
+
+        if self.grid_bias_potential is not None:
+            # controlled potential
+            self.grid_controlled_potential = self.grid_potential + self.grid_bias_potential
+
+    def get_grid_control(self):
+        # flattened domain_h
+        x = self.domain_h.reshape(self.Nh, self.n)
+
+        # gradient
+        self.grid_gradient = self.gradient(x).reshape(self.domain_h.shape)
+
+        # null control
+        if not self.is_controlled:
+            self.grid_control = np.zeros(self.domain_h.shape)
+
+        # gaussian ansatz control
+        elif self.is_controlled and self.ansatz is not None:
             self.grid_control = self.ansatz.control(x).reshape(self.domain_h.shape)
 
-        # controlled potential and drift
-        self.grid_controlled_potential = self.grid_potential + self.grid_bias_potential
+        # two layer nn control
+        elif self.is_controlled and self.nn_model is not None:
+            inputs = torch.tensor(x, dtype=torch.float)
+            control_flattened = self.nn_model(inputs).detach().numpy()
+            self.grid_control = control_flattened.reshape(self.domain_h.shape)
+
+        # controlled drift
         self.grid_controlled_drift = - self.grid_gradient + np.sqrt(2) * self.grid_control
 
     def plot_trajectory(self):

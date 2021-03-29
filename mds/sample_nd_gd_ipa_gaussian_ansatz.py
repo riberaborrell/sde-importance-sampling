@@ -1,6 +1,6 @@
 from mds.base_parser_nd import get_base_parser
 from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
-from mds.langevin_nd_gradient_descent import GradientDescent
+from mds.langevin_nd_soc_optimization_method import StochasticOptimizationMethod
 from mds.langevin_nd_importance_sampling import Sampling
 
 import numpy as np
@@ -9,21 +9,21 @@ import os
 
 def get_parser():
     parser = get_base_parser()
-    parser.description = 'Performs GD method using ipa estimator for the gradient of the loss' \
-                         'function. The Gaussian ansatz functions are distributed according to' \
-                         'the metadynamics algorithm.'
+    parser.description = 'Performs SGD method using the inexact ipa gradient estimator.' \
+                         'The space of possible controls is given by the linear combination' \
+                         'of vector fields from Gaussian ansatz functions.'
     parser.add_argument(
-        '--epochs-lim',
-        dest='epochs_lim',
+        '--iterations-lim',
+        dest='iterations_lim',
         type=int,
         default=100,
-        help='Set maximal number of epochs. Default: 100',
+        help='Set maximal number of iterations. Default: 100',
     )
     parser.add_argument(
-        '--do-epoch-plots',
-        dest='do_epoch_plots',
+        '--do-iteration-plots',
+        dest='do_iteration_plots',
         action='store_true',
-        help='Do plots for each epoch. Default: False',
+        help='Do plots for each iteration. Default: False',
     )
     parser.add_argument(
         '--do-importance-sampling',
@@ -82,40 +82,42 @@ def main():
     )
 
     # initialize gradient descent object
-    gd = GradientDescent(
+    sgd = StochasticOptimizationMethod(
         sample=sample,
-        grad_type='ipa-value-f',
+        parametrization='gaussian-value-f',
+        grad_estimator='ipa',
+        optimizer='gd',
         lr=args.lr,
-        epochs_lim=args.epochs_lim,
-        do_epoch_plots=args.do_epoch_plots,
+        iterations_lim=args.iterations_lim,
+        do_iteration_plots=args.do_iteration_plots,
     )
 
     # start gd with ipa estimator for the gradient
     if not args.load:
         try:
-            gd.gd_ipa()
+            sgd.sgd_ipa_gaussian_ansatz()
 
         # save if job is manually interrupted
         except KeyboardInterrupt:
-            gd.stop_timer()
-            gd.save_gd()
+            sgd.stop_timer()
+            sgd.save_som()
 
     # load already run gd
     else:
-        if not gd.load_gd():
+        if not sgd.load_som():
             return
 
     # report gd
     if args.do_report:
-        gd.write_report()
+        sgd.write_report()
 
     # do plots 
     if args.do_plots:
-        gd.plot_losses(args.h_hjb, args.N)
-        gd.plot_time_steps()
-        #gd.plot_1d_epoch(epoch=5)
-        gd.plot_1d_epochs()
-        #gd.plot_2d_epoch(epoch=0)
+        sgd.plot_losses(args.h_hjb, N_mc=100000)
+        sgd.plot_time_steps()
+        sgd.plot_1d_iteration(i=4)
+        sgd.plot_1d_iterations()
+        #sgd.plot_2d_iteration(i=0)
 
     if args.do_importance_sampling:
         # set sampling and Euler-Marujama parameters
@@ -129,14 +131,14 @@ def main():
 
         # set controlled sampling dir path
         dir_path = os.path.join(
-            gd.dir_path,
+            sgd.dir_path,
             'is',
             'N_{:.0e}'.format(sample.N),
         )
         sample.set_dir_path(dir_path)
 
         # sample and compute statistics
-        sample.ansatz.theta = gd.thetas[-1]
+        sample.ansatz.theta = sgd.thetas[-1]
         sample.sample_controlled()
 
         # print statistics

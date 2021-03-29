@@ -58,7 +58,6 @@ class GaussianAnsatz(LangevinSDE):
             self.h,
         )
 
-
         # create dir path if not exists
         make_dir_path(dir_path)
         self.dir_path = dir_path

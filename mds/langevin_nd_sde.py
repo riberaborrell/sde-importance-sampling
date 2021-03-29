@@ -290,7 +290,7 @@ class LangevinSDE:
         plt = Plot(dir_path, 'control' + ext)
         plt.xlabel = 'x'
         plt.set_ylim(- 5 * self.alpha, 5 * self.alpha)
-
+        breakpoint()
         if control_hjb is None:
             plt.one_line_plot(x, control, color=color, label=label)
         else:

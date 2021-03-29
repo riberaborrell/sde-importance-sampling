@@ -1,3 +1,5 @@
+from mds.utils import get_two_layer_nn_dir_path
+
 import numpy as np
 
 import torch
@@ -14,13 +16,17 @@ class TwoLayerNet(nn.Module):
         self.linear1 = nn.Linear(d_in, d_1, bias=True)
         self.linear2 = nn.Linear(d_1, d_out, bias=True)
 
-        # flatten idx
+        # dimension of flattened parameters
         self.d_flatten = self.d_1 * self.d_in + self.d_1 + self.d_out * self.d_1 + self.d_out
 
+        # flattened parameters indices
         self.idx_A1 = slice(0, self.d_out * self.d_1)
         self.idx_b1 = slice(self.d_out * self.d_1, self.d_out * self.d_1 + self.d_1)
         self.idx_A2 = slice(self.d_out * self.d_1 + self.d_1, self.d_out * self.d_1 + self.d_1 + self.d_out * self.d_1)
         self.idx_b2 = slice(self.d_out * self.d_1 + self.d_1 + self.d_out * self.d_1, self.d_flatten)
+
+        # parameters
+        self.initialization = 'random'
 
     def forward(self, x):
         h_relu = self.linear1(x).clamp(min=0)
@@ -38,6 +44,7 @@ class TwoLayerNet(nn.Module):
                 layer._parameters[key] = torch.zeros_like(
                     layer._parameters[key], requires_grad=True
                 )
+        self.initialization = 'null'
 
     def get_flatten_parameters(self):
 
@@ -80,4 +87,11 @@ class TwoLayerNet(nn.Module):
             theta[self.idx_b2],
             requires_grad=True,
             dtype=torch.float,
+        )
+
+    def set_dir_path(self, settings_dir_path):
+        self.dir_path = get_two_layer_nn_dir_path(
+            settings_dir_path,
+            self.d_1,
+            self.initialization,
         )
