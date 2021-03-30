@@ -165,7 +165,7 @@ def get_two_layer_nn_dir_path(settings_dir_path, hidden_layer_dim, parameters):
     return dir_path
 
 
-def get_som_dir_path(parametrization_dir_path, grad_estimator, optimizer, lr, N, dt):
+def get_som_dir_path(parametrization_dir_path, grad_estimator, optimizer, lr, dt, N):
     ''' Get stochastic optimization method absolute dir path and create its directories
     '''
     # get dir path
