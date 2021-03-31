@@ -103,6 +103,20 @@ def get_not_controlled_dir_path(settings_dir_path, dt, N):
 
     return dir_path
 
+def get_controlled_dir_path(parent_dir_path, dt, N):
+    # get dir path
+    dir_path = os.path.join(
+        parent_dir_path,
+        'is',
+        'dt_{}'.format(dt),
+        'N_{:.0e}'.format(N),
+    )
+
+    # create dir path if not exists
+    make_dir_path(dir_path)
+
+    return dir_path
+
 def get_metadynamics_dir_path(settings_dir_path, sigma_i, k, N):
     ''' Get metadynamics dir path and create its directories
     '''

@@ -46,7 +46,7 @@ def main():
         # save statistics
         sample.save_not_controlled_statistics()
 
-    # load already sampled statistics
+    # load already computed statistics
     else:
         if not sample.load_not_controlled_statistics():
             return

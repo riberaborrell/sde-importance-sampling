@@ -1,5 +1,7 @@
 from mds.langevin_nd_sde import LangevinSDE
-from mds.utils import get_not_controlled_dir_path, get_time_in_hms, make_dir_path
+from mds.utils import get_not_controlled_dir_path, \
+                      get_controlled_dir_path, \
+                      get_time_in_hms
 from mds.plots import Plot
 
 import numpy as np
@@ -26,7 +28,7 @@ class Sampling(LangevinSDE):
         self.seed = None
         self.xzero = None
         self.N = None
-        self.xtemp = None
+        self.xt = None
         self.save_trajectory = False
         self.traj = None
 
@@ -88,16 +90,22 @@ class Sampling(LangevinSDE):
         # dir_path
         self.dir_path = None
 
-    def set_dir_path(self, dir_path):
-        self.dir_path = dir_path
-        make_dir_path(self.dir_path)
-
     def set_not_controlled_dir_path(self):
         assert self.dt is not None, ''
         assert self.N is not None, ''
 
         self.dir_path = get_not_controlled_dir_path(
             self.settings_dir_path,
+            self.dt,
+            self.N,
+        )
+
+    def set_controlled_dir_path(self, parent_dir_path):
+        assert self.dt is not None, ''
+        assert self.N is not None, ''
+
+        self.dir_path = get_controlled_dir_path(
+            parent_dir_path,
             self.dt,
             self.N,
         )
@@ -215,12 +223,12 @@ class Sampling(LangevinSDE):
         self.start_timer()
         self.initialize_fht()
 
-        # initialize xtemp
-        xtemp = np.full((self.N, self.n), self.xzero)
+        # initialize xt
+        xt = np.full((self.N, self.n), self.xzero)
 
         if self.save_trajectory:
             self.traj = np.empty((self.k_lim + 1, self.n))
-            self.traj[0] = xtemp[0, :]
+            self.traj[0] = xt[0, :]
 
         for k in np.arange(1, self.k_lim + 1):
             # Brownian increment
@@ -228,19 +236,20 @@ class Sampling(LangevinSDE):
                * np.random.normal(0, 1, self.N * self.n).reshape(self.N, self.n)
 
             # compute gradient
-            gradient = self.gradient(xtemp)
+            gradient = self.gradient(xt)
 
             # sde update
-            xtemp = self.sde_update(xtemp, gradient, dB)
+            xt = self.sde_update(xt, gradient, dB)
 
             if self.save_trajectory:
-                self.traj[k] = xtemp[0, :]
+                self.traj[k] = xt[0, :]
 
             # get indices from the trajectories which are new in target
-            idx_new = self.get_idx_new_in_target_set(xtemp)
+            idx = self.get_idx_new_in_target_set(xt)
 
             # save first hitting time
-            self.fht[idx_new] = k * self.dt
+            if idx.shape[0] != 0:
+                self.fht[idx] = k * self.dt
 
             # check if all trajectories have arrived to the target set
             if self.been_in_target_set.all() == True:
@@ -255,38 +264,41 @@ class Sampling(LangevinSDE):
         self.initialize_fht()
         self.initialize_girsanov_martingale_terms()
 
-        # initialize xtemp
-        xtemp = np.full((self.N, self.n), self.xzero)
+        # initialize xt
+        xt = np.full((self.N, self.n), self.xzero)
 
         # initialize Girsanov Martingale terms, M_t = e^(M1_t + M2_t)
-        M1temp = np.zeros(self.N)
-        M2temp = np.zeros(self.N)
+        M1_t = np.zeros(self.N)
+        M2_t = np.zeros(self.N)
 
         for k in np.arange(1, self.k_lim +1):
             # Brownian increment
             dB = np.sqrt(self.dt) \
                * np.random.normal(0, 1, self.N * self.n).reshape(self.N, self.n)
 
-            # control at Xtemp
-            utemp = self.ansatz.control(xtemp)
+            # control at xt
+            ut = self.ansatz.control(xt)
 
             # compute gradient
-            gradient = self.tilted_gradient(xtemp, utemp)
+            gradient = self.tilted_gradient(xt, ut)
 
             # sde update
-            xtemp = self.sde_update(xtemp, gradient, dB)
+            xt = self.sde_update(xt, gradient, dB)
 
             # Girsanov Martingale terms
-            M1temp -= np.sqrt(self.beta) * np.matmul(utemp, dB.T).diagonal()
-            M2temp -= self.beta * 0.5 * (np.linalg.norm(utemp, axis=1) ** 2) * self.dt
+            # TODO: find simmilar solution for a vectorized scalar product than in pytorch
+            # TODO: see torch.bmm
+            M1_t -= np.sqrt(self.beta) * np.matmul(ut, dB.T).diagonal()
+            M2_t -= self.beta * 0.5 * (np.linalg.norm(ut, axis=1) ** 2) * self.dt
 
             # get indices from the trajectories which are new in target set
-            idx_new = self.get_idx_new_in_target_set(xtemp)
+            idx = self.get_idx_new_in_target_set(xt)
 
             # save first hitting time and Girsanov Martingale terms
-            self.fht[idx_new] = k * self.dt
-            self.M1_fht[idx_new] = M1temp[idx_new]
-            self.M2_fht[idx_new] = M2temp[idx_new]
+            if idx.shape[0] != 0:
+                self.fht[idx] = k * self.dt
+                self.M1_fht[idx] = M1_t[idx]
+                self.M2_fht[idx] = M2_t[idx]
 
             # check if all trajectories have arrived to the target set
             if self.been_in_target_set.all() == True:
@@ -301,12 +313,12 @@ class Sampling(LangevinSDE):
         self.initialize_fht()
         self.initialize_girsanov_martingale_terms()
 
-        # initialize xtemp
-        xtemp = np.full((self.N, self.n), self.xzero)
+        # initialize xt
+        xt = np.full((self.N, self.n), self.xzero)
 
         # initialize Girsanov Martingale terms, M_t = e^(M1_t + M2_t)
-        M1temp = np.zeros(self.N)
-        M2temp = np.zeros(self.N)
+        M1_t = np.zeros(self.N)
+        M2_t = np.zeros(self.N)
 
         # load optimal control
         sol = self.get_hjb_solver(h)
@@ -319,27 +331,30 @@ class Sampling(LangevinSDE):
             dB = np.sqrt(self.dt) \
                * np.random.normal(0, 1, self.N * self.n).reshape(self.N, self.n)
 
-            # control at xtemp
-            idx = self.get_index_vectorized(xtemp)
-            utemp = u_opt[idx]
+            # control at xt
+            idx_xt = self.get_index_vectorized(xt)
+            ut = u_opt[idx_xt]
 
             # compute gradient
-            gradient = self.tilted_gradient(xtemp, utemp)
+            gradient = self.tilted_gradient(xt, ut)
 
             # sde update
-            xtemp = self.sde_update(xtemp, gradient, dB)
+            xt = self.sde_update(xt, gradient, dB)
 
             # Girsanov Martingale terms
-            M1temp -= np.sqrt(self.beta) * np.matmul(utemp, dB.T).diagonal()
-            M2temp -= self.beta * 0.5 * (np.linalg.norm(utemp, axis=1) ** 2) * self.dt
+            # TODO: find simmilar solution for a vectorized scalar product than in pytorch
+            # TODO: see torch.bmm
+            M1_t -= np.sqrt(self.beta) * np.matmul(ut, dB.T).diagonal()
+            M2_t -= self.beta * 0.5 * (np.linalg.norm(ut, axis=1) ** 2) * self.dt
 
             # get indices from the trajectories which are new in target set
-            idx_new = self.get_idx_new_in_target_set(xtemp)
+            idx = self.get_idx_new_in_target_set(xt)
 
             # save first hitting time and Girsanov Martingale terms
-            self.fht[idx_new] = k * self.dt
-            self.M1_fht[idx_new] = M1temp[idx_new]
-            self.M2_fht[idx_new] = M2temp[idx_new]
+            if idx.shape[0] != 0:
+                self.fht[idx] = k * self.dt
+                self.M1_fht[idx] = M1_t[idx]
+                self.M2_fht[idx] = M2_t[idx]
 
             # check if all trajectories have arrived to the target set
             if self.been_in_target_set.all() == True:
@@ -352,9 +367,9 @@ class Sampling(LangevinSDE):
     def sample_meta(self):
         self.initialize_fht()
 
-        # initialize xtemp
-        xtemp = np.empty((self.k_lim + 1, self.N, self.n))
-        xtemp[0] = np.full((self.N, self.n), self.xzero)
+        # initialize xt
+        xt = np.empty((self.k_lim + 1, self.N, self.n))
+        xt[0] = np.full((self.N, self.n), self.xzero)
 
         for k in np.arange(1, self.k_lim + 1):
             # Brownian increment
@@ -363,26 +378,26 @@ class Sampling(LangevinSDE):
 
             if not self.is_controlled:
                 # compute gradient
-                gradient = self.gradient(xtemp[k - 1])
+                gradient = self.gradient(xt[k - 1])
 
             else:
-                # control at xtemp
-                utemp = self.ansatz.control(xtemp[k - 1])
+                # control at xt
+                ut = self.ansatz.control(xt[k - 1])
 
                 # compute gradient
-                gradient = self.tilted_gradient(xtemp[k - 1], utemp)
+                gradient = self.tilted_gradient(xt[k - 1], ut)
 
             # sde update
-            xtemp[k] = self.sde_update(xtemp[k - 1], gradient, dB)
+            xt[k] = self.sde_update(xt[k - 1], gradient, dB)
 
             # get indices from the trajectories which are new in target
-            idx_new = self.get_idx_new_in_target_set(xtemp[k])
+            idx_new = self.get_idx_new_in_target_set(xt[k])
 
             # check if the half of the trajectories have arrived to the target set
             if np.sum(self.been_in_target_set) >= self.N / 2:
-                return True, xtemp[:k]
+                return True, xt[:k]
 
-        return False, xtemp
+        return False, xt
 
     def sample_loss_ansatz(self):
         self.initialize_fht()
@@ -394,8 +409,8 @@ class Sampling(LangevinSDE):
         J = np.zeros(self.N)
         grad_J = np.zeros((self.N, m))
 
-        # initialize xtemp
-        xtemp = np.full((self.N, self.n), self.xzero)
+        # initialize xt
+        xt = np.full((self.N, self.n), self.xzero)
 
         # initialize ipa variables
         cost_temp = np.zeros(self.N)
@@ -408,23 +423,23 @@ class Sampling(LangevinSDE):
                * np.random.normal(0, 1, self.N * self.n).reshape(self.N, self.n)
 
             # control
-            btemp = self.ansatz.basis_control(xtemp)
-            utemp = self.ansatz.control(xtemp)
+            btemp = self.ansatz.basis_control(xt)
+            ut = self.ansatz.control(xt)
 
             # ipa statistics 
-            normed_utemp = np.linalg.norm(utemp, axis=1)
-            cost_temp += (1 + 0.5 * (normed_utemp ** 2)) * self.dt
-            grad_phi_temp += np.sum(utemp[:, np.newaxis, :] * btemp, axis=2) * self.dt
+            normed_ut = np.linalg.norm(ut, axis=1)
+            cost_temp += (1 + 0.5 * (normed_ut ** 2)) * self.dt
+            grad_phi_temp += np.sum(ut[:, np.newaxis, :] * btemp, axis=2) * self.dt
             grad_S_temp -= np.sqrt(self.beta) * np.sum(dB[:, np.newaxis, :] * btemp, axis=2)
 
             # compute gradient
-            gradient = self.tilted_gradient(xtemp, utemp)
+            gradient = self.tilted_gradient(xt, ut)
 
             # sde update
-            xtemp = self.sde_update(xtemp, gradient, dB)
+            xt = self.sde_update(xt, gradient, dB)
 
             # get indices from the trajectories which are new in target set
-            idx = self.get_idx_new_in_target_set(xtemp)
+            idx = self.get_idx_new_in_target_set(xt)
 
             # save ipa statistics
             if idx.shape[0] != 0:
@@ -622,7 +637,59 @@ class Sampling(LangevinSDE):
             self.t_final = mcs['t_final']
             return True
         except:
-            print('no mc-sampling found with N={:.0e}'.format(self.N))
+            msg = 'no mc-sampling found with dt={:.4f} and N={:.0e}' \
+                  ''.format(self.dt, self.N)
+            print(msg)
+            return False
+
+    def save_controlled_statistics(self):
+        np.savez(
+            os.path.join(self.dir_path, 'is.npz'),
+            seed=self.seed,
+            xzero=self.xzero,
+            dt=self.dt,
+            k_lim=self.k_lim,
+            N_arrived=self.N_arrived,
+            first_fht=self.first_fht,
+            last_fht=self.last_fht,
+            mean_fht=self.mean_fht,
+            var_fht=self.var_fht,
+            re_fht=self.re_fht,
+            mean_I_u=self.mean_I_u,
+            var_I_u=self.var_I_u,
+            re_I_u=self.re_I_u,
+            traj=self.traj,
+            t_initial=self.t_initial,
+            t_final=self.t_final,
+        )
+
+    def load_controlled_statistics(self):
+        try:
+            ims = np.load(
+                os.path.join(self.dir_path, 'is.npz'),
+                allow_pickle=True,
+            )
+            self.seed = ims['seed']
+            self.xzero = ims['xzero']
+            self.dt = ims['dt']
+            self.k_lim = ims['k_lim']
+            self.N_arrived = ims['N_arrived']
+            self.first_fht = ims['first_fht']
+            self.last_fht = ims['last_fht']
+            self.mean_fht = ims['mean_fht']
+            self.var_fht = ims['var_fht']
+            self.re_fht = ims['re_fht']
+            self.mean_I_u = ims['mean_I_u']
+            self.var_I_u = ims['var_I_u']
+            self.re_I_u = ims['re_I_u']
+            self.traj = ims['traj']
+            self.t_initial = ims['t_initial']
+            self.t_final = ims['t_final']
+            return True
+        except:
+            msg = 'no importance-sampling found with dt={:.4f} and N={:.0e}' \
+                  ''.format(self.dt, self.N)
+            print(msg)
             return False
 
     def write_euler_maruyama_parameters(self, f):
