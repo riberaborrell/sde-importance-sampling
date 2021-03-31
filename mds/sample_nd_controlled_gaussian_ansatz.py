@@ -7,7 +7,8 @@ import os
 
 def get_parser():
     parser = get_base_parser()
-    parser.description = 'Sample controlled nd overdamped Langevin SDE'
+    parser.description = 'Sample controlled nd overdamped Langevin SDE. The bias potential is' \
+                         ' is parametrized with linear combination of Gaussian functions'
     return parser
 
 def main():
@@ -53,19 +54,14 @@ def main():
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(
         seed=args.seed,
-        xzero=np.full(args.n, args.xzero_i),
-        N=args.N,
         dt=args.dt,
         k_lim=args.k_lim,
+        xzero=np.full(args.n, args.xzero_i),
+        N=args.N,
     )
 
     # set controlled sampling dir path
-    dir_path = os.path.join(
-        sample.ansatz.dir_path,
-        'is',
-        'N_{:.0e}'.format(sample.N),
-    )
-    sample.set_dir_path(dir_path)
+    sample.set_controlled_dir_path(sample.ansatz.dir_path)
 
     # plot potential and gradient
     if args.do_plots:
@@ -73,6 +69,9 @@ def main():
 
     # sample and compute statistics
     sample.sample_controlled()
+
+    # save statistics
+    sample.save_controlled_statistics()
 
     # print statistics
     sample.write_report()

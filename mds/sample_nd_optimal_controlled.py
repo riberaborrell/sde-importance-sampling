@@ -24,7 +24,6 @@ def main():
         is_optimal = True,
     )
 
-
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(
         seed=args.seed,
