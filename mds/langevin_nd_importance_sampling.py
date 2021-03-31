@@ -83,6 +83,10 @@ class Sampling(LangevinSDE):
         self.var_I_u = None
         self.re_I_u = None
 
+        # loss and its gradient
+        self.loss = None
+        self.tilted_loss = None
+
         # computational time
         self.t_initial = None
         self.t_final = None
@@ -368,8 +372,8 @@ class Sampling(LangevinSDE):
         self.initialize_fht()
 
         # initialize xt
-        xt = np.empty((self.k_lim + 1, self.N, self.n))
-        xt[0] = np.full((self.N, self.n), self.xzero)
+        x = np.empty((self.k_lim + 1, self.N, self.n))
+        x[0] = np.full((self.N, self.n), self.xzero)
 
         for k in np.arange(1, self.k_lim + 1):
             # Brownian increment
@@ -378,26 +382,26 @@ class Sampling(LangevinSDE):
 
             if not self.is_controlled:
                 # compute gradient
-                gradient = self.gradient(xt[k - 1])
+                gradient = self.gradient(x[k - 1])
 
             else:
                 # control at xt
-                ut = self.ansatz.control(xt[k - 1])
+                ut = self.ansatz.control(x[k - 1])
 
                 # compute gradient
-                gradient = self.tilted_gradient(xt[k - 1], ut)
+                gradient = self.tilted_gradient(x[k - 1], ut)
 
             # sde update
-            xt[k] = self.sde_update(xt[k - 1], gradient, dB)
+            x[k] = self.sde_update(x[k - 1], gradient, dB)
 
-            # get indices from the trajectories which are new in target
-            idx_new = self.get_idx_new_in_target_set(xt[k])
+            # update been in target set
+            _ = self.get_idx_new_in_target_set(x[k])
 
             # check if the half of the trajectories have arrived to the target set
             if np.sum(self.been_in_target_set) >= self.N / 2:
-                return True, xt[:k]
+                return True, x[:k]
 
-        return False, xt
+        return False, x
 
     def sample_loss_ansatz(self):
         self.initialize_fht()
@@ -461,21 +465,24 @@ class Sampling(LangevinSDE):
 
     def sample_loss_nn(self, device):
         self.initialize_fht()
+        self.initialize_girsanov_martingale_terms()
 
         # number of flattened parameters
         m = self.nn_model.d_flatten
 
+        # preallocate loss and tilted loss
         loss = np.zeros(self.N)
         tilted_loss = torch.zeros(self.N)
-
-        # initialize trajectory
-        #xt = np.full(N * n, -1.).reshape(self.N, self.n)
-        xt = np.full((self.N, self.n), self.xzero)
-
-        #
         a_tensor = torch.zeros(self.N).to(device)
         b_tensor = torch.zeros(self.N).to(device)
         c_tensor = torch.zeros(self.N).to(device)
+
+        # initialize trajectory
+        xt = np.full((self.N, self.n), self.xzero)
+
+        # initialize Girsanov Martingale terms, M_t = e^(M1_t + M2_t)
+        M1_t = np.zeros(self.N)
+        M2_t = np.zeros(self.N)
 
         for k in np.arange(1, self.k_lim + 1):
 
@@ -510,6 +517,12 @@ class Sampling(LangevinSDE):
                          torch.unsqueeze(dB_tensor, 2),
                      ).reshape(self.N,)
 
+            # Girsanov Martingale terms
+            # TODO: find simmilar solution for a vectorized scalar product than in pytorch
+            # TODO: see torch.bmm
+            M1_t -= np.sqrt(self.beta) * np.matmul(ut, dB.T).diagonal()
+            M2_t -= self.beta * 0.5 * (np.linalg.norm(ut, axis=1) ** 2) * self.dt
+
             # get indices of trajectories which are new in the target set
             idx = self.get_idx_new_in_target_set(xt)
 
@@ -524,11 +537,21 @@ class Sampling(LangevinSDE):
                                         - b_tensor.index_select(0, idx_tensor) \
                                         * c_tensor.index_select(0, idx_tensor)
 
+                # save first hitting time and Girsanov Martingale terms
+                self.fht[idx] = k * self.dt
+                self.M1_fht[idx] = M1_t[idx]
+                self.M2_fht[idx] = M2_t[idx]
+
             # stop if all trajectories have arrived to the target set
             if self.been_in_target_set.all() == True:
                break
 
-        return True, np.mean(loss), torch.mean(tilted_loss), k
+        self.loss = np.mean(loss)
+        self.tilted_loss = torch.mean(tilted_loss)
+
+        self.compute_I_u_statistics()
+
+        return True, k
 
 
     def compute_mean_variance_and_rel_error(self, x):

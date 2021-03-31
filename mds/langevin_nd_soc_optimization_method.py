@@ -37,6 +37,9 @@ class StochasticOptimizationMethod:
         self.losses = None
         self.tilted_losses = None
         self.grad_losses = None
+        self.means_I_u = None
+        self.vars_I_u = None
+        self.res_I_u = None
         self.time_steps = None
 
         # computational time
@@ -142,17 +145,16 @@ class StochasticOptimizationMethod:
         self.thetas = np.empty((0, m))
         self.losses = np.empty(0)
         self.tilted_losses = np.empty(0)
+        self.means_I_u = np.empty(0)
+        self.vars_I_u = np.empty(0)
+        self.res_I_u = np.empty(0)
         self.time_steps = np.empty(0)
-
-        # save initial parameters
-        #thetas[0] = model.get_flatten_parameters()
-        #print(thetas[0])
 
         for i in np.arange(self.iterations_lim):
 
             # compute loss
-            succ, loss, tilted_loss, time_steps = self.sample.sample_loss_nn(device)
-            print('{:d}, {:2.3f}'.format(i, loss))
+            succ, time_steps = self.sample.sample_loss_nn(device)
+            print('{:d}, {:2.3f}'.format(i, self.sample.loss))
 
             # check if sample succeeded
             if not succ:
@@ -161,15 +163,19 @@ class StochasticOptimizationMethod:
             # allocate
             self.iterations = np.append(self.iterations, i)
             self.thetas = np.vstack((self.thetas, model.get_flatten_parameters()))
-            self.losses = np.append(self.losses, loss)
-            self.tilted_losses = np.append(self.tilted_losses, tilted_loss.detach().numpy())
+            self.losses = np.append(self.losses, self.sample.loss)
+            self.tilted_losses = np.append(self.tilted_losses,
+                                           self.sample.tilted_loss.detach().numpy())
+            self.means_I_u = np.append(self.means_I_u, self.sample.mean_I_u)
+            self.vars_I_u = np.append(self.vars_I_u, self.sample.var_I_u)
+            self.res_I_u = np.append(self.res_I_u, self.sample.re_I_u)
             self.time_steps = np.append(self.time_steps, time_steps)
 
             # reset gradients
             optimizer.zero_grad()
 
             # compute gradients
-            tilted_loss.backward()
+            self.sample.tilted_loss.backward()
 
             # update parameters
             optimizer.step()
@@ -187,6 +193,9 @@ class StochasticOptimizationMethod:
             losses=self.losses,
             tilted_losses=self.tilted_losses,
             grad_losses=self.grad_losses,
+            means_I_u=self.means_I_u,
+            vars_I_u=self.vars_I_u,
+            res_I_u=self.res_I_u,
             time_steps=self.time_steps,
             t_initial=self.t_initial,
             t_final=self.t_final,
@@ -203,6 +212,9 @@ class StochasticOptimizationMethod:
             self.losses = som['losses']
             self.tilted_losses = som['tilted_losses']
             self.grad_losses = som['grad_losses']
+            self.means_I_u=som['means_I_u']
+            self.vars_I_u=som['vars_I_u']
+            self.res_I_u=som['res_I_u']
             self.time_steps = som['time_steps']
             self.t_initial = som['t_initial']
             self.t_final = som['t_final']
@@ -257,7 +269,7 @@ class StochasticOptimizationMethod:
                     ''.format(np.linalg.norm(self.grad_losses[i])))
             f.write('time steps = {}\n'.format(self.time_steps[i]))
 
-    def plot_losses(self, h_hjb, N_mc):
+    def plot_losses(self, h_hjb, dt_mc, N_mc):
         # hjb F at xzero
         sol = self.sample.get_hjb_solver(h_hjb)
         hjb_f_at_x = sol.get_f_at_x(self.sample.xzero)
@@ -267,7 +279,7 @@ class StochasticOptimizationMethod:
             value_f_hjb = np.full(self.iterations.shape[0], np.nan)
 
         # mc F
-        sample_mc = self.sample.get_not_controlled_sampling(N_mc)
+        sample_mc = self.sample.get_not_controlled_sampling(dt_mc, N_mc)
         if sample_mc.mean_I is not None:
             mc_f = - np.log(sample_mc.mean_I)
             value_f_mc = np.full(self.iterations.shape[0], mc_f)
@@ -313,7 +325,7 @@ class StochasticOptimizationMethod:
         if self.parametrization == 'gaussian-value-f':
             self.sample.ansatz.theta = self.thetas[i]
         elif self.parametrization == 'two-layer-nn-control':
-            self.sample.nn_model.load_parameters(self.thetas[-1])
+            self.sample.nn_model.load_parameters(self.thetas[i])
 
         # discretize domain and evaluate in grid
         self.sample.discretize_domain(h=0.001)
@@ -394,14 +406,19 @@ class StochasticOptimizationMethod:
         ext = '_iter{}'.format(i)
 
         # set theta
-        self.sample.ansatz.theta = self.thetas[i]
+        if self.parametrization == 'gaussian-value-f':
+            self.sample.ansatz.theta = self.thetas[i]
+        elif self.parametrization == 'two-layer-nn-control':
+            self.sample.nn_model.load_parameters(self.thetas[i])
 
         # discretize domain and evaluate in grid
         self.sample.discretize_domain(h=0.05)
-        self.sample.get_grid_value_function_and_control()
+        self.sample.get_grid_value_function()
+        self.sample.get_grid_control()
 
-        self.sample.plot_2d_controlled_potential(self.sample.grid_controlled_potential,
-                                                 self.iterations_dir_path, ext)
+        if self.sample.grid_value_function is not None:
+            self.sample.plot_2d_controlled_potential(self.sample.grid_controlled_potential,
+                                                     self.iterations_dir_path, ext)
         self.sample.plot_2d_control(self.sample.grid_control, self.iterations_dir_path, ext)
         self.sample.plot_2d_controlled_drift(self.sample.grid_controlled_drift,
                                              self.iterations_dir_path, ext)
