@@ -536,33 +536,29 @@ class Sampling(LangevinSDE):
         return mean, var, re
 
     def compute_fht_statistics(self):
-        been_in_target_set = self.been_in_target_set
-        fht = self.fht
-
         # cut saved trajectory
         if self.save_trajectory:
-            k_last = int(fht[0] / self.dt)
+            k_last = int(self.fht[0] / self.dt)
             self.traj = self.traj[:k_last+1]
 
         # count trajectories which have arrived
-        idx_arrived = np.where(been_in_target_set == True)
-        self.N_arrived = fht[idx_arrived].shape[0]
+        idx_arrived = np.where(self.been_in_target_set == True)[0]
+        self.N_arrived = self.fht[idx_arrived].shape[0]
         if self.N_arrived != self.N:
             return
 
         # replace trajectories which have not arrived
-        idx_not_arrived = np.where(been_in_target_set == False)
-        fht[idx_not_arrived] = self.k_lim
-        self.fht = fht
+        idx_not_arrived = np.where(self.been_in_target_set == False)[0]
+        self.fht[idx_not_arrived] = self.k_lim
 
         # first and last fht
-        self.first_fht = np.min(fht)
-        self.last_fht = np.max(fht)
+        self.first_fht = np.min(self.fht)
+        self.last_fht = np.max(self.fht)
 
         # compute mean and variance of fht
         self.mean_fht, \
         self.var_fht, \
-        self.re_fht = self.compute_mean_variance_and_rel_error(fht)
+        self.re_fht = self.compute_mean_variance_and_rel_error(self.fht)
 
     def compute_I_statistics(self):
         # compute mean and variance of I
