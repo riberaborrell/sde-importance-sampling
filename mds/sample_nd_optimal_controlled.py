@@ -28,26 +28,33 @@ def main():
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(
         seed=args.seed,
-        xzero=np.full(args.n, args.xzero_i),
-        N=args.N,
         dt=args.dt,
         k_lim=args.k_lim,
+        xzero=np.full(args.n, args.xzero_i),
+        N=args.N,
     )
 
     # set path
-    hjb_dir_path = get_hjb_solution_dir_path(sample.settings_dir_path, args.h)
-    dir_path = os.path.join(
-        hjb_dir_path,
-        'optimal-is',
-        'N_{:.0e}'.format(sample.N),
-    )
-    sample.set_dir_path(dir_path)
+    hjb_dir_path = get_hjb_solution_dir_path(sample.settings_dir_path, args.h_hjb)
+    sample.set_controlled_dir_path(hjb_dir_path)
 
-    # sample and compute statistics
-    sample.sample_optimal_controlled(h=args.h)
+    # sample trajectories with optimal control
+    if not args.load:
 
-    # print statistics
-    sample.write_report()
+        # sample and compute statistics
+        sample.sample_optimal_controlled(h=args.h_hjb)
+
+        # save statistics
+        sample.save_controlled_statistics()
+
+    # load already computed statistics
+    else:
+        if not sample.load_controlled_statistics():
+            return
+
+    # report statistics
+    if args.do_report:
+        sample.write_report()
 
 
 if __name__ == "__main__":
