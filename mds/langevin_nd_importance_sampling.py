@@ -1,6 +1,5 @@
-from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
 from mds.langevin_nd_sde import LangevinSDE
-from mds.utils import get_time_in_hms, make_dir_path
+from mds.utils import get_not_controlled_dir_path, get_time_in_hms, make_dir_path
 from mds.plots import Plot
 
 import numpy as np
@@ -94,14 +93,14 @@ class Sampling(LangevinSDE):
         make_dir_path(self.dir_path)
 
     def set_not_controlled_dir_path(self):
+        assert self.dt is not None, ''
         assert self.N is not None, ''
 
-        self.dir_path = os.path.join(
+        self.dir_path = get_not_controlled_dir_path(
             self.settings_dir_path,
-            'mc-sampling',
-            'N_{:.0e}'.format(self.N),
+            self.dt,
+            self.N,
         )
-        make_dir_path(self.dir_path)
 
     def bias_potential(self, x, theta=None):
         '''This method computes the bias potential at x
@@ -140,20 +139,20 @@ class Sampling(LangevinSDE):
 
         return self.gradient(x) + self.bias_gradient(u)
 
-    def set_sampling_parameters(self, xzero, N, dt, k_lim, seed=None):
+    def set_sampling_parameters(self, dt, k_lim, xzero, N, seed=None):
         '''
         '''
         # set random seed
         if seed:
             np.random.seed(seed)
 
-        # sampling
-        self.xzero = xzero
-        self.N = N
-
         # Euler-Marujama
         self.dt = dt
         self.k_lim = k_lim
+
+        # sampling
+        self.xzero = xzero
+        self.N = N
 
     def start_timer(self):
         self.t_initial = time.perf_counter()

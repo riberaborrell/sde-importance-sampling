@@ -1,9 +1,10 @@
 import numpy as np
 
 from datetime import datetime
-import os
 from pathlib import Path
 import shutil
+
+import os
 
 MDS_PATH = Path(os.path.dirname(__file__))
 PROJECT_PATH = MDS_PATH.parent
@@ -81,6 +82,20 @@ def get_hjb_solution_dir_path(settings_dir_path, h):
         settings_dir_path,
         'hjb-solution',
         'h_{:.0e}'.format(h),
+    )
+
+    # create dir path if not exists
+    make_dir_path(dir_path)
+
+    return dir_path
+
+def get_not_controlled_dir_path(settings_dir_path, dt, N):
+    # get dir path
+    dir_path = os.path.join(
+        settings_dir_path,
+        'mc-sampling',
+        'dt_{}'.format(dt),
+        'N_{:.0e}'.format(N),
     )
 
     # create dir path if not exists

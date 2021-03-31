@@ -24,10 +24,10 @@ def main():
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(
         seed=args.seed,
-        xzero=np.full(args.n, args.xzero_i),
-        N=args.N,
         dt=args.dt,
         k_lim=args.k_lim,
+        xzero=np.full(args.n, args.xzero_i),
+        N=args.N,
     )
 
     # set path
