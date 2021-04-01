@@ -8,7 +8,7 @@ import numpy as np
 import os
 import sys
 
-class LangevinSDE:
+class LangevinSDE(object):
     '''
     '''
 
@@ -45,6 +45,16 @@ class LangevinSDE:
         self.settings_dir_path = None
         self.set_settings_dir_path()
 
+    @classmethod
+    def new_from(cls, obj):
+        if issubclass(obj.__class__, LangevinSDE):
+            _new = cls(obj.n, obj.potential_name, obj.alpha, obj.beta,
+                       obj.target_set, obj.domain, obj.h)
+            return _new
+        else:
+            msg = 'Expected subclass of <class LangevinSDE>, got {}.'.format(type(obj))
+            raise TypeError(msg)
+
     def set_settings_dir_path(self):
         assert (self.alpha == self.alpha[0]).all(), ''
         self.settings_dir_path = get_settings_dir_path(self.potential_name, self.n,
@@ -79,6 +89,13 @@ class LangevinSDE:
         for i in range(self.n):
             N *= self.Nx[i]
         self.Nh = N
+
+    def sample_domain_uniformly(self, N):
+        x = np.empty((N, self.n))
+        for i in range(self.n):
+            x[:, i] = np.random.uniform(self.domain[i, 0], self.domain[i, 1], N)
+
+        return x
 
     def get_flatted_domain_h(self):
         ''' this method returns the flatten discretized domain
@@ -176,7 +193,7 @@ class LangevinSDE:
             print('no metadynamics-sampling found with sigma_i_meta={:.0e}, k={}, meta_N:{}'
                   ''.format(sigma_i_meta, k, N_meta))
 
-    def get_not_controlled_sampling(self, N):
+    def get_not_controlled_sampling(self, dt, N):
         from mds.langevin_nd_importance_sampling import Sampling
 
         # initialize not controlled sampling object
@@ -188,7 +205,8 @@ class LangevinSDE:
             is_controlled=False,
         )
 
-        # set number of trajectories
+        # set Euler-Marujama discretiztion step and number of trajectories
+        sample.dt = dt
         sample.N = N
 
         # set path
