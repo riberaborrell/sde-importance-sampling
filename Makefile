@@ -15,7 +15,7 @@ venv:
 develop: venv
 	venv/bin/pip install -e .[test]
 
-tests: venv
+tests: venv develop
 	venv/bin/pytest 
 
 clean:
