@@ -178,10 +178,11 @@ class LangevinSDE(object):
         sol.load_hjb_solution()
         return sol
 
-    def get_meta_bias_potential(self, sigma_i_meta, k, N_meta):
+    def get_meta_bias_potential(self, dt, sigma_i_meta, k, N_meta):
         try:
             meta_dir_path = get_metadynamics_dir_path(
                 self.settings_dir_path,
+                dt,
                 sigma_i_meta,
                 k,
                 N_meta,
@@ -190,8 +191,9 @@ class LangevinSDE(object):
             meta_bias_pot = np.load(file_path)
             return meta_bias_pot
         except:
-            print('no metadynamics-sampling found with sigma_i_meta={:.0e}, k={}, meta_N:{}'
-                  ''.format(sigma_i_meta, k, N_meta))
+            msg = 'no meta bias potential found with dt={:.4f}, sigma_i={:.2f}, k={:d}, ' \
+                  'N={:.0e}'.format(dt, sigma_i, k, N_meta)
+            print(msg)
 
     def get_not_controlled_sampling(self, dt, N):
         from mds.langevin_nd_importance_sampling import Sampling

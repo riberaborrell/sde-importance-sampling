@@ -51,6 +51,7 @@ class Metadynamics:
     def set_dir_path(self):
         self.dir_path = get_metadynamics_dir_path(
             self.sample.settings_dir_path,
+            self.sample.dt,
             self.sigma_i,
             self.k,
             self.N,
@@ -170,7 +171,9 @@ class Metadynamics:
             return True
 
         except:
-            print('no bias potential found')
+            msg = 'no meta bias potential found with dt={:.4f}, sigma_i={:.2f}, k={:d}, ' \
+                  'N={:.0e}'.format(self.sample.dt, self.sigma_i, self.k, self.N)
+            print(msg)
             return False
 
     def write_means(self, f):
