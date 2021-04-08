@@ -1,17 +1,24 @@
-# ignore virtual environment
-venv/
-
-# ignore data files
+# data files
 data/
 
-# ignore state files
-*.swp
+# pyenv version file
+.python-version
 
-# ignore python compilation files
+# virtual environment
+venv/
+
+# egg info files
+*.egg-info
+
+# python compilation files
 *.pyc
 
-# ignore pycharm idea
+# state files
+*.swp
+
+# pycharm idea
 .idea/
 
-# ignore mathlab files
+# mathlab files
 *.m
+
