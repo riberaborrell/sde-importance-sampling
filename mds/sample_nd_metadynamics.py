@@ -77,7 +77,10 @@ def main():
         meta.write_report()
 
     if args.do_plots:
-        meta.plot_1d_updates(i=1)
+        if sample.n == 1:
+            meta.plot_1d_updates()
+        elif sample.n == 2:
+            meta.plot_2d_update(i=0, update=30)
 
 if __name__ == "__main__":
     main()

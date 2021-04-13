@@ -1,5 +1,16 @@
 import numpy as np
 
+def slice_1d_array(array, start=None, stop=None, step=None, n_elements=None, add_last=True):
+    assert array.ndim == 1, ''
+
+    if step is None and n_elements is not None:
+        step = array[start:stop].shape[0] // n_elements
+
+    sliced_array = array[start:stop:step]
+    if add_last and array[-1] != sliced_array[-1]:
+        sliced_array = np.append(sliced_array, array[-1])
+    return sliced_array
+
 def arange_generator(m):
     '''this method provides a generator as a alternative to the np.arange method'''
     assert type(m) == int, ''

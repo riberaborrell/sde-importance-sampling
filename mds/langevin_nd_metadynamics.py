@@ -1,4 +1,5 @@
 from mds.utils import get_metadynamics_dir_path, make_dir_path, empty_dir, get_time_in_hms
+from mds.numeric_utils import slice_1d_array
 
 import time
 import numpy as np
@@ -56,9 +57,11 @@ class Metadynamics:
             self.k,
             self.N,
         )
-        #self.updates_dir_path = os.path.join(self.dir_path, 'updates')
-        #make_dir_path(self.updates_dir_path)
-        #empty_dir(self.updates_dir_path)
+
+    def set_updates_dir_path(self):
+        self.updates_dir_path = os.path.join(self.dir_path, 'updates')
+        make_dir_path(self.updates_dir_path)
+        empty_dir(self.updates_dir_path)
 
     def start_timer(self):
         self.t_initial = time.perf_counter()
@@ -230,15 +233,6 @@ class Metadynamics:
         print(f.read())
         f.close()
 
-    def get_updates_to_show(self, i=0, num_updates_to_show=5):
-        num_updates = self.ms[i]
-        k = num_updates // num_updates_to_show
-        updates = np.arange(num_updates)
-        updates_to_show = np.where(updates % k == 0)[0]
-        if updates[-1] != updates_to_show[-1]:
-            updates_to_show = np.append(updates_to_show, updates[-1])
-        return updates_to_show
-
     def plot_1d_updates(self, i=0):
         # get sampling object
         sample = self.sample
@@ -248,18 +242,21 @@ class Metadynamics:
         x = sample.domain_h[:, 0]
 
         # filter updates to show
-        updates_to_show = self.get_updates_to_show()
+        n_updates = self.ms[i]
+        updates = np.arange(n_updates)
+        sliced_updates = slice_1d_array(updates, n_elements=5)
 
         # preallocate functions
         labels = []
-        frees = np.zeros((updates_to_show.shape[0] + 1, x.shape[0]))
-        controls = np.zeros((updates_to_show.shape[0] + 1, x.shape[0]))
-        controlled_potentials = np.zeros((updates_to_show.shape[0] + 1, x.shape[0]))
+        frees = np.zeros((sliced_updates.shape[0] + 1, x.shape[0]))
+        controls = np.zeros((sliced_updates.shape[0] + 1, x.shape[0]))
+        controlled_potentials = np.zeros((sliced_updates.shape[0] + 1, x.shape[0]))
 
         # not controlled case
         labels.append(r'not controlled')
         sample.is_controlled = False
-        sample.get_grid_value_function_and_control()
+        sample.get_grid_value_function()
+        sample.get_grid_control()
         controlled_potentials[0, :] = sample.grid_controlled_potential
         frees[0, :] = sample.grid_value_function
         controls[0, :] = sample.grid_control[:, 0]
@@ -268,7 +265,7 @@ class Metadynamics:
         idx_i = slice(np.sum(self.ms[:i]), np.sum(self.ms[:i]) + self.ms[i])
         means = self.means[idx_i]
         thetas = self.thetas[idx_i]
-        for index, update in enumerate(updates_to_show):
+        for index, update in enumerate(sliced_updates):
             labels.append(r'update = {:d}'.format(update+1))
 
             # set theta
@@ -277,7 +274,8 @@ class Metadynamics:
                 self.cov,
             )
             sample.ansatz.theta = thetas[:update+1]
-            sample.get_grid_value_function_and_control()
+            sample.get_grid_value_function()
+            sample.get_grid_control()
 
             # update functions
             controlled_potentials[index+1, :] = sample.grid_controlled_potential
@@ -300,4 +298,37 @@ class Metadynamics:
                                              labels=labels[:], dir_path=self.dir_path,
                                              ext=ext)
 
+    def plot_2d_update(self, i=0, update=0):
 
+        # number of updates of i meta trajectory
+        n_updates = self.ms[i]
+        updates = np.arange(n_updates)
+        assert update in updates, ''
+
+        self.set_updates_dir_path()
+        ext = '_update{}'.format(update)
+
+        # get indices of i trajectory
+        idx_i = slice(np.sum(self.ms[:i]), np.sum(self.ms[:i]) + self.ms[i])
+        means = self.means[idx_i]
+        thetas = self.thetas[idx_i]
+
+        # set ansatz and theta
+        self.sample.ansatz.set_given_ansatz_functions(
+            self.means[:update+1],
+            self.cov,
+        )
+        self.sample.ansatz.theta = thetas[:update+1]
+        self.sample.ansatz.set_value_function_constant_corner()
+
+        # discretize domain and evaluate in grid
+        self.sample.discretize_domain(h=0.05)
+        self.sample.get_grid_value_function()
+        self.sample.get_grid_control()
+
+        if self.sample.grid_value_function is not None:
+            self.sample.plot_2d_controlled_potential(self.sample.grid_controlled_potential,
+                                                     self.updates_dir_path, ext)
+        self.sample.plot_2d_control(self.sample.grid_control, self.updates_dir_path, ext)
+        self.sample.plot_2d_controlled_drift(self.sample.grid_controlled_drift,
+                                             self.updates_dir_path, ext)
