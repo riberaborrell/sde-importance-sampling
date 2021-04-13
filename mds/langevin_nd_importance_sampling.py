@@ -39,8 +39,8 @@ class Sampling(LangevinSDE):
         # ansatz functions (gaussians) and coefficients
         self.ansatz = None
 
-        # neuronal network model
-        self.nn_model = None
+        # function approximation by a neural network
+        self.nn_func_appr = None
 
         # grid evalutations
         self.grid_potential = None
@@ -467,8 +467,11 @@ class Sampling(LangevinSDE):
         self.initialize_fht()
         self.initialize_girsanov_martingale_terms()
 
+        ## nn model
+        model = self.nn_func_appr.model
+
         # number of flattened parameters
-        m = self.nn_model.d_flatten
+        m = model.d_flatten
 
         # preallocate loss and tilted loss
         loss = np.zeros(self.N)
@@ -493,7 +496,7 @@ class Sampling(LangevinSDE):
 
             # control
             xt_tensor = torch.tensor(xt, dtype=torch.float)
-            ut_tensor = self.nn_model.forward(xt_tensor)
+            ut_tensor = model.forward(xt_tensor)
             ut_tensor_det = ut_tensor.detach()
             ut = ut_tensor_det.numpy()
 
@@ -840,9 +843,9 @@ class Sampling(LangevinSDE):
             self.grid_control = self.ansatz.control(x).reshape(self.domain_h.shape)
 
         # two layer nn control
-        elif self.is_controlled and self.nn_model is not None:
+        elif self.is_controlled and self.nn_func_appr is not None:
             inputs = torch.tensor(x, dtype=torch.float)
-            control_flattened = self.nn_model(inputs).detach().numpy()
+            control_flattened = self.nn_func_appr.model(inputs).detach().numpy()
             self.grid_control = control_flattened.reshape(self.domain_h.shape)
 
         # controlled drift

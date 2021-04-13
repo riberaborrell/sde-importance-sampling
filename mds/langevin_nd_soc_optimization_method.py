@@ -11,21 +11,18 @@ import os
 class StochasticOptimizationMethod:
     '''
     '''
-    def __init__(self, sample, parametrization, optimizer, grad_estimator, lr, iterations_lim,
+    def __init__(self, sample, optimizer, grad_estimator, lr, iterations_lim,
                  do_iteration_plots=False):
         '''
         '''
-        # type of parametrization
-        self.parametrization = parametrization
+        # sampling object to estimate the loss and its gradient
+        self.sample = sample
 
         # type of estimator for the gradient of the loss function
         self.grad_estimator = grad_estimator
 
         # type of optimization method
         self.optimizer = optimizer
-
-        # sampling object to estimate the loss and its gradient
-        self.sample = sample
 
         # (initial) learning rate and maximal number of iterations 
         self.lr = lr
@@ -58,13 +55,13 @@ class StochasticOptimizationMethod:
             self.iterations_dir_path = None
 
     def set_dir_path(self):
-        if self.parametrization == 'gaussian-value-f':
-            parametrization_dir_path = self.sample.ansatz.dir_path
-        elif self.parametrization == 'two-layer-nn-control':
-            parametrization_dir_path = self.sample.nn_model.dir_path
+        if self.sample.ansatz is not None:
+            func_appr_dir_path = self.sample.ansatz.dir_path
+        elif self.sample.nn_func_appr is not None:
+            func_appr_dir_path = self.sample.nn_func_appr.dir_path
 
         self.dir_path = get_som_dir_path(
-            parametrization_dir_path,
+            func_appr_dir_path,
             self.grad_estimator,
             self.optimizer,
             self.lr,
@@ -128,7 +125,7 @@ class StochasticOptimizationMethod:
         self.start_timer()
 
         # model and number of parameters
-        model = self.sample.nn_model
+        model = self.sample.nn_func_appr.model
         m = model.d_flatten
 
         # define device
@@ -207,6 +204,7 @@ class StochasticOptimizationMethod:
                   os.path.join(self.dir_path, 'som.npz'),
                   allow_pickle=True,
             )
+            breakpoint()
             self.iterations = som['iterations']
             self.thetas = som['thetas']
             self.losses = som['losses']
@@ -322,10 +320,10 @@ class StochasticOptimizationMethod:
         label = r'iteration: {}'.format(i)
 
         # set theta
-        if self.parametrization == 'gaussian-value-f':
+        if self.sample.ansatz is not None:
             self.sample.ansatz.theta = self.thetas[i]
-        elif self.parametrization == 'two-layer-nn-control':
-            self.sample.nn_model.load_parameters(self.thetas[i])
+        elif self.sample.nn_func_appr is not None:
+            self.sample.nn_func_appr.model.load_parameters(self.thetas[i])
 
         # discretize domain and evaluate in grid
         self.sample.discretize_domain(h=0.001)
@@ -371,10 +369,10 @@ class StochasticOptimizationMethod:
             labels.append(r'iteration = {:d}'.format(i))
 
             # set theta
-            if self.parametrization == 'gaussian-value-f':
+            if self.sample.ansatz is not None:
                 self.sample.ansatz.theta = self.thetas[i]
-            elif self.parametrization == 'two-layer-nn-control':
-                self.sample.nn_model.load_parameters(self.thetas[i])
+            elif self.sample.nn_func_appr is not None:
+                self.sample.nn_func_appr.model.load_parameters(self.thetas[i])
 
             self.sample.get_grid_value_function()
             self.sample.get_grid_control()
@@ -406,10 +404,10 @@ class StochasticOptimizationMethod:
         ext = '_iter{}'.format(i)
 
         # set theta
-        if self.parametrization == 'gaussian-value-f':
+        if self.sample.ansatz is not None:
             self.sample.ansatz.theta = self.thetas[i]
-        elif self.parametrization == 'two-layer-nn-control':
-            self.sample.nn_model.load_parameters(self.thetas[i])
+        elif self.sample.nn_func_appr is not None:
+            self.sample.nn_func_appr.model.load_parameters(self.thetas[i])
 
         # discretize domain and evaluate in grid
         self.sample.discretize_domain(h=0.05)

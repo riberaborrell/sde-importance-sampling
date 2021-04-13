@@ -1,6 +1,8 @@
 from mds.base_parser_nd import get_base_parser
 from mds.langevin_nd_importance_sampling import Sampling
+from mds.langevin_nd_sde import LangevinSDE
 from mds.langevin_nd_soc_optimization_method import StochasticOptimizationMethod
+from mds.langevin_nd_function_approximation import FunctionApproximation
 from mds.neural_networks import TwoLayerNet
 
 import numpy as np
@@ -45,19 +47,35 @@ def main():
         is_controlled=True,
     )
 
-    # fix seed
-    #np.random.seed(args.seed)
-    #torch.manual_seed(args.seed)
-
     # initialize two layer nn 
     d_in, d_1, d_out = args.n, args.hidden_layer_dim, args.n
     model = TwoLayerNet(d_in, d_1, d_out)
 
-    # set dir path for nn
-    model.set_dir_path(sample.settings_dir_path)
+    # initialize function approximation
+    func = FunctionApproximation(
+        target_function='control',
+        model=model,
+    )
 
-    # add nn parametrization
-    sample.nn_model = model
+    # set initial choice of parametrization
+    if args.theta == 'random':
+        pass
+        func.reset_parameters()
+    elif args.theta == 'null':
+        func.zero_parameters()
+    elif args.theta == 'meta' and not args.load:
+        sde = LangevinSDE.new_from(sample)
+        func.fit_parameters_from_metadynamics(sde)
+    elif args.theta == 'meta' and args.load:
+        func.initialization='meta'
+    else:
+        return
+
+    # set dir path for nn
+    func.set_dir_path(sample.settings_dir_path)
+
+    # add nn function approximation
+    sample.nn_func_appr = func
 
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(
@@ -71,7 +89,6 @@ def main():
     # initialize SOM
     adam = StochasticOptimizationMethod(
         sample=sample,
-        parametrization='two-layer-nn-control',
         grad_estimator='ipa',
         optimizer='adam',
         lr=args.lr,
@@ -101,12 +118,17 @@ def main():
 
     # do plots 
     if args.do_plots:
-        adam.plot_losses(args.h_hjb, N_mc=100000)
-        adam.plot_time_steps()
-        adam.plot_1d_iteration(i=4)
-        adam.plot_1d_iterations()
-        #adam.plot_2d_epoch(i=0)
 
+        # plot loss function, relative error and time steps
+        adam.plot_losses(args.h_hjb, dt_mc=0.001, N_mc=100000)
+        adam.plot_time_steps()
+
+        if args.n == 1:
+            adam.plot_1d_iteration(i=4)
+            adam.plot_1d_iterations()
+
+        elif args.n == 2:
+            adam.plot_2d_iteration(i=0)
 
 
 if __name__ == "__main__":

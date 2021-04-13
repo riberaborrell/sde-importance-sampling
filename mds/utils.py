@@ -181,12 +181,13 @@ def get_gaussian_ansatz_dir_path(settings_dir_path, distributed, theta, m_i=None
 
     return dir_path
 
-def get_two_layer_nn_dir_path(settings_dir_path, hidden_layer_dim, parameters):
+def get_nn_function_approximation_dir_path(settings_dir_path, target_function,
+                                           nn_rel_path, initialization):
     dir_path = os.path.join(
         settings_dir_path,
-        'two-layer-nn-control',
-        'd1_{}'.format(hidden_layer_dim),
-        'theta_{}'.format(parameters),
+        'appr_{}'.format(target_function),
+        nn_rel_path,
+        'theta_{}'.format(initialization),
     )
 
     # create dir path if not exists
@@ -195,12 +196,12 @@ def get_two_layer_nn_dir_path(settings_dir_path, hidden_layer_dim, parameters):
     return dir_path
 
 
-def get_som_dir_path(parametrization_dir_path, grad_estimator, optimizer, lr, dt, N):
+def get_som_dir_path(func_appr_dir_path, grad_estimator, optimizer, lr, dt, N):
     ''' Get stochastic optimization method absolute dir path and create its directories
     '''
     # get dir path
     dir_path = os.path.join(
-        parametrization_dir_path,
+        func_appr_dir_path,
         grad_estimator,
         optimizer,
         'lr_{}'.format(float(lr)),
