@@ -3,7 +3,7 @@ from mds.langevin_nd_importance_sampling import Sampling
 from mds.langevin_nd_sde import LangevinSDE
 from mds.langevin_nd_soc_optimization_method import StochasticOptimizationMethod
 from mds.langevin_nd_function_approximation import FunctionApproximation
-from mds.neural_networks import TwoLayerNet
+from mds.neural_networks import GaussianAnsatz
 
 import numpy as np
 
@@ -13,13 +13,6 @@ import torch.optim as optim
 def get_parser():
     parser = get_base_parser()
     parser.description = ''
-    parser.add_argument(
-        '--hidden-layer-dim',
-        dest='hidden_layer_dim',
-        type=int,
-        default=10,
-        help='Set dimension of the hidden layer. Default: 10',
-    )
     parser.add_argument(
         '--iterations-lim',
         dest='iterations_lim',
@@ -47,9 +40,28 @@ def main():
         is_controlled=True,
     )
 
-    # initialize two layer nn 
-    d_in, d_1, d_out = args.n, args.hidden_layer_dim, args.n
-    model = TwoLayerNet(d_in, d_1, d_out)
+    # define uniformed distributed means
+    m = args.m_i ** args.n
+
+    mgrid_input = []
+    for i in range(args.n):
+        slice_i = slice(sample.domain[i, 0], sample.domain[i, 1], complex(0, args.m_i))
+        mgrid_input.append(slice_i)
+    means = np.mgrid[mgrid_input]
+    means = np.moveaxis(means, 0, -1).reshape(m, args.n)
+    means = torch.tensor(means, dtype=torch.float32)
+
+    # define cov matrix
+    cov = torch.eye(args.n)
+    cov *= args.sigma_i
+
+    # initialize gaussian ansatz nn 
+    model = GaussianAnsatz(
+        n=args.n,
+        m=m,
+        means=means,
+        cov=cov,
+    )
 
     # initialize function approximation
     func = FunctionApproximation(

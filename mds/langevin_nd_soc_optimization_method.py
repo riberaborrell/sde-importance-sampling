@@ -126,7 +126,7 @@ class StochasticOptimizationMethod:
 
         # model and number of parameters
         model = self.sample.nn_func_appr.model
-        m = model.d_flatten
+        m = model.d_flat
 
         # define device
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -204,7 +204,6 @@ class StochasticOptimizationMethod:
                   os.path.join(self.dir_path, 'som.npz'),
                   allow_pickle=True,
             )
-            breakpoint()
             self.iterations = som['iterations']
             self.thetas = som['thetas']
             self.losses = som['losses']

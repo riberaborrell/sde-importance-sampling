@@ -471,7 +471,7 @@ class Sampling(LangevinSDE):
         model = self.nn_func_appr.model
 
         # number of flattened parameters
-        m = model.d_flatten
+        m = model.d_flat
 
         # preallocate loss and tilted loss
         loss = np.zeros(self.N)
