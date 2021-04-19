@@ -113,8 +113,7 @@ def main():
 
     # report adam
     if args.do_report:
-        #adam.write_report()
-        pass
+        adam.write_report()
 
     # do plots 
     if args.do_plots:
@@ -122,13 +121,14 @@ def main():
         # plot loss function, relative error and time steps
         adam.plot_losses(args.h_hjb, dt_mc=0.001, N_mc=100000)
         adam.plot_time_steps()
+        adam.plot_I_u()
 
         if args.n == 1:
-            adam.plot_1d_iteration(i=4)
+            adam.plot_1d_iteration()
             adam.plot_1d_iterations()
 
         elif args.n == 2:
-            adam.plot_2d_iteration(i=499)
+            adam.plot_2d_iteration()
 
 
 if __name__ == "__main__":

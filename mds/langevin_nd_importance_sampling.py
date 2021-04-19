@@ -719,12 +719,12 @@ class Sampling(LangevinSDE):
             return False
 
     def write_euler_maruyama_parameters(self, f):
-        f.write('Euler-Maruyama discretization parameters\n')
+        f.write('\nEuler-Maruyama discretization parameters\n')
         f.write('dt: {:2.4f}\n'.format(self.dt))
-        f.write('maximal time steps: {:,d}\n\n'.format(self.k_lim))
+        f.write('maximal time steps: {:,d}\n'.format(self.k_lim))
 
     def write_sampling_parameters(self, f):
-        f.write('Sampling parameters\n')
+        f.write('\nSampling parameters\n')
         f.write('controlled process: {}\n'.format(self.is_controlled))
 
         initial_posicion = 'xzero: ('
@@ -739,9 +739,9 @@ class Sampling(LangevinSDE):
         f.write('sampled trajectories: {:,d}\n'.format(self.N))
 
         if self.seed:
-            f.write('seed: {:2.1f}'.format(self.seed))
+            f.write('seed: {:2.1f}\n'.format(self.seed))
         else:
-            f.write('seed: -\n\n')
+            f.write('seed: -\n')
 
     def write_report(self):
         '''
@@ -760,7 +760,7 @@ class Sampling(LangevinSDE):
         if self.is_controlled and not self.is_optimal:
             self.ansatz.write_ansatz_parameters(f)
 
-        f.write('Statistics\n\n')
+        f.write('\nStatistics\n')
 
         f.write('trajectories which arrived: {:2.2f} %\n'
                 ''.format(100 * self.N_arrived / self.N))

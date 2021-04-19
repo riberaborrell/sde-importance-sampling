@@ -1,5 +1,6 @@
 from mds.plots import Plot
 from mds.utils import make_dir_path, get_som_dir_path, get_time_in_hms
+from mds.numeric_utils import slice_1d_array
 
 import numpy as np
 import torch
@@ -232,18 +233,23 @@ class StochasticOptimizationMethod:
 
         sample.write_setting(f)
         sample.write_sampling_parameters(f)
-        sample.ansatz.write_ansatz_parameters(f)
+        sample.nn_func_appr.write_parameters(f)
 
-        f.write('Stochastic optimization method parameters\n')
-        f.write('som type: {}\n\n'.format(self.optimizer_type))
-        f.write('grad type: {}\n\n'.format(self.grad_type))
+        f.write('\nStochastic optimization method parameters\n')
+        f.write('grad type: {}\n'.format(self.grad_estimator))
+        f.write('som type: {}\n\n'.format(self.optimizer))
 
         f.write('lr: {}\n'.format(self.lr))
         f.write('iterations lim: {}\n'.format(self.iterations_lim))
 
         f.write('iterations used: {}\n'.format(self.iterations[-1]))
-        f.write('total time steps: {:,d}\n'.format(int(self.time_steps.sum())))
-        f.write('approx value function at xzero: {:2.3f}\n\n'.format(self.losses[-1]))
+        f.write('total time steps: {:,d}\n\n'.format(int(self.time_steps.sum())))
+
+        f.write('E[I_u] (last iter.): {:2.3e}\n'.format(self.means_I_u[-1]))
+        f.write('Var[I_u] (last iter.): {:2.3e}\n'.format(self.vars_I_u[-1]))
+        f.write('RE[I_u] (last iter.): {:2.3f}\n'.format(self.res_I_u[-1]))
+        f.write('F (last iter.): {:2.3f}\n'.format(- np.log(self.means_I_u[-1])))
+        f.write('loss function (last iter.): {:2.3f}\n\n'.format(self.losses[-1]))
 
         h, m, s = get_time_in_hms(self.t_final - self.t_initial)
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
@@ -292,13 +298,38 @@ class StochasticOptimizationMethod:
             'MC Sampling (N={:.0e})'.format(N_mc),
         ]
 
-        plt = Plot(self.dir_path, 'losses_line')
+        plt = Plot(self.dir_path, 'loss')
         plt.xlabel = 'iterations'
         #plt.set_ylim(0, 1.2 * np.max(ys))
         plt.multiple_lines_plot(self.iterations, ys, colors, linestyles, labels)
 
+    def plot_I_u(self):
+
+        plt = Plot(self.dir_path, 'I_u_mean')
+        plt.xlabel = 'iterations'
+        plt.one_line_plot(self.iterations, self.means_I_u)
+
+        plt = Plot(self.dir_path, 'I_u_var')
+        plt.xlabel = 'iterations'
+        plt.one_line_plot(self.iterations, self.vars_I_u)
+
+        plt = Plot(self.dir_path, 'I_u_re')
+        plt.xlabel = 'iterations'
+        plt.one_line_plot(self.iterations, self.res_I_u)
+
+        plt = Plot(self.dir_path, 'I_u')
+        plt.plt.plot(self.iterations, self.means_I_u, color='b', linestyle='-')
+        plt.plt.fill_between(
+            self.iterations,
+            self.means_I_u - self.vars_I_u,
+            self.means_I_u + self.vars_I_u,
+        )
+        #plt.plt.ylim(0, 0.01)
+        plt.plt.savefig(plt.file_path)
+        plt.plt.close()
+
     def plot_time_steps(self):
-        plt = Plot(self.dir_path, 'time_steps_line')
+        plt = Plot(self.dir_path, 'time_steps')
         plt.set_scientific_notation('y')
         plt.xlabel = 'iterations'
         plt.set_ylim(0, 1.2 * np.max(self.time_steps))
@@ -311,7 +342,11 @@ class StochasticOptimizationMethod:
         plt.one_bar_plot(self.iterations, self.time_steps, color='purple', label='TS')
 
 
-    def plot_1d_iteration(self, i):
+    def plot_1d_iteration(self, i=None):
+        # last iteration is i is not given
+        if i is None:
+            i = self.iterations[-1]
+
         assert i in self.iterations, ''
 
         self.set_iterations_dir_path()
@@ -342,12 +377,6 @@ class StochasticOptimizationMethod:
         self.sample.plot_1d_control(self.sample.grid_control[:, 0], sol.u_opt[:, 0],
                                     label=label, dir_path=self.iterations_dir_path, ext=ext)
 
-    def get_sliced_iterations(self, n_sliced_iterations=5, start=None, stop=None):
-        step = self.iterations[start:stop].shape[0] // n_sliced_iterations
-        sliced_iterations = self.iterations[start:stop:step]
-        if self.iterations[-1] != sliced_iterations[-1]:
-            sliced_iterations = np.append(sliced_iterations, self.iterations[-1])
-        return sliced_iterations
 
     def plot_1d_iterations(self):
 
@@ -356,7 +385,7 @@ class StochasticOptimizationMethod:
         x = self.sample.domain_h[:, 0]
 
         # filter iterations to show
-        sliced_iterations = self.get_sliced_iterations()
+        sliced_iterations = slice_1d_array(self.iterations, n_elements=5)
 
         # preallocate functions
         labels = []
@@ -396,7 +425,12 @@ class StochasticOptimizationMethod:
         self.sample.plot_1d_controls(controls, u_hjb=sol.u_opt[:, 0],
                                      labels=labels[:], dir_path=self.dir_path)
 
-    def plot_2d_iteration(self, i):
+    def plot_2d_iteration(self, i=None):
+
+        # last iteration is i is not given
+        if i is None:
+            i = self.iterations[-1]
+
         assert i in self.iterations, ''
 
         self.set_iterations_dir_path()

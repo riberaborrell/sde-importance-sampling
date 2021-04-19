@@ -91,6 +91,9 @@ class TwoLayerNet(nn.Module):
     def __init__(self, d_in, d_1, d_out):
         super(TwoLayerNet, self).__init__()
 
+        # model name
+        self.name = 'two-layer-nn'
+
         # define the two linear layers
         self.d_in = d_in
         self.d_1 = d_1
@@ -111,13 +114,6 @@ class TwoLayerNet(nn.Module):
         h_relu = self.linear1(x).clamp(min=0)
         y_pred = self.linear2(h_relu)
         return y_pred
-
-    def get_rel_path(self):
-        rel_path = os.path.join(
-            'two-layer-nn',
-            'd1_{}'.format(self.d_1),
-        )
-        return rel_path
 
     def get_flatten_parameters(self):
 
@@ -161,3 +157,14 @@ class TwoLayerNet(nn.Module):
             requires_grad=True,
             dtype=torch.float,
         )
+
+    def get_rel_path(self):
+        rel_path = os.path.join(
+            self.name,
+            'd1_{}'.format(self.d_1),
+        )
+        return rel_path
+
+    def write_parameters(self, f):
+        f.write('hidden layer dim: {:d}\n'.format(self.d_1))
+        f.write('flattened parameters dim: {:d}\n'.format(self.d_flat))

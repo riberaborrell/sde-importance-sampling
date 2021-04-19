@@ -112,3 +112,12 @@ class FunctionApproximation():
             optimizer.zero_grad()
 
         print('{:d}, {:2.3f}'.format(i, output))
+
+
+    def write_parameters(self, f):
+        f.write('Function approximation via nn\n')
+        f.write('target function: {}\n'.format(self.target_function))
+        f.write('model architecture: {}\n'.format(self.model.name))
+        self.model.write_parameters(f)
+        f.write('initialization: {}\n'.format(self.initialization))
+

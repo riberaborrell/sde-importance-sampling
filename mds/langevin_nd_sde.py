@@ -221,7 +221,7 @@ class LangevinSDE(object):
     def write_setting(self, f):
         '''
         '''
-        f.write('\n')
+        f.write('\nSDE Setting\n')
         f.write('potential: {}\n'.format(self.potential_name))
         f.write('alpha: {}\n'.format(self.alpha))
         f.write('beta: {:2.1f}\n'.format(self.beta))
@@ -233,7 +233,7 @@ class LangevinSDE(object):
                 target_set += i_axis_str
             else:
                 target_set += ', ' + i_axis_str
-        target_set += ']\n\n'
+        target_set += ']\n'
         f.write(target_set)
 
     def print_report(self, dir_path):
