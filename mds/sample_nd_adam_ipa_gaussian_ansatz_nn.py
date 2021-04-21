@@ -136,11 +136,11 @@ def main():
         adam.plot_time_steps()
 
         if args.n == 1:
-            adam.plot_1d_iteration(i=4)
+            adam.plot_1d_iteration()
             adam.plot_1d_iterations()
 
         elif args.n == 2:
-            adam.plot_2d_iteration(i=499)
+            adam.plot_2d_iteration()
 
 
 if __name__ == "__main__":

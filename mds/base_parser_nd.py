@@ -67,20 +67,6 @@ def get_base_parser():
         help='Set number of trajectories to sample. Default: 10.000',
     )
     parser.add_argument(
-        '--N-meta',
-        dest='N_meta',
-        type=int,
-        default=1,
-        help='Set number of trajectories to sample. Default: 1',
-    )
-    parser.add_argument(
-        '--N-gd',
-        dest='N_gd',
-        type=int,
-        default=1000,
-        help='Set number of trajectories to sample. Default: 1000',
-    )
-    parser.add_argument(
         '--dt',
         dest='dt',
         type=float,
@@ -117,6 +103,20 @@ def get_base_parser():
         help='Set the diagonal of the covariance matrix of the ansatz functions. Default: 0.5',
     )
     parser.add_argument(
+        '--dt-meta',
+        dest='dt_meta',
+        type=float,
+        default=0.001,
+        help='Set dt. Default: 0.001',
+    )
+    parser.add_argument(
+        '--N-meta',
+        dest='N_meta',
+        type=int,
+        default=1,
+        help='Set number of trajectories to sample. Default: 1',
+    )
+    parser.add_argument(
         '--sigma-i-meta',
         dest='sigma_i_meta',
         type=float,
@@ -150,6 +150,13 @@ def get_base_parser():
         type=float,
         default=0.01,
         help='Set learning rate. Default: 0.01',
+    )
+    parser.add_argument(
+        '--N-gd',
+        dest='N_gd',
+        type=int,
+        default=1000,
+        help='Set number of trajectories to sample. Default: 1000',
     )
     parser.add_argument(
         '--do-plots',

@@ -1,4 +1,5 @@
 from mds.base_parser_nd import get_base_parser
+from mds.langevin_nd_sde import LangevinSDE
 from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
 from mds.langevin_nd_importance_sampling import Sampling
 
@@ -23,19 +24,18 @@ def main():
         is_controlled=True,
     )
 
+    # initialize sde object
+    sde = LangevinSDE.new_from(sample)
+
     # initialize Gaussian ansatz
-    sample.ansatz = GaussianAnsatz(
-        n=args.n,
-        potential_name=args.potential_name,
-        alpha=np.full(args.n, args.alpha_i),
-        beta=args.beta,
-    )
+    sample.ansatz = GaussianAnsatz(n=args.n)
 
     # distribute Gaussian ansatz
     if args.distributed == 'uniform':
-        sample.ansatz.set_unif_dist_ansatz_functions(args.m_i, args.sigma_i)
+        sample.ansatz.set_unif_dist_ansatz_functions(sde, args.m_i, args.sigma_i)
     elif args.distributed == 'meta':
-        sample.ansatz.set_meta_dist_ansatz_functions(args.sigma_i_meta, args.k, args.N_meta)
+        sample.ansatz.set_meta_dist_ansatz_functions(sde, args.dt_meta, args.sigma_i_meta,
+                                                     args.k, args.N_meta)
     else:
         return
 
@@ -43,13 +43,14 @@ def main():
     if args.theta == 'null':
         sample.ansatz.set_theta_null()
     elif args.theta == 'meta':
-        sample.ansatz.h = args.h
-        sample.ansatz.set_theta_from_metadynamics(args.sigma_i_meta, args.k, args.N_meta)
+        sde.h = args.h
+        sample.ansatz.set_theta_from_metadynamics(sde, args.dt_meta, args.sigma_i_meta,
+                                                  args.k, args.N_meta)
     elif args.theta == 'optimal':
-        sample.ansatz.set_theta_from_hjb_solution(args.h_hjb)
+        sample.ansatz.set_theta_from_hjb_solution(sde, args.h_hjb)
 
     # set dir path for gaussian ansatz
-    sample.ansatz.set_dir_path()
+    sample.ansatz.set_dir_path(sde)
 
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(

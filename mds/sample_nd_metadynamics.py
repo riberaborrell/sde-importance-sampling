@@ -33,13 +33,7 @@ def main():
     )
 
     # initialize Gaussian Ansatz
-    sample.ansatz = GaussianAnsatz(
-        n=args.n,
-        potential_name=args.potential_name,
-        alpha=np.full(args.n, args.alpha_i),
-        beta=args.beta,
-        h=args.h,
-    )
+    sample.ansatz = GaussianAnsatz(n=args.n)
 
     # set k-steps sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(

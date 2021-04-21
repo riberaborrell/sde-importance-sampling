@@ -6,15 +6,14 @@ import scipy.stats as stats
 
 import os
 
-class GaussianAnsatz(LangevinSDE):
+class GaussianAnsatz():
     '''
     '''
-    def __init__(self, n, potential_name, alpha, beta,
-                 target_set=None, domain=None, h=None):
+    def __init__(self, n):
         '''
         '''
-        super().__init__(n, potential_name, alpha, beta,
-                         target_set, domain, h)
+        # dimension of the state space
+        self.n = n
 
         # number of ansatz, means and cov
         self.m = None
@@ -42,12 +41,12 @@ class GaussianAnsatz(LangevinSDE):
         # directory path
         self.dir_path = None
 
-    def set_dir_path(self):
+    def set_dir_path(self, sde):
         '''
         '''
         # get dir path
         dir_path = get_gaussian_ansatz_dir_path(
-            self.settings_dir_path,
+            sde.settings_dir_path,
             self.distributed,
             self.theta_type,
             self.m_i,
@@ -55,7 +54,6 @@ class GaussianAnsatz(LangevinSDE):
             self.sigma_i_meta,
             self.k,
             self.N_meta,
-            self.h,
         )
 
         # create dir path if not exists
@@ -71,7 +69,7 @@ class GaussianAnsatz(LangevinSDE):
         self.means = means
         self.cov = cov
 
-    def set_unif_dist_ansatz_functions(self, m_i, sigma_i):
+    def set_unif_dist_ansatz_functions(self, sde, m_i, sigma_i):
         '''
         '''
         self.m_i = m_i
@@ -79,7 +77,7 @@ class GaussianAnsatz(LangevinSDE):
 
         mgrid_input = []
         for i in range(self.n):
-            slice_i = slice(self.domain[i, 0], self.domain[i, 1], complex(0, m_i))
+            slice_i = slice(sde.domain[i, 0], sde.domain[i, 1], complex(0, m_i))
             mgrid_input.append(slice_i)
         self.means = np.mgrid[mgrid_input]
         self.means = np.moveaxis(self.means, 0, -1).reshape((self.m, self.n))
@@ -90,10 +88,10 @@ class GaussianAnsatz(LangevinSDE):
 
         self.distributed = 'uniform'
 
-    def set_meta_dist_ansatz_functions(self, sigma_i_meta, k, N_meta):
+    def set_meta_dist_ansatz_functions(self, sde, dt_meta, sigma_i_meta, k, N_meta):
         '''
         '''
-        meta_bias_pot = self.get_meta_bias_potential(sigma_i_meta, k, N_meta)
+        meta_bias_pot = sde.get_meta_bias_potential(dt_meta, sigma_i_meta, k, N_meta)
         meta_ms = meta_bias_pot['ms']
         meta_means = meta_bias_pot['means']
         meta_cov = meta_bias_pot['cov']
@@ -105,10 +103,10 @@ class GaussianAnsatz(LangevinSDE):
         self.N_meta = N_meta
         self.distributed = 'meta'
 
-    def set_meta_ansatz_functions(self, sigma_i_meta, k, N_meta):
+    def set_meta_ansatz_functions(self, sde, dt_meta, sigma_i_meta, k, N_meta):
         '''
         '''
-        meta_bias_pot = self.get_meta_bias_potential(sigma_i_meta, k, N_meta)
+        meta_bias_pot = sde.get_meta_bias_potential(sigma_i_meta, k, N_meta)
         meta_ms = meta_bias_pot['ms']
         meta_total_m = int(np.sum(meta_ms))
         meta_means = meta_bias_pot['means']
@@ -137,11 +135,11 @@ class GaussianAnsatz(LangevinSDE):
         self.theta = np.zeros(self.m)
         self.theta_type = 'null'
 
-    def set_theta_from_hjb_solution(self, h):
+    def set_theta_from_hjb_solution(self, sde, h):
         '''
         '''
         # get hjb solver
-        hjb_sol = self.get_hjb_solver(h)
+        hjb_sol = sde.get_hjb_solver(h)
 
         # flatten domain and free energy
         Nh = hjb_sol.Nh
@@ -154,7 +152,7 @@ class GaussianAnsatz(LangevinSDE):
         self.h = h
         self.theta_type = 'optimal'
 
-    def set_theta_from_metadynamics(self, sigma_i_meta, k, N_meta):
+    def set_theta_from_metadynamics(self, sde, dt_meta, sigma_i_meta, k, N_meta):
         '''
         '''
         if self.distributed == 'meta':
@@ -163,12 +161,12 @@ class GaussianAnsatz(LangevinSDE):
             assert self.N_meta == N_meta, ''
 
         # discretize domain
-        self.discretize_domain()
+        sde.discretize_domain()
 
         # flatten domain_h
-        x = self.domain_h.reshape(self.Nh, self.n)
+        x = sde.domain_h.reshape(sde.Nh, self.n)
 
-        meta_bias_pot = self.get_meta_bias_potential(sigma_i_meta, k, N_meta)
+        meta_bias_pot = sde.get_meta_bias_potential(dt_meta, sigma_i_meta, k, N_meta)
         meta_ms = meta_bias_pot['ms']
         meta_means = meta_bias_pot['means']
         meta_cov = meta_bias_pot['cov']
@@ -184,12 +182,7 @@ class GaussianAnsatz(LangevinSDE):
             meta_thetas_i = meta_thetas[idx_i]
 
             # create ansatz functions from meta
-            meta_ansatz = GaussianAnsatz(
-                n=self.n,
-                potential_name=self.potential_name,
-                alpha=self.alpha,
-                beta=self.beta,
-            )
+            meta_ansatz = GaussianAnsatz(n=self.n)
             meta_ansatz.set_given_ansatz_functions(
                 means=meta_means_i,
                 cov=meta_cov,
