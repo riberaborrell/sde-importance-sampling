@@ -177,7 +177,10 @@ class Sampling(LangevinSDE):
         '''
         assert self.N is not None, ''
 
+        # boolean array telling us if a trajectory have been in the target set
         self.been_in_target_set = np.repeat([False], self.N).reshape(self.N, 1)
+
+        # first hitting time of each trajectory
         self.fht = np.empty(self.N)
 
     def initialize_girsanov_martingale_terms(self):
@@ -194,23 +197,12 @@ class Sampling(LangevinSDE):
         return x + drift + diffusion
 
     def get_idx_new_in_target_set(self, x):
-        #TODO: try to avoid loop over the dimension. Check np.where
 
-        # assume trajectories are in the target set
-        is_in_target_set = np.repeat([True], self.N).reshape(self.N, 1)
-
-        for i in range(self.n):
-            is_not_in_target_set_i_axis_idx = np.where(
-                (x[:, i] < self.target_set[i, 0]) |
-                (x[:, i] > self.target_set[i, 1])
-            )[0]
-
-            # if they are NOT in the target set change flag
-            is_in_target_set[is_not_in_target_set_i_axis_idx] = False
-
-            # break if none of them is in the target set
-            if is_in_target_set.any() == False:
-                break
+        # boolean array telling us if a trajectory is in the target set
+        is_in_target_set = (
+            (x >= self.target_set[:, 0]) &
+            (x <= self.target_set[:, 1])
+        ).all(axis=1).reshape(self.N, 1)
 
         # indices of trajectories new in the target set
         idx = np.where(

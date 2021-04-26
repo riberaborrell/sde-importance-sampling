@@ -84,7 +84,7 @@ class LangevinSDE(object):
         # save number of indices per axis
         self.Nx = self.domain_h.shape[:-1]
 
-        # save number of flatten indices
+        # save number of flattened indices
         N = 1
         for i in range(self.n):
             N *= self.Nx[i]
@@ -97,12 +97,10 @@ class LangevinSDE(object):
 
         return x
 
-    def get_flatted_domain_h(self):
-        ''' this method returns the flatten discretized domain
+    def get_flattened_domain_h(self):
+        ''' this method returns the flattened discretized domain
         '''
-        breakpoint()
-        flat_shape = tuple(self.N, self.n)
-        x = self.domain_h.reshape(self.N, 2)
+        return self.domain_h.reshape(self.Nh, self.n)
 
     def get_index(self, x):
         ''' returns the index of the point of the grid closest to x
@@ -143,21 +141,11 @@ class LangevinSDE(object):
         # flatten domain_h
         x = self.domain_h.reshape(self.Nh, self.n)
 
-        # assume all nodes are in the target set
-        is_in_target_set = np.repeat([True], self.Nh)
-
-        for i in range(self.n):
-            # get index of nodes which are not in the i axis target set
-            not_in_target_set_i_idx = np.where(
-                (x[:, i] < self.target_set[i, 0]) |
-                (x[:, i] > self.target_set[i, 1])
-            )[0]
-            # if they are NOT in the target set change flag
-            is_in_target_set[not_in_target_set_i_idx] = False
-
-           # break loop for the dimensions if all positions are switched to False
-            if is_in_target_set.all() == False:
-                break
+        # boolean array telling us if x is in the target set
+        is_in_target_set = (
+            (x >= self.target_set[:, 0]) &
+            (x <= self.target_set[:, 1])
+        ).all(axis=1).reshape(self.Nh, 1)
 
         # get index
         return np.where(is_in_target_set == True)[0]
