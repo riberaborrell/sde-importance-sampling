@@ -290,9 +290,11 @@ class Sampling(LangevinSDE):
             xt = self.sde_update(xt, gradient, dB)
 
             # Girsanov Martingale terms
-            # TODO: find simmilar solution for a vectorized scalar product than in pytorch
-            # TODO: see torch.bmm
-            M1_t -= np.sqrt(self.beta) * np.matmul(ut, dB.T).diagonal()
+            M1_t -= np.sqrt(self.beta) \
+                  * np.matmul(
+                      ut[:, np.newaxis, :],
+                      dB[:, :, np.newaxis],
+                  ).squeeze()
             M2_t -= self.beta * 0.5 * (np.linalg.norm(ut, axis=1) ** 2) * self.dt
 
             # get indices from the trajectories which are new in target set
@@ -346,9 +348,11 @@ class Sampling(LangevinSDE):
             xt = self.sde_update(xt, gradient, dB)
 
             # Girsanov Martingale terms
-            # TODO: find simmilar solution for a vectorized scalar product than in pytorch
-            # TODO: see torch.bmm
-            M1_t -= np.sqrt(self.beta) * np.matmul(ut, dB.T).diagonal()
+            M1_t -= np.sqrt(self.beta) \
+                  * np.matmul(
+                      ut[:, np.newaxis, :],
+                      dB[:, :, np.newaxis],
+                  ).squeeze()
             M2_t -= self.beta * 0.5 * (np.linalg.norm(ut, axis=1) ** 2) * self.dt
 
             # get indices from the trajectories which are new in target set
@@ -506,7 +510,7 @@ class Sampling(LangevinSDE):
 
             # update statistics
             a_tensor = a_tensor \
-                     + torch.bmm(
+                     + torch.matmul(
                          torch.unsqueeze(ut_tensor_det, 1),
                          torch.unsqueeze(ut_tensor, 2),
                      ).reshape(self.N,) * self.dt
@@ -515,15 +519,17 @@ class Sampling(LangevinSDE):
             b_tensor = b_tensor + ((1 + 0.5 * (ut_norm_det ** 2)) * self.dt).reshape(self.N,)
 
             c_tensor = c_tensor \
-                     - np.sqrt(self.beta) * torch.bmm(
+                     - np.sqrt(self.beta) * torch.matmul(
                          torch.unsqueeze(ut_tensor, 1),
                          torch.unsqueeze(dB_tensor, 2),
                      ).reshape(self.N,)
 
             # Girsanov Martingale terms
-            # TODO: find simmilar solution for a vectorized scalar product than in pytorch
-            # TODO: see torch.bmm
-            M1_t -= np.sqrt(self.beta) * np.matmul(ut, dB.T).diagonal()
+            M1_t -= np.sqrt(self.beta) \
+                  * np.matmul(
+                      ut[:, np.newaxis, :],
+                      dB[:, :, np.newaxis],
+                  ).squeeze()
             M2_t -= self.beta * 0.5 * (np.linalg.norm(ut, axis=1) ** 2) * self.dt
 
             # get indices of trajectories which are new in the target set
