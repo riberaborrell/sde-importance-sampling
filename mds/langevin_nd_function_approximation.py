@@ -41,7 +41,7 @@ class FunctionApproximation():
                     layer._parameters[key], requires_grad=True
                 )
 
-    def fit_parameters_from_metadynamics(self, sde, iterations_lim=10000, epsilon=0.01):
+    def fit_parameters_from_metadynamics(self, sde, iterations_lim=10000, N=100, epsilon=0.01):
 
         # parameters
         self.initialization = 'meta'
@@ -72,7 +72,7 @@ class FunctionApproximation():
         for i in np.arange(iterations_lim):
 
             # sample training data
-            x = sde.sample_domain_uniformly(N=100)
+            x = sde.sample_domain_uniformly(N=N)
             x_tensor = torch.tensor(x, requires_grad=False, dtype=torch.float32)
 
             # ansatz functions evaluated at the grid
