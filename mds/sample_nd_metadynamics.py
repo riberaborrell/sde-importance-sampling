@@ -74,7 +74,7 @@ def main():
         if sample.n == 1:
             meta.plot_1d_updates()
         elif sample.n == 2:
-            meta.plot_2d_update(i=0, update=30)
+            meta.plot_2d_update()
 
 if __name__ == "__main__":
     main()

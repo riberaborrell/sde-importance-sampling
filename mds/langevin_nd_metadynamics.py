@@ -315,11 +315,16 @@ class Metadynamics:
                                              labels=labels[:], dir_path=self.dir_path,
                                              ext=ext)
 
-    def plot_2d_update(self, i=0, update=0):
+    def plot_2d_update(self, i=0, update=None):
 
         # number of updates of i meta trajectory
         n_updates = self.ms[i]
         updates = np.arange(n_updates)
+
+        # if update not give choose last update
+        if update is None:
+            update = updates[-1]
+
         assert update in updates, ''
 
         self.set_updates_dir_path()
