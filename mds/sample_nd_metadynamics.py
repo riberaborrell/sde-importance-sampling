@@ -35,25 +35,25 @@ def main():
     # initialize Gaussian Ansatz
     sample.ansatz = GaussianAnsatz(n=args.n)
 
-    # set k-steps sampling and Euler-Marujama parameters
-    sample.set_sampling_parameters(
-        xzero=np.full(args.n, args.xzero_i),
-        N=1,
-        dt=args.dt,
-        k_lim=args.k,
-    )
-
     # initialize meta nd object
     meta = Metadynamics(
         sample=sample,
-        N=args.N_meta,
-        xzero=np.full(args.n, args.xzero_i),
-        N_lim=args.k_lim,
         k=args.k,
+        N=args.N_meta,
         sigma_i=args.sigma_i_meta,
         seed=args.seed,
         do_updates_plots=args.do_updates_plots,
     )
+
+    # set sampling parameters
+    meta.set_sampling_parameters(
+        k_lim=args.k_lim,
+        dt=args.dt,
+        xzero=np.full(args.n, args.xzero_i),
+    )
+
+    # set path
+    meta.set_dir_path()
 
     if not args.load:
         # sample metadynamics trjectories

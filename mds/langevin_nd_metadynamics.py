@@ -9,7 +9,7 @@ class Metadynamics:
     '''
     '''
 
-    def __init__(self, sample, N, xzero, N_lim, k, sigma_i, seed=None, do_updates_plots=False):
+    def __init__(self, sample, k, N, sigma_i, seed=None, do_updates_plots=False):
 
         # sampling object
         self.sample = sample
@@ -20,11 +20,11 @@ class Metadynamics:
             np.random.seed(seed)
 
         # sampling
-        self.N = N
-        self.xzero = xzero
-        self.N_lim = N_lim
+        self.k_lim = None
         self.k = k
-        self.updates_lim = self.N_lim // self.k
+        self.updates_lim = None
+        self.N = N
+        self.xzero = None
 
         # metadynamics coefficients
         self.ms = None
@@ -68,6 +68,24 @@ class Metadynamics:
 
     def stop_timer(self):
         self.t_final = time.perf_counter()
+
+    def set_sampling_parameters(self, k_lim, dt, xzero):
+        '''set k-steps sampling and Euler-Marujama parameters
+        '''
+        # limit number of time steps and limit number of updates
+        self.k_lim = k_lim
+        self.updates_lim = k_lim // self.k
+
+        # initial position
+        self.xzero = xzero
+
+        # sampling parameters
+        self.sample.set_sampling_parameters(
+            dt=dt,
+            k_lim=self.k,
+            xzero=xzero,
+            N=1,
+        )
 
     def metadynamics_algorithm(self):
         # start timer
@@ -203,8 +221,7 @@ class Metadynamics:
         # write in file
         f = open(file_path, 'w')
 
-        self.sample.N_lim = self.N_lim
-        #self.sample.xzero = np.full((self.sample.N, self.sample.n), self.xzero)
+        self.sample.k_lim = self.k_lim
         self.sample.xzero = self.xzero
 
         self.sample.write_setting(f)
