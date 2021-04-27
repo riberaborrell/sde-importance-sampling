@@ -166,34 +166,12 @@ class LangevinSDE(object):
         sol.load_hjb_solution()
         return sol
 
-    def get_meta_bias_potential(self, dt, sigma_i_meta, k, N_meta):
-        try:
-            meta_dir_path = get_metadynamics_dir_path(
-                self.settings_dir_path,
-                dt,
-                sigma_i_meta,
-                k,
-                N_meta,
-            )
-            file_path = os.path.join(meta_dir_path, 'bias-potential.npz')
-            meta_bias_pot = np.load(file_path)
-            return meta_bias_pot
-        except:
-            msg = 'no meta bias potential found with dt={:.4f}, sigma_i={:.2f}, k={:d}, ' \
-                  'N={:.0e}'.format(dt, sigma_i, k, N_meta)
-            print(msg)
-
     def get_not_controlled_sampling(self, dt, N):
         from mds.langevin_nd_importance_sampling import Sampling
 
         # initialize not controlled sampling object
-        sample = Sampling(
-            n=self.n,
-            potential_name=self.potential_name,
-            alpha=self.alpha,
-            beta=self.beta,
-            is_controlled=False,
-        )
+        sample = Sampling.new_from(self)
+        sample.is_controlled = False
 
         # set Euler-Marujama discretiztion step and number of trajectories
         sample.dt = dt
@@ -205,6 +183,30 @@ class LangevinSDE(object):
         # load already sampled statistics
         sample.load_not_controlled_statistics()
         return sample
+
+    def get_metadynamics_sampling(self, dt, sigma_i_meta, k, N_meta):
+        from mds.langevin_nd_importance_sampling import Sampling
+        from mds.langevin_nd_metadynamics import Metadynamics
+
+        # initialize controlled sampling object
+        sample = Sampling.new_from(self)
+        sample.is_controlled = True
+        sample.dt = dt
+
+        # initialize meta nd object
+        meta = Metadynamics(
+            sample=sample,
+            k=k,
+            N=N_meta,
+            sigma_i=sigma_i_meta,
+        )
+
+        # set path
+        meta.set_dir_path()
+
+        # load already sampled trajectories
+        meta.load_bias_potential()
+        return meta
 
     def write_setting(self, f):
         '''

@@ -47,28 +47,19 @@ class FunctionApproximation():
         self.initialization = 'meta'
 
         # load meta bias potential
-        meta_bias_pot = sde.get_meta_bias_potential(dt=0.001, sigma_i_meta=0.5, k=100, N_meta=1)
-        meta_ms = meta_bias_pot['ms']
-        meta_means = meta_bias_pot['means']
-        meta_cov = meta_bias_pot['cov']
-        meta_thetas = meta_bias_pot['thetas']
+        meta = sde.get_metadynamics_sampling(dt=0.001, sigma_i_meta=0.5, k=100, N_meta=1)
 
         # get means and thetas for trajectory i
         i = 0
-        idx_i = slice(np.sum(meta_ms[:i]), np.sum(meta_ms[:i]) + meta_ms[i])
-        meta_means_i = meta_means[idx_i]
-        meta_thetas_i = meta_thetas[idx_i]
+        idx_i = slice(np.sum(meta.ms[:i]), np.sum(meta.ms[:i]) + meta.ms[i])
+        meta_means_i = meta.means[idx_i]
+        meta_thetas_i = meta.thetas[idx_i]
 
         # create ansatz functions from meta
-        meta_ansatz = GaussianAnsatz(
-            n=sde.n,
-            potential_name=sde.potential_name,
-            alpha=sde.alpha,
-            beta=sde.beta,
-        )
+        meta_ansatz = GaussianAnsatz(n=sde.n)
         meta_ansatz.set_given_ansatz_functions(
             means=meta_means_i,
-            cov=meta_cov,
+            cov=meta.cov,
         )
         meta_ansatz.theta = meta_thetas_i
 
@@ -81,7 +72,7 @@ class FunctionApproximation():
         for i in np.arange(iterations_lim):
 
             # sample training data
-            x = sde.sample_domain_uniformly(N=1000)
+            x = sde.sample_domain_uniformly(N=100)
             x_tensor = torch.tensor(x, requires_grad=False, dtype=torch.float32)
 
             # ansatz functions evaluated at the grid
@@ -112,6 +103,7 @@ class FunctionApproximation():
             optimizer.zero_grad()
 
         print('{:d}, {:2.3f}'.format(i, output))
+        breakpoint()
 
 
     def write_parameters(self, f):

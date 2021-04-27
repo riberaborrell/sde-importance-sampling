@@ -91,13 +91,10 @@ class GaussianAnsatz():
     def set_meta_dist_ansatz_functions(self, sde, dt_meta, sigma_i_meta, k, N_meta):
         '''
         '''
-        meta_bias_pot = sde.get_meta_bias_potential(dt_meta, sigma_i_meta, k, N_meta)
-        meta_ms = meta_bias_pot['ms']
-        meta_means = meta_bias_pot['means']
-        meta_cov = meta_bias_pot['cov']
-        assert N_meta == meta_ms.shape[0], ''
+        meta = sde.get_metadynamics_sampling(dt_meta, sigma_i_meta, k, N_meta)
+        assert N_meta == meta.ms.shape[0], ''
 
-        self.set_given_ansatz_functions(meta_means, meta_cov)
+        self.set_given_ansatz_functions(meta.means, meta.cov)
         self.sigma_i_meta = sigma_i_meta
         self.k = k
         self.N_meta = N_meta
@@ -106,24 +103,20 @@ class GaussianAnsatz():
     def set_meta_ansatz_functions(self, sde, dt_meta, sigma_i_meta, k, N_meta):
         '''
         '''
-        meta_bias_pot = sde.get_meta_bias_potential(sigma_i_meta, k, N_meta)
-        meta_ms = meta_bias_pot['ms']
-        meta_total_m = int(np.sum(meta_ms))
-        meta_means = meta_bias_pot['means']
-        meta_cov = meta_bias_pot['cov']
-        meta_thetas = meta_bias_pot['thetas']
-        assert N_meta == meta_ms.shape[0], ''
+        meta = sde.get_metadynamics_sampling(dt_meta, sigma_i_meta, k, N_meta)
+        meta_total_m = int(np.sum(meta.ms))
+        assert N_meta == meta.ms.shape[0], ''
 
         # get the centers used for each trajectory
         means = np.empty((meta_total_m, self.n))
         theta = np.empty(meta_total_m)
         flatten_idx = 0
         for i in np.arange(N_meta):
-            means[flatten_idx:flatten_idx+meta_ms[i]] = meta_means[i, :meta_ms[i]]
-            theta[flatten_idx:flatten_idx+meta_ms[i]] = meta_thetas[i, :meta_ms[i]]
-            flatten_idx += meta_ms[i]
+            means[flatten_idx:flatten_idx+meta.ms[i]] = meta.means[i, :meta.ms[i]]
+            theta[flatten_idx:flatten_idx+meta.ms[i]] = meta.thetas[i, :meta.ms[i]]
+            flatten_idx += meta.ms[i]
 
-        self.set_given_ansatz_functions(means, meta_cov)
+        self.set_given_ansatz_functions(means, meta.cov)
         self.sigma_i_meta = sigma_i_meta
         self.k = k
         self.N_meta = N_meta
@@ -166,26 +159,22 @@ class GaussianAnsatz():
         # flatten domain_h
         x = sde.domain_h.reshape(sde.Nh, self.n)
 
-        meta_bias_pot = sde.get_meta_bias_potential(dt_meta, sigma_i_meta, k, N_meta)
-        meta_ms = meta_bias_pot['ms']
-        meta_means = meta_bias_pot['means']
-        meta_cov = meta_bias_pot['cov']
-        meta_thetas = meta_bias_pot['thetas']
-        assert meta_ms.shape[0] == N_meta, ''
+        meta = sde.get_metadynamics_sampling(dt_meta, sigma_i_meta, k, N_meta)
+        assert meta.ms.shape[0] == N_meta, ''
 
         thetas = np.empty((N_meta, self.m))
 
         for i in np.arange(N_meta):
             # get means and thetas for each trajectory
-            idx_i = slice(np.sum(meta_ms[:i]), np.sum(meta_ms[:i]) + meta_ms[i])
-            meta_means_i = meta_means[idx_i]
-            meta_thetas_i = meta_thetas[idx_i]
+            idx_i = slice(np.sum(meta.ms[:i]), np.sum(meta.ms[:i]) + meta.ms[i])
+            meta_means_i = meta.means[idx_i]
+            meta_thetas_i = meta.thetas[idx_i]
 
             # create ansatz functions from meta
             meta_ansatz = GaussianAnsatz(n=self.n)
             meta_ansatz.set_given_ansatz_functions(
                 means=meta_means_i,
-                cov=meta_cov,
+                cov=meta.cov,
             )
 
             # meta value function evaluated at the grid
