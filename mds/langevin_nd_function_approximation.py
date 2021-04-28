@@ -47,21 +47,11 @@ class FunctionApproximation():
         self.initialization = 'meta'
 
         # load meta bias potential
-        meta = sde.get_metadynamics_sampling(dt=0.001, sigma_i_meta=0.5, k=100, N_meta=1)
-
-        # get means and thetas for trajectory i
-        i = 0
-        idx_i = slice(np.sum(meta.ms[:i]), np.sum(meta.ms[:i]) + meta.ms[i])
-        meta_means_i = meta.means[idx_i]
-        meta_thetas_i = meta.thetas[idx_i]
+        meta = sde.get_metadynamics_sampling(dt=0.001, sigma_i_meta=0.5, k=100, N_meta=10)
 
         # create ansatz functions from meta
-        meta_ansatz = GaussianAnsatz(n=sde.n)
-        meta_ansatz.set_given_ansatz_functions(
-            means=meta_means_i,
-            cov=meta.cov,
-        )
-        meta_ansatz.theta = meta_thetas_i
+        meta.sample.ansatz = GaussianAnsatz(n=sde.n)
+        meta.set_ansatz_all_trajectories()
 
         # define optimizer
         optimizer = optim.SGD(
@@ -80,7 +70,7 @@ class FunctionApproximation():
                 pass
                 #target = meta_ansatz.value_function(x)
             elif self.target_function == 'control':
-                target = meta_ansatz.control(x)
+                target = meta.sample.ansatz.control(x)
             target_tensor = torch.tensor(target, requires_grad=False, dtype=torch.float32)
 
             # define loss
@@ -102,8 +92,8 @@ class FunctionApproximation():
             # reset gradients
             optimizer.zero_grad()
 
+        print('nn fitted from metadynamics!')
         print('{:d}, {:2.3f}'.format(i, output))
-        breakpoint()
 
 
     def write_parameters(self, f):
