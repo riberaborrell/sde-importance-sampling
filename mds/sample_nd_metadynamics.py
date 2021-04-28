@@ -73,6 +73,7 @@ def main():
     if args.do_plots:
         if sample.n == 1:
             meta.plot_1d_updates()
+            meta.plot_1d_update()
         elif sample.n == 2:
             meta.plot_2d_update()
 

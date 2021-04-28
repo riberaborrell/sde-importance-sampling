@@ -1,3 +1,4 @@
+from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
 from mds.utils import get_metadynamics_dir_path, make_dir_path, empty_dir, get_time_in_hms
 from mds.numeric_utils import slice_1d_array
 
@@ -95,7 +96,7 @@ class Metadynamics:
         self.thetas = np.empty(0)
         self.means = np.empty((0, self.sample.n))
         self.cov = self.sigma_i * np.eye(self.sample.n)
-        self.time_steps = np.empty(self.N)
+        self.time_steps = np.empty(self.N, dtype=np.int32)
 
         # boolean array telling us if the algorithm succeeded or not for each sample
         self.succ = np.empty(self.N, dtype=bool)
@@ -159,7 +160,12 @@ class Metadynamics:
         self.ms[i] = j
         self.thetas = np.append(self.thetas, sample.ansatz.theta)
         self.means = np.vstack((self.means, sample.ansatz.means))
-        self.time_steps[:j] = time_steps
+        self.time_steps[i] = time_steps
+
+    def get_trajectory_indices(self, i):
+        assert i in range(self.N), ''
+
+        return slice(np.sum(self.ms[:i]), np.sum(self.ms[:i]) + self.ms[i])
 
     def save_bias_potential(self):
         np.savez(
@@ -195,6 +201,58 @@ class Metadynamics:
                   'N={:.0e}'.format(self.sample.dt, self.sigma_i, self.k, self.N)
             print(msg)
             return False
+
+    def set_ansatz_single_trajectory(self, i, update):
+
+        # get means and weights of i trajectory
+        idx_i = self.get_trajectory_indices(i)
+        means_i = self.means[idx_i]
+        thetas_i = self.thetas[idx_i]
+
+        # set ansatz and theta
+        self.sample.ansatz.set_given_ansatz_functions(
+            means_i[:update+1],
+            self.cov,
+        )
+        self.sample.ansatz.theta = thetas_i[:update+1]
+        self.sample.ansatz.set_value_function_constant_corner()
+
+
+    def set_ansatz_all_trajectories(self):
+
+        self.sample.ansatz.set_given_ansatz_functions(
+            means=self.means,
+            cov=self.cov,
+        )
+
+        m = np.sum(self.ms)
+        thetas = np.empty((self.N, m))
+
+        for i in np.arange(self.N):
+            # get means and thetas for each trajectory
+            idx_i = self.get_trajectory_indices(i)
+            meta_means_i = self.means[idx_i]
+            meta_thetas_i = self.thetas[idx_i]
+
+            # create ansatz functions corresponding to the ith metadynamics trajectory
+            meta_ansatz_i = GaussianAnsatz(n=self.sample.n)
+            meta_ansatz_i.set_given_ansatz_functions(
+                means=meta_means_i,
+                cov=self.cov,
+            )
+
+            # meta value function evaluated at the grid
+            x = self.means
+            meta_ansatz_i.set_value_function_constant_corner(meta_thetas_i)
+            value_f_meta = meta_ansatz_i.value_function(x, meta_thetas_i)
+
+            # ansatz functions evaluated at the grid
+            v = self.sample.ansatz.basis_value_f(x)
+
+            # solve theta V = \Phi
+            thetas[i], _, _, _ = np.linalg.lstsq(v, value_f_meta, rcond=None)
+
+        self.sample.ansatz.theta = np.mean(thetas, axis=0)
 
     def write_means(self, f):
         f.write('Center of the Gaussians\n')
@@ -235,7 +293,7 @@ class Metadynamics:
 
         f.write('traj succeeded: {:2.2f} %\n'
                 ''.format(100 * np.sum(self.succ) / self.N))
-        f.write('total m: {:d}\n'.format(int(np.sum(self.ms))))
+        f.write('total m: {:d}\n'.format(np.sum(self.ms)))
         f.write('total time steps: {:,d}\n\n'.format(int(np.sum(self.time_steps))))
 
         h, m, s = get_time_in_hms(self.t_final - self.t_initial)
@@ -250,12 +308,9 @@ class Metadynamics:
         f.close()
 
     def plot_1d_updates(self, i=0):
-        # get sampling object
-        sample = self.sample
-
         # discretize domain and evaluate in grid
-        sample.discretize_domain(h=0.001)
-        x = sample.domain_h[:, 0]
+        self.sample.discretize_domain(h=0.001)
+        x = self.sample.domain_h[:, 0]
 
         # filter updates to show
         n_updates = self.ms[i]
@@ -270,86 +325,122 @@ class Metadynamics:
 
         # not controlled case
         labels.append(r'not controlled')
-        sample.is_controlled = False
-        sample.get_grid_value_function()
-        sample.get_grid_control()
-        controlled_potentials[0, :] = sample.grid_controlled_potential
-        frees[0, :] = sample.grid_value_function
-        controls[0, :] = sample.grid_control[:, 0]
+        self.sample.is_controlled = False
+        self.sample.get_grid_value_function()
+        self.sample.get_grid_control()
+        controlled_potentials[0, :] = self.sample.grid_controlled_potential
+        frees[0, :] = self.sample.grid_value_function
+        controls[0, :] = self.sample.grid_control[:, 0]
 
-        sample.is_controlled = True
-        idx_i = slice(np.sum(self.ms[:i]), np.sum(self.ms[:i]) + self.ms[i])
-        means = self.means[idx_i]
-        thetas = self.thetas[idx_i]
+        self.sample.is_controlled = True
         for index, update in enumerate(sliced_updates):
             labels.append(r'update = {:d}'.format(update+1))
 
-            # set theta
-            sample.ansatz.set_given_ansatz_functions(
-                means[:update+1],
-                self.cov,
-            )
-            sample.ansatz.theta = thetas[:update+1]
-            sample.get_grid_value_function()
-            sample.get_grid_control()
+            self.set_ansatz_single_trajectory(i, update)
+
+            self.sample.get_grid_value_function()
+            self.sample.get_grid_control()
 
             # update functions
-            controlled_potentials[index+1, :] = sample.grid_controlled_potential
-            frees[index+1, :] = sample.grid_value_function
-            controls[index+1, :] = sample.grid_control[:, 0]
+            controlled_potentials[index+1, :] = self.sample.grid_controlled_potential
+            frees[index+1, :] = self.sample.grid_value_function
+            controls[index+1, :] = self.sample.grid_control[:, 0]
 
         # get hjb solution
-        sol = sample.get_hjb_solver(h=0.001)
+        sol = self.sample.get_hjb_solver(h=0.001)
         sol.get_controlled_potential_and_drift()
 
         # file extension
         ext = '_i_{}'.format(i)
 
-        sample.plot_1d_free_energies(frees, F_hjb=sol.F, labels=labels[:],
+        self.sample.plot_1d_free_energies(frees, F_hjb=sol.F, labels=labels[:],
+                                          dir_path=self.dir_path, ext=ext)
+        self.sample.plot_1d_controls(controls, u_hjb=sol.u_opt[:, 0], labels=labels[:],
                                      dir_path=self.dir_path, ext=ext)
-        sample.plot_1d_controls(controls, u_hjb=sol.u_opt[:, 0], labels=labels[:],
-                                dir_path=self.dir_path, ext=ext)
-        sample.plot_1d_controlled_potentials(controlled_potentials,
-                                             controlledV_hjb=sol.controlled_potential,
-                                             labels=labels[:], dir_path=self.dir_path,
-                                             ext=ext)
+        self.sample.plot_1d_controlled_potentials(controlled_potentials,
+                                                  controlledV_hjb=sol.controlled_potential,
+                                                  labels=labels[:], dir_path=self.dir_path,
+                                                  ext=ext)
 
-    def plot_2d_update(self, i=0, update=None):
+    def plot_1d_update(self, i=None, update=None):
 
-        # number of updates of i meta trajectory
-        n_updates = self.ms[i]
-        updates = np.arange(n_updates)
+        # plot given update for the chosen trajectory
+        if i is not None:
+            # number of updates of i meta trajectory
+            n_updates = self.ms[i]
+            updates = np.arange(n_updates)
 
-        # if update not give choose last update
-        if update is None:
-            update = updates[-1]
+            # if update not given choose last update
+            if update is None:
+                update = updates[-1]
 
-        assert update in updates, ''
+            assert update in updates, ''
 
-        self.set_updates_dir_path()
-        ext = '_update{}'.format(update)
+            # set plot dir path and file extension
+            self.set_updates_dir_path()
+            plot_dir_path = self.updates_dir_path
+            ext = '_update{}'.format(update)
 
-        # get indices of i trajectory
-        idx_i = slice(np.sum(self.ms[:i]), np.sum(self.ms[:i]) + self.ms[i])
-        means = self.means[idx_i]
-        thetas = self.thetas[idx_i]
+            # set ansatz
+            self.set_ansatz_single_trajectory(i, update)
 
-        # set ansatz and theta
-        self.sample.ansatz.set_given_ansatz_functions(
-            self.means[:update+1],
-            self.cov,
-        )
-        self.sample.ansatz.theta = thetas[:update+1]
-        self.sample.ansatz.set_value_function_constant_corner()
+        # plot averaged bias potential
+        else:
+            self.set_ansatz_all_trajectories()
+
+            # set plot dir path and file extension
+            plot_dir_path = self.dir_path
+            ext = ''
+
+        # discretize domain and evaluate in grid
+        self.sample.discretize_domain(h=0.001)
+        self.sample.get_grid_value_function()
+        self.sample.get_grid_control()
+
+        self.sample.plot_1d_controlled_potential(self.sample.grid_controlled_potential,
+                                                 dir_path=plot_dir_path, ext=ext)
+        self.sample.plot_1d_control(self.sample.grid_control[:, 0],
+                                    dir_path=plot_dir_path, ext=ext)
+        self.sample.plot_1d_controlled_drift(self.sample.grid_controlled_drift[:, 0],
+                                             dir_path=plot_dir_path, ext=ext)
+
+    def plot_2d_update(self, i=None, update=None):
+
+        # plot given update for the chosen trajectory
+        if i is not None:
+            # number of updates of i meta trajectory
+            n_updates = self.ms[i]
+            updates = np.arange(n_updates)
+
+            # if update not given choose last update
+            if update is None:
+                update = updates[-1]
+
+            assert update in updates, ''
+
+            # set plot dir path and file extension
+            self.set_updates_dir_path()
+            plot_dir_path = self.updates_dir_path
+            ext = '_update{}'.format(update)
+
+            # set ansatz
+            self.set_ansatz_single_trajectory(i, update)
+
+        # plot averaged bias potential
+        else:
+            self.set_ansatz_all_trajectories()
+
+            # set plot dir path and file extension
+            plot_dir_path = self.dir_path
+            ext = ''
 
         # discretize domain and evaluate in grid
         self.sample.discretize_domain(h=0.05)
         self.sample.get_grid_value_function()
         self.sample.get_grid_control()
 
-        if self.sample.grid_value_function is not None:
-            self.sample.plot_2d_controlled_potential(self.sample.grid_controlled_potential,
-                                                     self.updates_dir_path, ext)
-        self.sample.plot_2d_control(self.sample.grid_control, self.updates_dir_path, ext)
+        self.sample.plot_2d_controlled_potential(self.sample.grid_controlled_potential,
+                                                 plot_dir_path, ext)
+        self.sample.plot_2d_control(self.sample.grid_control, plot_dir_path, ext)
         self.sample.plot_2d_controlled_drift(self.sample.grid_controlled_drift,
-                                             self.updates_dir_path, ext)
+                                             plot_dir_path, ext)
