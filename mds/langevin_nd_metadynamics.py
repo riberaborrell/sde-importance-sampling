@@ -44,7 +44,6 @@ class Metadynamics:
         # set path
         self.dir_path = None
         self.updates_dir_path = None
-        self.set_dir_path()
 
         # plots per trajectory
         self.do_updates_plots = do_updates_plots

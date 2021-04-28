@@ -80,7 +80,7 @@ class GaussianAnsatz():
             slice_i = slice(sde.domain[i, 0], sde.domain[i, 1], complex(0, m_i))
             mgrid_input.append(slice_i)
         self.means = np.mgrid[mgrid_input]
-        self.means = np.moveaxis(self.means, 0, -1).reshape((self.m, self.n))
+        self.means = np.moveaxis(self.means, 0, -1).reshape(self.m, self.n)
 
         self.sigma_i = sigma_i
         self.cov = np.eye(self.n)
