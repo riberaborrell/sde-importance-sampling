@@ -217,7 +217,6 @@ class Metadynamics:
         self.sample.ansatz.theta = thetas_i[:update+1]
         self.sample.ansatz.set_value_function_constant_corner()
 
-
     def set_ansatz_all_trajectories(self):
 
         self.sample.ansatz.set_given_ansatz_functions(
