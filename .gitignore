@@ -1,6 +1,9 @@
 # data files
 data/
 
+# pipelines
+pipelines
+
 # pyenv version file
 .python-version
 
