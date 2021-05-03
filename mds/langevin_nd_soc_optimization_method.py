@@ -12,15 +12,15 @@ import os
 class StochasticOptimizationMethod:
     '''
     '''
-    def __init__(self, sample, optimizer, grad_estimator, lr, iterations_lim,
+    def __init__(self, sample, loss_type, optimizer, lr, iterations_lim,
                  do_iteration_plots=False):
         '''
         '''
         # sampling object to estimate the loss and its gradient
         self.sample = sample
 
-        # type of estimator for the gradient of the loss function
-        self.grad_estimator = grad_estimator
+        # type of loss function
+        self.loss_type = loss_type
 
         # type of optimization method
         self.optimizer = optimizer
@@ -30,10 +30,11 @@ class StochasticOptimizationMethod:
         self.iterations_lim = iterations_lim
 
         # per iteration
+        self.m = None
         self.iterations = None
         self.thetas = None
         self.losses = None
-        self.tilted_losses = None
+        self.ipa_losses = None
         self.grad_losses = None
         self.means_I_u = None
         self.vars_I_u = None
@@ -63,7 +64,7 @@ class StochasticOptimizationMethod:
 
         self.dir_path = get_som_dir_path(
             func_appr_dir_path,
-            self.grad_estimator,
+            self.loss_type,
             self.optimizer,
             self.lr,
             self.sample.dt,
@@ -80,21 +81,29 @@ class StochasticOptimizationMethod:
     def stop_timer(self):
         self.t_final = time.perf_counter()
 
+    def preallocate_arrays(self):
+
+        self.iterations = np.empty(0, dtype=int)
+        self.thetas = np.empty((0, self.m))
+        self.losses = np.empty(0)
+        self.means_I_u = np.empty(0)
+        self.vars_I_u = np.empty(0)
+        self.res_I_u = np.empty(0)
+        self.time_steps = np.empty(0)
+
+        if self.sample.ansatz is not None:
+            self.grad_losses = np.empty((0, self.m))
+        elif self.sample.nn_func_appr is not None and self.loss_type == 'ipa':
+            self.ipa_losses = np.empty(0)
+
     def sgd_ipa_gaussian_ansatz(self):
         self.start_timer()
 
-        # sampling object
-        sample = self.sample
-
         # number of parameters
-        m = sample.ansatz.m
+        self.m = self.sample.ansatz.m
 
         # preallocate parameters and losses
-        self.iterations = np.empty(0, dtype=int)
-        self.thetas = np.empty((0, m))
-        self.losses = np.empty(0)
-        self.grad_losses = np.empty((0, m))
-        self.time_steps = np.empty(0)
+        self.preallocate_arrays()
 
         for i in np.arange(self.iterations_lim):
             # plot control, free_energy and tilted potential
@@ -102,8 +111,8 @@ class StochasticOptimizationMethod:
                 pass
 
             # compute loss and its gradient 
-            succ, loss, grad_loss, time_steps = sample.sample_loss_ansatz()
-            print('{:d}, {:2.3f}'.format(i, loss))
+            succ, time_steps = self.sample.sample_loss_ansatz()
+            print('{:d}, {:2.3f}'.format(i, self.sample.loss))
 
             # check if sample succeeded
             if not succ:
@@ -111,23 +120,23 @@ class StochasticOptimizationMethod:
 
             # allocate
             self.iterations = np.append(self.iterations, i)
-            self.thetas = np.vstack((self.thetas, sample.ansatz.theta))
-            self.losses = np.append(self.losses, loss)
-            self.grad_losses = np.vstack((self.grad_losses, grad_loss))
+            self.thetas = np.vstack((self.thetas, self.sample.ansatz.theta))
+            self.losses = np.append(self.losses, self.sample.loss)
+            self.grad_losses = np.vstack((self.grad_losses, self.sample.grad_loss))
             self.time_steps = np.append(self.time_steps, time_steps)
 
             # update coefficients
-            sample.ansatz.theta = self.thetas[i, :] - self.lr * self.grad_losses[i, :]
+            self.sample.ansatz.theta = self.thetas[i, :] - self.lr * self.grad_losses[i, :]
 
         self.stop_timer()
         self.save_som()
 
-    def som_ipa_nn(self):
+    def som_nn(self):
         self.start_timer()
 
         # model and number of parameters
         model = self.sample.nn_func_appr.model
-        m = model.d_flat
+        self.m = model.d_flat
 
         # define device
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -139,19 +148,18 @@ class StochasticOptimizationMethod:
         )
 
         # preallocate parameters and losses
-        self.iterations = np.empty(0, dtype=int)
-        self.thetas = np.empty((0, m))
-        self.losses = np.empty(0)
-        self.tilted_losses = np.empty(0)
-        self.means_I_u = np.empty(0)
-        self.vars_I_u = np.empty(0)
-        self.res_I_u = np.empty(0)
-        self.time_steps = np.empty(0)
+        self.preallocate_arrays()
 
         for i in np.arange(self.iterations_lim):
 
-            # compute loss
-            succ, time_steps = self.sample.sample_loss_nn(device)
+            # compute ipa loss
+            if self.loss_type == 'ipa':
+                succ, time_steps = self.sample.sample_ipa_loss_nn(device)
+
+            # compute relative entropy loss
+            elif self.loss_type == 're':
+                succ, time_steps = self.sample.sample_re_loss_nn(device)
+
             print('{:d}, {:2.3f}'.format(i, self.sample.loss))
 
             # check if sample succeeded
@@ -161,19 +169,28 @@ class StochasticOptimizationMethod:
             # allocate
             self.iterations = np.append(self.iterations, i)
             self.thetas = np.vstack((self.thetas, model.get_flatten_parameters()))
-            self.losses = np.append(self.losses, self.sample.loss)
-            self.tilted_losses = np.append(self.tilted_losses,
-                                           self.sample.tilted_loss.detach().numpy())
             self.means_I_u = np.append(self.means_I_u, self.sample.mean_I_u)
             self.vars_I_u = np.append(self.vars_I_u, self.sample.var_I_u)
             self.res_I_u = np.append(self.res_I_u, self.sample.re_I_u)
             self.time_steps = np.append(self.time_steps, time_steps)
 
+            if self.loss_type == 'ipa':
+                self.losses = np.append(self.losses, self.sample.loss)
+                self.ipa_losses = np.append(
+                    self.ipa_losses, self.sample.ipa_loss.detach().numpy()
+                )
+            elif self.loss_type == 're':
+                self.losses = np.append(self.losses, self.sample.loss.detach().numpy())
+
             # reset gradients
             optimizer.zero_grad()
 
             # compute gradients
-            self.sample.tilted_loss.backward()
+            if self.loss_type == 'ipa':
+                self.sample.ipa_loss.backward()
+
+            elif self.loss_type == 're':
+                self.sample.loss.backward()
 
             # update parameters
             optimizer.step()
@@ -189,7 +206,7 @@ class StochasticOptimizationMethod:
             iterations=self.iterations,
             thetas=self.thetas,
             losses=self.losses,
-            tilted_losses=self.tilted_losses,
+            ipa_losses=self.ipa_losses,
             grad_losses=self.grad_losses,
             means_I_u=self.means_I_u,
             vars_I_u=self.vars_I_u,
@@ -208,7 +225,7 @@ class StochasticOptimizationMethod:
             self.iterations = som['iterations']
             self.thetas = som['thetas']
             self.losses = som['losses']
-            self.tilted_losses = som['tilted_losses']
+            self.ipa_losses = som['ipa_losses']
             self.grad_losses = som['grad_losses']
             self.means_I_u=som['means_I_u']
             self.vars_I_u=som['vars_I_u']
@@ -236,7 +253,7 @@ class StochasticOptimizationMethod:
         sample.nn_func_appr.write_parameters(f)
 
         f.write('\nStochastic optimization method parameters\n')
-        f.write('grad type: {}\n'.format(self.grad_estimator))
+        f.write('loss type: {}\n'.format(self.loss_type))
         f.write('som type: {}\n\n'.format(self.optimizer))
 
         f.write('lr: {}\n'.format(self.lr))
@@ -275,8 +292,8 @@ class StochasticOptimizationMethod:
     def plot_losses(self, h_hjb, dt_mc, N_mc):
         # hjb F at xzero
         sol = self.sample.get_hjb_solver(h_hjb)
-        hjb_f_at_x = sol.get_f_at_x(self.sample.xzero)
-        if hjb_f_at_x is not None:
+        if sol.F is not None:
+            hjb_f_at_x = sol.get_f_at_x(self.sample.xzero)
             value_f_hjb = np.full(self.iterations.shape[0], hjb_f_at_x)
         else:
             value_f_hjb = np.full(self.iterations.shape[0], np.nan)
@@ -300,22 +317,35 @@ class StochasticOptimizationMethod:
 
         plt = Plot(self.dir_path, 'loss')
         plt.xlabel = 'iterations'
-        #plt.set_ylim(0, 1.2 * np.max(ys))
+        plt.set_ylim(0, 5) # n=1, beta=1
+        #plt.set_ylim(3, 5) # n=2, beta=1
+        #plt.set_ylim(4, 10) # n=3, beta=1
+        #plt.set_ylim(5, 10) # n=4, beta=1
         plt.multiple_lines_plot(self.iterations, ys, colors, linestyles, labels)
 
     def plot_I_u(self):
 
         plt = Plot(self.dir_path, 'I_u_mean')
         plt.xlabel = 'iterations'
+        plt.set_ylim(0.1, 0.2) # n=1, beta=1
+        #plt.set_ylim(0.03, 0.05) # n=2, beta=1
+        #plt.set_ylim(0.005, 0.02) # n=3, beta=1
+        #plt.set_ylim(0, 0.005) # n=4, beta=1
         plt.one_line_plot(self.iterations, self.means_I_u)
 
         plt = Plot(self.dir_path, 'I_u_var')
         plt.xlabel = 'iterations'
+        plt.set_ylim(0, 0.1) # n=1, beta=1
+        #plt.set_ylim(0, 0.01) # n=2, beta=1
+        #plt.set_ylim(0, 0.001) # n=3, beta=1
+        #plt.set_ylim(0, 0.0001) # n=4, beta=1
         plt.one_line_plot(self.iterations, self.vars_I_u)
 
         plt = Plot(self.dir_path, 'I_u_re')
         plt.xlabel = 'iterations'
+        plt.set_ylim(0, 5)
         plt.one_line_plot(self.iterations, self.res_I_u)
+        return
 
         plt = Plot(self.dir_path, 'I_u')
         plt.plt.plot(self.iterations, self.means_I_u, color='b', linestyle='-')
@@ -324,7 +354,7 @@ class StochasticOptimizationMethod:
             self.means_I_u - self.vars_I_u,
             self.means_I_u + self.vars_I_u,
         )
-        #plt.plt.ylim(0, 0.01)
+        plt.plt.ylim(0.03, 0.05) # n=2, beta=1
         plt.plt.savefig(plt.file_path)
         plt.plt.close()
 

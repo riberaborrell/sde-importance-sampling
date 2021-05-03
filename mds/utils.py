@@ -196,13 +196,13 @@ def get_nn_function_approximation_dir_path(settings_dir_path, target_function,
     return dir_path
 
 
-def get_som_dir_path(func_appr_dir_path, grad_estimator, optimizer, lr, dt, N):
+def get_som_dir_path(func_appr_dir_path, loss_type, optimizer, lr, dt, N):
     ''' Get stochastic optimization method absolute dir path and create its directories
     '''
     # get dir path
     dir_path = os.path.join(
         func_appr_dir_path,
-        grad_estimator,
+        'loss_{}'.format(loss_type),
         optimizer,
         'lr_{}'.format(float(lr)),
         'dt_{}'.format(dt),

@@ -28,6 +28,13 @@ def get_parser():
         help='Set maximal number of adam iterations. Default: 100',
     )
     parser.add_argument(
+        '--loss-type',
+        dest='loss_type',
+        choices=['ipa', 're'],
+        default='ipa',
+        help='Set type of loss. Default: "ipa"',
+    )
+    parser.add_argument(
         '--do-iteration-plots',
         dest='do_iteration_plots',
         action='store_true',
@@ -59,7 +66,6 @@ def main():
 
     # set initial choice of parametrization
     if args.theta == 'random':
-        pass
         func.reset_parameters()
     elif args.theta == 'null':
         func.zero_parameters()
@@ -89,7 +95,7 @@ def main():
     # initialize SOM
     adam = StochasticOptimizationMethod(
         sample=sample,
-        grad_estimator='ipa',
+        loss_type=args.loss_type,
         optimizer='adam',
         lr=args.lr,
         iterations_lim=args.iterations_lim,
@@ -99,7 +105,7 @@ def main():
     # start gd with ipa estimator for the gradient
     if not args.load:
         try:
-            adam.som_ipa_nn()
+            adam.som_nn()
 
         # save if job is manually interrupted
         except KeyboardInterrupt:
@@ -119,7 +125,7 @@ def main():
     if args.do_plots:
 
         # plot loss function, relative error and time steps
-        adam.plot_losses(args.h_hjb, dt_mc=0.001, N_mc=100000)
+        adam.plot_losses(args.h_hjb, dt_mc=0.01, N_mc=100000)
         adam.plot_time_steps()
         adam.plot_I_u()
 
@@ -128,7 +134,7 @@ def main():
             adam.plot_1d_iterations()
 
         elif args.n == 2:
-            adam.plot_2d_iteration()
+            adam.plot_2d_iteration(i=0)
 
 
 if __name__ == "__main__":

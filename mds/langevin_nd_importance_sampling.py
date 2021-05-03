@@ -85,7 +85,8 @@ class Sampling(LangevinSDE):
 
         # loss and its gradient
         self.loss = None
-        self.tilted_loss = None
+        self.grad_loss = None
+        self.ipa_loss = None
 
         # computational time
         self.t_initial = None
@@ -401,21 +402,24 @@ class Sampling(LangevinSDE):
 
     def sample_loss_ansatz(self):
         self.initialize_fht()
+        self.initialize_girsanov_martingale_terms()
 
         # number of ansatz functions
         m = self.ansatz.m
 
-        # initialize statistics 
-        J = np.zeros(self.N)
-        grad_J = np.zeros((self.N, m))
+        # preallocate loss and its gradient for the trajectories
+        loss_traj = np.zeros(self.N)
+        grad_loss_traj = np.zeros((self.N, m))
+        phi = np.zeros(self.N)
+        grad_phi = np.zeros((self.N, m))
+        grad_S = np.zeros((self.N, m))
 
         # initialize xt
         xt = np.full((self.N, self.n), self.xzero)
 
-        # initialize ipa variables
-        cost_temp = np.zeros(self.N)
-        grad_phi_temp = np.zeros((self.N, m))
-        grad_S_temp = np.zeros((self.N, m))
+        # initialize Girsanov Martingale terms, M_t = e^(M1_t + M2_t)
+        M1_t = np.zeros(self.N)
+        M2_t = np.zeros(self.N)
 
         for k in np.arange(1, self.k_lim+1):
             # Brownian increment
@@ -428,9 +432,9 @@ class Sampling(LangevinSDE):
 
             # ipa statistics 
             normed_ut = np.linalg.norm(ut, axis=1)
-            cost_temp += (1 + 0.5 * (normed_ut ** 2)) * self.dt
-            grad_phi_temp += np.sum(ut[:, np.newaxis, :] * btemp, axis=2) * self.dt
-            grad_S_temp -= np.sqrt(self.beta) * np.sum(dB[:, np.newaxis, :] * btemp, axis=2)
+            phi += (1 + 0.5 * (normed_ut ** 2)) * self.dt
+            grad_phi += np.sum(ut[:, np.newaxis, :] * btemp, axis=2) * self.dt
+            grad_S -= np.sqrt(self.beta) * np.sum(dB[:, np.newaxis, :] * btemp, axis=2)
 
             # compute gradient
             gradient = self.tilted_gradient(xt, ut)
@@ -438,28 +442,45 @@ class Sampling(LangevinSDE):
             # sde update
             xt = self.sde_update(xt, gradient, dB)
 
+            # Girsanov Martingale terms
+            M1_t -= np.sqrt(self.beta) \
+                  * np.matmul(
+                      ut[:, np.newaxis, :],
+                      dB[:, :, np.newaxis],
+                  ).squeeze()
+            M2_t -= self.beta * 0.5 * (np.linalg.norm(ut, axis=1) ** 2) * self.dt
+
             # get indices from the trajectories which are new in target set
             idx = self.get_idx_new_in_target_set(xt)
 
             # save ipa statistics
             if idx.shape[0] != 0:
-                J[idx] = cost_temp[idx]
-                grad_J[idx, :] = grad_phi_temp[idx, :] \
-                               - (cost_temp[idx])[:, np.newaxis] \
-                               * grad_S_temp[idx, :]
+
+                # save loss and grad loss for the arrived trajectories
+                loss_traj[idx] = phi[idx]
+                grad_loss_traj[idx, :] = grad_phi[idx, :] \
+                                       - phi[idx][:, np.newaxis] \
+                                       * grad_S[idx, :]
+
+                # save first hitting time and Girsanov Martingale terms
+                self.fht[idx] = k * self.dt
+                self.M1_fht[idx] = M1_t[idx]
+                self.M2_fht[idx] = M2_t[idx]
 
             # stop if all trajectories have arrived to the target set
             if self.been_in_target_set.all() == True:
                 break
 
         # compute averages
-        mean_J = np.mean(J)
-        mean_grad_J = np.mean(grad_J, axis=0)
+        self.loss = np.mean(loss_traj)
+        self.grad_loss = np.mean(grad_loss_traj, axis=0)
 
-        return True, mean_J, mean_grad_J, k
+        self.compute_I_u_statistics()
+
+        return True, k
 
 
-    def sample_loss_nn(self, device):
+    def sample_ipa_loss_nn(self, device):
         self.initialize_fht()
         self.initialize_girsanov_martingale_terms()
 
@@ -469,9 +490,9 @@ class Sampling(LangevinSDE):
         # number of flattened parameters
         m = model.d_flat
 
-        # preallocate loss and tilted loss
-        loss = np.zeros(self.N)
-        tilted_loss = torch.zeros(self.N)
+        # preallocate loss and ipa loss for the trajectories
+        loss_traj = np.zeros(self.N)
+        ipa_loss_traj = torch.zeros(self.N)
         a_tensor = torch.zeros(self.N).to(device)
         b_tensor = torch.zeros(self.N).to(device)
         c_tensor = torch.zeros(self.N).to(device)
@@ -532,11 +553,11 @@ class Sampling(LangevinSDE):
                 # get tensor indices if there are new trajectories 
                 idx_tensor = torch.tensor(idx, dtype=torch.long).to(device)
 
-                # save loss and tilted loss for the arrived trajectorries
-                loss[idx] = b_tensor.numpy()[idx]
-                tilted_loss[idx_tensor] = a_tensor.index_select(0, idx_tensor) \
-                                        - b_tensor.index_select(0, idx_tensor) \
-                                        * c_tensor.index_select(0, idx_tensor)
+                # save loss and ipa loss for the arrived trajectorries
+                loss_traj[idx] = b_tensor.numpy()[idx]
+                ipa_loss_traj[idx_tensor] = a_tensor.index_select(0, idx_tensor) \
+                                          - b_tensor.index_select(0, idx_tensor) \
+                                          * c_tensor.index_select(0, idx_tensor)
 
                 # save first hitting time and Girsanov Martingale terms
                 self.fht[idx] = k * self.dt
@@ -547,8 +568,84 @@ class Sampling(LangevinSDE):
             if self.been_in_target_set.all() == True:
                break
 
-        self.loss = np.mean(loss)
-        self.tilted_loss = torch.mean(tilted_loss)
+        self.loss = np.mean(loss_traj)
+        self.ipa_loss = torch.mean(ipa_loss_traj)
+
+        self.compute_I_u_statistics()
+
+        return True, k
+
+    def sample_re_loss_nn(self, device):
+        self.initialize_fht()
+        self.initialize_girsanov_martingale_terms()
+
+        ## nn model
+        model = self.nn_func_appr.model
+
+        # number of flattened parameters
+        m = model.d_flat
+
+        # preallocate loss and ipa loss for the trajectories
+        re_loss_traj = torch.zeros(self.N)
+        phi = torch.zeros(self.N)
+
+        # initialize trajectory
+        xt = np.full((self.N, self.n), self.xzero)
+
+        # initialize Girsanov Martingale terms, M_t = e^(M1_t + M2_t)
+        M1_t = np.zeros(self.N)
+        M2_t = np.zeros(self.N)
+
+        for k in np.arange(1, self.k_lim + 1):
+
+            # Brownian increment
+            dB = np.sqrt(self.dt) \
+               * np.random.normal(0, 1, self.N * self.n).reshape(self.N, self.n)
+            dB_tensor = torch.tensor(dB, requires_grad=False, dtype=torch.float32).to(device)
+
+            # control
+            xt_tensor = torch.tensor(xt, dtype=torch.float)
+            ut_tensor = model.forward(xt_tensor)
+            ut_tensor_det = ut_tensor.detach()
+            ut = ut_tensor_det.numpy()
+
+            # sde update
+            controlled_gradient = self.gradient(xt) - np.sqrt(2) * ut
+            xt = self.sde_update(xt, controlled_gradient, dB)
+
+            # update statistics
+            ut_norm = torch.linalg.norm(ut_tensor, axis=1)
+            phi = phi + ((1 + 0.5 * (ut_norm ** 2)) * self.dt)
+
+            # Girsanov Martingale terms
+            M1_t -= np.sqrt(self.beta) \
+                  * np.matmul(
+                      ut[:, np.newaxis, :],
+                      dB[:, :, np.newaxis],
+                  ).squeeze()
+            M2_t -= self.beta * 0.5 * (np.linalg.norm(ut, axis=1) ** 2) * self.dt
+
+            # get indices of trajectories which are new in the target set
+            idx = self.get_idx_new_in_target_set(xt)
+
+            if idx.shape[0] != 0:
+
+                # get tensor indices if there are new trajectories 
+                idx_tensor = torch.tensor(idx, dtype=torch.long).to(device)
+
+                # save loss and ipa loss for the arrived trajectorries
+                re_loss_traj[idx_tensor] = phi.index_select(0, idx_tensor)
+
+                # save first hitting time and Girsanov Martingale terms
+                self.fht[idx] = k * self.dt
+                self.M1_fht[idx] = M1_t[idx]
+                self.M2_fht[idx] = M2_t[idx]
+
+            # stop if all trajectories have arrived to the target set
+            if self.been_in_target_set.all() == True:
+               break
+
+        self.loss = torch.mean(re_loss_traj)
 
         self.compute_I_u_statistics()
 
