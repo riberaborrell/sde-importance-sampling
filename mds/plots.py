@@ -34,6 +34,9 @@ class Plot:
         # axes ticks
         self.yticks = None
 
+        # logplot
+        self.logplot = False
+
     @property
     def file_path(self):
         if self.file_name:
@@ -68,21 +71,30 @@ class Plot:
 
         self.plt.ticklabel_format(axis=axis, style='sci', scilimits=(-1, 1))
 
+    def set_logplot(self):
+        self.logplot = True
+
     def one_line_plot(self, x, y, color=None, label=None):
         assert x.ndim == y.ndim == 1, ''
         assert x.shape[0] == y.shape[0], ''
 
         plt = self.plt
 
-        plt.plot(x, y, color=color, linestyle='-', label=label)
+        if not self.logplot:
+            plt.plot(x, y, color=color, linestyle='-', label=label)
+        else:
+            plt.semilogy(x, y, color=color, linestyle='-', label=label)
+
         plt.xlabel(self.xlabel, fontsize=16)
         plt.ylabel(self.ylabel, fontsize=16)
         plt.xlim(self.xmin, self.xmax)
         plt.ylim(self.ymin, self.ymax)
         plt.yticks(self.yticks)
         plt.grid(True)
+
         if label is not None:
             plt.legend(loc='upper left', fontsize=8)
+
         plt.savefig(self.file_path)
         plt.close()
 
@@ -107,8 +119,13 @@ class Plot:
 
         plt.title(self.title)
         for i in range(num_plots):
-            plt.plot(x, ys[i], color=colors[i],
-                     linestyle=linestyles[i], label=labels[i])
+            if not self.logplot:
+                plt.plot(x, ys[i], color=colors[i],
+                         linestyle=linestyles[i], label=labels[i])
+            else:
+                plt.semilogy(x, ys[i], color=colors[i],
+                             linestyle=linestyles[i], label=labels[i])
+
 
         plt.xlabel(self.xlabel, fontsize=16)
         plt.ylabel(self.ylabel, fontsize=16)

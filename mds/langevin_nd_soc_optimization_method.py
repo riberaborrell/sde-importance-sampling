@@ -249,6 +249,7 @@ class StochasticOptimizationMethod:
         f = open(file_path, 'w')
 
         sample.write_setting(f)
+        sample.write_euler_maruyama_parameters(f)
         sample.write_sampling_parameters(f)
         sample.nn_func_appr.write_parameters(f)
 
@@ -289,7 +290,8 @@ class StochasticOptimizationMethod:
                     ''.format(np.linalg.norm(self.grad_losses[i])))
             f.write('time steps = {}\n'.format(self.time_steps[i]))
 
-    def plot_losses(self, h_hjb, dt_mc, N_mc):
+    def plot_losses(self, h_hjb, dt_mc=0.001, N_mc=100000):
+
         # hjb F at xzero
         sol = self.sample.get_hjb_solver(h_hjb)
         if sol.F is not None:
@@ -298,7 +300,7 @@ class StochasticOptimizationMethod:
         else:
             value_f_hjb = np.full(self.iterations.shape[0], np.nan)
 
-        # mc F
+        # mc F 
         sample_mc = self.sample.get_not_controlled_sampling(dt_mc, N_mc)
         if sample_mc.mean_I is not None:
             mc_f = - np.log(sample_mc.mean_I)
@@ -312,7 +314,7 @@ class StochasticOptimizationMethod:
         labels = [
             r'$J(x_0)$',
             'hjb (h={:.0e})'.format(h_hjb),
-            'MC Sampling (N={:.0e})'.format(N_mc),
+            'MC Sampling (dt={:.0e}, N={:.0e})'.format(dt_mc, N_mc),
         ]
 
         plt = Plot(self.dir_path, 'loss')
@@ -323,28 +325,73 @@ class StochasticOptimizationMethod:
         #plt.set_ylim(5, 10) # n=4, beta=1
         plt.multiple_lines_plot(self.iterations, ys, colors, linestyles, labels)
 
-    def plot_I_u(self):
 
+    def plot_I_u(self, dt_mc=0.001, N_mc=100000):
+
+        # not controlled sampling 
+        sample_mc = self.sample.get_not_controlled_sampling(dt_mc, N_mc)
+
+        # mc mean I
+        if sample_mc.mean_I is not None:
+            mean_I_mc = np.full(self.iterations.shape[0], sample_mc.mean_I)
+        else:
+            mean_I_mc = np.full(self.iterations.shape[0], np.nan)
+
+        # mc var I
+        if sample_mc.var_I is not None:
+            var_I_mc = np.full(self.iterations.shape[0], sample_mc.var_I)
+        else:
+            var_I_mc = np.full(self.iterations.shape[0], np.nan)
+
+        # mc re I
+        if sample_mc.re_I is not None:
+            re_I_mc = np.full(self.iterations.shape[0], sample_mc.re_I)
+        else:
+            re_I_mc = np.full(self.iterations.shape[0], np.nan)
+
+        colors = ['tab:blue', 'tab:orange']
+        linestyles = ['-', 'dashdot']
+        labels = [
+            'SOC',
+            'MC Sampling (dt={:.0e}, N={:.0e})'.format(dt_mc, N_mc),
+        ]
+
+        # plot mean I_u
         plt = Plot(self.dir_path, 'I_u_mean')
         plt.xlabel = 'iterations'
         plt.set_ylim(0.1, 0.2) # n=1, beta=1
         #plt.set_ylim(0.03, 0.05) # n=2, beta=1
         #plt.set_ylim(0.005, 0.02) # n=3, beta=1
         #plt.set_ylim(0, 0.005) # n=4, beta=1
-        plt.one_line_plot(self.iterations, self.means_I_u)
+        ys = np.vstack((self.means_I_u, mean_I_mc))
+        plt.multiple_lines_plot(self.iterations, ys, colors, linestyles, labels)
 
+        # plot var I_u
         plt = Plot(self.dir_path, 'I_u_var')
         plt.xlabel = 'iterations'
         plt.set_ylim(0, 0.1) # n=1, beta=1
         #plt.set_ylim(0, 0.01) # n=2, beta=1
         #plt.set_ylim(0, 0.001) # n=3, beta=1
         #plt.set_ylim(0, 0.0001) # n=4, beta=1
-        plt.one_line_plot(self.iterations, self.vars_I_u)
+        ys = np.vstack((self.vars_I_u, var_I_mc))
+        plt.multiple_lines_plot(self.iterations, ys, colors, linestyles, labels)
 
+        plt = Plot(self.dir_path, 'I_u_var_log')
+        plt.xlabel = 'iterations'
+        plt.set_logplot()
+        plt.multiple_lines_plot(self.iterations, ys, colors, linestyles, labels)
+
+        # plot re I_u
         plt = Plot(self.dir_path, 'I_u_re')
         plt.xlabel = 'iterations'
         plt.set_ylim(0, 5)
-        plt.one_line_plot(self.iterations, self.res_I_u)
+        ys = np.vstack((self.res_I_u, re_I_mc))
+        plt.multiple_lines_plot(self.iterations, ys, colors, linestyles, labels)
+
+        plt = Plot(self.dir_path, 'I_u_rel_log')
+        plt.xlabel = 'iterations'
+        plt.set_logplot()
+        plt.multiple_lines_plot(self.iterations, ys, colors, linestyles, labels)
         return
 
         plt = Plot(self.dir_path, 'I_u')
@@ -363,6 +410,12 @@ class StochasticOptimizationMethod:
         plt.set_scientific_notation('y')
         plt.xlabel = 'iterations'
         plt.set_ylim(0, 1.2 * np.max(self.time_steps))
+        plt.one_line_plot(self.iterations, self.time_steps, color='purple', label='TS')
+
+        plt = Plot(self.dir_path, 'time_steps_log')
+        plt.set_scientific_notation('y')
+        plt.xlabel = 'iterations'
+        plt.set_logplot()
         plt.one_line_plot(self.iterations, self.time_steps, color='purple', label='TS')
 
         return

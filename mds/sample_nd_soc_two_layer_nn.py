@@ -87,7 +87,7 @@ def main():
     sample.set_sampling_parameters(
         seed=args.seed,
         xzero=np.full(args.n, args.xzero_i),
-        N=args.N_gd,
+        N=args.N,
         dt=args.dt,
         k_lim=100000,
     )
@@ -125,7 +125,7 @@ def main():
     if args.do_plots:
 
         # plot loss function, relative error and time steps
-        adam.plot_losses(args.h_hjb, dt_mc=0.01, N_mc=100000)
+        adam.plot_losses(args.h_hjb)
         adam.plot_time_steps()
         adam.plot_I_u()
 
