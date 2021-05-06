@@ -123,6 +123,9 @@ class StochasticOptimizationMethod:
             self.thetas = np.vstack((self.thetas, self.sample.ansatz.theta))
             self.losses = np.append(self.losses, self.sample.loss)
             self.grad_losses = np.vstack((self.grad_losses, self.sample.grad_loss))
+            self.means_I_u = np.append(self.means_I_u, self.sample.mean_I_u)
+            self.vars_I_u = np.append(self.vars_I_u, self.sample.var_I_u)
+            self.res_I_u = np.append(self.res_I_u, self.sample.re_I_u)
             self.time_steps = np.append(self.time_steps, time_steps)
 
             # update coefficients
@@ -251,7 +254,11 @@ class StochasticOptimizationMethod:
         sample.write_setting(f)
         sample.write_euler_maruyama_parameters(f)
         sample.write_sampling_parameters(f)
-        sample.nn_func_appr.write_parameters(f)
+
+        if self.sample.ansatz is not None:
+            pass
+        elif self.sample.nn_func_appr is not None:
+            sample.nn_func_appr.write_parameters(f)
 
         f.write('\nStochastic optimization method parameters\n')
         f.write('loss type: {}\n'.format(self.loss_type))
@@ -312,17 +319,18 @@ class StochasticOptimizationMethod:
         colors = ['tab:blue', 'tab:green', 'tab:orange']
         linestyles = ['-', 'dashed', 'dashdot']
         labels = [
-            r'$J(x_0)$',
+            r'SOC',
             'hjb (h={:.0e})'.format(h_hjb),
             'MC Sampling (dt={:.0e}, N={:.0e})'.format(dt_mc, N_mc),
         ]
 
         plt = Plot(self.dir_path, 'loss')
         plt.xlabel = 'iterations'
-        plt.set_ylim(0, 5) # n=1, beta=1
+        #plt.set_ylim(0, 5) # n=1, beta=1
         #plt.set_ylim(3, 5) # n=2, beta=1
         #plt.set_ylim(4, 10) # n=3, beta=1
         #plt.set_ylim(5, 10) # n=4, beta=1
+        breakpoint()
         plt.multiple_lines_plot(self.iterations, ys, colors, linestyles, labels)
 
 
@@ -359,20 +367,22 @@ class StochasticOptimizationMethod:
         # plot mean I_u
         plt = Plot(self.dir_path, 'I_u_mean')
         plt.xlabel = 'iterations'
-        plt.set_ylim(0.1, 0.2) # n=1, beta=1
+        #plt.set_ylim(0.1, 0.2) # n=1, beta=1
         #plt.set_ylim(0.03, 0.05) # n=2, beta=1
         #plt.set_ylim(0.005, 0.02) # n=3, beta=1
         #plt.set_ylim(0, 0.005) # n=4, beta=1
+        breakpoint()
         ys = np.vstack((self.means_I_u, mean_I_mc))
         plt.multiple_lines_plot(self.iterations, ys, colors, linestyles, labels)
 
         # plot var I_u
         plt = Plot(self.dir_path, 'I_u_var')
         plt.xlabel = 'iterations'
-        plt.set_ylim(0, 0.1) # n=1, beta=1
+        #plt.set_ylim(0, 0.1) # n=1, beta=1
         #plt.set_ylim(0, 0.01) # n=2, beta=1
         #plt.set_ylim(0, 0.001) # n=3, beta=1
         #plt.set_ylim(0, 0.0001) # n=4, beta=1
+        breakpoint()
         ys = np.vstack((self.vars_I_u, var_I_mc))
         plt.multiple_lines_plot(self.iterations, ys, colors, linestyles, labels)
 

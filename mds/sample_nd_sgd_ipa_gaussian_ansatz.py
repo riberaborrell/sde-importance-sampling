@@ -1,4 +1,5 @@
 from mds.base_parser_nd import get_base_parser
+from mds.langevin_nd_sde import LangevinSDE
 from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
 from mds.langevin_nd_soc_optimization_method import StochasticOptimizationMethod
 from mds.langevin_nd_importance_sampling import Sampling
@@ -45,38 +46,36 @@ def main():
         is_controlled=True,
     )
 
+    # initialize sde object
+    sde = LangevinSDE.new_from(sample)
+
     # initialize Gaussian ansatz
-    sample.ansatz = GaussianAnsatz(
-        n=args.n,
-        potential_name=args.potential_name,
-        alpha=np.full(args.n, args.alpha_i),
-        beta=args.beta,
-    )
+    sample.ansatz = GaussianAnsatz(n=args.n)
 
     # distribute Gaussian ansatz
     if args.distributed == 'uniform':
-        sample.ansatz.set_unif_dist_ansatz_functions(args.m_i, args.sigma_i)
+        sample.ansatz.set_unif_dist_ansatz_functions(sde, args.m_i, args.sigma_i)
     elif args.distributed == 'meta':
         sample.ansatz.set_meta_dist_ansatz_functions(args.sigma_i_meta, args.k, args.N_meta)
 
     # set initial coefficients
-    if args.theta_init == 'null':
+    if args.theta == 'null':
         sample.ansatz.set_theta_null()
-    elif args.theta_init == 'meta':
+    elif args.theta == 'meta':
         sample.ansatz.h = args.h
         sample.ansatz.set_theta_from_metadynamics(args.sigma_i_meta, args.k, args.N_meta)
-    elif args.theta_init == 'optimal':
+    elif args.theta == 'optimal':
         #sample.set_theta_optimal()
         return
 
     # set dir path for gaussian ansatz
-    sample.ansatz.set_dir_path()
+    sample.ansatz.set_dir_path(sde)
 
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(
         seed=args.seed,
         xzero=np.full(args.n, args.xzero_i),
-        N=args.N_gd,
+        N=args.N,
         dt=args.dt,
         k_lim=100000,
     )
@@ -84,9 +83,8 @@ def main():
     # initialize gradient descent object
     sgd = StochasticOptimizationMethod(
         sample=sample,
-        parametrization='gaussian-value-f',
-        grad_estimator='ipa',
-        optimizer='gd',
+        loss_type='ipa',
+        optimizer='sgd',
         lr=args.lr,
         iterations_lim=args.iterations_lim,
         do_iteration_plots=args.do_iteration_plots,
@@ -113,11 +111,18 @@ def main():
 
     # do plots 
     if args.do_plots:
-        sgd.plot_losses(args.h_hjb, N_mc=100000)
+
+        # plot loss function, relative error and time steps
+        sgd.plot_losses(args.h_hjb)
+        sgd.plot_I_u()
         sgd.plot_time_steps()
-        sgd.plot_1d_iteration(i=4)
-        sgd.plot_1d_iterations()
-        #sgd.plot_2d_iteration(i=0)
+
+        if args.n == 1:
+            sgd.plot_1d_iteration()
+            sgd.plot_1d_iterations()
+
+        elif args.n == 2:
+            sgd.plot_2d_iteration()
 
     if args.do_importance_sampling:
         # set sampling and Euler-Marujama parameters

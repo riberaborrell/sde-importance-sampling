@@ -140,18 +140,22 @@ def get_gaussian_ansatz_dir_path(settings_dir_path, distributed, theta, m_i=None
     ''' Get gaussian ansatz dir path and create its directories
     '''
     # get dir path
+    dir_path = os.path.join(
+        settings_dir_path,
+        'appr_value-f',
+        'gaussian-ansatz',
+    )
+
     if distributed == 'uniform':
         dir_path = os.path.join(
-            settings_dir_path,
-            'gaussian-value-f',
+            dir_path,
             distributed,
             'm_i_{}'.format(m_i),
             'sigma_i_{}'.format(float(sigma_i)),
         )
     elif distributed == 'meta':
         dir_path = os.path.join(
-            settings_dir_path,
-            'gaussian-value-f',
+            dir_path,
             distributed,
             'sigma_i_meta_{}'.format(float(sigma_i_meta)),
             'k_{}'.format(k),
