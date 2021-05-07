@@ -95,6 +95,55 @@ class FunctionApproximation():
         print('nn fitted from metadynamics!')
         print('{:d}, {:2.3f}'.format(i, output))
 
+    def fit_parameters_flat_potential(self, sde, iterations_lim=10000, N=100, epsilon=0.01):
+        '''
+        '''
+
+        # parameters
+        self.initialization = 'flat'
+
+        # define optimizer
+        optimizer = optim.SGD(
+            self.model.parameters(),
+            lr=0.01,
+        )
+
+        for i in np.arange(iterations_lim):
+
+            # sample training data
+            x = sde.sample_domain_uniformly(N=N)
+            x_tensor = torch.tensor(x, requires_grad=False, dtype=torch.float32)
+
+            # ansatz functions evaluated at the grid
+            if self.target_function == 'value-f':
+                pass
+            elif self.target_function == 'control':
+                target = sde.gradient(x) / np.sqrt(2)
+            target_tensor = torch.tensor(target, requires_grad=False, dtype=torch.float32)
+
+            # define loss
+            inputs = self.model.forward(x_tensor)
+            loss = nn.MSELoss()
+            output = loss(inputs, target_tensor)
+
+            #print('{:d}, {:2.3f}'.format(i, output))
+
+            # stop if we have reached enough accuracy
+            if output <= epsilon:
+                break
+
+            # compute gradients
+            output.backward()
+
+            # update parameters
+            optimizer.step()
+
+            # reset gradients
+            optimizer.zero_grad()
+
+        print('nn fitted from flat potential!')
+        print('{:d}, {:2.3f}'.format(i, output))
+
 
     def write_parameters(self, f):
         f.write('\nFunction approximation via nn\n')

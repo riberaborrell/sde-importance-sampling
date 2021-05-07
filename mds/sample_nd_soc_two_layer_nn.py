@@ -69,11 +69,18 @@ def main():
         func.reset_parameters()
     elif args.theta == 'null':
         func.zero_parameters()
-    elif args.theta == 'meta' and not args.load:
-        sde = LangevinSDE.new_from(sample)
-        func.fit_parameters_from_metadynamics(sde)
-    elif args.theta == 'meta' and args.load:
-        func.initialization='meta'
+    elif args.theta == 'meta':
+        if not args.load:
+            sde = LangevinSDE.new_from(sample)
+            func.fit_parameters_from_metadynamics(sde)
+        else:
+            func.initialization = 'meta'
+    elif args.theta == 'flat':
+        if not args.load:
+            sde = LangevinSDE.new_from(sample)
+            func.fit_parameters_flat_potential(sde, N=1000)
+        else:
+            func.initialization = 'flat'
     else:
         return
 
@@ -126,8 +133,8 @@ def main():
 
         # plot loss function, relative error and time steps
         adam.plot_losses(args.h_hjb)
-        adam.plot_time_steps()
         adam.plot_I_u()
+        adam.plot_time_steps()
 
         if args.n == 1:
             adam.plot_1d_iteration()
