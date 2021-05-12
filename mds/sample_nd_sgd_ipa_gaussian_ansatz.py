@@ -56,14 +56,16 @@ def main():
     if args.distributed == 'uniform':
         sample.ansatz.set_unif_dist_ansatz_functions(sde, args.m_i, args.sigma_i)
     elif args.distributed == 'meta':
-        sample.ansatz.set_meta_dist_ansatz_functions(args.sigma_i_meta, args.k, args.N_meta)
+        sample.ansatz.set_meta_dist_ansatz_functions(sde, args.dt_meta, args.sigma_i_meta,
+                                                     args.k, args.N_meta)
 
     # set initial coefficients
     if args.theta == 'null':
         sample.ansatz.set_theta_null()
     elif args.theta == 'meta':
         sample.ansatz.h = args.h
-        sample.ansatz.set_theta_from_metadynamics(args.sigma_i_meta, args.k, args.N_meta)
+        sample.ansatz.set_theta_from_metadynamics(sde, args.dt_meta, args.sigma_i_meta,
+                                                  args.k, args.N_meta)
     elif args.theta == 'optimal':
         #sample.set_theta_optimal()
         return
@@ -113,7 +115,7 @@ def main():
     if args.do_plots:
 
         # plot loss function, relative error and time steps
-        sgd.plot_losses(args.h_hjb)
+        sgd.plot_losses()
         sgd.plot_I_u()
         sgd.plot_time_steps()
 
