@@ -63,7 +63,7 @@ def main():
     if args.theta == 'null':
         sample.ansatz.set_theta_null()
     elif args.theta == 'meta':
-        sample.ansatz.h = args.h
+        sde.h = args.h
         sample.ansatz.set_theta_from_metadynamics(sde, args.dt_meta, args.sigma_i_meta,
                                                   args.k, args.N_meta)
     elif args.theta == 'optimal':
