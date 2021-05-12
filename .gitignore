@@ -2,7 +2,10 @@
 data/
 
 # pipelines
-pipelines
+pipelines/
+
+# notebooks
+notebooks
 
 # pyenv version file
 .python-version
@@ -24,4 +27,3 @@ venv/
 
 # mathlab files
 *.m
-
