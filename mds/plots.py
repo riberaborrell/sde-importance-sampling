@@ -5,6 +5,20 @@ import matplotlib.colors as colors
 
 import os
 
+LOCATION_STRINGS = [
+    'best',
+    'upper right',
+    'upper left',
+    'lower left',
+    'lower right',
+    'right',
+    'center left',
+    'center right',
+    'lower center',
+    'upper center',
+    'center',
+]
+
 class Plot:
     def __init__(self, dir_path, file_name=None, file_type='png'):
         self.file_name = file_name
@@ -37,6 +51,9 @@ class Plot:
         # logplot
         self.logplot = False
 
+        # legend
+        self.loc = 'best'
+
     @property
     def file_path(self):
         if self.file_name:
@@ -59,8 +76,6 @@ class Plot:
     def set_ylim(self, ymin, ymax):
         self.ymin = ymin
         self.ymax = ymax
-        #tick_sep = (ymax - ymin) / 10
-        #self.yticks = np.arange(ymin, ymax + tick_sep, tick_sep)
 
     def set_zlim(self, zmin, zmax):
         self.zmin = zmin
@@ -73,6 +88,11 @@ class Plot:
 
     def set_logplot(self):
         self.logplot = True
+
+    def set_location(self, loc):
+        assert loc in LOCATION_STRINGS, ''
+
+        self.loc = loc
 
     def one_line_plot(self, x, y, color=None, label=None):
         assert x.ndim == y.ndim == 1, ''
@@ -93,7 +113,7 @@ class Plot:
         plt.grid(True)
 
         if label is not None:
-            plt.legend(loc='upper left', fontsize=8)
+            plt.legend(loc=self.loc, fontsize=8)
 
         plt.savefig(self.file_path)
         plt.close()
@@ -134,7 +154,7 @@ class Plot:
         plt.yticks(self.yticks)
         plt.grid(True)
         if any(label is not None for label in labels):
-            plt.legend(loc='upper left', fontsize=8)
+            plt.legend(loc=self.loc, fontsize=8)
         plt.savefig(self.file_path)
         plt.close()
 
@@ -151,7 +171,7 @@ class Plot:
         plt.ylim(self.ymin, self.ymax)
         #plt.set_yticks([-1,0,1])
         if label is not None:
-            plt.legend(loc='upper left', fontsize=8)
+            plt.legend(loc=self.loc, fontsize=8)
         plt.grid(True)
         plt.savefig(self.file_path)
         plt.close()
