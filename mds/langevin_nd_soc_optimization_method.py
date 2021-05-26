@@ -35,11 +35,19 @@ class StochasticOptimizationMethod:
         self.thetas = None
         self.losses = None
         self.ipa_losses = None
+        self.re_losses = None
         self.grad_losses = None
         self.means_I_u = None
         self.vars_I_u = None
         self.res_I_u = None
         self.time_steps = None
+
+        # running averages
+        self.n_last_iter = None
+        self.run_avg_mean_I_u = None
+        self.run_avg_var_I_u = None
+        self.run_avg_re_I_u = None
+        self.run_avg_loss = None
 
         # computational time
         self.t_initial = None
@@ -95,6 +103,8 @@ class StochasticOptimizationMethod:
             self.grad_losses = np.empty((0, self.m))
         elif self.sample.nn_func_appr is not None and self.loss_type == 'ipa':
             self.ipa_losses = np.empty(0)
+        elif self.sample.nn_func_appr is not None and self.loss_type == 're':
+            self.re_losses = np.empty(0)
 
     def sgd_ipa_gaussian_ansatz(self):
         self.start_timer()
@@ -118,7 +128,7 @@ class StochasticOptimizationMethod:
             if not succ:
                 break
 
-            # allocate
+            # save parameters, statistics and losses
             self.iterations = np.append(self.iterations, i)
             self.thetas = np.vstack((self.thetas, self.sample.ansatz.theta))
             self.losses = np.append(self.losses, self.sample.loss)
@@ -177,13 +187,13 @@ class StochasticOptimizationMethod:
             self.res_I_u = np.append(self.res_I_u, self.sample.re_I_u)
             self.time_steps = np.append(self.time_steps, time_steps)
 
+            self.losses = np.append(self.losses, self.sample.loss)
             if self.loss_type == 'ipa':
-                self.losses = np.append(self.losses, self.sample.loss)
                 self.ipa_losses = np.append(
                     self.ipa_losses, self.sample.ipa_loss.detach().numpy()
                 )
             elif self.loss_type == 're':
-                self.losses = np.append(self.losses, self.sample.loss.detach().numpy())
+                self.re_losses = np.append(self.re_losses, self.sample.re_loss.detach().numpy())
 
             # reset gradients
             optimizer.zero_grad()
@@ -193,7 +203,7 @@ class StochasticOptimizationMethod:
                 self.sample.ipa_loss.backward()
 
             elif self.loss_type == 're':
-                self.sample.loss.backward()
+                self.sample.re_loss.backward()
 
             # update parameters
             optimizer.step()
@@ -210,6 +220,7 @@ class StochasticOptimizationMethod:
             thetas=self.thetas,
             losses=self.losses,
             ipa_losses=self.ipa_losses,
+            re_losses=self.re_losses,
             grad_losses=self.grad_losses,
             means_I_u=self.means_I_u,
             vars_I_u=self.vars_I_u,
@@ -229,6 +240,7 @@ class StochasticOptimizationMethod:
             self.thetas = som['thetas']
             self.losses = som['losses']
             self.ipa_losses = som['ipa_losses']
+            self.re_losses = som['re_losses']
             self.grad_losses = som['grad_losses']
             self.means_I_u=som['means_I_u']
             self.vars_I_u=som['vars_I_u']
@@ -241,6 +253,13 @@ class StochasticOptimizationMethod:
         except:
             print('no som found')
             return False
+
+    def compute_running_averages(self, n_last_iter=10):
+        self.n_last_iter = n_last_iter
+        self.run_avg_mean_I_u = np.mean(self.means_I_u[n_last_iter:])
+        self.run_avg_var_I_u = np.mean(self.vars_I_u[n_last_iter:])
+        self.run_avg_re_I_u = np.mean(self.res_I_u[n_last_iter:])
+        self.run_avg_loss = np.mean(self.losses[n_last_iter:])
 
     def write_report(self):
         sample = self.sample
@@ -268,13 +287,22 @@ class StochasticOptimizationMethod:
         f.write('iterations lim: {}\n'.format(self.iterations_lim))
 
         f.write('iterations used: {}\n'.format(self.iterations[-1]))
-        f.write('total time steps: {:,d}\n\n'.format(int(self.time_steps.sum())))
+        f.write('total time steps: {:,d}\n'.format(int(self.time_steps.sum())))
 
-        f.write('E[I_u] (last iter.): {:2.3e}\n'.format(self.means_I_u[-1]))
-        f.write('Var[I_u] (last iter.): {:2.3e}\n'.format(self.vars_I_u[-1]))
-        f.write('RE[I_u] (last iter.): {:2.3f}\n'.format(self.res_I_u[-1]))
-        f.write('F (last iter.): {:2.3f}\n'.format(- np.log(self.means_I_u[-1])))
-        f.write('loss function (last iter.): {:2.3f}\n\n'.format(self.losses[-1]))
+        f.write('\nLast iteration\n')
+        f.write('E[I_u]: {:2.3e}\n'.format(self.means_I_u[-1]))
+        f.write('Var[I_u]: {:2.3e}\n'.format(self.vars_I_u[-1]))
+        f.write('RE[I_u]: {:2.3f}\n'.format(self.res_I_u[-1]))
+        f.write('F: {:2.3f}\n'.format(- np.log(self.means_I_u[-1])))
+        f.write('loss function: {:2.3f}\n'.format(self.losses[-1]))
+
+        self.compute_running_averages()
+        f.write('\nRunning averages of last {:d} iterations\n'.format(self.n_last_iter))
+        f.write('E[I_u]: {:2.3e}\n'.format(self.run_avg_mean_I_u))
+        f.write('Var[I_u]: {:2.3e}\n'.format(self.run_avg_var_I_u))
+        f.write('RE[I_u]: {:2.3f}\n'.format(self.run_avg_re_I_u))
+        f.write('F: {:2.3f}\n'.format(- np.log(self.run_avg_mean_I_u)))
+        f.write('loss function: {:2.3f}\n\n'.format(self.run_avg_loss))
 
         h, m, s = get_time_in_hms(self.t_final - self.t_initial)
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
@@ -297,9 +325,10 @@ class StochasticOptimizationMethod:
                     ''.format(np.linalg.norm(self.grad_losses[i])))
             f.write('time steps = {}\n'.format(self.time_steps[i]))
 
-    def plot_losses(self, h_hjb, dt_mc=0.001, N_mc=100000):
+    def plot_losses(self, h_hjb=0.1, dt_mc=0.001, N_mc=100000):
 
         # hjb F at xzero
+        h_hjb=0.001
         sol = self.sample.get_hjb_solver(h_hjb)
         if sol.F is not None:
             hjb_f_at_x = sol.get_f_at_x(self.sample.xzero)
@@ -316,17 +345,17 @@ class StochasticOptimizationMethod:
             value_f_mc = np.full(self.iterations.shape[0], np.nan)
 
         ys = np.vstack((self.losses, value_f_hjb, value_f_mc))
-        colors = ['tab:blue', 'tab:green', 'tab:orange']
+        colors = ['tab:blue', 'tab:orange', 'tab:cyan']
         linestyles = ['-', 'dashed', 'dashdot']
         labels = [
-            r'SOC',
-            'hjb (h={:.0e})'.format(h_hjb),
+            r'SGD',
             'MC Sampling (dt={:.0e}, N={:.0e})'.format(dt_mc, N_mc),
+            'HJB solution (h={:.0e})'.format(h_hjb),
         ]
 
         plt = Plot(self.dir_path, 'loss')
         plt.xlabel = 'iterations'
-        #plt.set_ylim(0, 5) # n=1, beta=1
+        #plt.set_ylim(1, 3) # n=1, beta=1
         #plt.set_ylim(3, 5) # n=2, beta=1
         #plt.set_ylim(4, 10) # n=3, beta=1
         #plt.set_ylim(5, 10) # n=4, beta=1
@@ -358,16 +387,16 @@ class StochasticOptimizationMethod:
             re_I_mc = np.full(self.iterations.shape[0], np.nan)
 
         colors = ['tab:blue', 'tab:orange']
-        linestyles = ['-', 'dashdot']
+        linestyles = ['-', 'dashed']
         labels = [
-            'SOC',
+            'SGD',
             'MC Sampling (dt={:.0e}, N={:.0e})'.format(dt_mc, N_mc),
         ]
 
         # plot mean I_u
         plt = Plot(self.dir_path, 'I_u_mean')
         plt.xlabel = 'iterations'
-        #plt.set_ylim(0.1, 0.2) # n=1, beta=1
+        #plt.set_ylim(0.125, 0.2) # n=1, beta=1
         #plt.set_ylim(0.03, 0.05) # n=2, beta=1
         #plt.set_ylim(0.005, 0.02) # n=3, beta=1
         #plt.set_ylim(0, 0.005) # n=4, beta=1
@@ -378,29 +407,15 @@ class StochasticOptimizationMethod:
         # plot var I_u
         plt = Plot(self.dir_path, 'I_u_var')
         plt.xlabel = 'iterations'
-        #plt.set_ylim(0, 0.1) # n=1, beta=1
-        #plt.set_ylim(0, 0.01) # n=2, beta=1
-        #plt.set_ylim(0, 0.001) # n=3, beta=1
-        #plt.set_ylim(0, 0.0001) # n=4, beta=1
-        breakpoint()
-        ys = np.vstack((self.vars_I_u, var_I_mc))
-        plt.multiple_lines_plot(self.iterations, ys, colors, linestyles, labels)
-
-        plt = Plot(self.dir_path, 'I_u_var_log')
-        plt.xlabel = 'iterations'
         plt.set_logplot()
+        ys = np.vstack((self.vars_I_u, var_I_mc))
         plt.multiple_lines_plot(self.iterations, ys, colors, linestyles, labels)
 
         # plot re I_u
         plt = Plot(self.dir_path, 'I_u_re')
         plt.xlabel = 'iterations'
-        plt.set_ylim(0, 5)
-        ys = np.vstack((self.res_I_u, re_I_mc))
-        plt.multiple_lines_plot(self.iterations, ys, colors, linestyles, labels)
-
-        plt = Plot(self.dir_path, 'I_u_rel_log')
-        plt.xlabel = 'iterations'
         plt.set_logplot()
+        ys = np.vstack((self.res_I_u, re_I_mc))
         plt.multiple_lines_plot(self.iterations, ys, colors, linestyles, labels)
         return
 
@@ -411,29 +426,17 @@ class StochasticOptimizationMethod:
             self.means_I_u - self.vars_I_u,
             self.means_I_u + self.vars_I_u,
         )
-        plt.plt.ylim(0.03, 0.05) # n=2, beta=1
+        #plt.plt.ylim(0.03, 0.05) # n=2, beta=1
+        breakpoint()
         plt.plt.savefig(plt.file_path)
         plt.plt.close()
 
     def plot_time_steps(self):
-        plt = Plot(self.dir_path, 'time_steps')
-        plt.set_scientific_notation('y')
-        plt.xlabel = 'iterations'
-        plt.set_ylim(0, 1.2 * np.max(self.time_steps))
-        plt.one_line_plot(self.iterations, self.time_steps, color='purple', label='TS')
-
         plt = Plot(self.dir_path, 'time_steps_log')
         plt.set_scientific_notation('y')
         plt.xlabel = 'iterations'
         plt.set_logplot()
         plt.one_line_plot(self.iterations, self.time_steps, color='purple', label='TS')
-
-        return
-        plt = Plot(self.dir_path, 'time_steps_bar')
-        plt.xlabel = 'iterations'
-        plt.set_ylim(0, 1.2 * np.max(self.time_steps))
-        plt.one_bar_plot(self.iterations, self.time_steps, color='purple', label='TS')
-
 
     def plot_1d_iteration(self, i=None):
         # last iteration is i is not given
