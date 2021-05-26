@@ -332,6 +332,7 @@ class Sampling(LangevinSDE):
 
             # control at xt
             idx_xt = self.get_index_vectorized(xt)
+            breakpoint()
             ut = u_opt[idx_xt]
 
             # compute gradient
@@ -586,7 +587,9 @@ class Sampling(LangevinSDE):
         m = model.d_flat
 
         # preallocate loss and ipa loss for the trajectories
+        loss_traj = np.zeros(self.N)
         re_loss_traj = torch.zeros(self.N)
+        phi_det = torch.zeros(self.N)
         phi = torch.zeros(self.N)
 
         # initialize trajectory
@@ -601,7 +604,6 @@ class Sampling(LangevinSDE):
             # Brownian increment
             dB = np.sqrt(self.dt) \
                * np.random.normal(0, 1, self.N * self.n).reshape(self.N, self.n)
-            dB_tensor = torch.tensor(dB, requires_grad=False, dtype=torch.float32).to(device)
 
             # control
             xt_tensor = torch.tensor(xt, dtype=torch.float)
@@ -614,8 +616,12 @@ class Sampling(LangevinSDE):
             xt = self.sde_update(xt, controlled_gradient, dB)
 
             # update statistics
-            ut_norm = torch.linalg.norm(ut_tensor, axis=1)
-            phi = phi + ((1 + 0.5 * (ut_norm ** 2)) * self.dt)
+            ut_norm_det = torch.linalg.norm(ut_tensor_det, axis=1)
+            phi_det = phi_det + ((1 + 0.5 * (ut_norm_det ** 2)) * self.dt).reshape(self.N,)
+
+            #ut_norm = torch.linalg.norm(ut_tensor, axis=1)
+            #phi = phi + ((1 + 0.5 * (ut_norm ** 2)) * self.dt).reshape(self.N,)
+            phi = phi + ((1 + 0.5 * torch.sum(ut_tensor ** 2, dim=1)) * self.dt).reshape(self.N)
 
             # Girsanov Martingale terms
             M1_t -= np.sqrt(self.beta) \
@@ -634,6 +640,7 @@ class Sampling(LangevinSDE):
                 idx_tensor = torch.tensor(idx, dtype=torch.long).to(device)
 
                 # save loss and ipa loss for the arrived trajectorries
+                loss_traj[idx] = phi_det.numpy()[idx]
                 re_loss_traj[idx_tensor] = phi.index_select(0, idx_tensor)
 
                 # save first hitting time and Girsanov Martingale terms
@@ -645,7 +652,8 @@ class Sampling(LangevinSDE):
             if self.been_in_target_set.all() == True:
                break
 
-        self.loss = torch.mean(re_loss_traj)
+        self.loss = np.mean(loss_traj)
+        self.re_loss = torch.mean(re_loss_traj)
 
         self.compute_I_u_statistics()
 
@@ -881,12 +889,14 @@ class Sampling(LangevinSDE):
             f.write('E[exp(- fht)] = {:2.3e}\n'.format(self.mean_I))
             f.write('Var[exp(- fht)] = {:2.3e}\n'.format(self.var_I))
             f.write('RE[exp(- fht)] = {:2.3e}\n\n'.format(self.re_I))
+            f.write('-log(E[exp(- fht)]) = {:2.3e}\n\n'.format(-np.log(self.mean_I)))
 
         else:
             f.write('\nReweighted Quantity of interest\n')
             f.write('E[exp(- fht) * M_fht] = {:2.3e}\n'.format(self.mean_I_u))
             f.write('Var[exp(- fht) * M_fht] = {:2.3e}\n'.format(self.var_I_u))
             f.write('RE[exp(- fht) * M_fht] = {:2.3e}\n\n'.format(self.re_I_u))
+            f.write('-log(E[exp(- fht) * M_fht]) = {:2.3e}\n\n'.format(-np.log(self.mean_I_u)))
 
         h, m, s = get_time_in_hms(self.t_final - self.t_initial)
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
