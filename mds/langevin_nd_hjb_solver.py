@@ -237,7 +237,7 @@ class Solver(LangevinSDE):
 
     def compute_optimal_control(self):
         ''' this method computes by finite differences the optimal control vector field
-                u_opt = - √2 ∇F
+                u_opt = - √2 / beta ∇F
         '''
         assert self.F is not None, ''
         assert self.F.ndim == self.n, ''
@@ -266,7 +266,7 @@ class Solver(LangevinSDE):
                     idx_u_N[j] = self.Nx[j] - 1
                     break
 
-            u_opt[tuple(idx_u_k)] = - np.sqrt(2) * (
+            u_opt[tuple(idx_u_k)] = - np.sqrt(2) * (1 / self.beta) *(
                 self.F[tuple(idx_F_k_plus)] - self.F[tuple(idx_F_k_minus)]
             ) / (2 * self.h)
             u_opt[tuple(idx_u_0)] = u_opt[tuple(idx_u_1)]
