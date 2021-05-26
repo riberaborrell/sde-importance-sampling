@@ -5,7 +5,7 @@ import matplotlib.colors as colors
 
 import os
 
-LOCATION_STRINGS = [
+LEGEND_LOCATION_STRINGS = [
     'best',
     'upper right',
     'upper left',
@@ -52,7 +52,10 @@ class Plot:
         self.logplot = False
 
         # legend
-        self.loc = 'best'
+        self.legend_loc = 'best'
+
+        # transparency
+        self.alpha = 1
 
     @property
     def file_path(self):
@@ -89,10 +92,13 @@ class Plot:
     def set_logplot(self):
         self.logplot = True
 
-    def set_location(self, loc):
-        assert loc in LOCATION_STRINGS, ''
+    def set_legend_location(self, loc):
+        assert loc in LEGEND_LOCATION_STRINGS, ''
 
-        self.loc = loc
+        self.legend_loc = loc
+
+    def set_line_transparency(self, alpha):
+        self.alpha = alpha
 
     def one_line_plot(self, x, y, color=None, label=None):
         assert x.ndim == y.ndim == 1, ''
@@ -101,9 +107,23 @@ class Plot:
         plt = self.plt
 
         if not self.logplot:
-            plt.plot(x, y, color=color, linestyle='-', label=label)
+            plt.plot(
+                x,
+                y,
+                color=color,
+                linestyle='-',
+                label=label,
+                alpha=self.alpha,
+            )
         else:
-            plt.semilogy(x, y, color=color, linestyle='-', label=label)
+            plt.semilogy(
+                x,
+                y,
+                color=color,
+                linestyle='-',
+                label=label,
+                alpha=self.alpha,
+            )
 
         plt.xlabel(self.xlabel, fontsize=16)
         plt.ylabel(self.ylabel, fontsize=16)
@@ -113,7 +133,7 @@ class Plot:
         plt.grid(True)
 
         if label is not None:
-            plt.legend(loc=self.loc, fontsize=8)
+            plt.legend(loc=self.legend_loc, fontsize=8)
 
         plt.savefig(self.file_path)
         plt.close()
@@ -140,11 +160,23 @@ class Plot:
         plt.title(self.title)
         for i in range(num_plots):
             if not self.logplot:
-                plt.plot(x, ys[i], color=colors[i],
-                         linestyle=linestyles[i], label=labels[i])
+                plt.plot(
+                    x,
+                    ys[i],
+                    color=colors[i],
+                    linestyle=linestyles[i],
+                    label=labels[i],
+                    alpha=self.alpha,
+                )
             else:
-                plt.semilogy(x, ys[i], color=colors[i],
-                             linestyle=linestyles[i], label=labels[i])
+                plt.semilogy(
+                    x,
+                    ys[i],
+                    color=colors[i],
+                    linestyle=linestyles[i],
+                    label=labels[i],
+                    alpha=self.alpha,
+                )
 
 
         plt.xlabel(self.xlabel, fontsize=16)
@@ -154,7 +186,7 @@ class Plot:
         plt.yticks(self.yticks)
         plt.grid(True)
         if any(label is not None for label in labels):
-            plt.legend(loc=self.loc, fontsize=8)
+            plt.legend(loc=self.legend_loc, fontsize=8)
         plt.savefig(self.file_path)
         plt.close()
 
@@ -163,7 +195,16 @@ class Plot:
         assert x.shape[0] == height.shape[0], ''
 
         plt.title(self.title)
-        plt.bar(x, height, width=0.8, color=color, label=label, align='center')
+
+        plt.bar(
+            x,
+            height,
+            width=0.8,
+            color=color,
+            label=label,
+            align='center',
+            alpha=self.alpha,
+        )
         plt.xlabel(self.xlabel, fontsize=16)
         plt.ylabel(self.ylabel, fontsize=16)
         #plt.xlim(left=epochs[0] -0.8, right=epochs[-1] + 0.8)
@@ -171,7 +212,7 @@ class Plot:
         plt.ylim(self.ymin, self.ymax)
         #plt.set_yticks([-1,0,1])
         if label is not None:
-            plt.legend(loc=self.loc, fontsize=8)
+            plt.legend(loc=self.legend_loc, fontsize=8)
         plt.grid(True)
         plt.savefig(self.file_path)
         plt.close()
