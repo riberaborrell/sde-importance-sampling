@@ -135,6 +135,21 @@ def get_metadynamics_dir_path(settings_dir_path, dt, sigma_i, k, N):
 
     return dir_path
 
+def get_flat_bias_dir_path(settings_dir_path, dt, k_lim, N):
+    # get dir path
+    dir_path = os.path.join(
+        settings_dir_path,
+        'flat-bias-potential',
+        'dt_{}'.format(dt),
+        'k_lim_{}'.format(k_lim),
+        'N_{}'.format(N),
+    )
+
+    # create dir path if not exists
+    make_dir_path(dir_path)
+
+    return dir_path
+
 def get_gaussian_ansatz_dir_path(settings_dir_path, distributed, theta, m_i=None,
                                  sigma_i=None, sigma_i_meta=None, k=None, N_meta=None, h=None):
     ''' Get gaussian ansatz dir path and create its directories
