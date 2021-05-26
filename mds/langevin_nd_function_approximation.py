@@ -41,7 +41,7 @@ class FunctionApproximation():
                     layer._parameters[key], requires_grad=True
                 )
 
-    def fit_parameters_from_metadynamics(self, sde, iterations_lim=10000, N=100, epsilon=0.01):
+    def fit_parameters_from_metadynamics(self, sde, iterations_lim=10000, N=1000, epsilon=0.01):
 
         # parameters
         self.initialization = 'meta'
@@ -54,7 +54,7 @@ class FunctionApproximation():
         meta.set_ansatz_all_trajectories()
 
         # define optimizer
-        optimizer = optim.SGD(
+        optimizer = optim.Adam(
             self.model.parameters(),
             lr=0.01,
         )
@@ -95,15 +95,14 @@ class FunctionApproximation():
         print('nn fitted from metadynamics!')
         print('{:d}, {:2.3f}'.format(i, output))
 
-    def fit_parameters_flat_potential(self, sde, iterations_lim=10000, N=100, epsilon=0.01):
+    def fit_parameters_flat_controlled_potential(self, sde, iterations_lim=10000, N=1000, epsilon=0.01):
         '''
         '''
-
         # parameters
         self.initialization = 'flat'
 
         # define optimizer
-        optimizer = optim.SGD(
+        optimizer = optim.Adam(
             self.model.parameters(),
             lr=0.01,
         )
@@ -126,7 +125,58 @@ class FunctionApproximation():
             loss = nn.MSELoss()
             output = loss(inputs, target_tensor)
 
-            #print('{:d}, {:2.3f}'.format(i, output))
+            print('{:d}, {:2.3f}'.format(i, output))
+
+            # stop if we have reached enough accuracy
+            if output <= epsilon:
+                break
+
+            # compute gradients
+            output.backward()
+
+            # update parameters
+            optimizer.step()
+
+            # reset gradients
+            optimizer.zero_grad()
+
+        print('nn fitted from flat potential!')
+        print('{:d}, {:2.3f}'.format(i, output))
+
+    def fit_parameters_semiflat_controlled_potential(self, sde, iterations_lim=10000, epsilon=0.01):
+        '''
+        '''
+        # load flat bias potential
+        flatbias = sde.get_flat_bias_sampling(dt=0.01, k_lim=100, N=1000)
+
+        # parameters
+        self.initialization = 'semi-flat'
+
+        # define optimizer
+        optimizer = optim.Adam(
+            self.model.parameters(),
+            lr=0.01,
+        )
+
+        x = flatbias.x
+        x_tensor = torch.tensor(x, requires_grad=False, dtype=torch.float32)
+
+        # ansatz functions evaluated at the grid
+        if self.target_function == 'value-f':
+            pass
+        elif self.target_function == 'control':
+            target = flatbias.u
+            target_tensor = torch.tensor(target, requires_grad=False, dtype=torch.float32)
+
+        for i in np.arange(iterations_lim):
+
+
+            # define loss
+            inputs = self.model.forward(x_tensor)
+            loss = nn.MSELoss()
+            output = loss(inputs, target_tensor)
+
+            print('{:d}, {:2.3f}'.format(i, output))
 
             # stop if we have reached enough accuracy
             if output <= epsilon:
