@@ -17,7 +17,7 @@ class LangevinSDE(object):
         '''
         '''
         # get potential and gradient functions
-        potential, gradient, _ = get_potential_and_gradient(n, potential_name, alpha)
+        potential, gradient, _ = get_potential_and_gradient(potential_name, n, alpha)
 
         # domain and target set
         if domain is None:
@@ -26,8 +26,8 @@ class LangevinSDE(object):
             target_set = np.full((n, 2), [1, 3])
 
         # sde parameters
-        self.n = n
         self.potential_name = potential_name
+        self.n = n
         self.potential = potential
         self.gradient = gradient
         self.alpha = alpha
@@ -91,10 +91,24 @@ class LangevinSDE(object):
         self.Nh = N
 
     def sample_domain_uniformly(self, N):
-        x = np.empty((N, self.n))
-        for i in range(self.n):
-            x[:, i] = np.random.uniform(self.domain[i, 0], self.domain[i, 1], N)
+        x = np.random.uniform(
+            self.domain[:, 0],
+            self.domain[:, 1],
+            (N, self.n),
+        )
+        return x
 
+    def sample_S_uniformly(self, N):
+        x = np.empty((N, self.n))
+        for j in range(N):
+            is_in_target_set = True
+            while is_in_target_set:
+                x_j = self.sample_domain_uniformly(N=1)
+                is_in_target_set = (
+                    (x_j >= self.target_set[:, 0]) &
+                    (x_j <= self.target_set[:, 1])
+                ).all()
+            x[j] = x_j
         return x
 
     def get_flattened_domain_h(self):
@@ -208,6 +222,26 @@ class LangevinSDE(object):
         meta.load_bias_potential()
         return meta
 
+    def get_flat_bias_sampling(self, dt, k_lim, N):
+        from mds.langevin_nd_importance_sampling import Sampling
+        from mds.langevin_nd_flat_bias_potential import GetFlatBiasPotential
+
+        # initialize sampling object
+        sample = Sampling.new_from(self)
+        sample.dt = dt
+        sample.k_lim = k_lim
+        sample.N = N
+
+        # initialize flatbias object
+        flatbias = GetFlatBiasPotential(sample)
+
+        # set path
+        flatbias.set_dir_path()
+
+        # load already sampled trajectories
+        flatbias.load()
+        return flatbias
+
     def write_setting(self, f):
         '''
         '''
@@ -280,6 +314,7 @@ class LangevinSDE(object):
 
         plt = Plot(dir_path, 'controlled_potential' + ext)
         plt.xlabel = 'x'
+        plt.set_xlim(-2, 2)
         plt.set_ylim(0, 10 * self.alpha)
 
         if Vcontrolled_hjb is None:
@@ -356,7 +391,10 @@ class LangevinSDE(object):
 
         plt = Plot(dir_path, 'controls' + ext)
         plt.xlabel = 'x'
-        plt.set_ylim(- 4 * self.alpha, 4 * self.alpha)
+        plt.set_xlim(-2, 2)
+        plt.set_ylim(-2, 5) # alpha=1, beta=1
+        #plt.set_ylim(-5, 10) # alpha=4, beta=1
+        #plt.set_ylim(-15, 25) # alpha=10, beta=1
 
         if u_hjb is None:
             plt.multiple_lines_plot(x, us, labels=labels)
@@ -376,7 +414,10 @@ class LangevinSDE(object):
 
         plt = Plot(dir_path, 'controlled_potentials' + ext)
         plt.xlabel = 'x'
-        plt.set_ylim(0, 10 * self.alpha)
+        plt.set_xlim(-2, 2)
+        plt.set_ylim(0, 10) # alpha=1, beta=1
+        #plt.set_ylim(0, 20) # alpha=4, beta=1
+        #plt.set_ylim(0, 50) # alpha=4, beta=1
 
         if controlledV_hjb is None:
             plt.multiple_lines_plot(x, controlledVs, labels=labels)

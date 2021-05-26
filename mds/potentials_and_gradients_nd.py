@@ -5,7 +5,7 @@ POTENTIAL_NAMES = [
     'nd_2well',
 ]
 
-def get_potential_and_gradient(n, potential_name, alpha=None):
+def get_potential_and_gradient(potential_name, n, alpha=None):
     '''Given a potential name this method returns the corresponding
        potential function and gradient function.
     Args:
@@ -16,6 +16,7 @@ def get_potential_and_gradient(n, potential_name, alpha=None):
     assert potential_name in POTENTIAL_NAMES, ''
     assert alpha.ndim == 1, ''
 
+    print(potential_name, n, alpha)
     if potential_name == 'nd_2well':
         assert alpha.shape[0] == n, ''
         potential = functools.partial(double_well_nd_potential, a=alpha)
