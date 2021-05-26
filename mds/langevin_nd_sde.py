@@ -98,6 +98,30 @@ class LangevinSDE(object):
         )
         return x
 
+
+    def sample_domain_boundary_uniformly(self):
+        x = np.empty(self.n)
+        i = np.random.randint(self.n)
+        for j in range(self.n):
+            if j == i:
+                k = np.random.randint(2)
+                x[j] = self.domain[j, k]
+            else:
+                x[j] = np.random.uniform(
+                    self.domain[j, 0],
+                    self.domain[j, 1],
+                    1
+                )
+        return x
+
+    def sample_domain_boundary_uniformly_vec(self, N):
+        x = self.sample_domain_uniformly(N)
+        i = np.random.randint(self.n, size=N)
+        k = np.random.randint(2, size=N)
+        for j in np.arange(N):
+            x[j, i[j]] = self.domain[i[j], k[j]]
+        return x
+
     def sample_S_uniformly(self, N):
         x = np.empty((N, self.n))
         for j in range(N):

@@ -84,7 +84,7 @@ def main():
     elif args.theta == 'semi-flat':
         if not args.load:
             sde = LangevinSDE.new_from(sample)
-            func.fit_parameters_semiflat_controlled_potential(sde, N=1000)
+            func.fit_parameters_semiflat_controlled_potential(sde)
         else:
             func.initialization = 'semi-flat'
     else:

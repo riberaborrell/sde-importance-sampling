@@ -148,6 +148,21 @@ class FunctionApproximation():
         '''
         # load flat bias potential
         flatbias = sde.get_flat_bias_sampling(dt=0.01, k_lim=100, N=1000)
+        N_flat = flatbias.x.shape[0]
+
+        # add boundary condition to training data
+        x_boundary = sde.sample_domain_boundary_uniformly_vec(N_flat // 10)
+        x = np.vstack((flatbias.x, x_boundary))
+
+        if self.target_function == 'value-f':
+            pass
+        elif self.target_function == 'control':
+            u_boundary = np.zeros((N_flat // 10, sde.n))
+            target = np.vstack((flatbias.u, u_boundary))
+
+        # tensorize variables
+        x_tensor = torch.tensor(x, requires_grad=False, dtype=torch.float32)
+        target_tensor = torch.tensor(target, requires_grad=False, dtype=torch.float32)
 
         # parameters
         self.initialization = 'semi-flat'
@@ -158,18 +173,7 @@ class FunctionApproximation():
             lr=0.01,
         )
 
-        x = flatbias.x
-        x_tensor = torch.tensor(x, requires_grad=False, dtype=torch.float32)
-
-        # ansatz functions evaluated at the grid
-        if self.target_function == 'value-f':
-            pass
-        elif self.target_function == 'control':
-            target = flatbias.u
-            target_tensor = torch.tensor(target, requires_grad=False, dtype=torch.float32)
-
         for i in np.arange(iterations_lim):
-
 
             # define loss
             inputs = self.model.forward(x_tensor)
