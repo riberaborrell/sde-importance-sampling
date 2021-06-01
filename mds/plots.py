@@ -57,6 +57,9 @@ class Plot:
         # transparency
         self.alpha = 1
 
+        # vectorfield
+        self.colormap = None
+
     @property
     def file_path(self):
         if self.file_name:
@@ -99,6 +102,12 @@ class Plot:
 
     def set_line_transparency(self, alpha):
         self.alpha = alpha
+
+    def set_colormap(self, colormap, start=0, stop=1, num=100):
+        colormap = cm.get_cmap(colormap, 100)
+        self.colormap = colors.ListedColormap(
+            colormap(np.linspace(start, stop, num))
+        )
 
     def one_line_plot(self, x, y, color=None, label=None):
         assert x.ndim == y.ndim == 1, ''
@@ -318,14 +327,15 @@ class Plot:
         C = np.sqrt(U**2 + V**2)
 
         # modify color map
-        colormap = cm.get_cmap('viridis_r', 100)
-        colormap = colors.ListedColormap(
-            colormap(np.linspace(0.20, 0.95, 75))
-        )
+        if self.colormap is None:
+            colormap = cm.get_cmap('viridis_r', 100)
+            self.colormap = colors.ListedColormap(
+                colormap(np.linspace(0.20, 0.95, 75))
+            )
 
         # initialize norm object and make rgba array
         norm = colors.Normalize(vmin=np.min(C), vmax=np.max(C))
-        sm = cm.ScalarMappable(cmap=colormap, norm=norm)
+        sm = cm.ScalarMappable(cmap=self.colormap, norm=norm)
 
         quiv = ax.quiver(
             X,
@@ -333,7 +343,7 @@ class Plot:
             U,
             V,
             C,
-            cmap=colormap,
+            cmap=self.colormap,
             angles='xy',
             scale_units='xy',
             scale=scale,
