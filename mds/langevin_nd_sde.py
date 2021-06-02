@@ -197,7 +197,7 @@ class LangevinSDE(object):
             h = 0.005
         elif h is None and self.n == 3:
             h = 0.01
-        else:
+        elif h is None:
             return
 
         # initialize hjb solver
