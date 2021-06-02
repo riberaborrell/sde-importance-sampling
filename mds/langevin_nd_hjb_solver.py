@@ -10,13 +10,13 @@ import time
 import os
 
 
-class Solver(LangevinSDE):
+class SolverHJB(LangevinSDE):
     ''' This class provides a solver of the following BVP by using a
         finite differences method:
             0 = LΨ − f Ψ in S
             Ψ = exp(− g) in ∂S,
         where f = 1, g = 0 and L is the infinitessimal generator
-        of the not drifted nd overdamped langevin process:
+        of the not controlled n-dimensional overdamped langevin process:
             L = - ∇V·∇ + epsilon Δ
         Its solution is the moment generating function associated
         to the overdamped langevin sde.
@@ -237,7 +237,7 @@ class Solver(LangevinSDE):
 
     def compute_optimal_control(self):
         ''' this method computes by finite differences the optimal control vector field
-                u_opt = - √2 / beta ∇F
+                u_opt = - (√2 / beta) ∇F
         '''
         assert self.F is not None, ''
         assert self.F.ndim == self.n, ''
@@ -274,7 +274,9 @@ class Solver(LangevinSDE):
 
         self.u_opt = u_opt
 
-    def save_hjb_solution(self):
+    def save(self):
+        ''' saves some attributes as arrays into a .npz file
+        '''
         np.savez(
             os.path.join(self.dir_path, 'hjb-solution.npz'),
             domain_h=self.domain_h,
@@ -287,20 +289,16 @@ class Solver(LangevinSDE):
             t_final=self.t_final,
         )
 
-    def load_hjb_solution(self):
+    def load(self):
+        ''' loads the saved arrays and sets them as attributes back
+        '''
         try:
-            hjb_sol = np.load(
+            data = np.load(
                 os.path.join(self.dir_path, 'hjb-solution.npz'),
                 allow_pickle=True,
             )
-            self.domain_h = hjb_sol['domain_h']
-            self.Nx = hjb_sol['Nx']
-            self.Nh = hjb_sol['Nh']
-            self.Psi = hjb_sol['Psi']
-            self.F = hjb_sol['F']
-            self.u_opt = hjb_sol['u_opt']
-            self.t_initial = hjb_sol['t_initial']
-            self.t_final = hjb_sol['t_final']
+            for file_name in data.files:
+                setattr(self, file_name, data[file_name])
             return True
 
         except:

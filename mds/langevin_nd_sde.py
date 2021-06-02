@@ -188,11 +188,20 @@ class LangevinSDE(object):
         # get index
         return np.where(is_in_target_set == True)[0]
 
-    def get_hjb_solver(self, h):
-        from mds.langevin_nd_hjb_solver import Solver
+    def get_hjb_solver(self, h=None):
+        from mds.langevin_nd_hjb_solver import SolverHJB
+
+        if h is None and self.n == 1:
+            h = 0.001
+        elif h is None and self.n == 2:
+            h = 0.005
+        elif h is None and self.n == 3:
+            h = 0.01
+        else:
+            return
 
         # initialize hjb solver
-        sol = Solver(
+        sol_hjb = SolverHJB(
             n=self.n,
             potential_name=self.potential_name,
             alpha=self.alpha,
@@ -201,8 +210,8 @@ class LangevinSDE(object):
         )
 
         # load already computed solution
-        sol.load_hjb_solution()
-        return sol
+        sol_hjb.load()
+        return sol_hjb
 
     def get_not_controlled_sampling(self, dt, N):
         from mds.langevin_nd_importance_sampling import Sampling
@@ -540,3 +549,31 @@ class LangevinSDE(object):
         plt.set_xlim(-1.5, 1.5)
         plt.set_ylim(-1.5, 1.5)
         plt.vector_field(X, Y, U, V, scale=50)
+
+    def plot_2d_control_vs_hjb(self, u, u_hjb, dir_path=None, ext=''):
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        X = self.domain_h[:, :, 0]
+        Y = self.domain_h[:, :, 1]
+        U = u[:, :, 0] - u_hjb[:, :, 0]
+        V = u[:, :, 1] - u_hjb[:, :, 1]
+
+        # gradient plot
+        plt = Plot(dir_path, 'control_vs_hjb' + ext)
+        plt.set_colormap(colormap='PiYG_r', start=0, stop=1, num=100)
+        plt.vector_field(X, Y, U, V, scale=8)
+
+    def plot_2d_controlled_drift_vs_hjb(self, dVcontrolled, dVcontrolled_hjb, dir_path=None, ext=''):
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        X = self.domain_h[:, :, 0]
+        Y = self.domain_h[:, :, 1]
+        U = dVcontrolled[:, :, 0] - dVcontrolled_hjb[:, :, 0]
+        V = dVcontrolled[:, :, 1] - dVcontrolled_hjb[:, :, 1]
+
+        # gradient plot
+        plt = Plot(dir_path, 'controlled_drift_vs_hjb' + ext)
+        plt.set_colormap(colormap='PiYG_r', start=0, stop=1, num=100)
+        plt.vector_field(X, Y, U, V, scale=8)

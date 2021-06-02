@@ -88,6 +88,10 @@ class Sampling(LangevinSDE):
         self.grad_loss = None
         self.ipa_loss = None
 
+        # control l2 error wrt the hjb solution
+        self.do_u_l2_error = False
+        self.u_l2_error = None
+
         # computational time
         self.t_initial = None
         self.t_final = None
@@ -320,10 +324,9 @@ class Sampling(LangevinSDE):
         M2_t = np.zeros(self.N)
 
         # load optimal control
-        sol = self.get_hjb_solver(h)
-        sol.load_hjb_solution()
-        u_opt = sol.u_opt
-        self.Nx = sol.Nx
+        sol_hjb = self.get_hjb_solver(h)
+        u_opt = sol_hjb.u_opt
+        self.Nx = sol_hjb.Nx
 
         for k in np.arange(1, self.k_lim +1):
             # Brownian increment
@@ -332,7 +335,6 @@ class Sampling(LangevinSDE):
 
             # control at xt
             idx_xt = self.get_index_vectorized(xt)
-            breakpoint()
             ut = u_opt[idx_xt]
 
             # compute gradient
@@ -365,6 +367,7 @@ class Sampling(LangevinSDE):
         self.compute_fht_statistics()
         self.compute_I_u_statistics()
         self.stop_timer()
+
 
     def sample_meta(self):
         self.initialize_fht()
@@ -485,6 +488,17 @@ class Sampling(LangevinSDE):
         self.initialize_fht()
         self.initialize_girsanov_martingale_terms()
 
+        if self.do_u_l2_error:
+
+            # load hjb solution
+            sol_hjb = self.get_hjb_solver()
+            u_hjb = sol_hjb.u_opt
+            self.Nx = sol_hjb.Nx
+
+            # preallcoate l2 error
+            u_l2_error_t = np.zeros(self.N)
+            self.u_l2_error_fht = np.empty(self.N)
+
         ## nn model
         model = self.nn_func_appr.model
 
@@ -546,6 +560,12 @@ class Sampling(LangevinSDE):
                   ).squeeze()
             M2_t -= self.beta * 0.5 * (np.linalg.norm(ut, axis=1) ** 2) * self.dt
 
+            # u l2 error
+            if self.do_u_l2_error:
+                idx_xt = self.get_index_vectorized(xt)
+                ut_hjb = u_hjb[idx_xt]
+                u_l2_error_t += (np.linalg.norm(ut - ut_hjb, axis=1) ** 2) * self.dt
+
             # get indices of trajectories which are new in the target set
             idx = self.get_idx_new_in_target_set(xt)
 
@@ -565,6 +585,10 @@ class Sampling(LangevinSDE):
                 self.M1_fht[idx] = M1_t[idx]
                 self.M2_fht[idx] = M2_t[idx]
 
+                # u l2 error
+                if self.do_u_l2_error:
+                    self.u_l2_error_fht[idx] = u_l2_error_t[idx]
+
             # stop if all trajectories have arrived to the target set
             if self.been_in_target_set.all() == True:
                break
@@ -573,6 +597,8 @@ class Sampling(LangevinSDE):
         self.ipa_loss = torch.mean(ipa_loss_traj)
 
         self.compute_I_u_statistics()
+        if self.do_u_l2_error:
+            self.u_l2_error = np.mean(self.u_l2_error_fht)
 
         return True, k
 
