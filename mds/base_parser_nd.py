@@ -145,6 +145,13 @@ def get_base_parser():
         help='Type of initial control. Default: null',
     )
     parser.add_argument(
+        '--loss-type',
+        dest='loss_type',
+        choices=['ipa', 're'],
+        default='ipa',
+        help='Set type of loss. Default: "ipa"',
+    )
+    parser.add_argument(
         '--lr',
         dest='lr',
         type=float,
@@ -152,11 +159,38 @@ def get_base_parser():
         help='Set learning rate. Default: 0.01',
     )
     parser.add_argument(
-        '--N-gd',
-        dest='N_gd',
+        '--iterations-lim',
+        dest='iterations_lim',
+        type=int,
+        default=100,
+        help='Set maximal number of adam iterations. Default: 100',
+    )
+    parser.add_argument(
+        '--dt-sgd',
+        dest='dt_sgd',
+        type=float,
+        default=0.001,
+        help='Set dt in the sgd. Default: 0.001',
+    )
+    parser.add_argument(
+        '--N-sgd',
+        dest='N_sgd',
         type=int,
         default=1000,
-        help='Set number of trajectories to sample. Default: 1000',
+        help='Set number of trajectories to sample in the sgd. Default: 1000',
+    )
+    parser.add_argument(
+        '--do-u-l2-error',
+        dest='do_u_l2_error',
+        action='store_true',
+        help='compute u l2 error. Default: False',
+    )
+    parser.add_argument(
+        '--d1',
+        dest='d1',
+        type=int,
+        default=20,
+        help='Set dimension of the hidden layer. Default: 20',
     )
     parser.add_argument(
         '--do-plots',

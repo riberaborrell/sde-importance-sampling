@@ -40,6 +40,7 @@ class StochasticOptimizationMethod:
         self.means_I_u = None
         self.vars_I_u = None
         self.res_I_u = None
+        self.u_l2_errors = None
         self.time_steps = None
 
         # running averages
@@ -55,6 +56,9 @@ class StochasticOptimizationMethod:
 
         # flag for plotting at each iteration
         self.do_iteration_plots = do_iteration_plots
+
+        # flag for computing l2 error
+        self.do_u_l2_error = False
 
         # set path
         self.dir_path = None
@@ -142,7 +146,7 @@ class StochasticOptimizationMethod:
             self.sample.ansatz.theta = self.thetas[i, :] - self.lr * self.grad_losses[i, :]
 
         self.stop_timer()
-        self.save_som()
+        self.save()
 
     def som_nn(self):
         self.start_timer()
@@ -164,6 +168,10 @@ class StochasticOptimizationMethod:
         self.preallocate_arrays()
 
         for i in np.arange(self.iterations_lim):
+
+            # u l2 error flag
+            if self.do_u_l2_error:
+                self.sample.do_u_l2_error = True
 
             # compute ipa loss
             if self.loss_type == 'ipa':
@@ -195,6 +203,10 @@ class StochasticOptimizationMethod:
             elif self.loss_type == 're':
                 self.re_losses = np.append(self.re_losses, self.sample.re_loss.detach().numpy())
 
+            if self.sample.u_l2_error is not None:
+                self.u_l2_errors = np.append(self.u_l2_errors, self.sample.u_l2_error)
+
+
             # reset gradients
             optimizer.zero_grad()
 
@@ -209,10 +221,10 @@ class StochasticOptimizationMethod:
             optimizer.step()
 
         self.stop_timer()
-        self.save_som()
+        self.save()
 
 
-    def save_som(self):
+    def save(self):
         file_path = os.path.join(self.dir_path, 'som.npz')
         np.savez(
             file_path,
@@ -225,29 +237,20 @@ class StochasticOptimizationMethod:
             means_I_u=self.means_I_u,
             vars_I_u=self.vars_I_u,
             res_I_u=self.res_I_u,
+            u_l2_errors=self.u_l2_errors,
             time_steps=self.time_steps,
             t_initial=self.t_initial,
             t_final=self.t_final,
         )
 
-    def load_som(self):
+    def load(self):
         try:
-            som = np.load(
+            data = np.load(
                   os.path.join(self.dir_path, 'som.npz'),
                   allow_pickle=True,
             )
-            self.iterations = som['iterations']
-            self.thetas = som['thetas']
-            self.losses = som['losses']
-            self.ipa_losses = som['ipa_losses']
-            self.re_losses = som['re_losses']
-            self.grad_losses = som['grad_losses']
-            self.means_I_u=som['means_I_u']
-            self.vars_I_u=som['vars_I_u']
-            self.res_I_u=som['res_I_u']
-            self.time_steps = som['time_steps']
-            self.t_initial = som['t_initial']
-            self.t_final = som['t_final']
+            for file_name in data.files:
+                setattr(self, file_name, data[file_name])
             return True
 
         except:

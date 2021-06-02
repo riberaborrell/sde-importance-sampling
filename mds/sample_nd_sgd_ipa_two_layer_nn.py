@@ -14,27 +14,6 @@ def get_parser():
     parser = get_base_parser()
     parser.description = ''
     parser.add_argument(
-        '--hidden-layer-dim',
-        dest='hidden_layer_dim',
-        type=int,
-        default=10,
-        help='Set dimension of the hidden layer. Default: 10',
-    )
-    parser.add_argument(
-        '--iterations-lim',
-        dest='iterations_lim',
-        type=int,
-        default=100,
-        help='Set maximal number of adam iterations. Default: 100',
-    )
-    parser.add_argument(
-        '--loss-type',
-        dest='loss_type',
-        choices=['ipa', 're'],
-        default='ipa',
-        help='Set type of loss. Default: "ipa"',
-    )
-    parser.add_argument(
         '--do-iteration-plots',
         dest='do_iteration_plots',
         action='store_true',
@@ -55,8 +34,7 @@ def main():
     )
 
     # initialize two layer nn 
-    d_in, d_1, d_out = args.n, args.hidden_layer_dim, args.n
-    model = TwoLayerNet(d_in, d_1, d_out)
+    model = TwoLayerNet(args.n, args.d1, args.n)
 
     # initialize function approximation
     func = FunctionApproximation(
@@ -105,8 +83,12 @@ def main():
         k_lim=100000,
     )
 
-    # initialize SOM
-    adam = StochasticOptimizationMethod(
+    # set l2 error flag
+    if args.do_u_l2_error:
+        sample.do_u_l2_error = True
+
+    # initialize SOM object
+    sgd = StochasticOptimizationMethod(
         sample=sample,
         loss_type=args.loss_type,
         optimizer='adam',
@@ -118,36 +100,36 @@ def main():
     # start gd with ipa estimator for the gradient
     if not args.load:
         try:
-            adam.som_nn()
+            sgd.som_nn()
 
         # save if job is manually interrupted
         except KeyboardInterrupt:
-            adam.stop_timer()
-            adam.save_som()
+            sgd.stop_timer()
+            sgd.save()
 
     # load already run gd
     else:
-        if not adam.load_som():
+        if not sgd.load():
             return
 
     # report adam
     if args.do_report:
-        adam.write_report()
+        sgd.write_report()
 
     # do plots 
     if args.do_plots:
 
         # plot loss function, relative error and time steps
-        adam.plot_losses(args.h_hjb)
-        adam.plot_I_u()
-        adam.plot_time_steps()
+        sgd.plot_losses(args.h_hjb)
+        sgd.plot_I_u()
+        sgd.plot_time_steps()
 
         if args.n == 1:
-            adam.plot_1d_iteration()
-            adam.plot_1d_iterations()
+            #sgd.plot_1d_iteration()
+            sgd.plot_1d_iterations()
 
         elif args.n == 2:
-            adam.plot_2d_iteration(i=0)
+            sgd.plot_2d_iteration(i=0)
 
 
 if __name__ == "__main__":
