@@ -770,26 +770,12 @@ class Sampling(LangevinSDE):
 
     def load_not_controlled_statistics(self):
         try:
-            mcs = np.load(
+            data = np.load(
                 os.path.join(self.dir_path, 'mc-sampling.npz'),
                 allow_pickle=True,
             )
-            self.seed = mcs['seed']
-            self.xzero = mcs['xzero']
-            self.dt = mcs['dt']
-            self.k_lim = mcs['k_lim']
-            self.N_arrived = mcs['N_arrived']
-            self.first_fht = mcs['first_fht']
-            self.last_fht = mcs['last_fht']
-            self.mean_fht = mcs['mean_fht']
-            self.var_fht = mcs['var_fht']
-            self.re_fht = mcs['re_fht']
-            self.mean_I = mcs['mean_I']
-            self.var_I = mcs['var_I']
-            self.re_I = mcs['re_I']
-            self.traj = mcs['traj']
-            self.t_initial = mcs['t_initial']
-            self.t_final = mcs['t_final']
+            for file_name in data.files:
+                setattr(self, file_name, data[file_name])
             return True
         except:
             msg = 'no mc-sampling found with dt={:.4f} and N={:.0e}' \
@@ -820,26 +806,12 @@ class Sampling(LangevinSDE):
 
     def load_controlled_statistics(self):
         try:
-            ims = np.load(
+            data = np.load(
                 os.path.join(self.dir_path, 'is.npz'),
                 allow_pickle=True,
             )
-            self.seed = ims['seed']
-            self.xzero = ims['xzero']
-            self.dt = ims['dt']
-            self.k_lim = ims['k_lim']
-            self.N_arrived = ims['N_arrived']
-            self.first_fht = ims['first_fht']
-            self.last_fht = ims['last_fht']
-            self.mean_fht = ims['mean_fht']
-            self.var_fht = ims['var_fht']
-            self.re_fht = ims['re_fht']
-            self.mean_I_u = ims['mean_I_u']
-            self.var_I_u = ims['var_I_u']
-            self.re_I_u = ims['re_I_u']
-            self.traj = ims['traj']
-            self.t_initial = ims['t_initial']
-            self.t_final = ims['t_final']
+            for file_name in data.files:
+                setattr(self, file_name, data[file_name])
             return True
         except:
             msg = 'no importance-sampling found with dt={:.4f} and N={:.0e}' \
