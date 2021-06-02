@@ -252,7 +252,7 @@ class LangevinSDE(object):
         meta.set_dir_path()
 
         # load already sampled trajectories
-        meta.load_bias_potential()
+        meta.load()
         return meta
 
     def get_flat_bias_sampling(self, dt, k_lim, N):

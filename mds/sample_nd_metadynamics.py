@@ -60,11 +60,11 @@ def main():
         meta.metadynamics_algorithm()
 
         # save bias potential
-        meta.save_bias_potential()
+        meta.save()
 
     # load already sampled bias potential
     else:
-        if not meta.load_bias_potential():
+        if not meta.load():
             return
 
     if args.do_report:
@@ -72,10 +72,12 @@ def main():
 
     if args.do_plots:
         if sample.n == 1:
-            meta.plot_1d_updates()
+            for i in range(10):
+                meta.plot_1d_updates(i=i)
             meta.plot_1d_update()
         elif sample.n == 2:
             meta.plot_2d_update()
+            meta.plot_2d_means()
 
 if __name__ == "__main__":
     main()

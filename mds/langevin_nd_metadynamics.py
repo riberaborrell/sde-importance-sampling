@@ -1,6 +1,7 @@
 from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
 from mds.utils import get_metadynamics_dir_path, make_dir_path, empty_dir, get_time_in_hms
 from mds.numeric_utils import slice_1d_array
+from mds.plots import Plot
 
 import time
 import numpy as np
@@ -113,8 +114,11 @@ class Metadynamics:
         '''
         # reset sampling
         sample = self.sample
-        sample.is_controlled = False
         sample.xzero = np.full((sample.N, self.sample.n), self.xzero)
+
+        #xzero = sample.sample_domain_uniformly(N=1)
+        #xzero = sample.sample_S_uniformly(N=1)
+        #sample.xzero = np.full((sample.N, self.sample.n), xzero)
 
         # preallocate means and cov matrix of the gaussiansbias functions
         means = np.empty((0, self.sample.n))
@@ -128,19 +132,18 @@ class Metadynamics:
         time_steps = 0
 
         for j in np.arange(self.updates_lim):
-            if self.do_updates_plots:
-                N_ext = '_i_{:d}'.format(i)
-                update_ext = '_j_{:d}'.format(j)
-                ext = N_ext + update_ext
-                if sample.is_drifted:
-                    pass
+
+            # set controlled flag
+            if j == 0:
+                sample.is_controlled = False
+            else:
+                sample.is_controlled = True
 
             # sample with the given weights
-            succ, xtemp = sample.sample_meta()
+            self.succ[i], xtemp = sample.sample_meta()
 
-            if succ:
-                self.succ[i] = succ
-                # update used time stemps
+            # if trajectory arrived update used time stemps
+            if self.succ[i]:
                 time_steps += xtemp.shape[0]
                 break
 
@@ -148,7 +151,6 @@ class Metadynamics:
             means = np.vstack((means, np.mean(xtemp, axis=(0, 1))))
             #print('({:2.3f}, {:2.3f})'.format(means[j, 0], means[j, 1]))
 
-            sample.is_controlled = True
             sample.ansatz.set_given_ansatz_functions(means, self.cov)
             sample.ansatz.theta = omegas[:j+1] / 2
             sample.xzero = np.full((sample.N, self.sample.n), np.mean(xtemp[-1]))
@@ -158,16 +160,19 @@ class Metadynamics:
 
         # save bias functions added for this trajectory
         self.ms[i] = j
-        self.thetas = np.append(self.thetas, sample.ansatz.theta)
-        self.means = np.vstack((self.means, sample.ansatz.means))
         self.time_steps[i] = time_steps
+        if j > 0:
+            self.thetas = np.append(self.thetas, sample.ansatz.theta)
+            self.means = np.vstack((self.means, sample.ansatz.means))
 
     def get_trajectory_indices(self, i):
         assert i in range(self.N), ''
 
         return slice(np.sum(self.ms[:i]), np.sum(self.ms[:i]) + self.ms[i])
 
-    def save_bias_potential(self):
+    def save(self):
+        ''' saves some attributes as arrays into a .npz file
+        '''
         np.savez(
             os.path.join(self.dir_path, 'bias-potential.npz'),
             succ=self.succ,
@@ -180,20 +185,16 @@ class Metadynamics:
             t_final=self.t_final,
         )
 
-    def load_bias_potential(self):
+    def load(self):
+        ''' loads the saved arrays and sets them as attributes back
+        '''
         try:
-            bias_pot = np.load(
+            data = np.load(
                 os.path.join(self.dir_path, 'bias-potential.npz'),
                 allow_pickle=True,
             )
-            self.succ = bias_pot['succ']
-            self.ms = bias_pot['ms']
-            self.thetas = bias_pot['thetas']
-            self.means = bias_pot['means']
-            self.cov = bias_pot['cov']
-            self.time_steps = bias_pot['time_steps']
-            self.t_initial = bias_pot['t_initial']
-            self.t_final = bias_pot['t_final']
+            for file_name in data.files:
+                setattr(self, file_name, data[file_name])
             return True
 
         except:
@@ -298,7 +299,7 @@ class Metadynamics:
         h, m, s = get_time_in_hms(self.t_final - self.t_initial)
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
 
-        self.write_means(f)
+        #self.write_means(f)
         f.close()
 
         # print file
@@ -312,9 +313,14 @@ class Metadynamics:
         x = self.sample.domain_h[:, 0]
 
         # filter updates to show
+        n_sliced_updates = 5
         n_updates = self.ms[i]
         updates = np.arange(n_updates)
-        sliced_updates = slice_1d_array(updates, n_elements=5)
+
+        if n_updates < n_sliced_updates:
+            sliced_updates = updates
+        else:
+            sliced_updates = slice_1d_array(updates, n_elements=n_sliced_updates)
 
         # preallocate functions
         labels = []
@@ -443,3 +449,17 @@ class Metadynamics:
         self.sample.plot_2d_control(self.sample.grid_control, plot_dir_path, ext)
         self.sample.plot_2d_controlled_drift(self.sample.grid_controlled_drift,
                                              plot_dir_path, ext)
+
+    def plot_2d_means(self):
+
+        #self.set_ansatz_all_trajectories()
+        x, y = np.moveaxis(self.means, -1, 0)
+        plt = Plot(self.dir_path, 'means')
+        plt.plt.scatter(x, y)
+        plt.plt.xlim(-3, 3)
+        plt.plt.ylim(-3, 3)
+        plt.plt.savefig(plt.file_path)
+        plt.plt.close()
+
+
+
