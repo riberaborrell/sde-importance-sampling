@@ -391,7 +391,6 @@ class GaussianAnsatz():
         return value_f + self.K_value_f
 
 
-
     def control(self, x, theta=None):
         '''This method computes the control evaluated at x
 
