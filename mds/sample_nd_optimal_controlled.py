@@ -14,11 +14,19 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
+    # set alpha array
+    if args.potential_name == 'nd_2well':
+        alpha = np.full(args.n, args.alpha_i)
+    elif args.potential_name == 'nd_2well_asym':
+        alpha = np.empty(args.n)
+        alpha[0] = args.alpha_i
+        alpha[1:] = args.alpha_j
+
     # initialize sampling object
     sample = Sampling(
-        n=args.n,
         potential_name=args.potential_name,
-        alpha=np.full(args.n, args.alpha_i),
+        n=args.n,
+        alpha=alpha,
         beta=args.beta,
         is_controlled=True,
         is_optimal = True,

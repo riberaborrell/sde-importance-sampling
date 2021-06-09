@@ -12,11 +12,19 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
+    # set alpha array
+    if args.potential_name == 'nd_2well':
+        alpha = np.full(args.n, args.alpha_i)
+    elif args.potential_name == 'nd_2well_asym':
+        alpha = np.empty(args.n)
+        alpha[0] = args.alpha_i
+        alpha[1:] = args.alpha_j
+
     # initialize hjb solver
     sol_hjb = SolverHJB(
-        n=args.n,
         potential_name=args.potential_name,
-        alpha=np.full(args.n, args.alpha_i),
+        n=args.n,
+        alpha=alpha,
         beta=args.beta,
         h=args.h_hjb,
     )
@@ -52,19 +60,19 @@ def main():
         # evaluate in grid
         sol_hjb.get_controlled_potential_and_drift()
 
-        if sol.n == 1:
-            sol_hjb.plot_1d_psi(sol.Psi, label='num sol HJB PDE')
-            sol_hjb.plot_1d_free_energy(sol.F, label='num sol HJB PDE')
-            sol_hjb.plot_1d_controlled_potential(sol.controlled_potential, label='num sol HJB PDE')
-            sol_hjb.plot_1d_control(sol.u_opt[:, 0], label='num sol HJB PDE')
-            sol_hjb.plot_1d_controlled_drift(sol.controlled_drift[:, 0], label='num sol HJB PDE')
+        if sol_hjb.n == 1:
+            sol_hjb.plot_1d_psi(sol_hjb.Psi, label='num sol HJB PDE')
+            sol_hjb.plot_1d_free_energy(sol_hjb.F, label='num sol HJB PDE')
+            sol_hjb.plot_1d_controlled_potential(sol_hjb.controlled_potential, label='num sol HJB PDE')
+            sol_hjb.plot_1d_control(sol_hjb.u_opt[:, 0], label='num sol HJB PDE')
+            sol_hjb.plot_1d_controlled_drift(sol_hjb.controlled_drift[:, 0], label='num sol HJB PDE')
 
-        elif sol.n == 2:
-            sol_hjb.plot_2d_psi(sol.Psi)
-            sol_hjb.plot_2d_free_energy(sol.F)
-            sol_hjb.plot_2d_controlled_potential(sol.controlled_potential)
-            sol_hjb.plot_2d_control(sol.u_opt)
-            sol_hjb.plot_2d_controlled_drift(sol.controlled_drift)
+        elif sol_hjb.n == 2:
+            sol_hjb.plot_2d_psi(sol_hjb.Psi)
+            sol_hjb.plot_2d_free_energy(sol_hjb.F)
+            sol_hjb.plot_2d_controlled_potential(sol_hjb.controlled_potential)
+            sol_hjb.plot_2d_control(sol_hjb.u_opt)
+            sol_hjb.plot_2d_controlled_drift(sol_hjb.controlled_drift)
         else:
             pass
 

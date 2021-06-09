@@ -48,7 +48,7 @@ class LangevinSDE(object):
     @classmethod
     def new_from(cls, obj):
         if issubclass(obj.__class__, LangevinSDE):
-            _new = cls(obj.n, obj.potential_name, obj.alpha, obj.beta,
+            _new = cls(obj.potential_name, obj.n, obj.alpha, obj.beta,
                        obj.target_set, obj.domain, obj.h)
             return _new
         else:
@@ -56,6 +56,14 @@ class LangevinSDE(object):
             raise TypeError(msg)
 
     def set_settings_dir_path(self):
+
+        if self.potential_name == 'nd_2well':
+            assert (self.alpha == self.alpha[0]).all(), ''
+
+        elif self.potential_name == 'nd_2well_asym':
+            assert self.n > 1, ''
+            assert self.alpha[0] != self.alpha[1], ''
+
         self.settings_dir_path = get_settings_dir_path(self.potential_name, self.n,
                                                       self.alpha, self.beta, 'hypercube')
     def discretize_domain(self, h=None):
@@ -201,8 +209,8 @@ class LangevinSDE(object):
 
         # initialize hjb solver
         sol_hjb = SolverHJB(
-            n=self.n,
             potential_name=self.potential_name,
+            n=self.n,
             alpha=self.alpha,
             beta=self.beta,
             h=h,
