@@ -14,7 +14,7 @@ class Sampling(LangevinSDE):
     '''
     '''
 
-    def __init__(self, n, potential_name, alpha, beta, target_set=None,
+    def __init__(self, potential_name, n, alpha, beta, target_set=None,
                  domain=None, h=None, is_controlled=None, is_optimal=None):
         '''
         '''

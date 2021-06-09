@@ -56,9 +56,8 @@ class LangevinSDE(object):
             raise TypeError(msg)
 
     def set_settings_dir_path(self):
-        assert (self.alpha == self.alpha[0]).all(), ''
         self.settings_dir_path = get_settings_dir_path(self.potential_name, self.n,
-                                                      self.alpha[0], self.beta, 'hypercube')
+                                                      self.alpha, self.beta, 'hypercube')
     def discretize_domain(self, h=None):
         ''' this method discretizes the hyper-rectangular domain uniformly with step-size h
         '''

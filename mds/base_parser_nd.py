@@ -29,7 +29,14 @@ def get_base_parser():
         dest='alpha_i',
         type=float,
         default=1,
-        help='Set nd double well barrier height. Default: 1',
+        help='Set nd double well barrier height i-coordinate. Default: 1',
+    )
+    parser.add_argument(
+        '--alpha-j',
+        dest='alpha_j',
+        type=float,
+        default=1,
+        help='Set nd double well barrier height j-cooredinate. Default: 1',
     )
     parser.add_argument(
         '--beta',
