@@ -30,41 +30,41 @@ def empty_dir(dir_path):
             except Exception as e:
                 print('Failed to delete {}. Reason: {}'.format((file_path, e)))
 
-def get_settings_dir_path(potential=None, n=None, alpha_i=None,
-                         beta=None, target_set=None):
+def get_settings_dir_path(potential_name=None, n=None, alpha=None,
+                          beta=None, target_set=None):
     ''' Get absolute path of the directory for the chosen settings and create its directories
     '''
     # get dir path
-    if (potential is not None and
+    if (potential_name is not None and
         n is not None and
-        alpha_i is not None and
+        alpha is not None and
         beta is not None and
         target_set is not None):
 
         dir_path = os.path.join(
             DATA_PATH,
-            potential,
+            potential_name,
             'n_{:d}'.format(n),
-            'alpha_i_{}'.format(float(alpha_i)),
-            'beta_{}'.format(float(beta)),
+            get_alpha_str(potential_name, alpha),
+            get_beta_str(beta),
             get_target_set_str(target_set),
         )
 
-    elif (potential is not None and
+    elif (potential_name is not None and
           n is not None and
-          alpha_i is not None):
+          alpha is not None):
 
         dir_path = os.path.join(
             DATA_PATH,
-            potential,
+            potential_name,
             'n_{:d}'.format(n),
-            'alpha_i_{}'.format(float(alpha_i)),
+            get_alpha_str(potential_name, alpha),
         )
 
     elif (potential is not None and n is not None):
         dir_path = os.path.join(
             DATA_PATH,
-            potential,
+            potential_name,
             'n_{:d}'.format(n),
         )
 
@@ -233,20 +233,20 @@ def get_som_dir_path(func_appr_dir_path, loss_type, optimizer, lr, dt, N):
 
     return dir_path
 
-def get_alpha_stamp(alpha):
+def get_alpha_str(potential_name, alpha):
     assert alpha.ndim == 1, ''
-    alpha_stamp = 'alpha'
-    for alpha_i in alpha:
-        alpha_stamp += '_{}'.format(float(alpha_i))
-    return alpha_stamp
 
-def get_beta_stamp(beta):
+    if potential_name == 'nd_2well':
+        assert (alpha == alpha[0]).all(), ''
+        alpha_str = 'alpha_i_{}'.format(float(alpha[0]))
+
+    elif potential_name == 'nd_2well_asym':
+        alpha_str = 'alpha_i_{}_j_{}'.format(float(alpha[0]), float(alpha[1]))
+
+    return alpha_str
+
+def get_beta_str(beta):
     return 'beta_{}'.format(float(beta))
-
-def get_sde_stamp(alpha, beta):
-    sde_stamp = get_alpha_stamp(alpha)
-    sde_stamp += get_beta_stamp(beta)
-    return sde_stamp
 
 def get_target_set_str(target_set):
     if type(target_set) == str:
