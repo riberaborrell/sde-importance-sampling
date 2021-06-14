@@ -61,7 +61,7 @@ def get_settings_dir_path(potential_name=None, n=None, alpha=None,
             get_alpha_str(potential_name, alpha),
         )
 
-    elif (potential is not None and n is not None):
+    elif (potential_name is not None and n is not None):
         dir_path = os.path.join(
             DATA_PATH,
             potential_name,
@@ -237,7 +237,6 @@ def get_alpha_str(potential_name, alpha):
     assert alpha.ndim == 1, ''
 
     if potential_name == 'nd_2well':
-        assert (alpha == alpha[0]).all(), ''
         alpha_str = 'alpha_i_{}'.format(float(alpha[0]))
 
     elif potential_name == 'nd_2well_asym':

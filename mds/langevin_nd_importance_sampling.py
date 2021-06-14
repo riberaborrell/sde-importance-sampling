@@ -15,7 +15,8 @@ class Sampling(LangevinSDE):
     '''
 
     def __init__(self, potential_name, n, alpha, beta, target_set=None,
-                 domain=None, h=None, is_controlled=None, is_optimal=None):
+                 domain=None, h=None, is_controlled=None, is_optimal=None,
+                 is_batch=False):
         '''
         '''
 
@@ -32,9 +33,14 @@ class Sampling(LangevinSDE):
         self.save_trajectory = False
         self.traj = None
 
+        # batch sampling
+        self.is_batch = is_batch
+        self.batch_id = None
+
         # Euler-Marujama
         self.dt = None
         self.k_lim = None
+        self.k = None
 
         # ansatz functions (gaussians) and coefficients
         self.ansatz = None
@@ -100,8 +106,9 @@ class Sampling(LangevinSDE):
         self.u_l2_error = None
 
         # computational time
-        self.t_initial = None
-        self.t_final = None
+        self.ct_initial = None
+        self.ct_final = None
+        self.ct_delta = None
 
         # dir_path
         self.dir_path = None
@@ -174,8 +181,9 @@ class Sampling(LangevinSDE):
         '''
         '''
         # set random seed
-        if seed:
+        if seed is not None:
             np.random.seed(seed)
+        self.seed = seed
 
         # Euler-Marujama
         self.dt = dt
@@ -186,10 +194,11 @@ class Sampling(LangevinSDE):
         self.N = N
 
     def start_timer(self):
-        self.t_initial = time.perf_counter()
+        self.ct_initial = time.perf_counter()
 
     def stop_timer(self):
-        self.t_final = time.perf_counter()
+        self.ct_final = time.perf_counter()
+        self.ct_delta = self.ct_final - self.ct_initial
 
     def preallocate_fht(self):
         '''
@@ -306,10 +315,11 @@ class Sampling(LangevinSDE):
 
             # check if all trajectories have arrived to the target set
             if self.been_in_target_set.all() == True:
+
+                # save number of time steps used
+                self.k = k
                 break
 
-        self.compute_fht_statistics()
-        self.compute_I_statistics()
         self.stop_timer()
 
     def sample_controlled(self):
@@ -786,12 +796,25 @@ class Sampling(LangevinSDE):
         pass
 
     def save_not_controlled_statistics(self):
+
+        # set file name
+        if not self.is_batch:
+            file_name = 'mc-sampling.npz'
+        else:
+            file_name = 'mc-sampling_batch-{}.npz'.format(str(self.batch_id))
+
+        # set file path
+        file_path = os.path.join(self.dir_path, file_name)
+
         np.savez(
-            os.path.join(self.dir_path, 'mc-sampling.npz'),
+            file_path,
             seed=self.seed,
             xzero=self.xzero,
             dt=self.dt,
             k_lim=self.k_lim,
+            been_in_target_set=self.been_in_target_set,
+            fht=self.fht,
+            k=self.k,
             N_arrived=self.N_arrived,
             first_fht=self.first_fht,
             last_fht=self.last_fht,
@@ -802,18 +825,26 @@ class Sampling(LangevinSDE):
             var_I=self.var_I,
             re_I=self.re_I,
             traj=self.traj,
-            t_initial=self.t_initial,
-            t_final=self.t_final,
+            ct_delta=self.ct_delta,
         )
 
     def load_not_controlled_statistics(self):
+        # set file name
+        if not self.is_batch:
+            file_name = 'mc-sampling.npz'
+        else:
+            file_name = 'mc-sampling_batch-{}.npz'.format(str(self.batch_id))
+
+        # set file path
+        file_path = os.path.join(self.dir_path, file_name)
+
         try:
-            data = np.load(
-                os.path.join(self.dir_path, 'mc-sampling.npz'),
-                allow_pickle=True,
-            )
+            data = np.load(file_path, allow_pickle=True)
             for file_name in data.files:
-                setattr(self, file_name, data[file_name])
+                if data[file_name].ndim == 0:
+                    setattr(self, file_name, data[file_name][()])
+                else:
+                    setattr(self, file_name, data[file_name])
             return True
         except:
             msg = 'no mc-sampling found with dt={:.4f} and N={:.0e}' \
@@ -838,8 +869,7 @@ class Sampling(LangevinSDE):
             var_I_u=self.var_I_u,
             re_I_u=self.re_I_u,
             traj=self.traj,
-            t_initial=self.t_initial,
-            t_final=self.t_final,
+            ct_delta=self.ct_delta,
         )
 
     def load_controlled_statistics(self):
@@ -849,7 +879,11 @@ class Sampling(LangevinSDE):
                 allow_pickle=True,
             )
             for file_name in data.files:
-                setattr(self, file_name, data[file_name])
+                if data[file_name].ndim == 0:
+                    setattr(self, file_name, data[file_name][()])
+                else:
+                    setattr(self, file_name, data[file_name])
+
             return True
         except:
             msg = 'no importance-sampling found with dt={:.4f} and N={:.0e}' \
@@ -877,7 +911,7 @@ class Sampling(LangevinSDE):
 
         f.write('sampled trajectories: {:,d}\n'.format(self.N))
 
-        if self.seed:
+        if self.seed is not None:
             f.write('seed: {:2.1f}\n'.format(self.seed))
         else:
             f.write('seed: -\n')
@@ -885,9 +919,15 @@ class Sampling(LangevinSDE):
     def write_report(self):
         '''
         '''
-        # set path
 
-        file_path = os.path.join(self.dir_path, 'report.txt')
+        # set file name
+        if self.seed is None:
+            file_name = 'report.txt'
+        else:
+            file_name = 'report_batch-{}.txt'.format(str(self.seed))
+
+        # set file path
+        file_path = os.path.join(self.dir_path, file_name)
 
         # write file
         f = open(file_path, "w")
@@ -903,10 +943,20 @@ class Sampling(LangevinSDE):
 
         f.write('trajectories which arrived: {:2.2f} %\n'
                 ''.format(100 * self.N_arrived / self.N))
-        f.write('used time steps: {:,d}\n\n'.format(int(self.last_fht / self.dt)))
-        if self.N_arrived == 0:
+
+        if self.N_arrived < self.N:
+            f.write('used time steps: {:,d}\n\n'.format(self.k_lim))
+
+            # close file
+            f.close()
+
+            # print file
+            f = open(file_path, 'r')
+            print(f.read())
             f.close()
             return
+        else:
+            f.write('used time steps: {:,d}\n\n'.format(self.k))
 
         f.write('First hitting time (fht)\n')
         f.write('first fht = {:2.3f}\n'.format(self.first_fht))
@@ -934,7 +984,7 @@ class Sampling(LangevinSDE):
             f.write('RE[exp(- fht) * M_fht] = {:2.3e}\n\n'.format(self.re_I_u))
             f.write('-log(E[exp(- fht) * M_fht]) = {:2.3e}\n\n'.format(-np.log(self.mean_I_u)))
 
-        h, m, s = get_time_in_hms(self.t_final - self.t_initial)
+        h, m, s = get_time_in_hms(self.ct_delta)
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
 
         f.close()

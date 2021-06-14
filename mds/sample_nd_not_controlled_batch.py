@@ -6,11 +6,28 @@ import os
 
 def get_parser():
     parser = get_base_parser()
-    parser.description = 'Sample not controlled nd overdamped Langevin SDE'
+    parser.description = 'Sample not controlled nd overdamped Langevin SDE. Save fht array'
+    parser.add_argument(
+        '--batch-id',
+        dest='batch_id',
+        type=int,
+        default=1,
+        help='Set batch id. Default: 1',
+    )
+    parser.add_argument(
+        '--N-batch',
+        dest='N_batch',
+        type=int,
+        default=1000,
+        help='Set number of trajectories for the batch sampling. Default: 1000',
+    )
     return parser
 
 def main():
     args = get_parser().parse_args()
+
+    # check number of batch trajectories
+    assert args.N % args.N_batch == 0, ''
 
     # set alpha array
     if args.potential_name == 'nd_2well':
@@ -27,6 +44,7 @@ def main():
         alpha=alpha,
         beta=args.beta,
         is_controlled=False,
+        is_batch=True,
     )
 
     # set sampling and Euler-Marujama parameters
@@ -41,33 +59,15 @@ def main():
     # set path
     sample.set_not_controlled_dir_path()
 
+    # set batch number of trajectories and batch id
+    sample.N = args.N_batch
+    sample.batch_id = args.batch_id
+
     # sample not controlled trajectories
-    if not args.load:
+    sample.sample_not_controlled()
 
-        # save trajectory flag
-        if args.save_trajectory:
-            sample.save_trajectory = True
-
-        # sample and compute statistics
-        sample.sample_not_controlled()
-        sample.compute_fht_statistics()
-        sample.compute_I_statistics()
-
-        # save files
-        sample.save_not_controlled_statistics()
-
-    # load already computed statistics
-    else:
-        if not sample.load_not_controlled_statistics():
-            return
-
-    # report statistics
-    if args.do_report:
-        sample.write_report()
-
-    # plot trajectory
-    if args.do_plots and args.save_trajectory:
-        sample.plot_trajectory()
+    # save files
+    sample.save_not_controlled_statistics()
 
 
 if __name__ == "__main__":
