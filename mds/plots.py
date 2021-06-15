@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-import matplotlib.colors as colors
+from matplotlib import ticker, cm, colors
 
 import os
 
@@ -104,6 +103,8 @@ class Plot:
         self.alpha = alpha
 
     def set_colormap(self, colormap, start=0, stop=1, num=100):
+        assert 0 <= start <= stop <= 1, ''
+
         colormap = cm.get_cmap(colormap, 100)
         self.colormap = colors.ListedColormap(
             colormap(np.linspace(start, stop, num))
@@ -226,6 +227,54 @@ class Plot:
         plt.savefig(self.file_path)
         plt.close()
 
+    def reduce_arrays_xy_axis(self, X, Y, Z=None, U=None, V=None):
+        '''
+        '''
+        # check if height Z or vector field U, V is given 
+        if Z is None:
+            assert U is not None and V is not None, ''
+        else:
+            assert U is None and V is None, ''
+
+        # get x and y axis
+        x = X[:, 0]
+        y = Y[0, :]
+
+        # get indices of the given limits
+        if self.xmin is not None:
+            idx_xmin = np.argmin(np.abs(x - self.xmin))
+        else:
+            idx_xmin = None
+        if self.xmax is not None:
+            idx_xmax = np.argmin(np.abs(x - self.xmax))
+        else:
+            idx_xmax = None
+        if self.ymin is not None:
+            idx_ymin = np.argmin(np.abs(y - self.ymin))
+        else:
+            idx_ymin = None
+        if self.ymax is not None:
+            idx_ymax = np.argmin(np.abs(y - self.ymax))
+        else:
+            idx_ymax = None
+
+        # reduce coordinates
+        X = X[slice(idx_xmin, idx_xmax), slice(idx_ymin, idx_ymax)]
+        Y = Y[slice(idx_xmin, idx_xmax), slice(idx_ymin, idx_ymax)]
+
+        # reduce height
+        if Z is not None:
+            Z = Z[slice(idx_xmin, idx_xmax), slice(idx_ymin, idx_ymax)]
+            U = V = None
+
+        if U is not None and V is not None:
+            Z =  None
+            U = U[slice(idx_xmin, idx_xmax), slice(idx_ymin, idx_ymax)]
+            V = V[slice(idx_xmin, idx_xmax), slice(idx_ymin, idx_ymax)]
+
+        return X, Y, Z, U, V
+
+
     def surface(self, X, Y, Z):
         assert X.ndim == Y.ndim == Z.ndim == 2, ''
         assert Z.shape == (X.shape[0], Y.shape[1]), ''
@@ -269,7 +318,24 @@ class Plot:
         assert X.ndim == Y.ndim == Z.ndim == 2, ''
         assert Z.shape == X.shape == Y.shape, ''
 
+        # reduce arrays if limits are given
+        if (self.xmin is not None or
+            self.xmax is not None or
+            self.ymin is not None or
+            self.ymax is not None):
+            X, Y, Z, _, _ = self.reduce_arrays_xy_axis(X, Y, Z=Z)
+
+        # set colormap if is not set yet
+        if self.colormap is None:
+            self.set_colormap('coolwarm')
+
+        if self.zmin is None:
+            self.zmin = Z.min()
+        if self.zmax is None:
+            self.zmax = Z.max()
+
         fig, ax = plt.subplots()
+
         cs = ax.contourf(
             X,
             Y,
@@ -277,7 +343,9 @@ class Plot:
             vmin=self.zmin,
             vmax=self.zmax,
             levels=levels,
-            cmap=cm.coolwarm,
+            cmap=self.colormap,
+            #extend='both',
+            #norm=colors.LogNorm(self.zmin, self.zmax),
         )
         ax.set_title(self.title)
         ax.set_xlabel(r'$x_1$', fontsize=16)
@@ -289,20 +357,6 @@ class Plot:
         plt.savefig(self.file_path)
         plt.close()
 
-    def reduce_quiver_arrows(self, X, Y, U, V):
-        # get the indices of the given limits
-        x = X[:, 0]
-        y = Y[0, :]
-        idx_xmin = np.where(x == self.xmin)[0][0]
-        idx_xmax = np.where(x == self.xmax)[0][0]
-        idx_ymin = np.where(y == self.ymin)[0][0]
-        idx_ymax = np.where(y == self.ymax)[0][0]
-        X = X[idx_xmin:idx_xmax+1, idx_ymin:idx_ymax+1]
-        Y = Y[idx_xmin:idx_xmax+1, idx_ymin:idx_ymax+1]
-        U = U[idx_xmin:idx_xmax+1, idx_ymin:idx_ymax+1]
-        V = V[idx_xmin:idx_xmax+1, idx_ymin:idx_ymax+1]
-        return X, Y, U, V
-
     def coarse_quiver_arrows(self, X, Y, U, V, kx, ky):
         # show every k row and column
         X = X[::kx, ::ky]
@@ -313,11 +367,11 @@ class Plot:
 
     def vector_field(self, X, Y, U, V, kx=None, ky=None, scale=None, width=0.005):
         fig, ax = plt.subplots()
-        if (self.xmin is not None and
-            self.xmax is not None and
-            self.ymin is not None and
+        if (self.xmin is not None or
+            self.xmax is not None or
+            self.ymin is not None or
             self.ymax is not None):
-            X, Y, U, V = self.reduce_quiver_arrows(X, Y, U, V)
+            X, Y, _, U, V = self.reduce_arrays_xy_axis(X, Y, U=U, V=V)
         if kx is None:
             kx = X.shape[0] // 25
         if ky is None:
@@ -326,12 +380,9 @@ class Plot:
 
         C = np.sqrt(U**2 + V**2)
 
-        # modify color map
+        # set colormap if is not set yet
         if self.colormap is None:
-            colormap = cm.get_cmap('viridis_r', 100)
-            self.colormap = colors.ListedColormap(
-                colormap(np.linspace(0.20, 0.95, 75))
-            )
+            self.set_colormap('viridis_r', 0.20, 0.95, 75)
 
         # initialize norm object and make rgba array
         norm = colors.Normalize(vmin=np.min(C), vmax=np.max(C))
