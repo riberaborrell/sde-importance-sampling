@@ -568,7 +568,7 @@ class LangevinSDE(object):
 
         # gradient plot
         plt = Plot(dir_path, 'control_vs_hjb' + ext)
-        plt.set_colormap(colormap='PiYG_r', start=0, stop=1, num=100)
+        plt.set_colormap(colormap='viridis')
         plt.vector_field(X, Y, U, V, scale=8)
 
     def plot_2d_controlled_drift_vs_hjb(self, dVcontrolled, dVcontrolled_hjb, dir_path=None, ext=''):
@@ -582,5 +582,5 @@ class LangevinSDE(object):
 
         # gradient plot
         plt = Plot(dir_path, 'controlled_drift_vs_hjb' + ext)
-        plt.set_colormap(colormap='PiYG_r', start=0, stop=1, num=100)
+        plt.set_colormap(colormap='viridis')
         plt.vector_field(X, Y, U, V, scale=8)

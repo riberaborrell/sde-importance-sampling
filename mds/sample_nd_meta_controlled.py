@@ -11,6 +11,12 @@ def get_parser():
     parser.description = 'Sample controlled nd overdamped Langevin SDE. The bias potential ' \
                          'is parametrized with linear combination of Gaussian functions. ' \
                          'The weights are chosen from the metadynamics sampling.'
+    parser.add_argument(
+        '--is-cumulative',
+        dest='is_cumulative',
+        action='store_true',
+        help='Cumulative metadynamics algorithm. Default: False',
+    )
     return parser
 
 def main():
@@ -44,10 +50,14 @@ def main():
 
     # get meta sampling
     meta = sample.get_metadynamics_sampling(args.dt_meta, args.sigma_i_meta, args.k, args.N_meta)
+    assert meta.is_cumulative == meta.is_cumulative, ''
 
     # get the corresponding Gaussian ansatz
     meta.sample.ansatz = GaussianAnsatz(n=args.n)
-    meta.set_ansatz_all_trajectories()
+    if meta.is_cumulative:
+        meta.set_ansatz_cumulative()
+    else:
+        meta.set_ansatz_averaged()
     sample.ansatz = meta.sample.ansatz
 
     # set controlled sampling dir path

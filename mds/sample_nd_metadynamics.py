@@ -12,6 +12,12 @@ def get_parser():
     parser = get_base_parser()
     parser.description = 'Metadynamics for the nd overdamped Langevin SDE'
     parser.add_argument(
+        '--is-cumulative',
+        dest='is_cumulative',
+        action='store_true',
+        help='Cumulative metadynamics algorithm. Default: False',
+    )
+    parser.add_argument(
         '--do-updates-plots',
         dest='do_updates_plots',
         action='store_true',
@@ -50,6 +56,7 @@ def main():
         N=args.N_meta,
         sigma_i=args.sigma_i_meta,
         seed=args.seed,
+        is_cumulative=args.is_cumulative,
         do_updates_plots=args.do_updates_plots,
     )
 
@@ -64,8 +71,22 @@ def main():
     meta.set_dir_path()
 
     if not args.load:
+
+        # start timer
+        meta.start_timer()
+
         # sample metadynamics trjectories
-        meta.metadynamics_algorithm()
+        meta.preallocate_metadynamics_coefficients()
+
+        # metadynamics algorythm for different samples
+        for i in np.arange(meta.N):
+            if meta.is_cumulative:
+                meta.cumulative_metadynamics_algorithm(i)
+            else:
+                meta.independent_metadynamics_algorithm(i)
+
+        # stop timer
+        meta.stop_timer()
 
         # save bias potential
         meta.save()
@@ -80,9 +101,9 @@ def main():
 
     if args.do_plots:
         if sample.n == 1:
-            for i in range(10):
+            for i in range(args.N_meta):
                 meta.plot_1d_updates(i=i)
-            meta.plot_1d_update()
+            #meta.plot_1d_update()
         elif sample.n == 2:
             meta.plot_2d_update()
             meta.plot_2d_means()

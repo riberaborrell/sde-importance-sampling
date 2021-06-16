@@ -361,6 +361,9 @@ class Sampling(LangevinSDE):
 
             # check if all trajectories have arrived to the target set
             if self.been_in_target_set.all() == True:
+
+                # save number of time steps used
+                self.k = k
                 break
 
         self.compute_fht_statistics()
