@@ -238,7 +238,7 @@ class LangevinSDE(object):
         sample.load_not_controlled_statistics()
         return sample
 
-    def get_metadynamics_sampling(self, dt, sigma_i_meta, k, N_meta):
+    def get_metadynamics_sampling(self, dt, sigma_i, k, N):
         from mds.langevin_nd_importance_sampling import Sampling
         from mds.langevin_nd_metadynamics import Metadynamics
 
@@ -251,8 +251,8 @@ class LangevinSDE(object):
         meta = Metadynamics(
             sample=sample,
             k=k,
-            N=N_meta,
-            sigma_i=sigma_i_meta,
+            N=N,
+            sigma_i=sigma_i,
         )
 
         # set path

@@ -41,13 +41,15 @@ class FunctionApproximation():
                     layer._parameters[key], requires_grad=True
                 )
 
-    def fit_parameters_from_metadynamics(self, sde, iterations_lim=10000, N=1000, epsilon=0.01):
+    def fit_parameters_from_metadynamics(self, sde, iterations_lim=10000, N_train=1000,
+                                         epsilon=0.01, dt_meta=0.001, sigma_i_meta=0.5,
+                                         k=100, N_meta=100):
 
         # parameters
         self.initialization = 'meta'
 
         # load meta bias potential
-        meta = sde.get_metadynamics_sampling(dt=0.001, sigma_i_meta=0.5, k=100, N_meta=10)
+        meta = sde.get_metadynamics_sampling(dt_meta, sigma_i_meta, k, N_meta)
 
         # create ansatz functions from meta
         meta.sample.ansatz = GaussianAnsatz(n=sde.n)
@@ -62,7 +64,7 @@ class FunctionApproximation():
         for i in np.arange(iterations_lim):
 
             # sample training data
-            x = sde.sample_domain_uniformly(N=N)
+            x = sde.sample_domain_uniformly(N=N_train)
             x_tensor = torch.tensor(x, requires_grad=False, dtype=torch.float32)
 
             # ansatz functions evaluated at the grid

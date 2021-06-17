@@ -58,7 +58,9 @@ def main():
     elif args.theta == 'meta':
         if not args.load:
             sde = LangevinSDE.new_from(sample)
-            func.fit_parameters_from_metadynamics(sde)
+            func.fit_parameters_from_metadynamics(sde, dt_meta=args.dt_meta,
+                                                  sigma_i_meta=args.sigma_i_meta,
+                                                  k=args.k, N_meta=args.N_meta)
         else:
             func.initialization = 'meta'
     elif args.theta == 'flat':
