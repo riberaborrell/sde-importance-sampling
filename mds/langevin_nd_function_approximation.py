@@ -51,7 +51,7 @@ class FunctionApproximation():
 
         # create ansatz functions from meta
         meta.sample.ansatz = GaussianAnsatz(n=sde.n)
-        meta.set_ansatz_all_trajectories()
+        meta.set_ansatz_cumulative()
 
         # define optimizer
         optimizer = optim.Adam(
