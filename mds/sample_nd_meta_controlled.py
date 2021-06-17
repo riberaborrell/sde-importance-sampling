@@ -50,7 +50,7 @@ def main():
 
     # get meta sampling
     meta = sample.get_metadynamics_sampling(args.dt_meta, args.sigma_i_meta, args.k, args.N_meta)
-    assert meta.is_cumulative == meta.is_cumulative, ''
+    assert meta.is_cumulative == args.is_cumulative, ''
 
     # get the corresponding Gaussian ansatz
     meta.sample.ansatz = GaussianAnsatz(n=args.n)
