@@ -22,10 +22,10 @@ class SolverHJB(LangevinSDE):
         to the overdamped langevin sde.
    '''
 
-    def __init__(self, n, potential_name, alpha, beta,
+    def __init__(self, potential_name, n, alpha, beta,
                  target_set=None, domain=None, h=None):
 
-        super().__init__(n, potential_name, alpha, beta,
+        super().__init__(potential_name, n, alpha, beta,
                          target_set, domain, h)
 
         def f(x):
