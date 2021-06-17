@@ -20,7 +20,7 @@ class Sampling(LangevinSDE):
         '''
         '''
 
-        super().__init__(n, potential_name, alpha, beta,
+        super().__init__(potential_name, n, alpha, beta,
                          target_set, domain, h)
 
         # sampling
