@@ -68,6 +68,11 @@ def get_settings_dir_path(potential_name=None, n=None, alpha=None,
             'n_{:d}'.format(n),
         )
 
+    elif (potential_name is not None):
+        dir_path = os.path.join(
+            DATA_PATH,
+            potential_name,
+        )
     else:
         dir_path = DATA_PATH
 
