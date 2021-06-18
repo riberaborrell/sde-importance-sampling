@@ -18,6 +18,13 @@ LEGEND_LOCATION_STRINGS = [
     'center',
 ]
 
+LEVELS_SCALE = [
+    'lineal',
+    'log2',
+    'log',
+    'log10',
+]
+
 class Plot:
     def __init__(self, dir_path, file_name=None, file_type='png'):
         self.file_name = file_name
@@ -56,8 +63,11 @@ class Plot:
         # transparency
         self.alpha = 1
 
-        # vectorfield
+        # colormap
         self.colormap = None
+
+        # levels scale
+        self.levels_scale = 'lineal'
 
     @property
     def file_path(self):
@@ -109,6 +119,10 @@ class Plot:
         self.colormap = colors.ListedColormap(
             colormap(np.linspace(start, stop, num))
         )
+
+    def set_contour_levels(self, scale='lineal'):
+        assert scale in LEVELS_SCALE, ''
+        self.levels_scale = scale
 
     def one_line_plot(self, x, y, color=None, label=None):
         assert x.ndim == y.ndim == 1, ''
@@ -329,10 +343,23 @@ class Plot:
         if self.colormap is None:
             self.set_colormap('coolwarm')
 
+        # get minimum and maximum height values
         if self.zmin is None:
             self.zmin = Z.min()
         if self.zmax is None:
             self.zmax = Z.max()
+
+        # set levels
+        if self.levels_scale == 'lineal':
+            levels = np.linspace(0, self.zmax, 11)
+        elif self.levels_scale == 'log2':
+            levels = np.logspace(-1, np.log2(self.zmax), 11, base=2)
+        elif self.levels_scale == 'log':
+            levels = np.logspace(-1, np.log(self.zmax), 11, base=np.e)
+        elif self.levels_scale == 'log10':
+            levels = np.logspace(-1, np.log10(self.zmax), 11, base=10)
+        else:
+            return
 
         fig, ax = plt.subplots()
 
@@ -344,7 +371,7 @@ class Plot:
             vmax=self.zmax,
             levels=levels,
             cmap=self.colormap,
-            #extend='both',
+            extend='both',
             #norm=colors.LogNorm(self.zmin, self.zmax),
         )
         ax.set_title(self.title)
