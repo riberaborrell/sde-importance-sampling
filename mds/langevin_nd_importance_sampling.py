@@ -108,7 +108,7 @@ class Sampling(LangevinSDE):
         # computational time
         self.ct_initial = None
         self.ct_final = None
-        self.ct_delta = None
+        self.ct = None
 
         # dir_path
         self.dir_path = None
@@ -198,7 +198,7 @@ class Sampling(LangevinSDE):
 
     def stop_timer(self):
         self.ct_final = time.perf_counter()
-        self.ct_delta = self.ct_final - self.ct_initial
+        self.ct = self.ct_final - self.ct_initial
 
     def preallocate_fht(self):
         '''
@@ -852,7 +852,7 @@ class Sampling(LangevinSDE):
             files_dict['traj'] = self.traj
 
         # computational time
-        files_dict['ct_delta'] = self.ct_delta
+        files_dict['ct'] = self.ct
 
         # save npz file
         np.savez(file_path, **files_dict)
@@ -986,7 +986,7 @@ class Sampling(LangevinSDE):
             f.write('RE[exp(- fht) * M_fht] = {:2.3e}\n\n'.format(self.re_I_u))
             f.write('-log(E[exp(- fht) * M_fht]) = {:2.3e}\n\n'.format(-np.log(self.mean_I_u)))
 
-        h, m, s = get_time_in_hms(self.ct_delta)
+        h, m, s = get_time_in_hms(self.ct)
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
 
         f.close()
