@@ -41,6 +41,7 @@ def main():
     # set path
     sample.set_not_controlled_dir_path()
 
+
     # sample not controlled trajectories
     if not args.load:
 
@@ -54,11 +55,11 @@ def main():
         sample.compute_I_statistics()
 
         # save files
-        sample.save_not_controlled_statistics()
+        sample.save()
 
     # load already computed statistics
     else:
-        if not sample.load_not_controlled_statistics():
+        if not sample.load():
             return
 
     # report statistics

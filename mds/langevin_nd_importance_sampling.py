@@ -798,99 +798,97 @@ class Sampling(LangevinSDE):
     def compute_loss(self):
         pass
 
-    def save_not_controlled_statistics(self):
+    def save(self):
 
         # set file name
-        if not self.is_batch:
+        if not self.is_controlled and not self.is_batch:
             file_name = 'mc-sampling.npz'
-        else:
+        elif not self.is_controlled and self.is_batch:
             file_name = 'mc-sampling_batch-{}.npz'.format(str(self.batch_id))
+        elif self.is_controlled:
+            file_name = 'is.npz'
+        else:
+            return
 
         # set file path
         file_path = os.path.join(self.dir_path, file_name)
 
-        np.savez(
-            file_path,
-            seed=self.seed,
-            xzero=self.xzero,
-            dt=self.dt,
-            k_lim=self.k_lim,
-            been_in_target_set=self.been_in_target_set,
-            fht=self.fht,
-            k=self.k,
-            N_arrived=self.N_arrived,
-            first_fht=self.first_fht,
-            last_fht=self.last_fht,
-            mean_fht=self.mean_fht,
-            var_fht=self.var_fht,
-            re_fht=self.re_fht,
-            mean_I=self.mean_I,
-            var_I=self.var_I,
-            re_I=self.re_I,
-            traj=self.traj,
-            ct_delta=self.ct_delta,
-        )
+        # create dictionary
+        files_dict = {}
 
-    def load_not_controlled_statistics(self):
+        # add sampling attributes
+        files_dict['seed'] = self.seed
+        files_dict['xzero'] = self.xzero
+        files_dict['N'] = self.N
+
+        # Euler-Marujama
+        files_dict['dt'] = self.dt
+        files_dict['k_lim'] =self.k_lim
+
+        # fht
+        files_dict['been_in_target_set'] = self.been_in_target_set
+        files_dict['fht'] = self.fht
+        files_dict['k'] = self.k
+        files_dict['N_arrived'] = self.N_arrived
+        files_dict['first_fht'] = self.first_fht
+        files_dict['last_fht'] = self.last_fht
+        files_dict['mean_fht'] = self.mean_fht
+        files_dict['var_fht'] = self.var_fht
+        files_dict['re_fht'] = self.re_fht
+
+        # quantity of interest
+        files_dict['mean_I'] = self.mean_I
+        files_dict['var_I'] = self.var_I
+        files_dict['re_I'] = self.re_I
+
+        # reweighted quantity of interest
+        if self.is_controlled:
+            files_dict['mean_I_u'] = self.mean_I_u
+            files_dict['var_I_u'] = self.var_I_u
+            files_dict['re_I_u'] = self.re_I_u
+
+        # save trajectory
+        if self.save_trajectory:
+            files_dict['traj'] = self.traj
+
+        # computational time
+        files_dict['ct_delta'] = self.ct_delta
+
+        # save npz file
+        np.savez(file_path, **files_dict)
+
+
+    def load(self):
+
         # set file name
-        if not self.is_batch:
+        if not self.is_controlled and not self.is_batch:
             file_name = 'mc-sampling.npz'
-        else:
+        elif not self.is_controlled and self.is_batch:
             file_name = 'mc-sampling_batch-{}.npz'.format(str(self.batch_id))
+        elif self.is_controlled:
+            file_name = 'is.npz'
+        else:
+            return
 
         # set file path
         file_path = os.path.join(self.dir_path, file_name)
 
+        # load data
         try:
             data = np.load(file_path, allow_pickle=True)
-            for file_name in data.files:
-                if data[file_name].ndim == 0:
-                    setattr(self, file_name, data[file_name][()])
+            for npz_file_name in data.files:
+                if data[npz_file_name].ndim == 0:
+                    setattr(self, npz_file_name, data[npz_file_name][()])
                 else:
-                    setattr(self, file_name, data[file_name])
+                    setattr(self, npz_file_name, data[npz_file_name])
             return True
         except:
-            msg = 'no mc-sampling found with dt={:.4f} and N={:.0e}' \
-                  ''.format(self.dt, self.N)
-            print(msg)
-            return False
-
-    def save_controlled_statistics(self):
-        np.savez(
-            os.path.join(self.dir_path, 'is.npz'),
-            seed=self.seed,
-            xzero=self.xzero,
-            dt=self.dt,
-            k_lim=self.k_lim,
-            N_arrived=self.N_arrived,
-            first_fht=self.first_fht,
-            last_fht=self.last_fht,
-            mean_fht=self.mean_fht,
-            var_fht=self.var_fht,
-            re_fht=self.re_fht,
-            mean_I_u=self.mean_I_u,
-            var_I_u=self.var_I_u,
-            re_I_u=self.re_I_u,
-            traj=self.traj,
-            ct_delta=self.ct_delta,
-        )
-
-    def load_controlled_statistics(self):
-        try:
-            data = np.load(
-                os.path.join(self.dir_path, 'is.npz'),
-                allow_pickle=True,
-            )
-            for file_name in data.files:
-                if data[file_name].ndim == 0:
-                    setattr(self, file_name, data[file_name][()])
-                else:
-                    setattr(self, file_name, data[file_name])
-
-            return True
-        except:
-            msg = 'no importance-sampling found with dt={:.4f} and N={:.0e}' \
-                  ''.format(self.dt, self.N)
+            if not self.is_controlled:
+                msg = 'no mc-sampling found with dt={:.4f} and N={:.0e}' \
+                      ''.format(self.dt, self.N)
+            else:
+                msg = 'no importance-sampling found with dt={:.4f} and N={:.0e}' \
+                      ''.format(self.dt, self.N)
             print(msg)
             return False
 
@@ -959,7 +957,8 @@ class Sampling(LangevinSDE):
             f.close()
             return
         else:
-            f.write('used time steps: {:,d}\n\n'.format(self.k))
+            #f.write('used time steps: {:,d}\n\n'.format(self.k))
+            pass
 
         f.write('First hitting time (fht)\n')
         f.write('first fht = {:2.3f}\n'.format(self.first_fht))

@@ -69,11 +69,11 @@ def main():
         sample.sample_controlled()
 
         # save statistics
-        sample.save_controlled_statistics()
+        sample.save()
 
     # load already sampled bias potential
     else:
-        if not sample.load_controlled_statistics():
+        if not sample.load():
             return
 
     # print statistics

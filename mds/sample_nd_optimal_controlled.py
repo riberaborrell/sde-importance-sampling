@@ -52,11 +52,11 @@ def main():
         sample.sample_optimal_controlled(h=args.h_hjb)
 
         # save statistics
-        sample.save_controlled_statistics()
+        sample.save()
 
     # load already computed statistics
     else:
-        if not sample.load_controlled_statistics():
+        if not sample.load():
             return
 
     # report statistics

@@ -72,7 +72,7 @@ def main():
     sample.sample_controlled()
 
     # save statistics
-    sample.save_controlled_statistics()
+    sample.save()
 
     # print statistics
     sample.write_report()
