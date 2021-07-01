@@ -235,7 +235,7 @@ class LangevinSDE(object):
         sample.set_not_controlled_dir_path()
 
         # load already sampled statistics
-        sample.load_not_controlled_statistics()
+        sample.load()
         return sample
 
     def get_metadynamics_sampling(self, dt, sigma_i, k, N):
