@@ -99,21 +99,27 @@ class TwoLayerNet(nn.Module):
         self.d_1 = d_1
         self.d_out = d_out
         self.linear1 = nn.Linear(d_in, d_1, bias=True)
+        self.relu = nn.ReLU()
         self.linear2 = nn.Linear(d_1, d_out, bias=True)
 
         # dimension of flattened parameters
-        self.d_flat = self.d_1 * self.d_in + self.d_1 + self.d_out * self.d_1 + self.d_out
+        d_flat_A1 = self.linear1._parameters['weight'].flatten().shape[0]
+        d_flat_b1 = self.linear1._parameters['bias'].shape[0]
+        d_flat_A2 = self.linear2._parameters['weight'].flatten().shape[0]
+        d_flat_b2 = self.linear2._parameters['bias'].shape[0]
+        self.d_flat = d_flat_A1 + d_flat_b1 + d_flat_A2 + d_flat_b2
 
         # flattened parameters indices
-        self.idx_A1 = slice(0, self.d_out * self.d_1)
-        self.idx_b1 = slice(self.d_out * self.d_1, self.d_out * self.d_1 + self.d_1)
-        self.idx_A2 = slice(self.d_out * self.d_1 + self.d_1, self.d_out * self.d_1 + self.d_1 + self.d_out * self.d_1)
-        self.idx_b2 = slice(self.d_out * self.d_1 + self.d_1 + self.d_out * self.d_1, self.d_flat)
+        self.idx_A1 = slice(0, d_flat_A1)
+        self.idx_b1 = slice(d_flat_A1, d_flat_A1 + d_flat_b1)
+        self.idx_A2 = slice(d_flat_A1 + d_flat_b1, d_flat_A1 + d_flat_b1 + d_flat_A2)
+        self.idx_b2 = slice(d_flat_A1 + d_flat_b1 + d_flat_A2, self.d_flat)
 
     def forward(self, x):
-        h_relu = self.linear1(x).clamp(min=0)
-        y_pred = self.linear2(h_relu)
-        return y_pred
+        x = self.linear1(x)
+        x = self.relu(x)
+        x = self.linear2(x)
+        return x
 
     def get_flatten_parameters(self):
 
@@ -127,9 +133,9 @@ class TwoLayerNet(nn.Module):
         flatten_theta = np.empty(self.d_flat)
 
         # load parameters
-        flatten_theta[self.idx_A1] = A1.detach().numpy().reshape(self.d_1 * self.d_in)
+        flatten_theta[self.idx_A1] = A1.detach().numpy().flatten()
         flatten_theta[self.idx_b1] = b1.detach().numpy()
-        flatten_theta[self.idx_A2] = A2.detach().numpy().reshape(self.d_out * self.d_1)
+        flatten_theta[self.idx_A2] = A2.detach().numpy().flatten()
         flatten_theta[self.idx_b2] = b2.detach().numpy()
         return flatten_theta
 
@@ -168,3 +174,55 @@ class TwoLayerNet(nn.Module):
     def write_parameters(self, f):
         f.write('hidden layer dim: {:d}\n'.format(self.d_1))
         f.write('flattened parameters dim: {:d}\n'.format(self.d_flat))
+
+
+class TwoLayerDenseNet(nn.Module):
+    def __init__(self, d_in, d_1, d_out):
+        super(TwoLayerDenseNet, self).__init__()
+
+        # model name
+        self.name = 'two-layer-dense-nn'
+
+        # define the two linear layers
+        self.d_in = d_in
+        self.d_1 = d_1
+        self.d_out = d_out
+        self.linear1 = nn.Linear(d_in, d_1, bias=True)
+        self.relu = nn.ReLU()
+        self.linear2 = nn.Linear(d_in + d_1, d_out, bias=True)
+
+        # dimension of flattened parameters
+        d_flat_A1 = self.linear1._parameters['weight'].flatten().shape[0]
+        d_flat_b1 = self.linear1._parameters['bias'].shape[0]
+        d_flat_A2 = self.linear2._parameters['weight'].flatten().shape[0]
+        d_flat_b2 = self.linear2._parameters['bias'].shape[0]
+        self.d_flat = d_flat_A1 + d_flat_b1 + d_flat_A2 + d_flat_b2
+
+        # flattened parameters indices
+        self.idx_A1 = slice(0, d_flat_A1)
+        self.idx_b1 = slice(d_flat_A1, d_flat_A1 + d_flat_b1)
+        self.idx_A2 = slice(d_flat_A1 + d_flat_b1, d_flat_A1 + d_flat_b1 + d_flat_A2)
+        self.idx_b2 = slice(d_flat_A1 + d_flat_b1 + d_flat_A2, self.d_flat)
+
+    def forward(self, x):
+        x = torch.cat([x, self.relu(self.linear1(x))], dim=1)
+        x = self.linear2(x)
+        return x
+
+    def get_flatten_parameters(self):
+
+        # get nn parameters
+        A1 = self._modules['linear1']._parameters['weight']
+        b1 = self._modules['linear1']._parameters['bias']
+        A2 = self._modules['linear2']._parameters['weight']
+        b2 = self._modules['linear2']._parameters['bias']
+
+        # preallocate flatten parameters
+        flatten_theta = np.empty(self.d_flat)
+
+        # load parameters
+        flatten_theta[self.idx_A1] = A1.detach().numpy().flatten()
+        flatten_theta[self.idx_b1] = b1.detach().numpy()
+        flatten_theta[self.idx_A2] = A2.detach().numpy().flatten()
+        flatten_theta[self.idx_b2] = b2.detach().numpy()
+        return flatten_theta
