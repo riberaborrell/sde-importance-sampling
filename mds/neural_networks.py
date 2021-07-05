@@ -90,7 +90,6 @@ class GaussianAnsatzNN(nn.Module):
         return rel_path
 
 
-
 class TwoLayerNN(nn.Module):
     def __init__(self, d_in, d_1, d_out):
         super(TwoLayerNN, self).__init__()
@@ -183,6 +182,7 @@ class TwoLayerNN(nn.Module):
         f.write('hidden layer dim: {:d}\n'.format(self.d_1))
         f.write('flattened parameters dim: {:d}\n'.format(self.d_flat))
 
+
 class FeedForwardNN(nn.Module):
     def __init__(self, d_layers):
         super(FeedForwardNN, self).__init__()
@@ -197,6 +197,7 @@ class FeedForwardNN(nn.Module):
         self.n_layers = len(d_layers) - 1
         self.d_in = d_layers[0]
         self.d_out = d_layers[-1]
+        self.d_inner_layers = d_layers[1:-1]
 
         # flattened dimension of all parameters
         self.d_flat = 0
@@ -210,7 +211,7 @@ class FeedForwardNN(nn.Module):
             setattr(
                 self,
                 'linear{:d}'.format(i+1),
-                nn.Linear(d_layers[i], d_layers[i+1], bias=True),
+                nn.Linear(self.d_layers[i], self.d_layers[i+1], bias=True),
             )
 
             # dimension of flattened parameters
@@ -231,7 +232,6 @@ class FeedForwardNN(nn.Module):
                 slice(idx + d_flat_A, idx + d_flat_A + d_flat_b),
             )
             idx += d_flat_A + d_flat_b
-
 
         # define relu as activation function
         self.relu = nn.ReLU()
@@ -301,14 +301,15 @@ class FeedForwardNN(nn.Module):
             )
 
     def get_rel_path(self):
-        d_layers_str = ''
-        for d_layer in self.d_layers:
-            d_layers_str += '{:d}-'.format(d_layer)
-        d_layers_str = d_layers_str[:-1]
+        # make string from the dimensions of the inner layers
+        arch_str = ''
+        for d_layer in self.d_inner_layers:
+            arch_str += '{:d}-'.format(d_layer)
+        arch_str = arch_str[:-1]
 
         rel_path = os.path.join(
             self.name,
-            'dlayers_' + d_layers_str,
+            'arch_' + arch_str,
         )
         return rel_path
 
@@ -317,53 +318,136 @@ class FeedForwardNN(nn.Module):
         f.write('flattened parameters dim: {:d}\n'.format(self.d_flat))
 
 
-class TwoLayerDenseNN(nn.Module):
-    def __init__(self, d_in, d_1, d_out):
-        super(TwoLayerDenseNN, self).__init__()
+class DenseNN(nn.Module):
+    def __init__(self, d_layers):
+        super(DenseNN, self).__init__()
 
         # model name
-        self.name = 'two-layer-dense-nn'
+        self.name = 'dense-nn'
 
         # define the two linear layers
-        self.d_in = d_in
-        self.d_1 = d_1
-        self.d_out = d_out
-        self.linear1 = nn.Linear(d_in, d_1, bias=True)
+        assert type(d_layers) == list, ''
+        assert len(d_layers) >= 2, ''
+        self.d_layers = d_layers
+        self.n_layers = len(d_layers) - 1
+        self.d_in = d_layers[0]
+        self.d_out = d_layers[-1]
+        self.d_inner_layers = d_layers[1:-1]
+
+        # flattened dimension of all parameters
+        self.d_flat = 0
+
+        # running idx
+        idx = 0
+
+        for i in range(self.n_layers):
+
+            # define linear layers
+            setattr(
+                self,
+                'linear{:d}'.format(i+1),
+                nn.Linear(int(np.sum(self.d_layers[:i+1])), self.d_layers[i+1], bias=True),
+            )
+
+            # dimension of flattened parameters
+            linear = getattr(self, 'linear{:d}'.format(i+1))
+            d_flat_A = linear._parameters['weight'].flatten().shape[0]
+            d_flat_b = linear._parameters['bias'].shape[0]
+            self.d_flat += d_flat_A + d_flat_b
+
+            # flattened parameters indices
+            setattr(
+                self,
+                'idx_A{:d}'.format(i+1),
+                slice(idx, idx + d_flat_A),
+            )
+            setattr(
+                self,
+                'idx_b{:d}'.format(i+1),
+                slice(idx + d_flat_A, idx + d_flat_A + d_flat_b),
+            )
+            idx += d_flat_A + d_flat_b
+
+        # define relu as activation function
         self.relu = nn.ReLU()
-        self.linear2 = nn.Linear(d_in + d_1, d_out, bias=True)
-
-        # dimension of flattened parameters
-        d_flat_A1 = self.linear1._parameters['weight'].flatten().shape[0]
-        d_flat_b1 = self.linear1._parameters['bias'].shape[0]
-        d_flat_A2 = self.linear2._parameters['weight'].flatten().shape[0]
-        d_flat_b2 = self.linear2._parameters['bias'].shape[0]
-        self.d_flat = d_flat_A1 + d_flat_b1 + d_flat_A2 + d_flat_b2
-
-        # flattened parameters indices
-        self.idx_A1 = slice(0, d_flat_A1)
-        self.idx_b1 = slice(d_flat_A1, d_flat_A1 + d_flat_b1)
-        self.idx_A2 = slice(d_flat_A1 + d_flat_b1, d_flat_A1 + d_flat_b1 + d_flat_A2)
-        self.idx_b2 = slice(d_flat_A1 + d_flat_b1 + d_flat_A2, self.d_flat)
 
     def forward(self, x):
-        x = torch.cat([x, self.relu(self.linear1(x))], dim=1)
-        x = self.linear2(x)
+        for i in range(self.n_layers):
+
+            # linear layer
+            linear = getattr(self, 'linear{:d}'.format(i+1))
+
+            if i != self.n_layers - 1:
+                x = torch.cat([x, self.relu(linear(x))], dim=1)
+            else:
+                x = linear(x)
         return x
 
-    def get_flatten_parameters(self):
+    def get_parameters(self):
+        ''' get flattened parameters of the model.
+        '''
 
-        # get nn parameters
-        A1 = self._modules['linear1']._parameters['weight']
-        b1 = self._modules['linear1']._parameters['bias']
-        A2 = self._modules['linear2']._parameters['weight']
-        b2 = self._modules['linear2']._parameters['bias']
-
-        # preallocate flatten parameters
+        # preallocate flattened parameters
         flatten_theta = np.empty(self.d_flat)
 
-        # load parameters
-        flatten_theta[self.idx_A1] = A1.detach().numpy().flatten()
-        flatten_theta[self.idx_b1] = b1.detach().numpy()
-        flatten_theta[self.idx_A2] = A2.detach().numpy().flatten()
-        flatten_theta[self.idx_b2] = b2.detach().numpy()
+        for i in range(self.n_layers):
+
+            # get linear layer
+            linear = getattr(self, 'linear{:d}'.format(i+1))
+
+            # get indices of its weights and bias parameters
+            idx_A = getattr(self, 'idx_A{:d}'.format(i+1))
+            idx_b = getattr(self, 'idx_b{:d}'.format(i+1))
+
+            # fill the flattened array
+            flatten_theta[idx_A] = linear._parameters['weight'].detach().numpy().flatten()
+            flatten_theta[idx_b] = linear._parameters['bias'].detach().numpy()
+
         return flatten_theta
+
+    def load_parameters(self, theta):
+        ''' load model parameters.
+        '''
+        assert theta.ndim == 1, ''
+        assert theta.shape[0] == self.d_flat, ''
+
+        for i in range(self.n_layers):
+
+            # get linear layer
+            linear = getattr(self, 'linear{:d}'.format(i+1))
+
+            # get indices of its weights and bias parameters
+            idx_A = getattr(self, 'idx_A{:d}'.format(i+1))
+            idx_b = getattr(self, 'idx_b{:d}'.format(i+1))
+
+            # load weights
+            linear._parameters['weight'] = torch.tensor(
+                theta[idx_A].reshape(self.d_layers[i+1], int(np.sum(self.d_layers[:i+1]))),
+                requires_grad=True,
+                dtype=torch.float32,
+            )
+
+            # load bias
+            linear._parameters['bias'] = torch.tensor(
+                theta[idx_b],
+                requires_grad=True,
+                dtype=torch.float32,
+            )
+
+    def get_rel_path(self):
+        # make string from the dimensions of the inner layers
+        arch_str = ''
+        for d_layer in self.d_inner_layers:
+            arch_str += '{:d}-'.format(d_layer)
+        arch_str = arch_str[:-1]
+
+        rel_path = os.path.join(
+            self.name,
+            'arch_' + arch_str,
+        )
+        return rel_path
+
+    def write_parameters(self, f):
+        #f.write('hidden layer dim: {:d}\n'.format(self.d_1))
+        f.write('flattened parameters dim: {:d}\n'.format(self.d_flat))
+

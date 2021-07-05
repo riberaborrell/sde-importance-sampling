@@ -3,7 +3,7 @@ from mds.langevin_nd_importance_sampling import Sampling
 from mds.langevin_nd_sde import LangevinSDE
 from mds.langevin_nd_soc_optimization_method import StochasticOptimizationMethod
 from mds.langevin_nd_function_approximation import FunctionApproximation
-from mds.neural_networks import TwoLayerNet
+from mds.neural_networks import TwoLayerNN
 
 import numpy as np
 
@@ -42,7 +42,7 @@ def main():
     )
 
     # initialize two layer nn 
-    model = TwoLayerNet(args.n, args.d1, args.n)
+    model = TwoLayerNN(args.n, args.d1, args.n)
 
     # initialize function approximation
     func = FunctionApproximation(

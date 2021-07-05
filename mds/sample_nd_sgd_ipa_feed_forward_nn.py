@@ -3,7 +3,7 @@ from mds.langevin_nd_importance_sampling import Sampling
 from mds.langevin_nd_sde import LangevinSDE
 from mds.langevin_nd_soc_optimization_method import StochasticOptimizationMethod
 from mds.langevin_nd_function_approximation import FunctionApproximation
-from mds.neural_networks import FeedForwardNN
+from mds.neural_networks import FeedForwardNN, DenseNN
 
 import numpy as np
 
@@ -13,6 +13,19 @@ import torch.optim as optim
 def get_parser():
     parser = get_base_parser()
     parser.description = ''
+    parser.add_argument(
+        '--d-layers',
+        nargs='+',
+        dest='d_layers',
+        type=int,
+        help='Set dimensions of the NN inner layers',
+    )
+    parser.add_argument(
+        '--dense',
+        dest='dense',
+        action='store_true',
+        help='Chooses a dense feed forward NN. Default: False',
+    )
     parser.add_argument(
         '--do-iteration-plots',
         dest='do_iteration_plots',
@@ -41,9 +54,17 @@ def main():
         is_controlled=True,
     )
 
+    # get dimensions of each layer
+    if args.d_layers is not None:
+        d_layers = [args.n] + args.d_layers + [args.n]
+    else:
+        d_layers = [args.n, args.n]
+
     # initialize two layer nn 
-    d_layers = [args.n, 30, 30, args.n]
-    model = FeedForwardNN(d_layers)
+    if not args.dense:
+        model = FeedForwardNN(d_layers)
+    else:
+        model = DenseNN(d_layers)
 
     # initialize function approximation
     func = FunctionApproximation(
@@ -53,7 +74,8 @@ def main():
 
     # set initial choice of parametrization
     if args.theta == 'random':
-        func.reset_parameters()
+        pass
+        #func.reset_parameters()
     elif args.theta == 'null':
         func.zero_parameters()
     elif args.theta == 'meta':
