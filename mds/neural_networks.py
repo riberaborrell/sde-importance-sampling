@@ -5,9 +5,9 @@ import torch.nn as nn
 
 import os
 
-class GaussianAnsatz(nn.Module):
+class GaussianAnsatzNN(nn.Module):
     def __init__(self, n, m, means, cov):
-        super(GaussianAnsatz, self).__init__()
+        super(GaussianAnsatzNN, self).__init__()
 
         # define the scalar product layer
         self.n = n
@@ -60,24 +60,20 @@ class GaussianAnsatz(nn.Module):
         return mvn_pdf
 
     def forward(self, x):
-        v = self.vec_mvn_pdf(x, self.means, self.cov)
-        y_pred = self.linear(v)
-        #y_pred = torch.squeeze(y_pred)
-        return y_pred
+        x = self.vec_mvn_pdf(x, self.means, self.cov)
+        x = self.linear(x)
+        return x
 
-    def get_rel_path(self):
-        rel_path = os.path.join(
-            'gaussian-ansatz-nn',
-            'm_{}'.format(self.m),
-        )
-        return rel_path
-
-    def get_flatten_parameters(self):
+    def get_parameters(self):
+        ''' get flattened parameters of the model
+        '''
         A = self._modules['linear']._parameters['weight']
         theta = torch.squeeze(A).detach().numpy()
         return theta
 
     def load_parameters(self, theta):
+        ''' load model parameters.
+        '''
         assert theta.ndim == 1, ''
         assert theta.shape[0] == self.d_flat, ''
         self.linear._parameters['weight'] = torch.tensor(
@@ -86,10 +82,18 @@ class GaussianAnsatz(nn.Module):
             dtype=torch.float,
         )
 
+    def get_rel_path(self):
+        rel_path = os.path.join(
+            'gaussian-ansatz-nn',
+            'm_{}'.format(self.m),
+        )
+        return rel_path
 
-class TwoLayerNet(nn.Module):
+
+
+class TwoLayerNN(nn.Module):
     def __init__(self, d_in, d_1, d_out):
-        super(TwoLayerNet, self).__init__()
+        super(TwoLayerNN, self).__init__()
 
         # model name
         self.name = 'two-layer-nn'
@@ -121,7 +125,9 @@ class TwoLayerNet(nn.Module):
         x = self.linear2(x)
         return x
 
-    def get_flatten_parameters(self):
+    def get_parameters(self):
+        ''' get flattened parameters of the model
+        '''
 
         # get nn parameters
         A1 = self._modules['linear1']._parameters['weight']
@@ -140,6 +146,8 @@ class TwoLayerNet(nn.Module):
         return flatten_theta
 
     def load_parameters(self, theta):
+        ''' load model parameters.
+        '''
         assert theta.ndim == 1, ''
         assert theta.shape[0] == self.d_flat, ''
 
@@ -175,10 +183,143 @@ class TwoLayerNet(nn.Module):
         f.write('hidden layer dim: {:d}\n'.format(self.d_1))
         f.write('flattened parameters dim: {:d}\n'.format(self.d_flat))
 
+class FeedForwardNN(nn.Module):
+    def __init__(self, d_layers):
+        super(FeedForwardNN, self).__init__()
 
-class TwoLayerDenseNet(nn.Module):
+        # model name
+        self.name = 'feed-forward-nn'
+
+        # layers and architecture
+        assert type(d_layers) == list, ''
+        assert len(d_layers) >= 2, ''
+        self.d_layers = d_layers
+        self.n_layers = len(d_layers) - 1
+        self.d_in = d_layers[0]
+        self.d_out = d_layers[-1]
+
+        # flattened dimension of all parameters
+        self.d_flat = 0
+
+        # running idx
+        idx = 0
+
+        for i in range(self.n_layers):
+
+            # define linear layers
+            setattr(
+                self,
+                'linear{:d}'.format(i+1),
+                nn.Linear(d_layers[i], d_layers[i+1], bias=True),
+            )
+
+            # dimension of flattened parameters
+            linear = getattr(self, 'linear{:d}'.format(i+1))
+            d_flat_A = linear._parameters['weight'].flatten().shape[0]
+            d_flat_b = linear._parameters['bias'].shape[0]
+            self.d_flat += d_flat_A + d_flat_b
+
+            # flattened parameters indices
+            setattr(
+                self,
+                'idx_A{:d}'.format(i+1),
+                slice(idx, idx + d_flat_A),
+            )
+            setattr(
+                self,
+                'idx_b{:d}'.format(i+1),
+                slice(idx + d_flat_A, idx + d_flat_A + d_flat_b),
+            )
+            idx += d_flat_A + d_flat_b
+
+
+        # define relu as activation function
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        for i in range(self.n_layers):
+
+            # linear layer
+            linear = getattr(self, 'linear{:d}'.format(i+1))
+            x = linear(x)
+
+            # activation function
+            if i != self.n_layers -1:
+                x = self.relu(x)
+
+        return x
+
+    def get_parameters(self):
+        ''' get flattened parameters of the model.
+        '''
+
+        # preallocate flattened parameters
+        flatten_theta = np.empty(self.d_flat)
+
+        for i in range(self.n_layers):
+
+            # get linear layer
+            linear = getattr(self, 'linear{:d}'.format(i+1))
+
+            # get indices of its weights and bias parameters
+            idx_A = getattr(self, 'idx_A{:d}'.format(i+1))
+            idx_b = getattr(self, 'idx_b{:d}'.format(i+1))
+
+            # fill the flattened array
+            flatten_theta[idx_A] = linear._parameters['weight'].detach().numpy().flatten()
+            flatten_theta[idx_b] = linear._parameters['bias'].detach().numpy()
+
+        return flatten_theta
+
+    def load_parameters(self, theta):
+        ''' load model parameters.
+        '''
+        assert theta.ndim == 1, ''
+        assert theta.shape[0] == self.d_flat, ''
+
+        for i in range(self.n_layers):
+
+            # get linear layer
+            linear = getattr(self, 'linear{:d}'.format(i+1))
+
+            # get indices of its weights and bias parameters
+            idx_A = getattr(self, 'idx_A{:d}'.format(i+1))
+            idx_b = getattr(self, 'idx_b{:d}'.format(i+1))
+
+            # load weights
+            linear._parameters['weight'] = torch.tensor(
+                theta[idx_A].reshape(self.d_layers[i+1], self.d_layers[i]),
+                requires_grad=True,
+                dtype=torch.float32,
+            )
+
+            # load bias
+            linear._parameters['bias'] = torch.tensor(
+                theta[idx_b],
+                requires_grad=True,
+                dtype=torch.float32,
+            )
+
+    def get_rel_path(self):
+        d_layers_str = ''
+        for d_layer in self.d_layers:
+            d_layers_str += '{:d}-'.format(d_layer)
+        d_layers_str = d_layers_str[:-1]
+
+        rel_path = os.path.join(
+            self.name,
+            'dlayers_' + d_layers_str,
+        )
+        return rel_path
+
+    def write_parameters(self, f):
+        #f.write('hidden layer dim: {:d}\n'.format(self.d_1))
+        f.write('flattened parameters dim: {:d}\n'.format(self.d_flat))
+
+
+class TwoLayerDenseNN(nn.Module):
     def __init__(self, d_in, d_1, d_out):
-        super(TwoLayerDenseNet, self).__init__()
+        super(TwoLayerDenseNN, self).__init__()
 
         # model name
         self.name = 'two-layer-dense-nn'

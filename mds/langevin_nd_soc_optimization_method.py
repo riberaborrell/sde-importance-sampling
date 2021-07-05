@@ -189,7 +189,7 @@ class StochasticOptimizationMethod:
 
             # allocate
             self.iterations = np.append(self.iterations, i)
-            self.thetas = np.vstack((self.thetas, model.get_flatten_parameters()))
+            self.thetas = np.vstack((self.thetas, model.get_parameters()))
             self.means_I_u = np.append(self.means_I_u, self.sample.mean_I_u)
             self.vars_I_u = np.append(self.vars_I_u, self.sample.var_I_u)
             self.res_I_u = np.append(self.res_I_u, self.sample.re_I_u)
