@@ -60,7 +60,7 @@ def main():
     else:
         d_layers = [args.n, args.n]
 
-    # initialize two layer nn 
+    # initialize nn
     if not args.dense:
         model = FeedForwardNN(d_layers)
     else:

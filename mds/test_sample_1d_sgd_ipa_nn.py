@@ -1,6 +1,5 @@
 from mds.base_parser_nd import get_base_parser
-
-from mds.neural_networks import TwoLayerNet
+from mds.neural_networks import FeedForwardNN, DenseNN
 
 import numpy as np
 
@@ -9,36 +8,41 @@ import torch.optim as optim
 
 def get_parser():
     parser = get_base_parser()
-    parser.description = ''
     parser.add_argument(
-        '--updates-lim',
-        dest='updates_lim',
+        '--d-layers',
+        nargs='+',
+        dest='d_layers',
         type=int,
-        default=100,
-        help='Set maximal number of updates. Default: 100',
+        help='Set dimensions of the NN inner layers',
     )
     parser.add_argument(
-        '--hidden-layer-dim',
-        dest='hidden_layer_dim',
-        type=int,
-        default=30,
-        help='Set dimension of the hidden layer. Default: 30',
+        '--dense',
+        dest='dense',
+        action='store_true',
+        help='Chooses a dense feed forward NN. Default: False',
     )
+    return parser
     return parser
 
 def main():
     args = get_parser().parse_args()
 
-    # define device
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
     # fix seed
-    np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
+    if args.seed is not None:
+        np.random.seed(args.seed)
+        torch.manual_seed(args.seed)
 
-    # initialize control parametrization by a nn 
-    d_in, d_1, d_out = args.n, args.hidden_layer_dim, args.n
-    model = TwoLayerNet(d_in, d_1, d_out).to(device)
+    # get dimensions of each layer
+    if args.d_layers is not None:
+        d_layers = [args.n] + args.d_layers + [args.n]
+    else:
+        d_layers = [args.n, args.n]
+
+    # initialize nn model 
+    if not args.dense:
+        model = FeedForwardNN(d_layers)
+    else:
+        model = DenseNN(d_layers)
 
     # define optimizer
     optimizer = optim.Adam(
@@ -47,18 +51,17 @@ def main():
     )
 
     # preallocate parameters
-    thetas = np.empty((args.updates_lim, model.d_flatten))
+    thetas = np.empty((args.iterations_lim, model.d_flat))
 
     # save initial parameters
-    thetas[0] = model.get_flatten_parameters()
-    #print(thetas[0])
+    thetas[0] = model.get_parameters()
 
-    for update in np.arange(args.updates_lim):
+    for update in np.arange(args.iterations_lim):
         # reset gradients
         optimizer.zero_grad()
 
         # compute loss
-        loss, tilted_loss = sample_loss(device, model, args.dt, args.N_gd)
+        loss, tilted_loss = sample_loss(model, args.dt, args.N)
         print('{:d}, {:2.3f}'.format(update, loss))
 
         # compute gradients
@@ -68,17 +71,16 @@ def main():
         optimizer.step()
 
         # save parameters
-        thetas[update] = model.get_flatten_parameters()
-        #print(thetas[update])
+        thetas[update] = model.get_parameters()
 
     save_nn_coefficients(thetas)
 
 def save_nn_coefficients(thetas):
     from mds.utils import make_dir_path
     import os
-    dir_path = 'mds/data/testing_1d_gd_nn'
+    dir_path = 'data/testing_1d_sgd_ipa_nn'
     make_dir_path(dir_path)
-    file_path = os.path.join(dir_path, 'gd.npz')
+    file_path = os.path.join(dir_path, 'som.npz')
     np.savez(
         file_path,
         thetas=thetas,
@@ -100,19 +102,18 @@ def get_idx_new_in_ts(x, been_in_target_set):
 
     return idx
 
-def sample_loss(device, model, dt, N):
+def sample_loss(model, dt, N):
     beta = 1
-
     k_max = 100000
 
     loss = np.zeros(N)
-    tilted_loss = torch.zeros(N).to(device)
+    tilted_loss = torch.zeros(N)
 
     # initialize trajectory
     xt = np.full(N, -1.).reshape(N, 1)
-    a_tensor = torch.zeros(N).to(device)
-    b_tensor = torch.zeros(N).to(device)
-    c_tensor = torch.zeros(N).to(device)
+    a_tensor = torch.zeros(N)
+    b_tensor = torch.zeros(N)
+    c_tensor = torch.zeros(N)
 
     been_in_target_set = np.repeat([False], N).reshape(N, 1)
 
@@ -120,11 +121,11 @@ def sample_loss(device, model, dt, N):
 
         # Brownian increment
         dB = np.sqrt(dt) * np.random.normal(0, 1, N).reshape(N, 1)
-        dB_tensor = torch.tensor(dB, requires_grad=False, dtype=torch.float32).to(device)
+        dB_tensor = torch.tensor(dB, requires_grad=False, dtype=torch.float32)
 
         # control
-        xt_tensor = torch.tensor(xt, dtype=torch.float).to(device)
-        ut_tensor = model.forward(xt_tensor).to(device)
+        xt_tensor = torch.tensor(xt, dtype=torch.float)
+        ut_tensor = model.forward(xt_tensor)
         ut_tensor_det = ut_tensor.detach()
         ut = ut_tensor_det.numpy()
 
@@ -144,7 +145,7 @@ def sample_loss(device, model, dt, N):
         if idx.shape[0] != 0:
 
             # get tensor indices if there are new trajectories 
-            idx_tensor = torch.tensor(idx, dtype=torch.long).to(device)
+            idx_tensor = torch.tensor(idx, dtype=torch.long)
 
             # save loss and tilted loss for the arrived trajectorries
             loss[idx] = b_tensor.numpy()[idx]
@@ -157,7 +158,6 @@ def sample_loss(device, model, dt, N):
            break
 
     return np.mean(loss), torch.mean(tilted_loss)
-
 
 if __name__ == "__main__":
     main()
