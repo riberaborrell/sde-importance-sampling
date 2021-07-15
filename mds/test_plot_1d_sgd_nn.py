@@ -22,6 +22,13 @@ def get_parser():
         action='store_true',
         help='Chooses a dense feed forward NN. Default: False',
     )
+    parser.add_argument(
+        '--activation',
+        dest='activation_type',
+        choices=['relu', 'tanh'],
+        default='relu',
+        help='Type of activation function. Default: relu',
+    )
     return parser
 
 def main():
@@ -36,12 +43,17 @@ def main():
 
     # initialize nn model 
     if not args.dense:
-        model = FeedForwardNN(d_layers)
+        model = FeedForwardNN(d_layers, args.activation_type)
     else:
-        model = DenseNN(d_layers)
+        model = DenseNN(d_layers, args.activation_type)
+
+    # set dir path
+    #dir_path = 'data/testing_1d_sgd_ipa_nn'
+    #dir_path = 'data/testing_1d_sgd_re_nn'
+    dir_path = 'data/testing_1d_bf_logvar_nn'
 
     # load nn coeficients
-    thetas = load_nn_coefficients()
+    thetas = load_nn_coefficients(dir_path)
 
     # define discretize domain
     h = 0.01
@@ -56,12 +68,11 @@ def main():
     control = model(input).detach().numpy().reshape(N,)
 
     # plot
-    plot_1d_control(x, control)
+    plot_1d_control(x, control, dir_path)
 
-def load_nn_coefficients():
+def load_nn_coefficients(dir_path):
     from mds.utils import make_dir_path
     import os
-    dir_path = 'data/testing_1d_sgd_re_nn'
     make_dir_path(dir_path)
     file_path = os.path.join(dir_path, 'som.npz')
     data = np.load(
@@ -70,10 +81,9 @@ def load_nn_coefficients():
     )
     return data['thetas']
 
-def plot_1d_control(x, control):
+def plot_1d_control(x, control, dir_path):
     from mds.plots import Plot
 
-    dir_path = 'data/testing_1d_sgd_re_nn'
     plt = Plot(dir_path, 'control')
     plt.xlabel = 'x'
     plt.set_ylim(- 5, 5)

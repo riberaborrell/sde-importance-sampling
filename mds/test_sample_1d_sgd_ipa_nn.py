@@ -21,7 +21,13 @@ def get_parser():
         action='store_true',
         help='Chooses a dense feed forward NN. Default: False',
     )
-    return parser
+    parser.add_argument(
+        '--activation',
+        dest='activation_type',
+        choices=['relu', 'tanh'],
+        default='relu',
+        help='Type of activation function. Default: relu',
+    )
     return parser
 
 def main():
@@ -40,9 +46,9 @@ def main():
 
     # initialize nn model 
     if not args.dense:
-        model = FeedForwardNN(d_layers)
+        model = FeedForwardNN(d_layers, args.activation_type)
     else:
-        model = DenseNN(d_layers)
+        model = DenseNN(d_layers, args.activation_type)
 
     # define optimizer
     optimizer = optim.Adam(

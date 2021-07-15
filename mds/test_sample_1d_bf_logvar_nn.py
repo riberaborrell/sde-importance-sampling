@@ -7,6 +7,8 @@ import numpy as np
 import torch
 import torch.optim as optim
 
+import time
+
 def get_parser():
     parser = get_base_parser()
     parser.add_argument(
@@ -84,87 +86,86 @@ def main():
 
     save_nn_coefficients(thetas)
 
-def save_nn_coefficients(thetas):
-    from mds.utils import make_dir_path
-    import os
-    dir_path = 'data/testing_1d_sgd_re_nn'
-    make_dir_path(dir_path)
-    file_path = os.path.join(dir_path, 'som.npz')
-    np.savez(
-        file_path,
-        thetas=thetas,
-    )
-
-def double_well_1d_gradient(x):
-    alpha = 1
-    return 4 * alpha * x * (x**2 - 1)
-
-def get_idx_new_in_ts(x, been_in_target_set):
-    is_in_target_set = x > 1
-
-    idx = np.where(
-            (is_in_target_set == True) &
-            (been_in_target_set == False)
-    )[0]
-
-    been_in_target_set[idx] = True
-
-    return idx
 
 def sample_loss(model, dt, N):
     beta = 1
     k_max = 100000
 
-    # initialize phi
-    phi_fht = torch.zeros(N)
-    phi_t = torch.zeros(N)
+    # flags
+    adaptive_forward_process = True
+    detach_forward = True
 
-    # initialize trajectory
-    xt = np.full(N, -1.).reshape(N, 1)
-    #xt_tensor = torch.tensor(xt, requires_grad=True, dtype=torch.float32)
-    xt_tensor = torch.tensor(xt, dtype=torch.float32)
+    t_0 = time.time()
 
-    # control
-    ut_tensor = model.forward(xt_tensor)
+    # time increments as tensors
+    dt = torch.tensor([dt])
+    sq_dt = torch.sqrt(dt)
 
-    been_in_target_set = np.repeat([False], N).reshape(N, 1)
+    # initialize trajectories of processes X and Y 
+    xt = - torch.ones(N).reshape(N, 1)
+    yt = torch.zeros(N).reshape(N)
+
+    # initialize Z sum
+    Z_sum = torch.zeros(N)
+
+    # number of trajectories not in the target set
+    N_not_in_ts = N
 
     for k in np.arange(1, k_max + 1):
 
+        # stop trajetories if all trajectories are in the target set
+        idx = xt[:, 0] < 1
+        N_not_in_ts = torch.sum(idx)
+        if N_not_in_ts == 0:
+            break
+
+        # normal distributed vector
+        xi = torch.randn(N_not_in_ts).reshape(N_not_in_ts, 1)
+
         # Brownian increment
-        dB = np.sqrt(dt) * np.random.normal(0, 1, N).reshape(N, 1)
-        dB_tensor = torch.tensor(dB, requires_grad=False, dtype=torch.float32)
+        dB = np.sqrt(dt) * xi
 
-        # sde update
-        drift = (- double_well_1d_gradient(xt_tensor) + np.sqrt(2) * ut_tensor) * dt
-        diffusion = np.sqrt(2 / beta) * dB_tensor
-        xt_tensor = xt_tensor + drift + diffusion
-        xt = xt_tensor.detach().numpy()
-
-        # update statistics
-        phi_t = phi_t + ((1 + 0.5 * (ut_tensor ** 2)) * dt).reshape(N,)
+        # Z process
+        zt = - model.forward(xt[idx, :])
 
         # control
-        ut_tensor = model.forward(xt_tensor)
-        #breakpoint()
+        ut = torch.zeros(N_not_in_ts).reshape(N_not_in_ts, 1)
+        if adaptive_forward_process is True:
+            ut = - zt
 
-        # get indices of trajectories which are new to the target set
-        idx = get_idx_new_in_ts(xt, been_in_target_set)
+        if detach_forward is True:
+            ut = ut.detach()
 
-        if idx.shape[0] != 0:
+        # step dynamics process X forward
+        drift = (- double_well_1d_gradient(xt[idx, :]) + np.sqrt(2) * ut) * dt
+        diffusion = np.sqrt(2 / beta) * dB
+        xt[idx, :] = xt[idx, :] + drift + diffusion
 
-            # get tensor indices if there are new trajectories 
-            idx_tensor = torch.tensor(idx, dtype=torch.long)
+        # step dynamics process Y
+        h = (-1 + 0.5 * zt ** 2).reshape(N_not_in_ts,)
+        yt[idx] = yt[idx] \
+                + (h + torch.sum(zt * ut, dim=1)) * dt \
+                + torch.sum(zt * xi, dim=1) * sq_dt
 
-            # save phi for trajectories which arrived
-            phi_fht[idx_tensor] = phi_t.index_select(0, idx_tensor)
+        # update Z_sum
+        #Z_sum[selection] += dw.f(X[selection, :], n * delta_t) * delta_t # (0.5 * pt.sum(Z**2, dim=1) + dw.f(X[selection, :], n * delta_t)) * delta_t
 
-        # stop if xt_traj in target set
-        if been_in_target_set.all() == True:
-           break
+    #loss = (Z_sum).mean()
+    loss = torch.var(yt)
 
-    return torch.mean(phi_fht)
+    return loss
 
+def double_well_1d_gradient(x):
+    alpha = 1
+    return 4 * alpha * x * (x**2 - 1)
+
+def save_nn_coefficients(thetas):
+    from mds.utils import make_dir_path
+    import os
+    dir_path = 'data/testing_1d_bf_logvar_nn'
+    make_dir_path(dir_path)
+    file_path = os.path.join(dir_path, 'som.npz')
+    np.savez(file_path, thetas=thetas)
 
 if __name__ == "__main__":
     main()
