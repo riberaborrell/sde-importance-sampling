@@ -5,6 +5,11 @@ import torch.nn as nn
 
 import os
 
+ACTIVATION_FUNCTION_TYPES = [
+    'relu',
+    'tanh',
+]
+
 class GaussianAnsatzNN(nn.Module):
     def __init__(self, n, m, means, cov):
         super(GaussianAnsatzNN, self).__init__()
@@ -184,7 +189,7 @@ class TwoLayerNN(nn.Module):
 
 
 class FeedForwardNN(nn.Module):
-    def __init__(self, d_layers):
+    def __init__(self, d_layers, activation_type='relu'):
         super(FeedForwardNN, self).__init__()
 
         # model name
@@ -198,6 +203,10 @@ class FeedForwardNN(nn.Module):
         self.d_in = d_layers[0]
         self.d_out = d_layers[-1]
         self.d_inner_layers = d_layers[1:-1]
+
+        # type of activation function
+        assert activation_type in ACTIVATION_FUNCTION_TYPES, ''
+        self.activation_type = activation_type
 
         # flattened dimension of all parameters
         self.d_flat = 0
@@ -234,7 +243,13 @@ class FeedForwardNN(nn.Module):
             idx += d_flat_A + d_flat_b
 
         # define relu as activation function
-        self.relu = nn.ReLU()
+        if self.activation_type == 'relu':
+            self.activation = nn.ReLU()
+
+        # define tanh as activation function
+        elif self.activation_type == 'tanh':
+            self.activation = nn.Tanh()
+
 
     def forward(self, x):
         for i in range(self.n_layers):
@@ -245,7 +260,7 @@ class FeedForwardNN(nn.Module):
 
             # activation function
             if i != self.n_layers -1:
-                x = self.relu(x)
+                x = self.activation(x)
 
         return x
 
@@ -310,6 +325,7 @@ class FeedForwardNN(nn.Module):
         rel_path = os.path.join(
             self.name,
             'arch_' + arch_str,
+            'act_' + self.activation_type,
         )
         return rel_path
 
@@ -319,7 +335,7 @@ class FeedForwardNN(nn.Module):
 
 
 class DenseNN(nn.Module):
-    def __init__(self, d_layers):
+    def __init__(self, d_layers, activation_type='relu'):
         super(DenseNN, self).__init__()
 
         # model name
@@ -333,6 +349,10 @@ class DenseNN(nn.Module):
         self.d_in = d_layers[0]
         self.d_out = d_layers[-1]
         self.d_inner_layers = d_layers[1:-1]
+
+        # type of activation function
+        assert activation_type in ACTIVATION_FUNCTION_TYPES, ''
+        self.activation_type = activation_type
 
         # flattened dimension of all parameters
         self.d_flat = 0
@@ -369,7 +389,12 @@ class DenseNN(nn.Module):
             idx += d_flat_A + d_flat_b
 
         # define relu as activation function
-        self.relu = nn.ReLU()
+        if self.activation_type == 'relu':
+            self.activation = nn.ReLU()
+
+        # define tanh as activation function
+        elif self.activation_type == 'tanh':
+            self.activation = nn.Tanh()
 
     def forward(self, x):
         for i in range(self.n_layers):
@@ -378,7 +403,7 @@ class DenseNN(nn.Module):
             linear = getattr(self, 'linear{:d}'.format(i+1))
 
             if i != self.n_layers - 1:
-                x = torch.cat([x, self.relu(linear(x))], dim=1)
+                x = torch.cat([x, self.activation(linear(x))], dim=1)
             else:
                 x = linear(x)
         return x
@@ -444,6 +469,7 @@ class DenseNN(nn.Module):
         rel_path = os.path.join(
             self.name,
             'arch_' + arch_str,
+            'act_' + self.activation_type,
         )
         return rel_path
 

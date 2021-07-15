@@ -27,6 +27,13 @@ def get_parser():
         help='Chooses a dense feed forward NN. Default: False',
     )
     parser.add_argument(
+        '--activation',
+        dest='activation_type',
+        choices=['relu', 'tanh'],
+        default='relu',
+        help='Type of activation function. Default: relu',
+    )
+    parser.add_argument(
         '--do-iteration-plots',
         dest='do_iteration_plots',
         action='store_true',
@@ -62,9 +69,9 @@ def main():
 
     # initialize nn
     if not args.dense:
-        model = FeedForwardNN(d_layers)
+        model = FeedForwardNN(d_layers, args.activation_type)
     else:
-        model = DenseNN(d_layers)
+        model = DenseNN(d_layers, args.activation_type)
 
     # initialize function approximation
     func = FunctionApproximation(
