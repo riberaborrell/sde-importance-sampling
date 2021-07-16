@@ -122,6 +122,9 @@ def sample_loss(model, dt, N):
     xt = - torch.ones(N).reshape(N, 1)
     yt = torch.zeros(N).reshape(N)
 
+    # initialize fht
+    fht = np.zeros(N)
+
     # initialize running integrals
     det_int_fht = np.zeros(N)
     stoch_int_fht = np.zeros(N)
@@ -170,11 +173,13 @@ def sample_loss(model, dt, N):
 
         # update zt_sum
         zt_sum[idx] += (1 + 0.5 * np.sum(zt.detach().numpy() ** 2, axis=1)) * dt.detach().numpy()
+        # numpy array indices
+        idx = idx.detach().numpy()
+
+        # update fht
+        fht[idx] += dt.detach().numpy()
 
         # update running integrals
-        idx = idx.detach().numpy()
-        #if N_not_in_ts == 999:
-        #    breakpoint()
         det_int_fht[idx] += (np.linalg.norm(ut.detach().numpy(), axis=1) ** 2) * dt.detach().numpy()
         stoch_int_fht[idx] += np.matmul(
             ut.detach().numpy()[:, np.newaxis, :],
@@ -186,7 +191,6 @@ def sample_loss(model, dt, N):
     loss = torch.var(yt)
 
     # compute mean and re of I_u
-    fht = k * dt.detach().numpy()
     I_u = np.exp(- fht - np.sqrt(beta) * stoch_int_fht - (beta / 2) * det_int_fht)
     mean_I_u = np.mean(I_u)
     var_I_u = np.var(I_u)

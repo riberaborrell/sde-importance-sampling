@@ -109,6 +109,9 @@ def sample_loss_and_gradient(model, dt, N):
     # initialize trajectory
     xt = np.full(N, -1.).reshape(N, 1)
 
+    # initialize fht
+    fht = np.zeros(N)
+
     # initialize running integrals
     det_int_t = np.zeros(N)
     det_int_fht = np.zeros(N)
@@ -156,6 +159,9 @@ def sample_loss_and_gradient(model, dt, N):
 
         if idx.shape[0] != 0:
 
+            # fht
+            fht[idx] = k * dt
+
             # fix running integrals
             det_int_fht[idx] = det_int_t[idx]
             stoch_int_fht[idx] = stoch_int_t[idx]
@@ -182,7 +188,6 @@ def sample_loss_and_gradient(model, dt, N):
     #b.backward(retain_graph=False)
 
     # compute mean and re of I_u
-    fht = k * dt
     I_u = np.exp(- fht - np.sqrt(beta) * stoch_int_fht - (beta / 2) * det_int_fht)
     mean_I_u = np.mean(I_u)
     var_I_u = np.var(I_u)
