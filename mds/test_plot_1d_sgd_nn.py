@@ -1,5 +1,5 @@
 from mds.base_parser_nd import get_base_parser
-
+from mds.test_sample_sgd_nn import load_som, plot_1d_control
 from mds.neural_networks import FeedForwardNN, DenseNN
 
 import numpy as np
@@ -48,12 +48,14 @@ def main():
         model = DenseNN(d_layers, args.activation_type)
 
     # set dir path
-    #dir_path = 'data/testing_1d_sgd_ipa_nn'
+    dir_path = 'data/testing_1d_sgd_nn/ipa'
     #dir_path = 'data/testing_1d_sgd_re_nn'
-    dir_path = 'data/testing_1d_bf_logvar_nn'
+    #dir_path = 'data/testing_1d_bf_logvar_nn'
 
     # load nn coeficients
-    thetas = load_nn_coefficients(dir_path)
+    data = load_som(dir_path)
+    breakpoint()
+    thetas = data['thetas']
 
     # define discretize domain
     h = 0.01
@@ -70,24 +72,6 @@ def main():
     # plot
     plot_1d_control(x, control, dir_path)
 
-def load_nn_coefficients(dir_path):
-    from mds.utils import make_dir_path
-    import os
-    make_dir_path(dir_path)
-    file_path = os.path.join(dir_path, 'som.npz')
-    data = np.load(
-        file_path,
-        allow_pickle=True,
-    )
-    return data['thetas']
-
-def plot_1d_control(x, control, dir_path):
-    from mds.plots import Plot
-
-    plt = Plot(dir_path, 'control')
-    plt.xlabel = 'x'
-    plt.set_ylim(- 5, 5)
-    plt.one_line_plot(x, control)
 
 if __name__ == "__main__":
     main()

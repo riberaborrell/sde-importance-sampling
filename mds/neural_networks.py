@@ -11,8 +11,12 @@ ACTIVATION_FUNCTION_TYPES = [
 ]
 
 class GaussianAnsatzNN(nn.Module):
-    def __init__(self, n, m, means, cov):
+    def __init__(self, n, m, means, cov, seed=None):
         super(GaussianAnsatzNN, self).__init__()
+
+        # set seed
+        if seed is not None:
+            torch.manual_seed(seed)
 
         # define the scalar product layer
         self.n = n
@@ -96,8 +100,12 @@ class GaussianAnsatzNN(nn.Module):
 
 
 class TwoLayerNN(nn.Module):
-    def __init__(self, d_in, d_1, d_out):
+    def __init__(self, d_in, d_1, d_out, seed=None):
         super(TwoLayerNN, self).__init__()
+
+        # set seed
+        if seed is not None:
+            torch.manual_seed(seed)
 
         # model name
         self.name = 'two-layer-nn'
@@ -189,8 +197,12 @@ class TwoLayerNN(nn.Module):
 
 
 class FeedForwardNN(nn.Module):
-    def __init__(self, d_layers, activation_type='relu'):
+    def __init__(self, d_layers, activation_type='relu', seed=None):
         super(FeedForwardNN, self).__init__()
+
+        # set seed
+        if seed is not None:
+            torch.manual_seed(seed)
 
         # model name
         self.name = 'feed-forward-nn'
@@ -335,8 +347,12 @@ class FeedForwardNN(nn.Module):
 
 
 class DenseNN(nn.Module):
-    def __init__(self, d_layers, activation_type='relu'):
+    def __init__(self, d_layers, activation_type='relu', seed=None):
         super(DenseNN, self).__init__()
+
+        # set seed
+        if seed is not None:
+            torch.manual_seed(seed)
 
         # model name
         self.name = 'dense-nn'

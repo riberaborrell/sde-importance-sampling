@@ -4,10 +4,10 @@ from mds.test_sample_sgd_nn import double_well_1d_gradient, get_idx_new_in_ts, s
 
 import numpy as np
 
+import time
+
 import torch
 import torch.optim as optim
-
-import time
 
 def get_parser():
     parser = get_base_parser()
@@ -74,8 +74,11 @@ def main():
         optimizer.zero_grad()
 
         # compute loss
-        loss, mean, re, k, ct = sample_loss_and_gradient(model, args.dt, args.N)
+        loss, tilted_loss, mean, re, k, ct = sample_loss(model, args.dt, args.N)
         print('{:d}, {:2.3f}'.format(update, loss))
+
+        # compute gradients
+        tilted_loss.backward()
 
         # update parameters
         optimizer.step()
@@ -88,7 +91,7 @@ def main():
         time_steps[update] = k
         cts[update] = ct
 
-    dir_path = 'data/testing_1d_sgd_nn/ipa'
+    dir_path = 'data/testing_1d_sgd_nn/ipa-fix'
     files_dict = {
         'thetas': thetas,
         'losses': losses,
@@ -99,7 +102,7 @@ def main():
     }
     save_som(dir_path, files_dict)
 
-def sample_loss_and_gradient(model, dt, N):
+def sample_loss(model, dt, N):
     beta = 1
     k_max = 10**6
 
@@ -115,11 +118,12 @@ def sample_loss_and_gradient(model, dt, N):
     stoch_int_t = np.zeros(N)
     stoch_int_fht = np.zeros(N)
 
-    # initialize phi and S
-    phi_t = torch.zeros(N)
-    phi_fht = torch.zeros(N)
-    S_t = torch.zeros(N)
-    S_fht = torch.zeros(N)
+    # initialize loss and tilted loss
+    loss = np.zeros(N)
+    tilted_loss = torch.zeros(N)
+    a_tensor = torch.zeros(N)
+    b_tensor = torch.zeros(N)
+    c_tensor = torch.zeros(N)
 
     been_in_target_set = np.repeat([False], N).reshape(N, 1)
 
@@ -148,8 +152,9 @@ def sample_loss_and_gradient(model, dt, N):
         ).squeeze()
 
         # update statistics
-        phi_t = phi_t + ((1 + 0.5 * (ut_tensor ** 2)) * dt).reshape(N,)
-        S_t = S_t - (np.sqrt(beta) * dB_tensor * ut_tensor).reshape(N,)
+        a_tensor = a_tensor + (ut_tensor_det * ut_tensor * dt).reshape(N,)
+        b_tensor = b_tensor + ((1 + 0.5 * (ut_tensor_det ** 2)) * dt).reshape(N,)
+        c_tensor = c_tensor - (np.sqrt(beta) * dB_tensor * ut_tensor).reshape(N,)
 
         # get indices of trajectories which are new to the target set
         idx = get_idx_new_in_ts(xt, been_in_target_set)
@@ -163,23 +168,15 @@ def sample_loss_and_gradient(model, dt, N):
             # get tensor indices if there are new trajectories 
             idx_tensor = torch.tensor(idx, dtype=torch.long)
 
-            # save phi and S loss for the arrived trajectorries
-            phi_fht[idx_tensor] = phi_t.index_select(0, idx_tensor)
-            S_fht[idx_tensor] = S_t.index_select(0, idx_tensor)
+            # save loss and tilted loss for the arrived trajectorries
+            loss[idx] = b_tensor.numpy()[idx]
+            tilted_loss[idx_tensor] = a_tensor.index_select(0, idx_tensor) \
+                                    - b_tensor.index_select(0, idx_tensor) \
+                                    * c_tensor.index_select(0, idx_tensor)
 
         # stop if xt_traj in target set
         if been_in_target_set.all() == True:
            break
-
-    # compute loss
-    a = torch.mean(phi_fht)
-    loss = a.detach().numpy()
-
-    # compute loss gradient
-    b = - torch.mean(phi_fht.detach() * S_fht)
-    (a + b).backward()
-    #a.backward(retain_graph=True)
-    #b.backward(retain_graph=False)
 
     # compute mean and re of I_u
     fht = k * dt
@@ -191,7 +188,7 @@ def sample_loss_and_gradient(model, dt, N):
     # end timer
     ct_final = time.time()
 
-    return loss, mean_I_u, re_I_u, k, ct_final - ct_initial
+    return np.mean(loss), torch.mean(tilted_loss), mean_I_u, re_I_u, k, ct_final - ct_initial
 
 if __name__ == "__main__":
     main()

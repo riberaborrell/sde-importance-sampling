@@ -1,6 +1,6 @@
 from mds.base_parser_nd import get_base_parser
-
 from mds.neural_networks import FeedForwardNN, DenseNN
+from mds.test_sample_sgd_nn import double_well_1d_gradient, get_idx_new_in_ts, save_som
 
 import numpy as np
 
@@ -39,7 +39,6 @@ def main():
     # fix seed
     if args.seed is not None:
         np.random.seed(args.seed)
-        torch.manual_seed(args.seed)
 
     # get dimensions of each layer
     if args.d_layers is not None:
@@ -61,6 +60,11 @@ def main():
 
     # preallocate parameters
     thetas = np.empty((args.iterations_lim, model.d_flat))
+    losses = np.empty(args.iterations_lim)
+    means = np.empty(args.iterations_lim)
+    res = np.empty(args.iterations_lim)
+    time_steps = np.empty(args.iterations_lim, dtype=np.int64)
+    cts = np.empty(args.iterations_lim)
 
     # save initial parameters
     thetas[0] = model.get_parameters()
@@ -70,32 +74,45 @@ def main():
         optimizer.zero_grad()
 
         # compute loss
-        loss_tensor = sample_loss(model, args.dt, args.N)
-        loss = loss_tensor.detach().numpy()
+        log_var_loss, loss, mean, re, k, ct = sample_loss(model, args.dt, args.N)
         print('{:d}, {:2.3f}'.format(update, loss))
 
         # compute gradients
-        loss_tensor.backward()
+        log_var_loss.backward()
 
         # update parameters
         optimizer.step()
 
         # save parameters
         thetas[update] = model.get_parameters()
-        #print(thetas[update])
+        losses[update] = loss
+        means[update] = mean
+        res[update] = re
+        time_steps[update] = k
+        cts[update] = ct
 
-    save_nn_coefficients(thetas)
+    dir_path = 'data/testing_1d_sgd_nn/logvar'
+    files_dict = {
+        'thetas': thetas,
+        'losses': losses,
+        'means': means,
+        'res': res,
+        'time_steps': time_steps,
+        'cts': cts,
+    }
+    save_som(dir_path, files_dict)
 
 
 def sample_loss(model, dt, N):
     beta = 1
-    k_max = 100000
+    k_max = 10**6
+
+    # start timer
+    ct_initial = time.time()
 
     # flags
     adaptive_forward_process = True
     detach_forward = True
-
-    t_0 = time.time()
 
     # time increments as tensors
     dt = torch.tensor([dt])
@@ -105,8 +122,12 @@ def sample_loss(model, dt, N):
     xt = - torch.ones(N).reshape(N, 1)
     yt = torch.zeros(N).reshape(N)
 
+    # initialize running integrals
+    det_int_fht = np.zeros(N)
+    stoch_int_fht = np.zeros(N)
+
     # initialize Z sum
-    Z_sum = torch.zeros(N)
+    zt_sum = np.zeros(N)
 
     # number of trajectories not in the target set
     N_not_in_ts = N
@@ -147,25 +168,35 @@ def sample_loss(model, dt, N):
                 + (h + torch.sum(zt * ut, dim=1)) * dt \
                 + torch.sum(zt * xi, dim=1) * sq_dt
 
-        # update Z_sum
-        #Z_sum[selection] += dw.f(X[selection, :], n * delta_t) * delta_t # (0.5 * pt.sum(Z**2, dim=1) + dw.f(X[selection, :], n * delta_t)) * delta_t
+        # update zt_sum
+        zt_sum[idx] += (1 + 0.5 * np.sum(zt.detach().numpy() ** 2, axis=1)) * dt.detach().numpy()
+
+        # update running integrals
+        idx = idx.detach().numpy()
+        #if N_not_in_ts == 999:
+        #    breakpoint()
+        det_int_fht[idx] += (np.linalg.norm(ut.detach().numpy(), axis=1) ** 2) * dt.detach().numpy()
+        stoch_int_fht[idx] += np.matmul(
+            ut.detach().numpy()[:, np.newaxis, :],
+            dB.detach().numpy()[:, :, np.newaxis],
+        ).squeeze()
+
 
     #loss = (Z_sum).mean()
     loss = torch.var(yt)
 
-    return loss
+    # compute mean and re of I_u
+    fht = k * dt.detach().numpy()
+    I_u = np.exp(- fht - np.sqrt(beta) * stoch_int_fht - (beta / 2) * det_int_fht)
+    mean_I_u = np.mean(I_u)
+    var_I_u = np.var(I_u)
+    re_I_u = np.sqrt(var_I_u) / mean_I_u
 
-def double_well_1d_gradient(x):
-    alpha = 1
-    return 4 * alpha * x * (x**2 - 1)
+    # end timer
+    ct_final = time.time()
 
-def save_nn_coefficients(thetas):
-    from mds.utils import make_dir_path
-    import os
-    dir_path = 'data/testing_1d_bf_logvar_nn'
-    make_dir_path(dir_path)
-    file_path = os.path.join(dir_path, 'som.npz')
-    np.savez(file_path, thetas=thetas)
+    return loss, np.mean(zt_sum), mean_I_u, re_I_u, k, ct_final - ct_initial
+
 
 if __name__ == "__main__":
     main()
