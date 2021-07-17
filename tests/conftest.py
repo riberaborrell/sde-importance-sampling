@@ -47,6 +47,20 @@ def pytest_addoption(parser):
         help='Set the initial posicion of the process at each axis. Default: -1',
     )
     parser.addoption(
+        '--dt',
+        dest='dt',
+        type=float,
+        default=0.001,
+        help='Set dt. Default: 0.001',
+    )
+    parser.addoption(
+        '--k-lim',
+        dest='k_lim',
+        type=int,
+        default=10**8,
+        help='Set maximal number of time steps. Default: 100.000.000',
+    )
+    parser.addoption(
         '--m',
         dest='m',
         type=int,
@@ -91,6 +105,14 @@ def beta(request):
 @pytest.fixture(scope='session')
 def xzero_i(request):
     return request.config.getoption('xzero_i')
+
+@pytest.fixture(scope='session')
+def dt(request):
+    return request.config.getoption('dt')
+
+@pytest.fixture(scope='session')
+def k_lim(request):
+    return request.config.getoption('k_lim')
 
 @pytest.fixture(scope='session')
 def m(request):
