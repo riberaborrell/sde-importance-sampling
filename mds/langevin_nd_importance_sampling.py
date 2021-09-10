@@ -598,6 +598,118 @@ class Sampling(LangevinSDE):
         return True
 
     def sample_loss_ipa_nn(self, device):
+        self.start_timer()
+        self.preallocate_fht()
+        self.preallocate_integrals()
+
+        if self.do_u_l2_error:
+
+            # load hjb solution
+            sol_hjb = self.get_hjb_solver()
+            self.u_hjb = sol_hjb.u_opt
+            self.Nx = sol_hjb.Nx
+
+            # preallocate l2 error
+            self.preallocate_l2_error()
+
+        # nn model
+        model = self.nn_func_appr.model
+
+        # number of flattened parameters
+        m = model.d_flat
+
+        # initialize phi and S
+        phi_t = torch.zeros(self.N)
+        phi_fht = torch.empty(self.N)
+        S_t = torch.zeros(self.N)
+        S_fht = torch.empty(self.N)
+
+        # initialize trajectory
+        xt = self.initial_position()
+
+        # initialize deterministic and stochastic integrals at time t
+        self.initialize_running_integrals()
+
+        # initialize l2 error at time t
+        if self.do_u_l2_error:
+            self.initialize_running_l2_error()
+
+        for k in np.arange(1, self.k_lim + 1):
+
+            # get Brownian increment and tensorize it
+            dB = self.brownian_increment()
+            dB_tensor = torch.tensor(dB, requires_grad=False, dtype=torch.float32).to(device)
+
+            # control
+            xt_tensor = torch.tensor(xt, dtype=torch.float)
+            ut_tensor = model.forward(xt_tensor)
+            ut_tensor_det = ut_tensor.detach()
+            ut = ut_tensor_det.numpy()
+
+            # sde update
+            controlled_gradient = self.gradient(xt) - np.sqrt(2) * ut
+            xt = self.sde_update(xt, controlled_gradient, dB)
+
+            # update statistics
+
+            ut_norm = torch.linalg.norm(ut_tensor, axis=1)
+            phi_t = phi_t + ((1 + 0.5 * (ut_norm ** 2)) * self.dt).reshape(self.N,)
+
+            S_t = S_t \
+                - np.sqrt(self.beta) * torch.matmul(
+                    torch.unsqueeze(ut_tensor, 1),
+                    torch.unsqueeze(dB_tensor, 2),
+                ).reshape(self.N,)
+
+            # stochastic and deterministic integrals 
+            self.update_integrals(ut, dB)
+
+            # update l2 running error
+            if self.do_u_l2_error:
+                self.update_running_l2_error(xt, ut)
+
+            # get indices of trajectories which are new in the target set
+            idx = self.get_idx_new_in_target_set(xt)
+
+            if idx.shape[0] != 0:
+
+                # save first hitting time and integrals
+                self.fht[idx] = k * self.dt
+                self.stoch_int_fht[idx] = self.stoch_int_t[idx]
+                self.det_int_fht[idx] = self.det_int_t[idx]
+
+                # get tensor indices if there are new trajectories 
+                idx_tensor = torch.tensor(idx, dtype=torch.long).to(device)
+
+                # save phi and S loss for the arrived trajectorries
+                phi_fht[idx_tensor] = phi_t.index_select(0, idx_tensor)
+                S_fht[idx_tensor] = S_t.index_select(0, idx_tensor)
+
+                # u l2 error
+                if self.do_u_l2_error:
+                    self.u_l2_error_fht[idx] = u_l2_error_t[idx]
+
+            # stop if all trajectories have arrived to the target set
+            if self.been_in_target_set.all() == True:
+               break
+
+        # compute loss
+        a = torch.mean(phi_fht)
+        self.loss = a.detach().numpy()
+
+        # compute ipa loss
+        b = - torch.mean(phi_fht.detach() * S_fht)
+        self.ipa_loss = a + b
+
+        self.compute_I_u_statistics()
+        if self.do_u_l2_error:
+            self.u_l2_error = np.mean(self.u_l2_error_fht)
+
+        self.stop_timer()
+
+        return True
+
+    def sample_loss_ipa2_nn(self, device):
         self.preallocate_fht()
         self.preallocate_integrals()
 
@@ -708,9 +820,9 @@ class Sampling(LangevinSDE):
         if self.do_u_l2_error:
             self.u_l2_error = np.mean(self.u_l2_error_fht)
 
-        return True, k
+        return True
 
-    def sample_re_loss_nn(self, device):
+    def sample_loss_re_nn(self, device):
         self.preallocate_fht()
         #self.preallocate_integrals()
 

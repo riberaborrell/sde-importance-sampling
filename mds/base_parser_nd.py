@@ -154,7 +154,7 @@ def get_base_parser():
     parser.add_argument(
         '--loss-type',
         dest='loss_type',
-        choices=['ipa', 're'],
+        choices=['ipa', 're', 'logvar'],
         default='ipa',
         help='Set type of loss. Default: "ipa"',
     )

@@ -58,9 +58,6 @@ class StochasticOptimizationMethod:
         # flag for plotting at each iteration
         self.do_iteration_plots = do_iteration_plots
 
-        # flag for computing l2 error
-        self.do_u_l2_error = False
-
         # set path
         self.dir_path = None
         self.set_dir_path()
@@ -111,12 +108,41 @@ class StochasticOptimizationMethod:
         if self.sample.ansatz is not None:
             self.grad_losses = np.empty((self.iterations_lim, self.m))
 
-        if self.sample.nn_func_appr is not None and self.loss_type == 'ipa':
-            self.ipa_losses = np.empty(self.iterations_lim)
-        elif self.sample.nn_func_appr is not None and self.loss_type == 're':
-            self.re_losses = np.empty(self.iterations_lim)
         elif self.sample.nn_func_appr is not None and self.loss_type == 'logvar':
             self.logvar_losses = np.empty(self.iterations_lim)
+
+    def update_arrays(self, i):
+
+        # update number of iterations used
+        self.n_iterations = i + 1
+
+        # add parameters
+        if self.sample.ansatz is not None:
+            self.thetas[i, :] = self.sample.ansatz.theta
+        elif self.sample.nn_func_appr is not None:
+            model = self.sample.nn_func_appr.model
+            self.thetas[i, :] = model.get_parameters()
+
+        # add loss and gradient
+        self.losses[i] = self.sample.loss
+
+        if self.sample.ansatz is not None:
+            self.grad_losses[i, :] = self.sample.grad_loss
+        elif self.sample.nn_func_appr is not None and self.loss_type == 'logvar':
+            self.logvar_losses[i] = self.sample.logvar_loss
+
+        # add I_u statistics
+        self.means_I_u[i] = self.sample.mean_I_u
+        self.vars_I_u[i] = self.sample.var_I_u
+        self.res_I_u[i] = self.sample.re_I_u
+
+        # add l2 error 
+        if self.sample.do_u_l2_error:
+            self.u_l2_errors[i] = self.sample.u_l2_error
+
+        # add time statistics
+        self.time_steps[i] = int(np.max(self.sample.fht) / self.sample.dt)
+        self.cts[i] = self.sample.ct
 
     def cut_arrays(self):
         assert self.n_iterations < self.iterations_lim, ''
@@ -153,6 +179,7 @@ class StochasticOptimizationMethod:
         self.preallocate_arrays()
 
         for i in np.arange(self.iterations_lim):
+
             # plot control, free_energy and tilted potential
             if self.do_iteration_plots:
                 pass
@@ -167,18 +194,7 @@ class StochasticOptimizationMethod:
 
             # save parameters, statistics and losses
             self.n_iterations = i + 1
-            self.thetas[i, :] = self.sample.ansatz.theta
-            self.losses[i] = self.sample.loss
-            self.grad_losses[i, :] = self.sample.grad_loss
-            self.means_I_u[i] = self.sample.mean_I_u
-            self.vars_I_u[i] = self.sample.var_I_u
-            self.res_I_u[i] = self.sample.re_I_u
-
-            if self.sample.do_u_l2_error:
-                self.u_l2_errors[i] = self.sample.u_l2_error
-
-            self.time_steps[i] = int(np.max(self.sample.fht) / self.sample.dt)
-            self.cts[i] = self.sample.ct
+            self.update_arrays()
 
             # update coefficients
             self.sample.ansatz.theta = self.thetas[i, :] - self.lr * self.grad_losses[i, :]
@@ -207,54 +223,33 @@ class StochasticOptimizationMethod:
 
         for i in np.arange(self.iterations_lim):
 
-            # u l2 error flag
-            if self.do_u_l2_error:
-                self.sample.do_u_l2_error = True
+            # reset gradients
+            optimizer.zero_grad()
 
-            # compute ipa loss
+            # compute loss 
             if self.loss_type == 'ipa':
-                succ, time_steps = self.sample.sample_loss_ipa_nn(device)
-
-            # compute relative entropy loss
+                succ = self.sample.sample_loss_ipa_nn(device)
             elif self.loss_type == 're':
-                succ, time_steps = self.sample.sample_re_loss_nn(device)
+                succ = self.sample.sample_loss_re_nn(device)
+            elif self.loss_type == 'logvar':
+                succ = self.sample.sample_loss_logvar_nn(device)
 
             print('{:d}, {:2.3f}'.format(i, self.sample.loss))
-            #print('{:d}, {:2.3f}'.format(i, self.sample.re_loss.detach()))
 
             # check if sample succeeded
             if not succ:
                 break
 
-            # allocate
-            self.iterations = np.append(self.iterations, i)
-            self.thetas = np.vstack((self.thetas, model.get_parameters()))
-            self.means_I_u = np.append(self.means_I_u, self.sample.mean_I_u)
-            self.vars_I_u = np.append(self.vars_I_u, self.sample.var_I_u)
-            self.res_I_u = np.append(self.res_I_u, self.sample.re_I_u)
-            self.time_steps = np.append(self.time_steps, time_steps)
-
-            self.losses = np.append(self.losses, self.sample.loss)
-            if self.loss_type == 'ipa':
-                self.ipa_losses = np.append(
-                    self.ipa_losses, self.sample.ipa_loss.detach().numpy()
-                )
-            elif self.loss_type == 're':
-                self.re_losses = np.append(self.re_losses, self.sample.re_loss.detach().numpy())
-
-            if self.sample.u_l2_error is not None:
-                self.u_l2_errors = np.append(self.u_l2_errors, self.sample.u_l2_error)
-
-
-            # reset gradients
-            optimizer.zero_grad()
+            # save information of the iteration
+            self.update_arrays(i)
 
             # compute gradients
             if self.loss_type == 'ipa':
                 self.sample.ipa_loss.backward()
-
             elif self.loss_type == 're':
                 self.sample.re_loss.backward()
+            elif self.loss_type == 'logvar':
+                self.sample.logvar_loss.backward()
 
             # update parameters
             optimizer.step()

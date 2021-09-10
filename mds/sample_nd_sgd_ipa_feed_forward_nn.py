@@ -144,6 +144,7 @@ def main():
 
         # save if job is manually interrupted
         except KeyboardInterrupt:
+            sgd.cut_arrays()
             sgd.stop_timer()
             sgd.save()
 
