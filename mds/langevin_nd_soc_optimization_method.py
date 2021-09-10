@@ -42,6 +42,7 @@ class StochasticOptimizationMethod:
         self.res_I_u = None
         self.u_l2_errors = None
         self.time_steps = None
+        self.cts = None
 
         # running averages
         self.n_last_iter = None
@@ -95,20 +96,52 @@ class StochasticOptimizationMethod:
 
     def preallocate_arrays(self):
 
-        self.iterations = np.empty(0, dtype=int)
-        self.thetas = np.empty((0, self.m))
-        self.losses = np.empty(0)
-        self.means_I_u = np.empty(0)
-        self.vars_I_u = np.empty(0)
-        self.res_I_u = np.empty(0)
-        self.time_steps = np.empty(0)
+        self.thetas = np.empty((self.iterations_lim, self.m))
+        self.losses = np.empty(self.iterations_lim)
+        self.means_I_u = np.empty(self.iterations_lim)
+        self.vars_I_u = np.empty(self.iterations_lim)
+        self.res_I_u = np.empty(self.iterations_lim)
+
+        if self.sample.do_u_l2_error:
+            self.u_l2_errors = np.empty(self.iterations_lim)
+
+        self.time_steps = np.empty(self.iterations_lim, dtype=int)
+        self.cts = np.empty(self.iterations_lim)
 
         if self.sample.ansatz is not None:
-            self.grad_losses = np.empty((0, self.m))
-        elif self.sample.nn_func_appr is not None and self.loss_type == 'ipa':
-            self.ipa_losses = np.empty(0)
+            self.grad_losses = np.empty((self.iterations_lim, self.m))
+
+        if self.sample.nn_func_appr is not None and self.loss_type == 'ipa':
+            self.ipa_losses = np.empty(self.iterations_lim)
         elif self.sample.nn_func_appr is not None and self.loss_type == 're':
-            self.re_losses = np.empty(0)
+            self.re_losses = np.empty(self.iterations_lim)
+        elif self.sample.nn_func_appr is not None and self.loss_type == 'logvar':
+            self.logvar_losses = np.empty(self.iterations_lim)
+
+    def cut_arrays(self):
+        assert self.n_iterations < self.iterations_lim, ''
+
+        self.thetas = self.thetas[:self.n_iterations, :]
+        self.losses = self.losses[:self.n_iterations]
+        self.means_I_u = self.means_I_u[:self.n_iterations]
+        self.vars_I_u = self.vars_I_u[:self.n_iterations]
+        self.res_I_u = self.res_I_u[:self.n_iterations]
+
+        if self.sample.do_u_l2_error:
+            self.u_l2_errors = self.u_l2_errors[:self.n_iterations]
+
+        self.time_steps = self.time_steps[:self.n_iterations]
+        self.cts = self.cts[:self.n_iterations]
+
+        if self.sample.ansatz is not None:
+            self.grad_losses = self.grad_losses[:self.n_iterations, :]
+
+        if self.sample.nn_func_appr is not None and self.loss_type == 'ipa':
+            self.ipa_losses = self.ipa_losses[:self.n_iterations, :]
+        elif self.sample.nn_func_appr is not None and self.loss_type == 're':
+            self.re_losses = self.re_losses[:self.n_iterations, :]
+        elif self.sample.nn_func_appr is not None and self.loss_type == 'logvar':
+            self.logvar_losses = self.logvar_losses[:self.n_iterations, :]
 
     def sgd_ipa_gaussian_ansatz(self):
         self.start_timer()
@@ -125,7 +158,7 @@ class StochasticOptimizationMethod:
                 pass
 
             # compute loss and its gradient 
-            succ, time_steps = self.sample.sample_loss_ansatz()
+            succ = self.sample.sample_loss_ipa_ansatz()
             print('{:d}, {:2.3f}'.format(i, self.sample.loss))
 
             # check if sample succeeded
@@ -133,14 +166,19 @@ class StochasticOptimizationMethod:
                 break
 
             # save parameters, statistics and losses
-            self.iterations = np.append(self.iterations, i)
-            self.thetas = np.vstack((self.thetas, self.sample.ansatz.theta))
-            self.losses = np.append(self.losses, self.sample.loss)
-            self.grad_losses = np.vstack((self.grad_losses, self.sample.grad_loss))
-            self.means_I_u = np.append(self.means_I_u, self.sample.mean_I_u)
-            self.vars_I_u = np.append(self.vars_I_u, self.sample.var_I_u)
-            self.res_I_u = np.append(self.res_I_u, self.sample.re_I_u)
-            self.time_steps = np.append(self.time_steps, time_steps)
+            self.n_iterations = i + 1
+            self.thetas[i, :] = self.sample.ansatz.theta
+            self.losses[i] = self.sample.loss
+            self.grad_losses[i, :] = self.sample.grad_loss
+            self.means_I_u[i] = self.sample.mean_I_u
+            self.vars_I_u[i] = self.sample.var_I_u
+            self.res_I_u[i] = self.sample.re_I_u
+
+            if self.sample.do_u_l2_error:
+                self.u_l2_errors[i] = self.sample.u_l2_error
+
+            self.time_steps[i] = int(np.max(self.sample.fht) / self.sample.dt)
+            self.cts[i] = self.sample.ct
 
             # update coefficients
             self.sample.ansatz.theta = self.thetas[i, :] - self.lr * self.grad_losses[i, :]
@@ -175,13 +213,14 @@ class StochasticOptimizationMethod:
 
             # compute ipa loss
             if self.loss_type == 'ipa':
-                succ, time_steps = self.sample.sample_ipa_loss_nn(device)
+                succ, time_steps = self.sample.sample_loss_ipa_nn(device)
 
             # compute relative entropy loss
             elif self.loss_type == 're':
                 succ, time_steps = self.sample.sample_re_loss_nn(device)
 
             print('{:d}, {:2.3f}'.format(i, self.sample.loss))
+            #print('{:d}, {:2.3f}'.format(i, self.sample.re_loss.detach()))
 
             # check if sample succeeded
             if not succ:
@@ -239,6 +278,7 @@ class StochasticOptimizationMethod:
             res_I_u=self.res_I_u,
             u_l2_errors=self.u_l2_errors,
             time_steps=self.time_steps,
+            cts=self.cts,
             t_initial=self.t_initial,
             t_final=self.t_final,
         )

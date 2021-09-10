@@ -100,6 +100,7 @@ class Sampling(LangevinSDE):
         self.loss = None
         self.grad_loss = None
         self.ipa_loss = None
+        self.logvar_loss = None
 
         # control l2 error wrt the hjb solution
         self.do_u_l2_error = False
@@ -170,12 +171,15 @@ class Sampling(LangevinSDE):
 
         return self.gradient(x) + self.bias_gradient(u)
 
-    def brownian_increment(self):
+    def brownian_increment(self, tensor=False):
         '''
         '''
-        return np.sqrt(self.dt) \
-             * np.random.normal(0, 1, self.N * self.n).reshape(self.N, self.n)
+        dB = np.sqrt(self.dt) \
+           * np.random.normal(0, 1, self.N * self.n).reshape(self.N, self.n)
+        if tensor:
+            dB = torch.tensor(dB, dtype=torch.float32)
 
+        return dB
 
     def set_sampling_parameters(self, dt, k_lim, xzero, N, seed=None):
         '''
@@ -227,10 +231,22 @@ class Sampling(LangevinSDE):
         self.stoch_int_fht = np.empty(self.N)
         self.det_int_fht = np.empty(self.N)
 
-    def initial_position(self):
+    def preallocate_l2_error(self):
+        '''
+        '''
+        assert self.N is not None, ''
+
+        self.u_l2_error_fht = np.empty(self.N)
+
+
+    def initial_position(self, tensor=False):
         ''' returns same initial posicion for all trajectories
         '''
-        return np.full((self.N, self.n), self.xzero)
+        x_init = np.full((self.N, self.n), self.xzero, dtype=np.float64)
+        if tensor:
+            x_init = torch.tensor(x_init, dtype=torch.float32)
+
+        return x_init
 
 
     def initialize_running_integrals(self):
@@ -240,6 +256,13 @@ class Sampling(LangevinSDE):
 
         self.stoch_int_t = np.zeros(self.N)
         self.det_int_t = np.zeros(self.N)
+
+    def initialize_running_l2_error(self):
+        '''
+        '''
+        assert self.N is not None, ''
+
+        self.u_l2_error_t = np.zeros(self.N)
 
     def update_integrals(self, ut, dB):
         '''
@@ -253,9 +276,23 @@ class Sampling(LangevinSDE):
         # deterministic integral
         self.det_int_t += (np.linalg.norm(ut, axis=1) ** 2) * self.dt
 
-    def sde_update(self, x, gradient, dB):
+    def update_running_l2_error(self, xt, ut):
+
+        # hjb control
+        idx_xt = self.get_index_vectorized(xt)
+        ut_hjb = self.u_hjb[idx_xt]
+
+        # update u l2 running error
+        self.u_l2_error_t += (np.linalg.norm(ut - ut_hjb, axis=1) ** 2) * self.dt
+
+    def sde_update(self, x, gradient, dB, tensor=False):
         drift = - gradient * self.dt
-        diffusion = np.dot(dB, np.sqrt(2 / self.beta) * np.eye(self.n))
+
+        if not tensor:
+            diffusion = np.dot(dB, np.sqrt(2 / self.beta) * np.eye(self.n))
+        else:
+            diffusion = torch.mm(dB, np.sqrt(2 / self.beta) * torch.eye(self.n))
+
         return x + drift + diffusion
 
     def get_idx_new_in_target_set(self, x):
@@ -460,9 +497,20 @@ class Sampling(LangevinSDE):
 
         return False, x
 
-    def sample_loss_ansatz(self):
+    def sample_loss_ipa_ansatz(self):
+        self.start_timer()
         self.preallocate_fht()
         self.preallocate_integrals()
+
+        if self.do_u_l2_error:
+
+            # load hjb solution
+            sol_hjb = self.get_hjb_solver()
+            self.u_hjb = sol_hjb.u_opt
+            self.Nx = sol_hjb.Nx
+
+            # preallocate l2 error
+            self.preallocate_l2_error()
 
         # number of ansatz functions
         m = self.ansatz.m
@@ -480,6 +528,10 @@ class Sampling(LangevinSDE):
 
         # initialize deterministic and stochastic integrals at time t
         self.initialize_running_integrals()
+
+        # initialize l2 error at time t
+        if self.do_u_l2_error:
+            self.initialize_running_l2_error()
 
         for k in np.arange(1, self.k_lim+1):
 
@@ -503,6 +555,10 @@ class Sampling(LangevinSDE):
             # stochastic and deterministic integrals 
             self.update_integrals(ut, dB)
 
+            # update l2 running error
+            if self.do_u_l2_error:
+                self.update_running_l2_error(xt, ut)
+
             # get indices from the trajectories which are new in target set
             idx = self.get_idx_new_in_target_set(xt)
 
@@ -520,6 +576,10 @@ class Sampling(LangevinSDE):
                                        - loss_traj[idx][:, np.newaxis] \
                                        * grad_S_t[idx, :]
 
+                # u l2 error
+                if self.do_u_l2_error:
+                    self.u_l2_error_fht[idx] = self.u_l2_error_t[idx]
+
             # stop if all trajectories have arrived to the target set
             if self.been_in_target_set.all() == True:
                 break
@@ -528,12 +588,16 @@ class Sampling(LangevinSDE):
         self.loss = np.mean(loss_traj)
         self.grad_loss = np.mean(grad_loss_traj, axis=0)
 
+        # compute statistics
         self.compute_I_u_statistics()
+        if self.do_u_l2_error:
+            self.u_l2_error = np.mean(self.u_l2_error_fht)
 
-        return True, k
+        self.stop_timer()
 
+        return True
 
-    def sample_ipa_loss_nn(self, device):
+    def sample_loss_ipa_nn(self, device):
         self.preallocate_fht()
         self.preallocate_integrals()
 
@@ -541,16 +605,14 @@ class Sampling(LangevinSDE):
 
             # load hjb solution
             sol_hjb = self.get_hjb_solver()
-            u_hjb = sol_hjb.u_opt
+            self.u_hjb = sol_hjb.u_opt
             self.Nx = sol_hjb.Nx
 
-            # preallcoate l2 error
-            self.u_l2_error_fht = np.empty(self.N)
+            # preallocate l2 error
+            self.preallocate_l2_error()
 
-            # initialize running l2 error
-            u_l2_error_t = np.zeros(self.N)
 
-        ## nn model
+        # nn model
         model = self.nn_func_appr.model
 
         # number of flattened parameters
@@ -568,6 +630,10 @@ class Sampling(LangevinSDE):
 
         # initialize deterministic and stochastic integrals at time t
         self.initialize_running_integrals()
+
+        # initialize l2 error at time t
+        if self.do_u_l2_error:
+            self.initialize_running_l2_error()
 
         for k in np.arange(1, self.k_lim + 1):
 
@@ -604,14 +670,9 @@ class Sampling(LangevinSDE):
             # stochastic and deterministic integrals 
             self.update_integrals(ut, dB)
 
+            # update l2 running error
             if self.do_u_l2_error:
-
-                # hjb control
-                idx_xt = self.get_index_vectorized(xt)
-                ut_hjb = u_hjb[idx_xt]
-
-                # update u l2 running error
-                u_l2_error_t += (np.linalg.norm(ut - ut_hjb, axis=1) ** 2) * self.dt
+                self.update_running_l2_error(xt, ut)
 
             # get indices of trajectories which are new in the target set
             idx = self.get_idx_new_in_target_set(xt)
@@ -651,7 +712,7 @@ class Sampling(LangevinSDE):
 
     def sample_re_loss_nn(self, device):
         self.preallocate_fht()
-        self.preallocate_integrals()
+        #self.preallocate_integrals()
 
         ## nn model
         model = self.nn_func_appr.model
@@ -660,42 +721,48 @@ class Sampling(LangevinSDE):
         m = model.d_flat
 
         # initialize loss and ipa loss for the trajectories
-        loss_traj = np.zeros(self.N)
+        #loss_traj = np.zeros(self.N)
         re_loss_traj = torch.zeros(self.N)
-        phi_det = torch.zeros(self.N)
+        #phi_det = torch.zeros(self.N)
         phi = torch.zeros(self.N)
 
         # initialize trajectory
-        xt = self.initial_position()
+        xt_tensor = self.initial_position(tensor=True)
+
+        # control
+        ut_tensor = model.forward(xt_tensor)
 
         # initialize deterministic and stochastic integrals at time t
-        self.initialize_running_integrals()
+        #self.initialize_running_integrals()
 
         for k in np.arange(1, self.k_lim + 1):
 
             # get Brownian increment
-            dB = self.brownian_increment()
+            dB_tensor = self.brownian_increment(tensor=True)
+            #dB = dB_tensor.detach().numpy()
 
-            # control
-            xt_tensor = torch.tensor(xt, dtype=torch.float)
-            ut_tensor = model.forward(xt_tensor)
-            ut_tensor_det = ut_tensor.detach()
-            ut = ut_tensor_det.numpy()
 
             # sde update
-            controlled_gradient = self.gradient(xt) - np.sqrt(2) * ut
-            xt = self.sde_update(xt, controlled_gradient, dB)
+            gradient_tensor = self.gradient(xt_tensor, tensor=True)
+            controlled_gradient = gradient_tensor - np.sqrt(2) * ut_tensor
+            xt_tensor = self.sde_update(xt_tensor, controlled_gradient, dB_tensor, tensor=True)
+            xt = xt_tensor.detach().numpy()
+
+            # control
+            ut_tensor = model.forward(xt_tensor)
+            #ut_tensor_det = ut_tensor.detach()
+            #ut = ut_tensor_det.numpy()
 
             # update statistics
-            ut_norm_det = torch.linalg.norm(ut_tensor_det, axis=1)
-            phi_det = phi_det + ((1 + 0.5 * (ut_norm_det ** 2)) * self.dt).reshape(self.N,)
+            #ut_norm_det = torch.linalg.norm(ut_tensor_det, axis=1)
+            #phi_det = phi_det + ((1 + 0.5 * (ut_norm_det ** 2)) * self.dt).reshape(self.N,)
 
             #ut_norm = torch.linalg.norm(ut_tensor, axis=1)
             #phi = phi + ((1 + 0.5 * (ut_norm ** 2)) * self.dt).reshape(self.N,)
             phi = phi + ((1 + 0.5 * torch.sum(ut_tensor ** 2, dim=1)) * self.dt).reshape(self.N)
 
             # stochastic and deterministic integrals 
-            self.update_integrals(ut, dB)
+            #self.update_integrals(ut, dB)
 
             # get indices of trajectories which are new in the target set
             idx = self.get_idx_new_in_target_set(xt)
@@ -704,14 +771,14 @@ class Sampling(LangevinSDE):
 
                 # save first hitting time and Girsanov Martingale terms
                 self.fht[idx] = k * self.dt
-                self.stoch_int_fht[idx] = self.stoch_int_t[idx]
-                self.det_int_fht[idx] = self.det_int_t[idx]
+                #self.stoch_int_fht[idx] = self.stoch_int_t[idx]
+                #self.det_int_fht[idx] = self.det_int_t[idx]
 
                 # get tensor indices if there are new trajectories 
                 idx_tensor = torch.tensor(idx, dtype=torch.long).to(device)
 
                 # save loss and ipa loss for the arrived trajectorries
-                loss_traj[idx] = phi_det.numpy()[idx]
+                #loss_traj[idx] = phi_det.numpy()[idx]
                 re_loss_traj[idx_tensor] = phi.index_select(0, idx_tensor)
 
 
@@ -719,10 +786,10 @@ class Sampling(LangevinSDE):
             if self.been_in_target_set.all() == True:
                break
 
-        self.loss = np.mean(loss_traj)
+        #self.loss = np.mean(loss_traj)
         self.re_loss = torch.mean(re_loss_traj)
 
-        self.compute_I_u_statistics()
+        #self.compute_I_u_statistics()
 
         return True, k
 
@@ -957,8 +1024,7 @@ class Sampling(LangevinSDE):
             f.close()
             return
         else:
-            #f.write('used time steps: {:,d}\n\n'.format(self.k))
-            pass
+            f.write('used time steps: {:,d}\n\n'.format(self.k))
 
         f.write('First hitting time (fht)\n')
         f.write('first fht = {:2.3f}\n'.format(self.first_fht))

@@ -14,13 +14,6 @@ def get_parser():
                          'The space of possible controls is given by the linear combination' \
                          'of vector fields from Gaussian ansatz functions.'
     parser.add_argument(
-        '--iterations-lim',
-        dest='iterations_lim',
-        type=int,
-        default=100,
-        help='Set maximal number of iterations. Default: 100',
-    )
-    parser.add_argument(
         '--do-iteration-plots',
         dest='do_iteration_plots',
         action='store_true',
@@ -82,6 +75,10 @@ def main():
         k_lim=100000,
     )
 
+    # set l2 error flag
+    if args.do_u_l2_error:
+        sample.do_u_l2_error = True
+
     # initialize gradient descent object
     sgd = StochasticOptimizationMethod(
         sample=sample,
@@ -99,8 +96,9 @@ def main():
 
         # save if job is manually interrupted
         except KeyboardInterrupt:
+            sgd.cut_arrays()
             sgd.stop_timer()
-            sgd.save_som()
+            sgd.save()
 
     # load already run gd
     else:
@@ -115,9 +113,9 @@ def main():
     if args.do_plots:
 
         # plot loss function, relative error and time steps
-        sgd.plot_losses()
-        sgd.plot_I_u()
-        sgd.plot_time_steps()
+        #sgd.plot_losses()
+        #sgd.plot_I_u()
+        #sgd.plot_time_steps()
 
         if args.n == 1:
             sgd.plot_1d_iteration()
