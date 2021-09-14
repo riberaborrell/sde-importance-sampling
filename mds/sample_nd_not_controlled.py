@@ -41,7 +41,6 @@ def main():
     # set path
     sample.set_not_controlled_dir_path()
 
-
     # sample not controlled trajectories
     if not args.load:
 

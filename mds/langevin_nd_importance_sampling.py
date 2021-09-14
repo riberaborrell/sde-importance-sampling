@@ -350,11 +350,8 @@ class Sampling(LangevinSDE):
             if idx.shape[0] != 0:
                 self.fht[idx] = k * self.dt
 
-            # check if all trajectories have arrived to the target set
+            # break if all trajectories have arrived to the target set
             if self.been_in_target_set.all() == True:
-
-                # save number of time steps used
-                self.k = k
                 break
 
         self.stop_timer()
@@ -396,11 +393,8 @@ class Sampling(LangevinSDE):
                 self.stoch_int_fht[idx] = self.stoch_int_t[idx]
                 self.det_int_fht[idx] = self.det_int_t[idx]
 
-            # check if all trajectories have arrived to the target set
+            # break if all trajectories have arrived to the target set
             if self.been_in_target_set.all() == True:
-
-                # save number of time steps used
-                self.k = k
                 break
 
         self.compute_fht_statistics()
@@ -451,7 +445,7 @@ class Sampling(LangevinSDE):
                 self.stoch_int_fht[idx] = self.stoch_int_t[idx]
                 self.det_int_fht[idx] = self.det_int_t[idx]
 
-            # check if all trajectories have arrived to the target set
+            # break if all trajectories have arrived to the target set
             if self.been_in_target_set.all() == True:
                 break
 
@@ -1140,7 +1134,7 @@ class Sampling(LangevinSDE):
         # fht
         files_dict['been_in_target_set'] = self.been_in_target_set
         files_dict['fht'] = self.fht
-        files_dict['k'] = self.k
+        files_dict['k'] = int(np.max(self.fht) / self.dt)
         files_dict['N_arrived'] = self.N_arrived
         files_dict['first_fht'] = self.first_fht
         files_dict['last_fht'] = self.last_fht
