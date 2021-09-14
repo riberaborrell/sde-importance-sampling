@@ -122,15 +122,22 @@ def get_controlled_dir_path(parent_dir_path, dt, N):
 
     return dir_path
 
-def get_metadynamics_dir_path(settings_dir_path, dt, sigma_i, k, N):
+def get_metadynamics_dir_path(settings_dir_path, dt, sigma_i, is_cumulative, k, N):
     ''' Get metadynamics dir path and create its directories
     '''
+    # set meta type
+    if not is_cumulative:
+        meta_type = 'averaged'
+    else:
+        meta_type = 'cumulative'
+
     # get dir path
     dir_path = os.path.join(
         settings_dir_path,
         'metadynamics',
         'dt_{}'.format(dt),
         'sigma_i_{}'.format(sigma_i),
+        meta_type,
         'k_{}'.format(k),
         'N_{}'.format(N),
     )

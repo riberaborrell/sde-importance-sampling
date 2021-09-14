@@ -57,6 +57,7 @@ class Metadynamics:
             self.sample.settings_dir_path,
             self.sample.dt,
             self.sigma_i,
+            self.is_cumulative,
             self.k,
             self.N,
         )
@@ -213,6 +214,7 @@ class Metadynamics:
         '''
         np.savez(
             os.path.join(self.dir_path, 'bias-potential.npz'),
+            dt=self.sample.dt,
             succ=self.succ,
             is_cumulative=self.is_cumulative,
             ms=self.ms,
@@ -250,7 +252,7 @@ class Metadynamics:
         '''
         assert i in range(self.N), ''
         if update is not None:
-            assert update in range(self.ms[i]), ''
+            assert update in range(self.ms[i] + 1), ''
 
         if not self.is_cumulative and update is None:
             return slice(np.sum(self.ms[:i]), np.sum(self.ms[:i]) + self.ms[i])
@@ -264,7 +266,6 @@ class Metadynamics:
     def set_ansatz_trajectory(self, i, update):
         '''
         '''
-
         # get ansatz indices
         idx = self.get_trajectory_indices(i, update)
         means = self.means[idx]
@@ -356,7 +357,7 @@ class Metadynamics:
         self.sample.write_sampling_parameters(f)
 
         f.write('Metadynamics parameters and statistics\n')
-        f.write('cumulatice: {}\n'.format(self.is_cumulative))
+        f.write('cumulative: {}\n'.format(self.is_cumulative))
         f.write('seed: {:d}\n'.format(self.seed))
         f.write('sigma_i_meta: {:2.2f}\n'.format(self.sigma_i))
         f.write('k: {:d}\n'.format(self.k))
@@ -399,9 +400,18 @@ class Metadynamics:
         controls = np.zeros((sliced_updates.shape[0] + 1, x.shape[0]))
         controlled_potentials = np.zeros((sliced_updates.shape[0] + 1, x.shape[0]))
 
-        # not controlled case
-        labels.append(r'not controlled')
-        self.sample.is_controlled = False
+        # the initial bias potential is the not controlled potential
+        if not self.is_cumulative:
+            labels.append(r'not controlled potential')
+            self.sample.is_controlled = False
+
+        # the initial bias potential is given by the previous trajectory
+        else:
+            labels.append(r'initial bias potential')
+            self.sample.is_controlled = True
+            self.set_ansatz_trajectory(i, update=0)
+
+        # evaluate at the grid
         self.sample.get_grid_value_function()
         self.sample.get_grid_control()
         controlled_potentials[0, :] = self.sample.grid_controlled_potential
@@ -410,9 +420,9 @@ class Metadynamics:
 
         self.sample.is_controlled = True
         for index, update in enumerate(sliced_updates):
-            labels.append(r'update = {:d}'.format(update+1))
+            labels.append(r'update = {:d}'.format(update + 1))
 
-            self.set_ansatz_trajectory(i, update)
+            self.set_ansatz_trajectory(i, update + 1)
 
             self.sample.get_grid_value_function()
             self.sample.get_grid_control()
