@@ -681,7 +681,7 @@ class Sampling(LangevinSDE):
 
                 # u l2 error
                 if self.do_u_l2_error:
-                    self.u_l2_error_fht[idx] = u_l2_error_t[idx]
+                    self.u_l2_error_fht[idx] = self.u_l2_error_t[idx]
 
             # stop if all trajectories have arrived to the target set
             if self.been_in_target_set.all() == True:
@@ -801,7 +801,7 @@ class Sampling(LangevinSDE):
 
                 # u l2 error
                 if self.do_u_l2_error:
-                    self.u_l2_error_fht[idx] = u_l2_error_t[idx]
+                    self.u_l2_error_fht[idx] = self.u_l2_error_t[idx]
 
             # stop if all trajectories have arrived to the target set
             if self.been_in_target_set.all() == True:
@@ -1011,7 +1011,7 @@ class Sampling(LangevinSDE):
 
                 # u l2 error
                 if self.do_u_l2_error:
-                    self.u_l2_error_fht[idx] = u_l2_error_t[idx]
+                    self.u_l2_error_fht[idx] = self.u_l2_error_t[idx]
 
             # stop if all trajectories have arrived to the target set
             if self.been_in_target_set.all() == True:
