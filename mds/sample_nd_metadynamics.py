@@ -101,7 +101,8 @@ def main():
 
     if args.do_plots:
         if sample.n == 1:
-            for i in range(args.N_meta):
+            idx_traj_with_updates = [i for i in range(args.N_meta) if meta.ms[i] != 0]
+            for i in idx_traj_with_updates:
                 meta.plot_1d_updates(i=i)
             #meta.plot_1d_update()
         elif sample.n == 2:

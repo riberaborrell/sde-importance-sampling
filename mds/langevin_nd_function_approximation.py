@@ -49,7 +49,8 @@ class FunctionApproximation():
         self.initialization = 'meta'
 
         # load meta bias potential
-        meta = sde.get_metadynamics_sampling(dt_meta, sigma_i_meta, k, N_meta)
+        is_cumulative = True
+        meta = sde.get_metadynamics_sampling(dt_meta, sigma_i_meta, is_cumulative, k, N_meta)
 
         # create ansatz functions from meta
         meta.sample.ansatz = GaussianAnsatz(n=sde.n)

@@ -1,5 +1,4 @@
 from mds.base_parser_nd import get_base_parser
-from mds.langevin_nd_sde import LangevinSDE
 from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
 from mds.langevin_nd_importance_sampling import Sampling
 
@@ -49,8 +48,8 @@ def main():
     )
 
     # get meta sampling
-    meta = sample.get_metadynamics_sampling(args.dt_meta, args.sigma_i_meta, args.k, args.N_meta)
-    assert meta.is_cumulative == args.is_cumulative, ''
+    meta = sample.get_metadynamics_sampling(args.dt_meta, args.sigma_i_meta,
+                                            args.is_cumulative, args.k, args.N_meta)
 
     # get the corresponding Gaussian ansatz
     meta.sample.ansatz = GaussianAnsatz(n=args.n)
