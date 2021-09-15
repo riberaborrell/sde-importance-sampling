@@ -7,9 +7,6 @@ from mds.neural_networks import FeedForwardNN, DenseNN
 
 import numpy as np
 
-import torch
-import torch.optim as optim
-
 def get_parser():
     parser = get_base_parser()
     parser.description = ''
@@ -82,7 +79,6 @@ def main():
     # set initial choice of parametrization
     if args.theta == 'random':
         pass
-        #func.reset_parameters()
     elif args.theta == 'null':
         func.zero_parameters()
     elif args.theta == 'meta':
@@ -123,7 +119,7 @@ def main():
         k_lim=100000,
     )
 
-    # set l2 error flag
+    # set u l2 error flag
     if args.do_u_l2_error:
         sample.do_u_l2_error = True
 
@@ -137,7 +133,7 @@ def main():
         do_iteration_plots=args.do_iteration_plots,
     )
 
-    # start gd with ipa estimator for the gradient
+    # start sgd
     if not args.load:
         try:
             sgd.som_nn()
@@ -153,6 +149,7 @@ def main():
         if not sgd.load():
             return
 
+    breakpoint()
     # report adam
     if args.do_report:
         sgd.write_report()
@@ -164,6 +161,7 @@ def main():
         sgd.plot_losses(args.h_hjb)
         sgd.plot_I_u()
         sgd.plot_time_steps()
+        sgd.plot_cts()
 
         if args.n == 1:
             #sgd.plot_1d_iteration()
