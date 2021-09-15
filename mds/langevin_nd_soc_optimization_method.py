@@ -473,6 +473,14 @@ class StochasticOptimizationMethod:
         plt.plt.savefig(plt.file_path)
         plt.plt.close()
 
+    def plot_u_l2_error(self):
+        plt = Plot(self.dir_path, 'u_l2_error_log')
+        plt.set_scientific_notation('y')
+        plt.xlabel = 'iterations'
+        plt.set_logplot()
+        x = np.arange(self.n_iterations)
+        plt.one_line_plot(x, self.u_l2_errors, color='purple', label='TS')
+
     def plot_time_steps(self):
         plt = Plot(self.dir_path, 'time_steps_log')
         plt.set_scientific_notation('y')
@@ -480,6 +488,14 @@ class StochasticOptimizationMethod:
         plt.set_logplot()
         x = np.arange(self.n_iterations)
         plt.one_line_plot(x, self.time_steps, color='purple', label='TS')
+
+    def plot_cts(self):
+        plt = Plot(self.dir_path, 'cts_log')
+        plt.set_scientific_notation('y')
+        plt.xlabel = 'iterations'
+        plt.set_logplot()
+        x = np.arange(self.n_iterations)
+        plt.one_line_plot(x, self.cts, color='purple', label='cts')
 
     def plot_1d_iteration(self, i=None):
         # last iteration is i is not given
