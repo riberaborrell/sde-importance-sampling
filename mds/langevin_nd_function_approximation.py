@@ -41,7 +41,7 @@ class FunctionApproximation():
                     layer._parameters[key], requires_grad=True
                 )
 
-    def fit_parameters_from_metadynamics(self, sde, iterations_lim=10000, N_train=1000,
+    def fit_parameters_from_metadynamics(self, sde, n_iterations_lim=10000, N_train=1000,
                                          epsilon=0.01, dt_meta=0.001, sigma_i_meta=0.5,
                                          k=100, N_meta=100):
 
@@ -62,7 +62,7 @@ class FunctionApproximation():
             lr=0.01,
         )
 
-        for i in np.arange(iterations_lim):
+        for i in np.arange(n_iterations_lim):
 
             # sample training data
             x = sde.sample_domain_uniformly(N=N_train)
@@ -98,7 +98,7 @@ class FunctionApproximation():
         print('nn fitted from metadynamics!')
         print('{:d}, {:2.3f}'.format(i, output))
 
-    def fit_parameters_flat_controlled_potential(self, sde, iterations_lim=10000, N=1000, epsilon=0.01):
+    def fit_parameters_flat_controlled_potential(self, sde, n_iterations_lim=10000, N=1000, epsilon=0.01):
         '''
         '''
         # parameters
@@ -110,7 +110,7 @@ class FunctionApproximation():
             lr=0.01,
         )
 
-        for i in np.arange(iterations_lim):
+        for i in np.arange(n_iterations_lim):
 
             # sample training data
             x = sde.sample_domain_uniformly(N=N)
@@ -146,7 +146,7 @@ class FunctionApproximation():
         print('nn fitted from flat potential!')
         print('{:d}, {:2.3f}'.format(i, output))
 
-    def fit_parameters_semiflat_controlled_potential(self, sde, iterations_lim=10000, epsilon=0.01):
+    def fit_parameters_semiflat_controlled_potential(self, sde, n_iterations_lim=10000, epsilon=0.01):
         '''
         '''
         # load flat bias potential
@@ -176,7 +176,7 @@ class FunctionApproximation():
             lr=0.01,
         )
 
-        for i in np.arange(iterations_lim):
+        for i in np.arange(n_iterations_lim):
 
             # define loss
             inputs = self.model.forward(x_tensor)

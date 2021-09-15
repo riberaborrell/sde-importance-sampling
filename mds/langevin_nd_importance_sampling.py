@@ -1134,7 +1134,8 @@ class Sampling(LangevinSDE):
         # fht
         files_dict['been_in_target_set'] = self.been_in_target_set
         files_dict['fht'] = self.fht
-        files_dict['k'] = int(np.max(self.fht) / self.dt)
+        self.k = int(np.max(self.fht) / self.dt)
+        files_dict['k'] = self.k 
         files_dict['N_arrived'] = self.N_arrived
         files_dict['first_fht'] = self.first_fht
         files_dict['last_fht'] = self.last_fht

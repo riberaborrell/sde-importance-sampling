@@ -166,11 +166,11 @@ def get_base_parser():
         help='Set learning rate. Default: 0.01',
     )
     parser.add_argument(
-        '--iterations-lim',
-        dest='iterations_lim',
+        '--n-iterations-lim',
+        dest='n_iterations_lim',
         type=int,
         default=100,
-        help='Set maximal number of adam iterations. Default: 100',
+        help='Set maximal number of sgd iterations. Default: 100',
     )
     parser.add_argument(
         '--dt-sgd',

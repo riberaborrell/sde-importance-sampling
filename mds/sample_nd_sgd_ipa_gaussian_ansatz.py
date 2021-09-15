@@ -85,7 +85,7 @@ def main():
         loss_type='ipa',
         optimizer='sgd',
         lr=args.lr,
-        iterations_lim=args.iterations_lim,
+        n_iterations_lim=args.n_iterations_lim,
         do_iteration_plots=args.do_iteration_plots,
     )
 

@@ -103,7 +103,7 @@ def main():
         loss_type=args.loss_type,
         optimizer='adam',
         lr=args.lr,
-        iterations_lim=args.iterations_lim,
+        n_iterations_lim=args.n_iterations_lim,
         do_iteration_plots=args.do_iteration_plots,
     )
 

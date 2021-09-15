@@ -12,7 +12,7 @@ import os
 class StochasticOptimizationMethod:
     '''
     '''
-    def __init__(self, sample, loss_type, optimizer, lr, iterations_lim,
+    def __init__(self, sample, loss_type, optimizer, lr, n_iterations_lim,
                  do_iteration_plots=False):
         '''
         '''
@@ -27,11 +27,11 @@ class StochasticOptimizationMethod:
 
         # (initial) learning rate and maximal number of iterations 
         self.lr = lr
-        self.iterations_lim = iterations_lim
+        self.n_iterations_lim = n_iterations_lim
 
         # per iteration
         self.m = None
-        self.iterations = None
+        self.n_iterations = None
         self.thetas = None
         self.losses = None
         self.ipa_losses = None
@@ -93,23 +93,23 @@ class StochasticOptimizationMethod:
 
     def preallocate_arrays(self):
 
-        self.thetas = np.empty((self.iterations_lim, self.m))
-        self.losses = np.empty(self.iterations_lim)
-        self.means_I_u = np.empty(self.iterations_lim)
-        self.vars_I_u = np.empty(self.iterations_lim)
-        self.res_I_u = np.empty(self.iterations_lim)
+        self.thetas = np.empty((self.n_iterations_lim, self.m))
+        self.losses = np.empty(self.n_iterations_lim)
+        self.means_I_u = np.empty(self.n_iterations_lim)
+        self.vars_I_u = np.empty(self.n_iterations_lim)
+        self.res_I_u = np.empty(self.n_iterations_lim)
 
         if self.sample.do_u_l2_error:
-            self.u_l2_errors = np.empty(self.iterations_lim)
+            self.u_l2_errors = np.empty(self.n_iterations_lim)
 
-        self.time_steps = np.empty(self.iterations_lim, dtype=int)
-        self.cts = np.empty(self.iterations_lim)
+        self.time_steps = np.empty(self.n_iterations_lim, dtype=int)
+        self.cts = np.empty(self.n_iterations_lim)
 
         if self.sample.ansatz is not None:
-            self.grad_losses = np.empty((self.iterations_lim, self.m))
+            self.grad_losses = np.empty((self.n_iterations_lim, self.m))
 
         elif self.sample.nn_func_appr is not None and self.loss_type == 'logvar':
-            self.logvar_losses = np.empty(self.iterations_lim)
+            self.logvar_losses = np.empty(self.n_iterations_lim)
 
     def update_arrays(self, i):
 
@@ -145,7 +145,7 @@ class StochasticOptimizationMethod:
         self.cts[i] = self.sample.ct
 
     def cut_arrays(self):
-        assert self.n_iterations < self.iterations_lim, ''
+        assert self.n_iterations < self.n_iterations_lim, ''
 
         self.thetas = self.thetas[:self.n_iterations, :]
         self.losses = self.losses[:self.n_iterations]
@@ -178,7 +178,7 @@ class StochasticOptimizationMethod:
         # preallocate parameters and losses
         self.preallocate_arrays()
 
-        for i in np.arange(self.iterations_lim):
+        for i in np.arange(self.n_iterations_lim):
 
             # plot control, free_energy and tilted potential
             if self.do_iteration_plots:
@@ -221,7 +221,7 @@ class StochasticOptimizationMethod:
         # preallocate parameters and losses
         self.preallocate_arrays()
 
-        for i in np.arange(self.iterations_lim):
+        for i in np.arange(self.n_iterations_lim):
 
             # reset gradients
             optimizer.zero_grad()
@@ -262,7 +262,7 @@ class StochasticOptimizationMethod:
         file_path = os.path.join(self.dir_path, 'som.npz')
         np.savez(
             file_path,
-            iterations=self.iterations,
+            n_iterations=self.n_iterations,
             thetas=self.thetas,
             losses=self.losses,
             ipa_losses=self.ipa_losses,
@@ -322,9 +322,9 @@ class StochasticOptimizationMethod:
         f.write('som type: {}\n\n'.format(self.optimizer))
 
         f.write('lr: {}\n'.format(self.lr))
-        f.write('iterations lim: {}\n'.format(self.iterations_lim))
+        f.write('# iterations lim: {}\n'.format(self.n_iterations_lim))
 
-        f.write('iterations used: {}\n'.format(self.iterations[-1]))
+        f.write('# iterations used: {}\n'.format(self.n_iterations))
         f.write('total time steps: {:,d}\n'.format(int(self.time_steps.sum())))
 
         f.write('\nLast iteration\n')
@@ -354,7 +354,7 @@ class StochasticOptimizationMethod:
         f.close()
 
     def write_iteration_report(self, f):
-        for i in self.iterations:
+        for i in range(self.n_iterations):
             f.write('iteration = {:d}\n'.format(i))
             f.write('theta = {}\n'.format(self.thetas[i]))
             f.write('loss = {:2.4e}\n'.format(self.losses[i]))
@@ -370,18 +370,19 @@ class StochasticOptimizationMethod:
         sol = self.sample.get_hjb_solver(h_hjb)
         if sol.F is not None:
             hjb_f_at_x = sol.get_f_at_x(self.sample.xzero)
-            value_f_hjb = np.full(self.iterations.shape[0], hjb_f_at_x)
+            value_f_hjb = np.full(self.n_iterations, hjb_f_at_x)
         else:
-            value_f_hjb = np.full(self.iterations.shape[0], np.nan)
+            value_f_hjb = np.full(self.n_iterations, np.nan)
 
         # mc F 
         sample_mc = self.sample.get_not_controlled_sampling(dt_mc, N_mc)
         if sample_mc.mean_I is not None:
             mc_f = - np.log(sample_mc.mean_I)
-            value_f_mc = np.full(self.iterations.shape[0], mc_f)
+            value_f_mc = np.full(self.n_iterations, mc_f)
         else:
-            value_f_mc = np.full(self.iterations.shape[0], np.nan)
+            value_f_mc = np.full(self.n_iterations, np.nan)
 
+        x = np.arange(self.n_iterations)
         ys = np.vstack((self.losses, value_f_hjb, value_f_mc))
         colors = ['tab:blue', 'tab:orange', 'tab:cyan']
         linestyles = ['-', 'dashed', 'dashdot']
@@ -398,7 +399,7 @@ class StochasticOptimizationMethod:
         #plt.set_ylim(4, 10) # n=3, beta=1
         #plt.set_ylim(5, 10) # n=4, beta=1
         breakpoint()
-        plt.multiple_lines_plot(self.iterations, ys, colors, linestyles, labels)
+        plt.multiple_lines_plot(x, ys, colors, linestyles, labels)
 
 
     def plot_I_u(self, dt_mc=0.001, N_mc=100000):
@@ -408,21 +409,21 @@ class StochasticOptimizationMethod:
 
         # mc mean I
         if sample_mc.mean_I is not None:
-            mean_I_mc = np.full(self.iterations.shape[0], sample_mc.mean_I)
+            mean_I_mc = np.full(self.n_iterations, sample_mc.mean_I)
         else:
-            mean_I_mc = np.full(self.iterations.shape[0], np.nan)
+            mean_I_mc = np.full(self.n_iterations, np.nan)
 
         # mc var I
         if sample_mc.var_I is not None:
-            var_I_mc = np.full(self.iterations.shape[0], sample_mc.var_I)
+            var_I_mc = np.full(self.n_iterations, sample_mc.var_I)
         else:
-            var_I_mc = np.full(self.iterations.shape[0], np.nan)
+            var_I_mc = np.full(self.n_iterations, np.nan)
 
         # mc re I
         if sample_mc.re_I is not None:
-            re_I_mc = np.full(self.iterations.shape[0], sample_mc.re_I)
+            re_I_mc = np.full(self.n_iterations, sample_mc.re_I)
         else:
-            re_I_mc = np.full(self.iterations.shape[0], np.nan)
+            re_I_mc = np.full(self.n_iterations, np.nan)
 
         colors = ['tab:blue', 'tab:orange']
         linestyles = ['-', 'dashed']
@@ -430,6 +431,9 @@ class StochasticOptimizationMethod:
             'SGD',
             'MC Sampling (dt={:.0e}, N={:.0e})'.format(dt_mc, N_mc),
         ]
+
+        # iterations array
+        x = np.arange(self.n_iterations)
 
         # plot mean I_u
         plt = Plot(self.dir_path, 'I_u_mean')
@@ -440,25 +444,25 @@ class StochasticOptimizationMethod:
         #plt.set_ylim(0, 0.005) # n=4, beta=1
         breakpoint()
         ys = np.vstack((self.means_I_u, mean_I_mc))
-        plt.multiple_lines_plot(self.iterations, ys, colors, linestyles, labels)
+        plt.multiple_lines_plot(x, ys, colors, linestyles, labels)
 
         # plot var I_u
         plt = Plot(self.dir_path, 'I_u_var')
         plt.xlabel = 'iterations'
         plt.set_logplot()
         ys = np.vstack((self.vars_I_u, var_I_mc))
-        plt.multiple_lines_plot(self.iterations, ys, colors, linestyles, labels)
+        plt.multiple_lines_plot(x, ys, colors, linestyles, labels)
 
         # plot re I_u
         plt = Plot(self.dir_path, 'I_u_re')
         plt.xlabel = 'iterations'
         plt.set_logplot()
         ys = np.vstack((self.res_I_u, re_I_mc))
-        plt.multiple_lines_plot(self.iterations, ys, colors, linestyles, labels)
+        plt.multiple_lines_plot(x, ys, colors, linestyles, labels)
         return
 
         plt = Plot(self.dir_path, 'I_u')
-        plt.plt.plot(self.iterations, self.means_I_u, color='b', linestyle='-')
+        plt.plt.plot(x, self.means_I_u, color='b', linestyle='-')
         plt.plt.fill_between(
             self.iterations,
             self.means_I_u - self.vars_I_u,
@@ -474,14 +478,15 @@ class StochasticOptimizationMethod:
         plt.set_scientific_notation('y')
         plt.xlabel = 'iterations'
         plt.set_logplot()
-        plt.one_line_plot(self.iterations, self.time_steps, color='purple', label='TS')
+        x = np.arange(self.n_iterations)
+        plt.one_line_plot(x, self.time_steps, color='purple', label='TS')
 
     def plot_1d_iteration(self, i=None):
         # last iteration is i is not given
         if i is None:
-            i = self.iterations[-1]
+            i = self.n_iterations - 1
 
-        assert i in self.iterations, ''
+        assert i < self.n_iterations, ''
 
         self.set_iterations_dir_path()
         ext = '_iter{}'.format(i)
@@ -519,7 +524,8 @@ class StochasticOptimizationMethod:
         x = self.sample.domain_h[:, 0]
 
         # filter iterations to show
-        sliced_iterations = slice_1d_array(self.iterations, n_elements=5)
+        iterations = np.arange(self.n_iterations)
+        sliced_iterations = slice_1d_array(iterations, n_elements=5)
 
         # preallocate functions
         labels = []
@@ -563,9 +569,9 @@ class StochasticOptimizationMethod:
 
         # last iteration is i is not given
         if i is None:
-            i = self.iterations[-1]
+            i = self.n_iterations - 1
 
-        assert i in self.iterations, ''
+        assert i < self.n_iterations, ''
 
         self.set_iterations_dir_path()
         ext = '_iter{}'.format(i)
