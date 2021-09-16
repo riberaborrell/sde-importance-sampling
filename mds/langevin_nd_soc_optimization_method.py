@@ -193,8 +193,7 @@ class StochasticOptimizationMethod:
                 break
 
             # save parameters, statistics and losses
-            self.n_iterations = i + 1
-            self.update_arrays()
+            self.update_arrays(i)
 
             # update coefficients
             self.sample.ansatz.theta = self.thetas[i, :] - self.lr * self.grad_losses[i, :]
