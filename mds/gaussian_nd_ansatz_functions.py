@@ -9,7 +9,7 @@ import os
 class GaussianAnsatz():
     '''
     '''
-    def __init__(self, n):
+    def __init__(self, n, normalized=True):
         '''
         '''
         # dimension of the state space
@@ -21,6 +21,7 @@ class GaussianAnsatz():
         self.cov = None
         self.sigma_i = None
         self.theta = None
+        self.normalized = normalized
 
         # distributed
         self.distributed = None
@@ -213,7 +214,11 @@ class GaussianAnsatz():
         mvn_pdf = np.empty(N)
 
         rv = stats.multivariate_normal(mean, cov, allow_singular=False)
-        mvn_pdf[:] = rv.pdf(x)
+        if self.normalized:
+            mvn_pdf[:] = rv.pdf(x)
+        else:
+            norm_factor = np.sqrt(((2 * np.pi) ** self.n) * np.linalg.det(cov))
+            mvn_pdf[:] = norm_factor * rv.pdf(x)
 
         return mvn_pdf
 
@@ -237,7 +242,11 @@ class GaussianAnsatz():
         mvn_pdf = np.empty(N)
 
         rv = stats.multivariate_normal(mean, cov, allow_singular=False)
-        mvn_pdf[:] = rv.pdf(x)
+        if self.normalized:
+            mvn_pdf[:] = rv.pdf(x)
+        else:
+            norm_factor = np.sqrt(((2 * np.pi) ** self.n) * np.linalg.det(cov))
+            mvn_pdf[:] = norm_factor * rv.pdf(x)
 
         grad_exp_term = np.zeros((N, self.n))
         inv_cov = np.linalg.inv(cov)
@@ -270,7 +279,6 @@ class GaussianAnsatz():
         N = x.shape[0]
         m = means.shape[0]
 
-        norm_factor = np.sqrt(((2 * np.pi) ** self.n) * np.linalg.det(cov))
         inv_cov = np.linalg.inv(cov)
         x = x[:, np.newaxis, :]
         means = means[np.newaxis, :, :]
@@ -279,7 +287,12 @@ class GaussianAnsatz():
         exp_term = np.matmul(x_centered, inv_cov)
         exp_term = np.sum(exp_term * x_centered, axis=1).reshape(N, m)
         exp_term *= - 0.5
-        mvn_pdf = np.exp(exp_term) / norm_factor
+
+        if self.normalized:
+            norm_factor = np.sqrt(((2 * np.pi) ** self.n) * np.linalg.det(cov))
+            mvn_pdf = np.exp(exp_term) / norm_factor
+        else:
+            mvn_pdf = np.exp(exp_term)
 
         return mvn_pdf
 

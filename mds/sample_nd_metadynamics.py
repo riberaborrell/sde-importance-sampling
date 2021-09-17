@@ -47,7 +47,7 @@ def main():
     )
 
     # initialize Gaussian Ansatz
-    sample.ansatz = GaussianAnsatz(n=args.n)
+    sample.ansatz = GaussianAnsatz(n=args.n, normalized=False)
 
     # initialize meta nd object
     meta = Metadynamics(
@@ -100,14 +100,27 @@ def main():
         meta.write_report()
 
     if args.do_plots:
+
+        # 1d plots
         if sample.n == 1:
             idx_traj_with_updates = [i for i in range(args.N_meta) if meta.ms[i] != 0]
             for i in idx_traj_with_updates:
                 meta.plot_1d_updates(i=i)
-            #meta.plot_1d_update()
+                #meta.plot_1d_update()
+
+        # 2d plots
         elif sample.n == 2:
-            meta.plot_2d_update()
+            #meta.plot_2d_update()
             meta.plot_2d_means()
+
+        # 3d plots
+        elif sample.n == 3:
+            meta.plot_3d_means()
+
+        # nd plots
+        else:
+            meta.plot_nd_means()
+
 
 if __name__ == "__main__":
     main()
