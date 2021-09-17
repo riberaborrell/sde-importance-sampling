@@ -334,7 +334,7 @@ class LangevinSDE(object):
 
         x = self.domain_h[:, 0]
 
-        plt = Plot(dir_path, 'free_energy' + ext)
+        plt = Plot(dir_path, 'free-energy' + ext)
         plt.xlabel = 'x'
         plt.set_ylim(0, 2 * self.alpha)
 
@@ -353,7 +353,7 @@ class LangevinSDE(object):
 
         x = self.domain_h[:, 0]
 
-        plt = Plot(dir_path, 'controlled_potential' + ext)
+        plt = Plot(dir_path, 'controlled-potential' + ext)
         plt.xlabel = 'x'
         plt.set_xlim(-2, 2)
         plt.set_ylim(0, 10 * self.alpha)
@@ -391,7 +391,7 @@ class LangevinSDE(object):
 
         x = self.domain_h[:, 0]
 
-        plt = Plot(dir_path, 'controlled_drift' + ext)
+        plt = Plot(dir_path, 'controlled-drift' + ext)
         plt.xlabel = 'x'
         plt.set_ylim(- 5 * self.alpha, 5 * self.alpha)
 
@@ -410,7 +410,7 @@ class LangevinSDE(object):
 
         x = self.domain_h[:, 0]
 
-        plt = Plot(dir_path, 'free_energies' + ext)
+        plt = Plot(dir_path, 'free-energy' + ext)
         plt.xlabel = 'x'
         plt.set_ylim(0, 2.5 * self.alpha)
 
@@ -430,7 +430,7 @@ class LangevinSDE(object):
 
         x = self.domain_h[:, 0]
 
-        plt = Plot(dir_path, 'controls' + ext)
+        plt = Plot(dir_path, 'control' + ext)
         plt.xlabel = 'x'
         plt.set_xlim(-2, 2)
         plt.set_ylim(-2, 5) # alpha=1, beta=1
@@ -453,7 +453,7 @@ class LangevinSDE(object):
 
         x = self.domain_h[:, 0]
 
-        plt = Plot(dir_path, 'controlled_potentials' + ext)
+        plt = Plot(dir_path, 'controlled-potential' + ext)
         plt.xlabel = 'x'
         plt.set_xlim(-2, 2)
         plt.set_ylim(0, 10) # alpha=1, beta=1

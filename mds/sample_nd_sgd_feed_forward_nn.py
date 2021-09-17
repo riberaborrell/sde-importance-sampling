@@ -149,7 +149,6 @@ def main():
         if not sgd.load():
             return
 
-    breakpoint()
     # report adam
     if args.do_report:
         sgd.write_report()
@@ -160,6 +159,8 @@ def main():
         # plot loss function, relative error and time steps
         sgd.plot_losses(args.h_hjb)
         sgd.plot_I_u()
+        if sgd.u_l2_errors is not None:
+            sgd.plot_u_l2_error()
         sgd.plot_time_steps()
         sgd.plot_cts()
 

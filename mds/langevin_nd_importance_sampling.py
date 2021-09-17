@@ -1135,7 +1135,7 @@ class Sampling(LangevinSDE):
         files_dict['been_in_target_set'] = self.been_in_target_set
         files_dict['fht'] = self.fht
         self.k = int(np.max(self.fht) / self.dt)
-        files_dict['k'] = self.k 
+        files_dict['k'] = self.k
         files_dict['N_arrived'] = self.N_arrived
         files_dict['first_fht'] = self.first_fht
         files_dict['last_fht'] = self.last_fht
@@ -1320,7 +1320,7 @@ class Sampling(LangevinSDE):
 
             # bias potential and value function
             self.grid_bias_potential = self.bias_potential(x).reshape(self.Nx)
-            self.grid_value_function = self.ansatz.value_function(x)
+            self.grid_value_function = self.ansatz.value_function(x).reshape(self.Nx)
 
         if self.grid_bias_potential is not None:
             # controlled potential

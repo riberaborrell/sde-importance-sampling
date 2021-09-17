@@ -88,10 +88,10 @@ class GaussianAnsatz():
 
         self.distributed = 'uniform'
 
-    def set_meta_dist_ansatz_functions(self, sde, dt_meta, sigma_i_meta, k, N_meta):
+    def set_meta_dist_ansatz_functions(self, sde, dt_meta, sigma_i_meta, is_cumulative, k, N_meta):
         '''
         '''
-        meta = sde.get_metadynamics_sampling(dt_meta, sigma_i_meta, k, N_meta)
+        meta = sde.get_metadynamics_sampling(dt_meta, sigma_i_meta, is_cumulative, k, N_meta)
         assert N_meta == meta.ms.shape[0], ''
 
         self.set_given_ansatz_functions(meta.means, meta.cov)

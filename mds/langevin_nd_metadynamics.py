@@ -473,7 +473,10 @@ class Metadynamics:
 
         # plot averaged bias potential
         else:
-            self.set_ansatz_all_trajectories()
+            if not self.is_cumulative:
+                self.set_ansatz_averaged()
+            else:
+                self.set_ansatz_cumulative()
 
             # set plot dir path and file extension
             plot_dir_path = self.dir_path
@@ -483,6 +486,16 @@ class Metadynamics:
         self.sample.discretize_domain(h=0.001)
         self.sample.get_grid_value_function()
         self.sample.get_grid_control()
+
+        controlled_potentials = self.sample.grid_controlled_potential
+        frees = self.sample.grid_value_function
+        controls = self.sample.grid_control
+
+        # get hjb solution
+        sol_hjb = self.sample.get_hjb_solver(h=0.001)
+        sol_hjb.discretize_domain()
+        sol_hjb.get_controlled_potential_and_drift()
+
 
         self.sample.plot_1d_controlled_potential(self.sample.grid_controlled_potential,
                                                  dir_path=plot_dir_path, ext=ext)
@@ -545,8 +558,8 @@ class Metadynamics:
         x, y = np.moveaxis(self.means, -1, 0)
         plt = Plot(self.dir_path, 'means')
         plt.plt.scatter(x, y)
-        plt.plt.xlim(-3, 3)
-        plt.plt.ylim(-3, 3)
+        plt.plt.xlim(-2, 2)
+        plt.plt.ylim(-2, 2)
         plt.plt.savefig(plt.file_path)
         plt.plt.close()
 
