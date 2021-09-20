@@ -61,7 +61,7 @@ class SolverHJB(LangevinSDE):
 
     def stop_timer(self):
         self.ct_final = time.perf_counter()
-        self.ct = ct_final - ct_initial
+        self.ct = self.ct_final - self.ct_initial
 
     def get_flatten_index(self, idx):
         ''' maps the bumpy index of the node (index of each axis) to

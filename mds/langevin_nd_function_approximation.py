@@ -53,7 +53,7 @@ class FunctionApproximation():
         meta = sde.get_metadynamics_sampling(dt_meta, sigma_i_meta, is_cumulative, k, N_meta)
 
         # create ansatz functions from meta
-        meta.sample.ansatz = GaussianAnsatz(n=sde.n)
+        meta.sample.ansatz = GaussianAnsatz(n=sde.n, normalized=False)
         meta.set_ansatz_cumulative()
 
         # define optimizer
