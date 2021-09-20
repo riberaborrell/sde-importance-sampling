@@ -49,17 +49,19 @@ class SolverHJB(LangevinSDE):
         self.controlled_drift = None
 
         # computational time
-        self.t_initial = None
-        self.t_final = None
+        self.ct_initial = None
+        self.ct_final = None
+        self.ct = None
 
         # dir_path
         self.dir_path = get_hjb_solution_dir_path(self.settings_dir_path, self.h)
 
     def start_timer(self):
-        self.t_initial = time.perf_counter()
+        self.ct_initial = time.perf_counter()
 
     def stop_timer(self):
-        self.t_final = time.perf_counter()
+        self.ct_final = time.perf_counter()
+        self.ct = ct_final - ct_initial
 
     def get_flatten_index(self, idx):
         ''' maps the bumpy index of the node (index of each axis) to
@@ -285,8 +287,7 @@ class SolverHJB(LangevinSDE):
             Psi=self.Psi,
             F=self.F,
             u_opt=self.u_opt,
-            t_initial=self.t_initial,
-            t_final=self.t_final,
+            ct=self.ct,
         )
 
     def load(self):
@@ -359,7 +360,7 @@ class SolverHJB(LangevinSDE):
 
         f.write('Psi at x = {:2.3e}\n'.format(Psi))
         f.write('F at x = {:2.3e}\n'.format(F))
-        h, m, s = get_time_in_hms(self.t_final - self.t_initial)
+        h, m, s = get_time_in_hms(self.ct)
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n'.format(h, m, s))
         f.close()
 
