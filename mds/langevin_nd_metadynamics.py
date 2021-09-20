@@ -42,8 +42,9 @@ class Metadynamics:
         self.succ = None
 
         # computational time
-        self.t_initial = None
-        self.t_final = None
+        self.ct_initial = None
+        self.ct_final = None
+        self.ct = None
 
         # set path
         self.dir_path = None
@@ -68,10 +69,11 @@ class Metadynamics:
         empty_dir(self.updates_dir_path)
 
     def start_timer(self):
-        self.t_initial = time.perf_counter()
+        self.ct_initial = time.perf_counter()
 
     def stop_timer(self):
-        self.t_final = time.perf_counter()
+        self.ct_final = time.perf_counter()
+        self.ct = self.ct_final - self.ct_initial
 
     def set_sampling_parameters(self, k_lim, dt, xzero):
         '''set k-steps sampling and Euler-Marujama parameters
@@ -222,8 +224,7 @@ class Metadynamics:
             means=self.means,
             cov=self.cov,
             time_steps=self.time_steps,
-            t_initial=self.t_initial,
-            t_final=self.t_final,
+            ct = self.ct,
         )
 
     def load(self):
@@ -368,16 +369,21 @@ class Metadynamics:
         f.write('total m: {:d}\n'.format(np.sum(self.ms)))
         f.write('total time steps: {:,d}\n\n'.format(int(np.sum(self.time_steps))))
 
-        h, m, s = get_time_in_hms(self.t_final - self.t_initial)
+        h, m, s = get_time_in_hms(self.ct)
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
 
-        self.write_means(f)
+        #self.write_means(f)
         f.close()
 
         # print file
         f = open(file_path, 'r')
         print(f.read())
         f.close()
+
+    def plot_n_gaussians(self):
+        trajectories = np.arange(self.N)
+        plt = Plot(self.dir_path, 'n_gaussians')
+        plt.one_line_plot(trajectories, self.ms)
 
     def plot_1d_updates(self, i=0):
         # discretize domain and evaluate in grid
