@@ -553,8 +553,8 @@ class Metadynamics:
                                              plot_dir_path, ext)
 
     def plot_2d_means(self):
+        assert self.means.shape[1] == 2, ''
 
-        #self.set_ansatz_all_trajectories()
         x, y = np.moveaxis(self.means, -1, 0)
         plt = Plot(self.dir_path, 'means')
         plt.plt.scatter(x, y)
@@ -562,6 +562,40 @@ class Metadynamics:
         plt.plt.ylim(-2, 2)
         plt.plt.savefig(plt.file_path)
         plt.plt.close()
+
+    def plot_3d_means(self):
+        assert self.means.shape[1] == 3, ''
+
+        x, y, z = np.moveaxis(self.means, -1, 0)
+        plt = Plot(self.dir_path, 'means')
+        plt.plt.scatter(x, y, z)
+        plt.plt.xlim(-2, 2)
+        plt.plt.ylim(-2, 2)
+        plt.plt.savefig(plt.file_path)
+        plt.plt.close()
+
+    def plot_projected_means(self, i, j):
+        m = np.sum(self.ms)
+        proj_means = np.empty((m, 2))
+        for k in range(m):
+            proj_means[k, 0] = self.means[k, i]
+            proj_means[k, 1] = self.means[k, j]
+        x, y = np.moveaxis(proj_means, -1, 0)
+        plt = Plot(self.dir_path, 'means-{}-{}'.format(i, j))
+        plt.plt.scatter(x, y)
+        plt.plt.xlim(-2, 2)
+        plt.plt.ylim(-2, 2)
+        plt.plt.savefig(plt.file_path)
+        plt.plt.close()
+
+    def plot_nd_means(self):
+        n = self.sample.n
+        idx_dim_pairs = [(i, j) for i in range(n) for j in range(n) if j > i]
+        for i, j in idx_dim_pairs:
+            self.plot_projected_means(i, j)
+
+
+
 
 
 
