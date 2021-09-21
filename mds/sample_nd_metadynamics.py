@@ -96,10 +96,14 @@ def main():
         if not meta.load():
             return
 
+
     if args.do_report:
         meta.write_report()
 
     if args.do_plots:
+
+        # n gaussians added for each trajectory
+        meta.plot_n_gaussians()
 
         # 1d plots
         if sample.n == 1:

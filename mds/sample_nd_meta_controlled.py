@@ -52,7 +52,7 @@ def main():
                                             args.is_cumulative, args.k, args.N_meta)
 
     # get the corresponding Gaussian ansatz
-    meta.sample.ansatz = GaussianAnsatz(n=args.n)
+    meta.sample.ansatz = GaussianAnsatz(n=args.n, normalized=False)
     if meta.is_cumulative:
         meta.set_ansatz_cumulative()
     else:
