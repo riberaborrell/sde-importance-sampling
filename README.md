@@ -10,7 +10,7 @@ git clone git@github.com:eborrell/mds.git
 
 2) set python version
 ```
-pyenv local 3.7.3
+pyenv local 3.9.7
 ```
 
 3) create virtual environment and install required packages
