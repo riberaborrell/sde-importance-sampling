@@ -131,8 +131,8 @@ def get_base_parser():
         help='Set the diagonal of the covariance matrix of the ansatz functions. Default: 0.5',
     )
     parser.add_argument(
-        '--k',
-        dest='k',
+        '--k-meta',
+        dest='k_meta',
         type=int,
         default=100,
         help='Steps before adding a bias function. Default: 100',

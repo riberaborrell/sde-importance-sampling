@@ -52,7 +52,7 @@ def main():
     # initialize meta nd object
     meta = Metadynamics(
         sample=sample,
-        k=args.k,
+        k=args.k_meta,
         N=args.N_meta,
         sigma_i=args.sigma_i_meta,
         seed=args.seed,
@@ -63,7 +63,7 @@ def main():
     # set sampling parameters
     meta.set_sampling_parameters(
         k_lim=args.k_lim,
-        dt=args.dt,
+        dt=args.dt_meta,
         xzero=np.full(args.n, args.xzero_i),
     )
 

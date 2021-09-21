@@ -49,7 +49,7 @@ def main():
 
     # get meta sampling
     meta = sample.get_metadynamics_sampling(args.dt_meta, args.sigma_i_meta,
-                                            args.is_cumulative, args.k, args.N_meta)
+                                            args.is_cumulative, args.k_meta, args.N_meta)
 
     # get the corresponding Gaussian ansatz
     meta.sample.ansatz = GaussianAnsatz(n=args.n, normalized=False)
