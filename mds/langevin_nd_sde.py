@@ -203,7 +203,7 @@ class LangevinSDE(object):
         elif h is None and self.n == 2:
             h = 0.005
         elif h is None and self.n == 3:
-            h = 0.01
+            h = 0.1
         elif h is None:
             return
 
