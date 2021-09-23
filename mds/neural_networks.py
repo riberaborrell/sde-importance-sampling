@@ -342,7 +342,9 @@ class FeedForwardNN(nn.Module):
         return rel_path
 
     def write_parameters(self, f):
-        #f.write('hidden layer dim: {:d}\n'.format(self.d_1))
+        f.write('\nFeedforward NN\n')
+        f.write('architecture: {}\n'.format(self.d_layers))
+        f.write('activation function: {}\n'.format(self.activation_type))
         f.write('flattened parameters dim: {:d}\n'.format(self.d_flat))
 
 
@@ -490,6 +492,8 @@ class DenseNN(nn.Module):
         return rel_path
 
     def write_parameters(self, f):
-        #f.write('hidden layer dim: {:d}\n'.format(self.d_1))
+        f.write('\nDense NN\n')
+        f.write('architecture: {}\n'.format(self.d_layers))
+        f.write('activation function: {}\n'.format(self.activation_type))
         f.write('flattened parameters dim: {:d}\n'.format(self.d_flat))
 
