@@ -1,5 +1,7 @@
 from mds.base_parser_nd import get_base_parser
-from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
+from mds.langevin_nd_sde import LangevinSDE
+from mds.langevin_nd_function_approximation import FunctionApproximation
+from mds.neural_networks import FeedForwardNN, DenseNN
 from mds.langevin_nd_importance_sampling import Sampling
 
 import numpy as np
@@ -7,9 +9,9 @@ import os
 
 def get_parser():
     parser = get_base_parser()
-    parser.description = 'Sample controlled nd overdamped Langevin SDE. The bias potential ' \
-                         'is parametrized with linear combination of Gaussian functions. ' \
-                         'The weights are chosen from the metadynamics sampling.'
+    parser.description = 'Sample controlled nd overdamped Langevin SDE. The control ' \
+                         'is parametrized with neural network. ' \
+                         'The weights are fitted from the metadynamics bias potential.'
     parser.add_argument(
         '--is-cumulative',
         dest='is_cumulative',
@@ -47,21 +49,45 @@ def main():
         N=args.N,
     )
 
-    # set u l2 error flag
-    if args.do_u_l2_error:
-        sample.do_u_l2_error = True
-
     # get meta sampling
     meta = sample.get_metadynamics_sampling(args.dt_meta, args.sigma_i_meta,
                                             args.is_cumulative, args.k_meta, args.N_meta)
 
-    # get the corresponding Gaussian ansatz
-    meta.sample.ansatz = GaussianAnsatz(n=args.n, normalized=False)
-    if meta.is_cumulative:
-        meta.set_ansatz_cumulative()
+
+    # set u l2 error flag
+    if args.do_u_l2_error:
+        sample.do_u_l2_error = True
+
+    # get dimensions of each layer
+    if args.d_layers is not None:
+        d_layers = [args.n] + args.d_layers + [args.n]
     else:
-        meta.set_ansatz_averaged()
-    sample.ansatz = meta.sample.ansatz
+        d_layers = [args.n, args.n]
+
+    # initialize nn
+    if not args.dense:
+        model = FeedForwardNN(d_layers, args.activation_type)
+    else:
+        model = DenseNN(d_layers, args.activation_type)
+
+    # initialize function approximation
+    func = FunctionApproximation(
+        target_function='control',
+        model=model,
+    )
+
+    # train nn network
+    if not args.load:
+        sde = LangevinSDE.new_from(sample)
+        func.fit_parameters_from_metadynamics(sde, args.dt_meta, args.sigma_i_meta,
+                                              args.k_meta, args.N_meta)
+
+    # set dir path for nn
+    func.initialization = 'meta'
+    func.set_dir_path(sample.settings_dir_path)
+
+    # add nn function approximation
+    sample.nn_func_appr = func
 
     # set controlled sampling dir path
     sample.set_controlled_dir_path(meta.dir_path)

@@ -11,26 +11,6 @@ def get_parser():
     parser = get_base_parser()
     parser.description = ''
     parser.add_argument(
-        '--d-layers',
-        nargs='+',
-        dest='d_layers',
-        type=int,
-        help='Set dimensions of the NN inner layers',
-    )
-    parser.add_argument(
-        '--dense',
-        dest='dense',
-        action='store_true',
-        help='Chooses a dense feed forward NN. Default: False',
-    )
-    parser.add_argument(
-        '--activation',
-        dest='activation_type',
-        choices=['relu', 'tanh'],
-        default='relu',
-        help='Type of activation function. Default: relu',
-    )
-    parser.add_argument(
         '--do-iteration-plots',
         dest='do_iteration_plots',
         action='store_true',

@@ -62,7 +62,6 @@ class FunctionApproximation():
 
         # load trained parameters if so
         succ = self.load_trained_parameters(dir_path)
-        breakpoint()
         if succ:
             return
 

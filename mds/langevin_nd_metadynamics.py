@@ -357,7 +357,7 @@ class Metadynamics:
         self.sample.write_euler_maruyama_parameters(f)
         self.sample.write_sampling_parameters(f)
 
-        f.write('Metadynamics parameters and statistics\n')
+        f.write('\nMetadynamics parameters and statistics\n')
         f.write('cumulative: {}\n'.format(self.is_cumulative))
         f.write('seed: {:d}\n'.format(self.seed))
         f.write('sigma_i_meta: {:2.2f}\n'.format(self.sigma_i))
@@ -380,10 +380,18 @@ class Metadynamics:
         print(f.read())
         f.close()
 
-    def plot_n_gaussians(self):
+    def plot_n_gaussians(self, dir_path=None):
+
+        # set directory path
+        if dir_path is None:
+            dir_path = self.dir_path
+
         trajectories = np.arange(self.N)
-        plt = Plot(self.dir_path, 'n_gaussians')
-        plt.one_line_plot(trajectories, self.ms)
+        plt = Plot(dir_path, 'n_gaussians')
+        plt.plt.hist(trajectories, self.ms)
+        plt.plt.savefig(plt.file_path)
+        plt.plt.close()
+        #plt.one_line_plot(trajectories, self.ms)
 
     def plot_1d_updates(self, i=0):
         # discretize domain and evaluate in grid

@@ -361,16 +361,37 @@ class Sampling(LangevinSDE):
         self.preallocate_fht()
         self.preallocate_integrals()
 
+        if self.do_u_l2_error:
+
+            # load hjb solution
+            sol_hjb = self.get_hjb_solver()
+            self.u_hjb = sol_hjb.u_opt
+            self.Nx = sol_hjb.Nx
+
+            # preallocate l2 error
+            self.preallocate_l2_error()
+
+
         # initialize xt
         xt = self.initial_position()
 
         # initialize deterministic and stochastic integrals at time t
         self.initialize_running_integrals()
 
+        # initialize l2 error at time t
+        if self.do_u_l2_error:
+            self.initialize_running_l2_error()
+
         for k in np.arange(1, self.k_lim +1):
 
             # control at xt
-            ut = self.ansatz.control(xt)
+            if self.ansatz is not None:
+                ut = self.ansatz.control(xt)
+            elif self.nn_func_appr is not None:
+                xt_tensor = torch.tensor(xt, dtype=torch.float)
+                ut_tensor = self.nn_func_appr.model.forward(xt_tensor)
+                ut_tensor_det = ut_tensor.detach()
+                ut = ut_tensor_det.numpy()
 
             # compute gradient
             gradient = self.tilted_gradient(xt, ut)
@@ -384,6 +405,10 @@ class Sampling(LangevinSDE):
             # stochastic and deterministic integrals 
             self.update_integrals(ut, dB)
 
+            # update l2 running error
+            if self.do_u_l2_error:
+                self.update_running_l2_error(xt, ut)
+
             # get indices from the trajectories which are new in target set
             idx = self.get_idx_new_in_target_set(xt)
 
@@ -392,13 +417,19 @@ class Sampling(LangevinSDE):
                 self.fht[idx] = k * self.dt
                 self.stoch_int_fht[idx] = self.stoch_int_t[idx]
                 self.det_int_fht[idx] = self.det_int_t[idx]
+                if self.do_u_l2_error:
+                    self.u_l2_error_fht[idx] = self.u_l2_error_t[idx]
+
 
             # break if all trajectories have arrived to the target set
             if self.been_in_target_set.all() == True:
                 break
 
+        breakpoint()
         self.compute_fht_statistics()
         self.compute_I_u_statistics()
+        if self.do_u_l2_error:
+            self.u_l2_error = np.mean(self.u_l2_error_fht)
         self.stop_timer()
 
     def sample_optimal_controlled(self, h):
@@ -1153,6 +1184,10 @@ class Sampling(LangevinSDE):
             files_dict['mean_I_u'] = self.mean_I_u
             files_dict['var_I_u'] = self.var_I_u
             files_dict['re_I_u'] = self.re_I_u
+
+        # u l2 error
+        if self.do_u_l2_error:
+            files_dict['u_l2_error'] = self.u_l2_error
 
         # save trajectory
         if self.save_trajectory:
