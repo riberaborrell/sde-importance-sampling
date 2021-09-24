@@ -425,7 +425,6 @@ class Sampling(LangevinSDE):
             if self.been_in_target_set.all() == True:
                 break
 
-        breakpoint()
         self.compute_fht_statistics()
         self.compute_I_u_statistics()
         if self.do_u_l2_error:
