@@ -501,7 +501,13 @@ class Sampling(LangevinSDE):
 
             else:
                 # control at xt
-                ut = self.ansatz.control(x[k - 1])
+                if self.ansatz is not None:
+                    ut = self.ansatz.control(x[k - 1])
+                elif self.nn_func_appr is not None:
+                    xt_tensor = torch.tensor(x[k - 1], dtype=torch.float)
+                    ut_tensor = self.nn_func_appr.model.forward(xt_tensor)
+                    ut_tensor_det = ut_tensor.detach()
+                    ut = ut_tensor_det.numpy()
 
                 # compute gradient
                 gradient = self.tilted_gradient(x[k - 1], ut)
@@ -1343,11 +1349,13 @@ class Sampling(LangevinSDE):
         # potential
         self.grid_potential = self.potential(x).reshape(self.Nx)
 
+        # bias potential
         if not self.is_controlled:
             # bias potential and value function
             self.grid_bias_potential = np.zeros(self.Nx)
             self.grid_value_function = np.zeros(self.Nx)
 
+        # gaussian ansatz
         elif self.is_controlled and self.ansatz is not None:
             # set value f constant
             self.ansatz.set_value_function_constant_corner()
@@ -1356,6 +1364,7 @@ class Sampling(LangevinSDE):
             self.grid_bias_potential = self.bias_potential(x).reshape(self.Nx)
             self.grid_value_function = self.ansatz.value_function(x).reshape(self.Nx)
 
+        # controlled potential
         if self.grid_bias_potential is not None:
             # controlled potential
             self.grid_controlled_potential = self.grid_potential + self.grid_bias_potential
@@ -1375,7 +1384,7 @@ class Sampling(LangevinSDE):
         elif self.is_controlled and self.ansatz is not None:
             self.grid_control = self.ansatz.control(x).reshape(self.domain_h.shape)
 
-        # two layer nn control
+        # nn control
         elif self.is_controlled and self.nn_func_appr is not None:
             inputs = torch.tensor(x, dtype=torch.float)
             control_flattened = self.nn_func_appr.model(inputs).detach().numpy()

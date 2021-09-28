@@ -147,6 +147,25 @@ def get_metadynamics_dir_path(settings_dir_path, dt, sigma_i, is_cumulative, k, 
 
     return dir_path
 
+def get_metadynamics_nn_dir_path(settings_dir_path, dt, sigma_i, meta_type, k, N):
+    ''' Get metadynamics dir path and create its directories
+    '''
+    # get dir path
+    dir_path = os.path.join(
+        settings_dir_path,
+        'metadynamics-nn',
+        'dt_{}'.format(dt),
+        'sigma_i_{}'.format(sigma_i),
+        meta_type,
+        'k_{}'.format(k),
+        'N_{}'.format(N),
+    )
+
+    # create dir path if not exists
+    make_dir_path(dir_path)
+
+    return dir_path
+
 def get_flat_bias_dir_path(settings_dir_path, dt, k_lim, N):
     # get dir path
     dir_path = os.path.join(

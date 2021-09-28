@@ -36,12 +36,71 @@ class FunctionApproximation():
                layer.reset_parameters()
 
     def zero_parameters(self):
-        self.initialization = 'null'
+        self.initialization = 'zero'
         for layer in self.model.children():
             for key in layer._parameters:
                 layer._parameters[key] = torch.zeros_like(
                     layer._parameters[key], requires_grad=True
                 )
+
+    def train_parameters_with_not_controlled_potential(self, sde):
+
+        # parameters
+        self.initialization = 'null'
+
+
+        # define optimizer
+        optimizer = optim.Adam(
+            self.model.parameters(),
+            lr=0.01,
+        )
+
+        # define loss
+        loss = nn.MSELoss()
+
+        # training parameters
+        n_iterations_lim = 10**4
+        N_train = 10**2
+        epsilon = 0.001
+
+        for i in np.arange(n_iterations_lim):
+
+            # sample training data
+            x = sde.sample_domain_uniformly(N_train)
+            x_tensor = torch.tensor(x, requires_grad=False, dtype=torch.float32)
+
+            # value function parametrization
+            if self.target_function == 'value-f':
+                pass
+
+            # control parametrization
+            elif self.target_function == 'control':
+                pass
+
+            target_tensor = torch.zeros_like(x_tensor)
+
+            # compute loss
+            inputs = self.model.forward(x_tensor)
+            output = loss(inputs, target_tensor)
+            if i % 100 == 0:
+                print('{:d}, {:2.3f}'.format(i, output))
+
+            # stop if we have reached enough accuracy
+            if output <= epsilon:
+                break
+
+            # compute gradients
+            output.backward()
+
+            # update parameters
+            optimizer.step()
+
+            # reset gradients
+            optimizer.zero_grad()
+
+        print('nn trained with not controlled potential!')
+        print('{:d}, {:2.3f}'.format(i, output))
+
 
     def fit_parameters_from_metadynamics(self, sde, dt_meta=0.001,
                                          sigma_i_meta=0.5, k_meta=1000, N_meta=1000):

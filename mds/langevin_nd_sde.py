@@ -5,6 +5,9 @@ from mds.utils import get_settings_dir_path, \
 
 import numpy as np
 
+import torch
+from torch.distributions.multivariate_normal import MultivariateNormal
+
 import os
 import sys
 
@@ -105,6 +108,14 @@ class LangevinSDE(object):
         )
         return x
 
+    def sample_multivariate_normal(self, mean, cov, N):
+        mean_tensor = torch.tensor(mean, requires_grad=False)
+        cov_tensor = torch.tensor(cov, requires_grad=False)
+        x = np.empty((N, self.n))
+        m = MultivariateNormal(mean_tensor, cov_tensor)
+        for i in np.arange(N):
+            x[i, :] = m.sample().numpy()
+        return x
 
     def sample_domain_boundary_uniformly(self):
         x = np.empty(self.n)
@@ -255,6 +266,31 @@ class LangevinSDE(object):
             sigma_i=sigma_i,
         )
         meta.is_cumulative = is_cumulative
+
+        # set path
+        meta.set_dir_path()
+
+        # load already sampled trajectories
+        meta.load()
+        return meta
+
+    def get_metadynamics_nn_sampling(self, dt, sigma_i, meta_type, k, N):
+        from mds.langevin_nd_importance_sampling import Sampling
+        from mds.langevin_nd_metadynamics_nn import MetadynamicsNN
+
+        # initialize controlled sampling object
+        sample = Sampling.new_from(self)
+        sample.is_controlled = True
+        sample.dt = dt
+
+        # initialize meta nd object
+        meta = MetadynamicsNN(
+            sample=sample,
+            k=k,
+            N=N,
+            sigma_i=sigma_i,
+        )
+        meta.meta_type = meta_type
 
         # set path
         meta.set_dir_path()
