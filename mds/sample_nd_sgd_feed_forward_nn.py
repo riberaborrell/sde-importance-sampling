@@ -96,7 +96,7 @@ def main():
         xzero=np.full(args.n, args.xzero_i),
         N=args.N,
         dt=args.dt,
-        k_lim=100000,
+        k_lim=args.k_lim,
     )
 
     # set u l2 error flag
