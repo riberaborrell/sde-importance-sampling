@@ -1003,12 +1003,12 @@ class Sampling(LangevinSDE):
             a = (
                 - 1
                 + 0.5 * ut_norm_tensor **2
-                + torch.matmul(
+                + (self.beta / 2) * torch.matmul(
                     torch.unsqueeze(zt_tensor, 1),
                     torch.unsqueeze(ut_tensor, 2),
                 ).reshape(self.N,)
             ) * self.dt
-            b = torch.matmul(
+            b = (1 / np.sqrt(self.beta)) * torch.matmul(
                     torch.unsqueeze(zt_tensor, 1),
                     torch.unsqueeze(dB_tensor, 2),
                 ).reshape(self.N,)
