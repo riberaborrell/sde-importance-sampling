@@ -14,6 +14,13 @@ def get_parser():
     parser = get_base_parser()
     parser.description = 'Metadynamics for the nd overdamped Langevin SDE'
     parser.add_argument(
+        '--meta-type',
+        dest='meta_type',
+        choices=['cum', 'ind'],
+        default='cum',
+        help='Type of metadynamics algorithm. Default: cum',
+    )
+    parser.add_argument(
         '--do-updates-plots',
         dest='do_updates_plots',
         action='store_true',
