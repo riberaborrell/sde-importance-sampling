@@ -90,7 +90,7 @@ def get_hjb_solution_dir_path(settings_dir_path, h):
     )
 
     # create dir path if not exists
-    make_dir_path(dir_path)
+    #make_dir_path(dir_path)
 
     return dir_path
 

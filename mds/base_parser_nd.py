@@ -5,6 +5,20 @@ import argparse
 def get_base_parser():
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument(
+        '--problem-name',
+        dest='problem_name',
+        choices=['langevin_det-t', 'langevin_stop-t'],
+        default='langevin_stop-t',
+        help='Set type of problem. Default: overdamped langevin with stopping times',
+    )
+    parser.add_argument(
+        '--potential-name',
+        dest='potential_name',
+        choices=POTENTIAL_NAMES,
+        default='nd_2well',
+        help='Set type of potential. Default: double well',
+    )
+    parser.add_argument(
         '--seed',
         dest='seed',
         type=int,
@@ -16,13 +30,6 @@ def get_base_parser():
         type=int,
         default=1,
         help='Set the dimension n. Default: 1',
-    )
-    parser.add_argument(
-        '--potential-name',
-        dest='potential_name',
-        choices=POTENTIAL_NAMES,
-        default='nd_2well',
-        help='Set type of potential. Default: double well',
     )
     parser.add_argument(
         '--alpha-i',
