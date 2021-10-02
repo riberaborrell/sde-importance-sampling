@@ -1,7 +1,6 @@
 from mds.potentials_and_gradients_nd import get_potential_and_gradient
 from mds.plots import Plot
-from mds.utils import get_settings_dir_path, \
-                      get_metadynamics_dir_path
+from mds.utils_path import DATA_PATH
 
 import numpy as np
 
@@ -11,24 +10,53 @@ from torch.distributions.multivariate_normal import MultivariateNormal
 import os
 import sys
 
+
 class LangevinSDE(object):
     '''
     '''
 
-    def __init__(self, potential_name, n, alpha, beta,
+    def __init__(self, problem_name, potential_name, n, alpha, beta,
                  target_set=None, domain=None, h=None):
         '''
         '''
+        # check problem name
+        assert problem_name in ['langevin_det-t', 'langevin_stop-t'], ''
+
+        # check potential name
+        assert type(potential_name) == str, ''
+
+        # check dimension
+        assert type(n) == int, ''
+
+        # check alpha
+        type(alpha) == np.ndarray, ''
+        assert alpha.ndim == 1, ''
+        assert alpha.shape[0] == n, ''
+
         # get potential and gradient functions
         potential, gradient, _ = get_potential_and_gradient(potential_name, n, alpha)
 
-        # domain and target set
-        if domain is None:
+        # check beta
+        type(float) == float, ''
+
+        # check domain 
+        if domain is not None:
+            assert type(domain) == np.ndarray, ''
+            assert domain.ndim == 2, ''
+            assert domain.shape == (n, 2), ''
+        else:
             domain = np.full((n, 2), [-3, 3])
-        if target_set is None:
+
+        # check target set if we are in the stopping time case
+        if target_set is not None and problem_name == 'langevin_stop-t':
+            assert type(target_set) == np.ndarray, ''
+            assert target_set.ndim == 2, ''
+            assert target_set.shape == (n, 2), ''
+        else:
             target_set = np.full((n, 2), [1, 3])
 
         # sde parameters
+        self.problem_name = problem_name
         self.potential_name = potential_name
         self.n = n
         self.potential = potential
@@ -38,14 +66,7 @@ class LangevinSDE(object):
         self.target_set = target_set
         self.domain = domain
 
-        # domain discretization
-        self.h = h
-        self.domain_h = None
-        self.Nx = None
-        self.Nh = None
-
         # dir_path
-        self.settings_dir_path = None
         self.set_settings_dir_path()
 
     @classmethod
@@ -60,15 +81,30 @@ class LangevinSDE(object):
 
     def set_settings_dir_path(self):
 
+        # get alpha string
         if self.potential_name == 'nd_2well':
             assert (self.alpha == self.alpha[0]).all(), ''
+            alpha_str = 'alpha_i_{}'.format(float(self.alpha[0]))
 
         elif self.potential_name == 'nd_2well_asym':
             assert self.n > 1, ''
             assert self.alpha[0] != self.alpha[1], ''
+            alpha_str = 'alpha_i_{}_j_{}'.format(float(self.alpha[0]), float(self.alpha[1]))
 
-        self.settings_dir_path = get_settings_dir_path(self.potential_name, self.n,
-                                                      self.alpha, self.beta, 'hypercube')
+        # get absolute path of the directory for the chosen settings
+        self.settings_dir_path = os.path.join(
+            DATA_PATH,
+            self.problem_name,
+            self.potential_name,
+            'n_{:d}'.format(self.n),
+            alpha_str,
+            'beta_{}'.format(float(self.beta)),
+        )
+
+        # create dir path if not exists
+        if not os.path.isdir(self.settings_dir_path):
+            os.makedirs(self.settings_dir_path)
+
     def discretize_domain(self, h=None):
         ''' this method discretizes the hyper-rectangular domain uniformly with step-size h
         '''

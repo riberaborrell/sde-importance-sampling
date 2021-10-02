@@ -22,6 +22,7 @@ def main():
 
     # initialize hjb solver
     sol_hjb = SolverHJB(
+        problem_name=args.problem_name,
         potential_name=args.potential_name,
         n=args.n,
         alpha=alpha,
@@ -60,6 +61,7 @@ def main():
         # evaluate in grid
         sol_hjb.get_controlled_potential_and_drift()
 
+        # 1d
         if sol_hjb.n == 1:
             sol_hjb.plot_1d_psi(sol_hjb.Psi, label='num sol HJB PDE')
             sol_hjb.plot_1d_free_energy(sol_hjb.F, label='num sol HJB PDE')
@@ -67,6 +69,7 @@ def main():
             sol_hjb.plot_1d_control(sol_hjb.u_opt[:, 0], label='num sol HJB PDE')
             sol_hjb.plot_1d_controlled_drift(sol_hjb.controlled_drift[:, 0], label='num sol HJB PDE')
 
+        # 2d
         elif sol_hjb.n == 2:
             sol_hjb.plot_2d_psi(sol_hjb.Psi)
             sol_hjb.plot_2d_free_energy(sol_hjb.F)

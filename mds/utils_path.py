@@ -30,57 +30,6 @@ def empty_dir(dir_path):
             except Exception as e:
                 print('Failed to delete {}. Reason: {}'.format((file_path, e)))
 
-def get_settings_dir_path(potential_name=None, n=None, alpha=None,
-                          beta=None, target_set=None):
-    ''' Get absolute path of the directory for the chosen settings and create its directories
-    '''
-    # get dir path
-    if (potential_name is not None and
-        n is not None and
-        alpha is not None and
-        beta is not None and
-        target_set is not None):
-
-        dir_path = os.path.join(
-            DATA_PATH,
-            potential_name,
-            'n_{:d}'.format(n),
-            get_alpha_str(potential_name, alpha),
-            get_beta_str(beta),
-            get_target_set_str(target_set),
-        )
-
-    elif (potential_name is not None and
-          n is not None and
-          alpha is not None):
-
-        dir_path = os.path.join(
-            DATA_PATH,
-            potential_name,
-            'n_{:d}'.format(n),
-            get_alpha_str(potential_name, alpha),
-        )
-
-    elif (potential_name is not None and n is not None):
-        dir_path = os.path.join(
-            DATA_PATH,
-            potential_name,
-            'n_{:d}'.format(n),
-        )
-
-    elif (potential_name is not None):
-        dir_path = os.path.join(
-            DATA_PATH,
-            potential_name,
-        )
-    else:
-        dir_path = DATA_PATH
-
-    # create dir path if not exists
-    make_dir_path(dir_path)
-
-    return dir_path
-
 def get_hjb_solution_dir_path(settings_dir_path, h):
     # get dir path
     dir_path = os.path.join(
@@ -88,9 +37,6 @@ def get_hjb_solution_dir_path(settings_dir_path, h):
         'hjb-solution',
         'h_{:.0e}'.format(h),
     )
-
-    # create dir path if not exists
-    #make_dir_path(dir_path)
 
     return dir_path
 
@@ -264,19 +210,6 @@ def get_som_dir_path(func_appr_dir_path, loss_type, optimizer, lr, dt, N):
 
     return dir_path
 
-def get_alpha_str(potential_name, alpha):
-    assert alpha.ndim == 1, ''
-
-    if potential_name == 'nd_2well':
-        alpha_str = 'alpha_i_{}'.format(float(alpha[0]))
-
-    elif potential_name == 'nd_2well_asym':
-        alpha_str = 'alpha_i_{}_j_{}'.format(float(alpha[0]), float(alpha[1]))
-
-    return alpha_str
-
-def get_beta_str(beta):
-    return 'beta_{}'.format(float(beta))
 
 def get_target_set_str(target_set):
     if type(target_set) == str:

@@ -1,6 +1,6 @@
 from mds.langevin_nd_sde import LangevinSDE
-from mds.utils import get_hjb_solution_dir_path, get_time_in_hms
-from mds.numeric_utils import arange_generator
+from mds.utils_path import get_hjb_solution_dir_path, get_time_in_hms
+from mds.utils_numeric import arange_generator
 
 import numpy as np
 import scipy.sparse as sparse
@@ -22,11 +22,11 @@ class SolverHJB(LangevinSDE):
         to the overdamped langevin sde.
    '''
 
-    def __init__(self, potential_name, n, alpha, beta,
-                 target_set=None, domain=None, h=None):
+    def __init__(self, problem_name, potential_name, n, alpha,
+                 beta, h, target_set=None, domain=None):
 
-        super().__init__(potential_name, n, alpha, beta,
-                         target_set, domain, h)
+        super().__init__(problem_name, potential_name, n, alpha, beta,
+                         target_set, domain)
 
         def f(x):
             return 1
@@ -37,6 +37,9 @@ class SolverHJB(LangevinSDE):
         # work functional
         self.f = f
         self.g = g
+
+        # discretization step
+        self.h = h
 
         # solution in the grid
         self.Psi = None
@@ -279,6 +282,11 @@ class SolverHJB(LangevinSDE):
     def save(self):
         ''' saves some attributes as arrays into a .npz file
         '''
+        # create directoreis of the given path if it does not exist
+        if not os.path.isdir(self.dir_path):
+            os.makedirs(self.dir_path)
+
+        # save arrays in a npz file
         np.savez(
             os.path.join(self.dir_path, 'hjb-solution.npz'),
             domain_h=self.domain_h,
