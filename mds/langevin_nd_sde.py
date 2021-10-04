@@ -1,6 +1,6 @@
 from mds.potentials_and_gradients_nd import get_potential_and_gradient
 from mds.plots import Plot
-from mds.utils_path import DATA_PATH
+from mds.utils_path import get_data_dir
 
 import numpy as np
 
@@ -16,7 +16,7 @@ class LangevinSDE(object):
     '''
 
     def __init__(self, problem_name, potential_name, n, alpha, beta,
-                 target_set=None, domain=None, h=None):
+                 target_set=None, domain=None):
         '''
         '''
         # check problem name
@@ -81,6 +81,9 @@ class LangevinSDE(object):
 
     def set_settings_dir_path(self):
 
+        # data path
+        data_path = get_data_dir()
+
         # get alpha string
         if self.potential_name == 'nd_2well':
             assert (self.alpha == self.alpha[0]).all(), ''
@@ -93,7 +96,7 @@ class LangevinSDE(object):
 
         # get absolute path of the directory for the chosen settings
         self.settings_dir_path = os.path.join(
-            DATA_PATH,
+            data_path,
             self.problem_name,
             self.potential_name,
             'n_{:d}'.format(self.n),

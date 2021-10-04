@@ -6,9 +6,12 @@ import shutil
 
 import os
 
-MDS_PATH = Path(os.path.dirname(__file__))
-PROJECT_PATH = MDS_PATH.parent
-DATA_PATH = os.path.join(PROJECT_PATH, 'data')
+def get_project_dir():
+    return Path(__file__).parent.parent
+
+def get_data_dir():
+    project_path = get_project_dir()
+    return os.path.join(project_path, 'data')
 
 def make_dir_path(dir_path):
     ''' Create directories of the given path if they do not already exist
@@ -29,6 +32,23 @@ def empty_dir(dir_path):
                     shutil.rmtree(file_path)
             except Exception as e:
                 print('Failed to delete {}. Reason: {}'.format((file_path, e)))
+
+def get_overleaf_dir_path(problem_name, potential_name):
+    '''
+    '''
+
+    # get dir path
+    dir_path = os.path.join(
+        get_data_dir(),
+        problem_name,
+        potential_name,
+        'overleaf',
+    )
+
+    # create dir path if not exists
+    make_dir_path(dir_path)
+
+    return dir_path
 
 def get_hjb_solution_dir_path(settings_dir_path, h):
     # get dir path
