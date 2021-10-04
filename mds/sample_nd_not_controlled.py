@@ -22,6 +22,7 @@ def main():
 
     # initialize sampling object
     sample = Sampling(
+        problem_name=args.problem_name,
         potential_name=args.potential_name,
         n=args.n,
         alpha=alpha,
