@@ -1,7 +1,7 @@
 from mds.langevin_nd_sde import LangevinSDE
-from mds.utils import get_not_controlled_dir_path, \
-                      get_controlled_dir_path, \
-                      get_time_in_hms
+from mds.utils_path import get_not_controlled_dir_path, \
+                           get_controlled_dir_path, \
+                           get_time_in_hms
 from mds.plots import Plot
 
 import numpy as np
@@ -14,14 +14,14 @@ class Sampling(LangevinSDE):
     '''
     '''
 
-    def __init__(self, potential_name, n, alpha, beta, target_set=None,
+    def __init__(self, problem_name, potential_name, n, alpha, beta, target_set=None,
                  domain=None, h=None, is_controlled=None, is_optimal=None,
                  is_batch=False):
         '''
         '''
 
-        super().__init__(potential_name, n, alpha, beta,
-                         target_set, domain, h)
+        super().__init__(problem_name, potential_name, n, alpha, beta,
+                         target_set, domain)
 
         # sampling
         self.is_controlled = is_controlled
