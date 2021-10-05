@@ -1,5 +1,5 @@
 from mds.langevin_nd_sde import LangevinSDE
-from mds.utils import make_dir_path, get_gaussian_ansatz_dir_path
+from mds.utils_path import make_dir_path, get_gaussian_ansatz_dir_path
 
 import numpy as np
 import scipy.stats as stats
