@@ -259,6 +259,7 @@ class LangevinSDE(object):
 
         # initialize hjb solver
         sol_hjb = SolverHJB(
+            problem_name=self.problem_name,
             potential_name=self.potential_name,
             n=self.n,
             alpha=self.alpha,
