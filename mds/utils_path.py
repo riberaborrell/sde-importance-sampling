@@ -7,20 +7,24 @@ import shutil
 import os
 
 def get_project_dir():
+    ''' returns the absolute path of the repository's directory
+    '''
     return Path(__file__).parent.parent
 
 def get_data_dir():
+    ''' returns the absolute path of the repository's data directory
+    '''
     project_path = get_project_dir()
     return os.path.join(project_path, 'data')
 
 def make_dir_path(dir_path):
-    ''' Create directories of the given path if they do not already exist
+    ''' create directories of the given path if they do not already exist
     '''
     if not os.path.isdir(dir_path):
         os.makedirs(dir_path)
 
 def empty_dir(dir_path):
-    ''' Remove all files in the directory from the given path
+    ''' remove all files in the directory from the given path
     '''
     if os.path.isdir(dir_path):
         for filename in os.listdir(dir_path):
@@ -34,7 +38,7 @@ def empty_dir(dir_path):
                 print('Failed to delete {}. Reason: {}'.format((file_path, e)))
 
 def get_overleaf_dir_path(problem_name, potential_name):
-    '''
+    ''' returns the absolute path of overleaf directory
     '''
 
     # get dir path
@@ -51,7 +55,7 @@ def get_overleaf_dir_path(problem_name, potential_name):
     return dir_path
 
 def get_hjb_solution_dir_path(settings_dir_path, h):
-    '''
+    ''' returns the absolute path of hjb-solution directory
     '''
     dir_path = os.path.join(
         settings_dir_path,
@@ -61,7 +65,7 @@ def get_hjb_solution_dir_path(settings_dir_path, h):
     return dir_path
 
 def get_not_controlled_dir_path(settings_dir_path, dt, N):
-    '''
+    ''' returns the absolute path of mc sampling directory
     '''
     dir_path = os.path.join(
         settings_dir_path,
@@ -72,7 +76,7 @@ def get_not_controlled_dir_path(settings_dir_path, dt, N):
     return dir_path
 
 def get_controlled_dir_path(parent_dir_path, dt, N):
-    '''
+    ''' returns the relative path of an importance sampling
     '''
     dir_path = os.path.join(
         parent_dir_path,
@@ -82,29 +86,17 @@ def get_controlled_dir_path(parent_dir_path, dt, N):
     )
     return dir_path
 
-def get_metadynamics_dir_path(settings_dir_path, dt, sigma_i, is_cumulative, k, N):
-    ''' Get metadynamics dir path and create its directories
+def get_metadynamics_dir_path(meta_type, weights_type, omega_0, k, N):
+    ''' returns relative path of the metadynamics algorithm
     '''
-    # set meta type
-    if not is_cumulative:
-        meta_type = 'averaged'
-    else:
-        meta_type = 'cumulative'
-
     # get dir path
     dir_path = os.path.join(
-        settings_dir_path,
-        'metadynamics',
-        'dt_{}'.format(dt),
-        'sigma_i_{}'.format(sigma_i),
-        meta_type,
+        'metadynamics-{}'.format(meta_type),
+        'weights-{}'.format(weights_type),
+        'omega0_{}'.format(omega_0),
         'k_{}'.format(k),
         'N_{}'.format(N),
     )
-
-    # create dir path if not exists
-    make_dir_path(dir_path)
-
     return dir_path
 
 def get_metadynamics_nn_dir_path(settings_dir_path, dt, sigma_i, meta_type, k, N):
@@ -199,10 +191,6 @@ def get_nn_function_approximation_dir_path(settings_dir_path, target_function,
         nn_rel_path,
         'theta_{}'.format(initialization),
     )
-
-    # create dir path if not exists
-    make_dir_path(dir_path)
-
     return dir_path
 
 
@@ -218,10 +206,6 @@ def get_som_dir_path(func_appr_dir_path, loss_type, optimizer, lr, dt, N):
         'dt_{}'.format(dt),
         'N_{}'.format(N),
     )
-
-    # create dir path if not exists
-    make_dir_path(dir_path)
-
     return dir_path
 
 

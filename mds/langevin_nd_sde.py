@@ -72,8 +72,8 @@ class LangevinSDE(object):
     @classmethod
     def new_from(cls, obj):
         if issubclass(obj.__class__, LangevinSDE):
-            _new = cls(obj.potential_name, obj.n, obj.alpha, obj.beta,
-                       obj.target_set, obj.domain, obj.h)
+            _new = cls(obj.problem_name, obj.potential_name, obj.n, obj.alpha,
+                       obj.beta, obj.target_set, obj.domain)
             return _new
         else:
             msg = 'Expected subclass of <class LangevinSDE>, got {}.'.format(type(obj))

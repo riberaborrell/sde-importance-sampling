@@ -1,5 +1,5 @@
 from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
-from mds.utils import get_nn_function_approximation_dir_path
+from mds.utils_path import get_nn_function_approximation_dir_path
 
 import numpy as np
 
@@ -36,7 +36,7 @@ class FunctionApproximation():
                layer.reset_parameters()
 
     def zero_parameters(self):
-        self.initialization = 'zero'
+        self.initialization = 'null'
         for layer in self.model.children():
             for key in layer._parameters:
                 layer._parameters[key] = torch.zeros_like(

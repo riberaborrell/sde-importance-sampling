@@ -1,6 +1,6 @@
 from mds.plots import Plot
-from mds.utils import make_dir_path, get_som_dir_path, get_time_in_hms
-from mds.numeric_utils import slice_1d_array
+from mds.utils_path import make_dir_path, get_som_dir_path, get_time_in_hms
+from mds.utils_numeric import slice_1d_array
 
 import numpy as np
 import torch
@@ -50,10 +50,12 @@ class StochasticOptimizationMethod:
         self.run_avg_var_I_u = None
         self.run_avg_re_I_u = None
         self.run_avg_loss = None
+        self.run_avg_u_l2_error = None
 
         # computational time
-        self.t_initial = None
-        self.t_final = None
+        self.ct_initial = None
+        self.ct_final = None
+        self.ct = None
 
         # flag for plotting at each iteration
         self.do_iteration_plots = do_iteration_plots
@@ -86,10 +88,11 @@ class StochasticOptimizationMethod:
         make_dir_path(self.iterations_dir_path)
 
     def start_timer(self):
-        self.t_initial = time.perf_counter()
+        self.ct_initial = time.perf_counter()
 
     def stop_timer(self):
-        self.t_final = time.perf_counter()
+        self.ct_final = time.perf_counter()
+        self.ct = self.ct_final - self.ct_initial
 
     def preallocate_arrays(self):
 
@@ -258,9 +261,13 @@ class StochasticOptimizationMethod:
 
 
     def save(self):
-        file_path = os.path.join(self.dir_path, 'som.npz')
+        # create directories of the given path if it does not exist
+        if not os.path.isdir(self.dir_path):
+            os.makedirs(self.dir_path)
+
+        # save npz file
         np.savez(
-            file_path,
+            os.path.join(self.dir_path, 'som.npz'),
             n_iterations=self.n_iterations,
             thetas=self.thetas,
             losses=self.losses,
@@ -273,8 +280,7 @@ class StochasticOptimizationMethod:
             u_l2_errors=self.u_l2_errors,
             time_steps=self.time_steps,
             cts=self.cts,
-            t_initial=self.t_initial,
-            t_final=self.t_final,
+            ct=self.ct,
         )
 
     def load(self):
@@ -297,6 +303,8 @@ class StochasticOptimizationMethod:
         self.run_avg_var_I_u = np.mean(self.vars_I_u[n_last_iter:])
         self.run_avg_re_I_u = np.mean(self.res_I_u[n_last_iter:])
         self.run_avg_loss = np.mean(self.losses[n_last_iter:])
+        #if self.u_l2_errors is not None:
+        #    self.run_avg_u_l2_error = np.mean(self.u_l2_errors[n_last_iter:])
 
     def write_report(self):
         sample = self.sample
@@ -332,6 +340,9 @@ class StochasticOptimizationMethod:
         f.write('RE[I_u]: {:2.3f}\n'.format(self.res_I_u[-1]))
         f.write('F: {:2.3f}\n'.format(- np.log(self.means_I_u[-1])))
         f.write('loss function: {:2.3f}\n'.format(self.losses[-1]))
+        #if self.u_l2_errors is not None:
+        #   f.write('u l2 error: {:2.3f}\n'.format(self.u_l2_errors[-1]))
+
 
         self.compute_running_averages()
         f.write('\nRunning averages of last {:d} iterations\n'.format(self.n_last_iter))
@@ -340,8 +351,10 @@ class StochasticOptimizationMethod:
         f.write('RE[I_u]: {:2.3f}\n'.format(self.run_avg_re_I_u))
         f.write('F: {:2.3f}\n'.format(- np.log(self.run_avg_mean_I_u)))
         f.write('loss function: {:2.3f}\n\n'.format(self.run_avg_loss))
+        #if self.run_avg_u_l2_error is not None:
+        #    f.write('u l2 error: {:2.3f}\n'.format(self.run_avg_u_l2_error))
 
-        h, m, s = get_time_in_hms(self.t_final - self.t_initial)
+        h, m, s = get_time_in_hms(self.ct)
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
 
         #self.write_iteration_report(f)
