@@ -1155,6 +1155,10 @@ class Sampling(LangevinSDE):
         # set file path
         file_path = os.path.join(self.dir_path, file_name)
 
+        # create directoreis of the given path if it does not exist
+        if not os.path.isdir(self.dir_path):
+            os.makedirs(self.dir_path)
+
         # create dictionary
         files_dict = {}
 

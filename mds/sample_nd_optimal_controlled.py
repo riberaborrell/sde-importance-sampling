@@ -1,6 +1,6 @@
 from mds.base_parser_nd import get_base_parser
 from mds.langevin_nd_importance_sampling import Sampling
-from mds.utils import get_hjb_solution_dir_path
+from mds.utils_path import get_hjb_solution_dir_path
 
 
 import numpy as np
@@ -24,6 +24,7 @@ def main():
 
     # initialize sampling object
     sample = Sampling(
+        problem_name=args.problem_name,
         potential_name=args.potential_name,
         n=args.n,
         alpha=alpha,
