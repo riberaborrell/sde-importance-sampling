@@ -410,7 +410,6 @@ class StochasticOptimizationMethod:
         #plt.set_ylim(3, 5) # n=2, beta=1
         #plt.set_ylim(4, 10) # n=3, beta=1
         #plt.set_ylim(5, 10) # n=4, beta=1
-        breakpoint()
         plt.multiple_lines_plot(x, ys, colors, linestyles, labels)
 
 

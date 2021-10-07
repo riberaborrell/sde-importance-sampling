@@ -289,23 +289,23 @@ class LangevinSDE(object):
         sample.load()
         return sample
 
-    def get_metadynamics_sampling(self, dt, sigma_i, is_cumulative, k, N):
+    def get_metadynamics_sampling(self, meta_type, weights_type, omega_0, k, N):
         from mds.langevin_nd_importance_sampling import Sampling
         from mds.langevin_nd_metadynamics import Metadynamics
 
         # initialize controlled sampling object
         sample = Sampling.new_from(self)
         sample.is_controlled = True
-        sample.dt = dt
 
         # initialize meta nd object
         meta = Metadynamics(
             sample=sample,
+            meta_type=meta_type,
+            weights_type=weights_type,
+            omega_0=omega_0,
             k=k,
             N=N,
-            sigma_i=sigma_i,
         )
-        meta.is_cumulative = is_cumulative
 
         # set path
         meta.set_dir_path()

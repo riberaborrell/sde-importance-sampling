@@ -12,12 +12,6 @@ def get_parser():
     parser = get_base_parser()
     parser.description = 'Metadynamics for the nd overdamped Langevin SDE'
     parser.add_argument(
-        '--is-cumulative',
-        dest='is_cumulative',
-        action='store_true',
-        help='Cumulative metadynamics algorithm. Default: False',
-    )
-    parser.add_argument(
         '--do-updates-plots',
         dest='do_updates_plots',
         action='store_true',
@@ -38,11 +32,11 @@ def main():
 
     # initialize sampling object
     sample = Sampling(
+        problem_name=args.problem_name,
         potential_name=args.potential_name,
         n=args.n,
         alpha=alpha,
         beta=args.beta,
-        h=args.h,
         is_controlled=True,
     )
 
@@ -54,9 +48,10 @@ def main():
         sample=sample,
         k=args.k_meta,
         N=args.N_meta,
-        sigma_i=args.sigma_i_meta,
         seed=args.seed,
-        is_cumulative=args.is_cumulative,
+        meta_type=args.meta_type,
+        weights_type=args.weights_type,
+        omega_0=args.omega_0_meta,
         do_updates_plots=args.do_updates_plots,
     )
 
@@ -78,12 +73,18 @@ def main():
         # sample metadynamics trjectories
         meta.preallocate_metadynamics_coefficients()
 
+        # set the weights of the bias functions for each trajectory
+        meta.set_weights()
+
         # metadynamics algorythm for different samples
         for i in np.arange(meta.N):
-            if meta.is_cumulative:
-                meta.cumulative_metadynamics_algorithm(i)
-            else:
+            if args.meta_type == 'ind':
                 meta.independent_metadynamics_algorithm(i)
+            elif args.meta_type == 'cum':
+                meta.cumulative_metadynamics_algorithm(i)
+            elif args.meta_type == 'cum-nn':
+                pass
+                #meta.cumulative_metadynamics_algorithm(i)
 
         # stop timer
         meta.stop_timer()
@@ -103,7 +104,7 @@ def main():
     if args.do_plots:
 
         # n gaussians added for each trajectory
-        meta.plot_n_gaussians()
+        #meta.plot_n_gaussians()
 
         # 1d plots
         if sample.n == 1:

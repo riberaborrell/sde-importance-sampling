@@ -1,5 +1,4 @@
 from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
-from mds.utils_path import get_nn_function_approximation_dir_path
 
 import numpy as np
 
@@ -21,12 +20,18 @@ class FunctionApproximation():
 
         self.dir_path = None
 
-    def set_dir_path(self, settings_dir_path):
-        self.dir_path = get_nn_function_approximation_dir_path(
-            settings_dir_path,
-            self.target_function,
+    def set_dir_path(self, root_dir_path):
+
+        if self.initialization == 'meta':
+            initialization_str = ''
+        else:
+            initialization_str = 'theta_{}'.format(self.initialization)
+
+        self.dir_path = os.path.join(
+            root_dir_path,
+            'appr_{}'.format(self.target_function),
             self.model.get_rel_path(),
-            self.initialization,
+            initialization_str,
         )
 
     def reset_parameters(self):
@@ -44,10 +49,6 @@ class FunctionApproximation():
                 )
 
     def train_parameters_with_not_controlled_potential(self, sde):
-
-        # parameters
-        self.initialization = 'null'
-
 
         # define optimizer
         optimizer = optim.Adam(
@@ -102,30 +103,16 @@ class FunctionApproximation():
         print('{:d}, {:2.3f}'.format(i, output))
 
 
-    def fit_parameters_from_metadynamics(self, sde, dt_meta=0.001,
-                                         sigma_i_meta=0.5, k_meta=1000, N_meta=1000):
-
-        # parameters
-        self.initialization = 'meta'
-
-        # load meta bias potential
-        is_cumulative = True
-        meta = sde.get_metadynamics_sampling(dt_meta, sigma_i_meta, is_cumulative, k_meta, N_meta)
-
-        # trained parameters path
-        dir_path = os.path.join(
-            meta.dir_path,
-            'appr_{}'.format(self.target_function),
-            self.model.get_rel_path(),
-        )
+    def train_parameters_with_metadynamics(self, meta):
 
         # load trained parameters if so
-        succ = self.load_trained_parameters(dir_path)
+        succ = self.load_trained_parameters(self.dir_path)
         if succ:
             return
 
         # create ansatz functions from meta
-        meta.sample.ansatz = GaussianAnsatz(n=sde.n, normalized=False)
+        n = meta.sample.n
+        meta.sample.ansatz = GaussianAnsatz(n=n, normalized=False)
         meta.set_ansatz_cumulative()
 
         # define optimizer
@@ -136,12 +123,12 @@ class FunctionApproximation():
 
         # training parameters
 
-        if sde.n == 1:
+        if n == 1:
             self.n_iterations_lim = 10**4
             self.N_train = 10**3
             self.epsilon = 0.01
 
-        elif sde.n == 2:
+        elif n == 2:
             self.n_iterations_lim = 10**4
             self.N_train = 10**2
             self.epsilon = 0.05
@@ -153,7 +140,7 @@ class FunctionApproximation():
         for i in np.arange(self.n_iterations_lim):
 
             # sample training data
-            x = sde.sample_domain_uniformly(N=self.N_train)
+            x = meta.sample.sample_domain_uniformly(N=self.N_train)
             x_tensor = torch.tensor(x, requires_grad=False, dtype=torch.float32)
 
             # ansatz functions evaluated at the grid
@@ -194,7 +181,7 @@ class FunctionApproximation():
         self.theta = self.model.get_parameters()
 
         # save nn training
-        self.save_trained_parameters(dir_path)
+        self.save_trained_parameters(self.dir_path)
 
     def save_trained_parameters(self, dir_path):
         # create directory if dir_path does not exist

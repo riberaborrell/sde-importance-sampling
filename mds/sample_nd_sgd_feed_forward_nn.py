@@ -55,38 +55,38 @@ def main():
     func = FunctionApproximation(
         target_function='control',
         model=model,
+        initialization=args.theta,
     )
 
     # set initial choice of parametrization
     if args.theta == 'random':
-        pass
+
+        # set dir path for nn
+        func.set_dir_path(sample.settings_dir_path)
+
     elif args.theta == 'null':
+
+        # set parameters to zero
         func.zero_parameters()
-    elif args.theta == 'meta':
-        if not args.load:
-            sde = LangevinSDE.new_from(sample)
-            func.fit_parameters_from_metadynamics(sde, dt_meta=args.dt_meta,
-                                                  sigma_i_meta=args.sigma_i_meta,
-                                                  k_meta=args.k_meta, N_meta=args.N_meta)
-        else:
-            func.initialization = 'meta'
-    elif args.theta == 'flat':
-        if not args.load:
-            sde = LangevinSDE.new_from(sample)
-            func.fit_parameters_flat_controlled_potential(sde, N=1000)
-        else:
-            func.initialization = 'flat'
-    elif args.theta == 'semi-flat':
-        if not args.load:
-            sde = LangevinSDE.new_from(sample)
-            func.fit_parameters_semiflat_controlled_potential(sde)
-        else:
-            func.initialization = 'semi-flat'
+
+        # set dir path for nn
+        func.set_dir_path(sample.settings_dir_path)
+
+    elif args.theta == 'meta' and not args.load:
+
+        # get metadynamics
+        sde = LangevinSDE.new_from(sample)
+        meta = sde.get_metadynamics_sampling(args.meta_type, args.weights_type,
+                                             args.omega_0_meta, args.k_meta, args.N_meta)
+
+        # set dir path for nn
+        func.set_dir_path(meta.dir_path)
+
+        # train parameters if not trained yet
+        func.train_parameters_with_metadynamics(meta)
     else:
         return
 
-    # set dir path for nn
-    func.set_dir_path(sample.settings_dir_path)
 
     # add nn function approximation
     sample.nn_func_appr = func

@@ -31,6 +31,7 @@ def main():
 
     # initialize sampling object
     sample = Sampling(
+        problem_name=args.problem_name,
         potential_name=args.potential_name,
         n=args.n,
         alpha=alpha,
@@ -52,14 +53,14 @@ def main():
         sample.do_u_l2_error = True
 
     # get meta sampling
-    meta = sample.get_metadynamics_sampling(args.dt_meta, args.sigma_i_meta,
-                                            args.is_cumulative, args.k_meta, args.N_meta)
+    meta = sample.get_metadynamics_sampling(args.meta_type, args.weights_type, args.omega_0_meta,
+                                            args.k_meta, args.N_meta)
 
     # get the corresponding Gaussian ansatz
     meta.sample.ansatz = GaussianAnsatz(n=args.n, normalized=False)
-    if meta.is_cumulative:
+    if meta.meta_type == 'cum':
         meta.set_ansatz_cumulative()
-    else:
+    elif meta.meta_type == 'ind':
         meta.set_ansatz_averaged()
     sample.ansatz = meta.sample.ansatz
 

@@ -117,11 +117,32 @@ def get_base_parser():
         help='Set the diagonal of the covariance matrix of the ansatz functions. Default: 0.5',
     )
     parser.add_argument(
+        '--meta-type',
+        dest='meta_type',
+        choices=['ind', 'cum', 'cum-nn'],
+        default='cum',
+        help='type of metadynamics algorithm. Default: cumulative algorithm',
+    )
+    parser.add_argument(
+        '--weights-type',
+        dest='weights_type',
+        choices=['const', 'geometric'],
+        default='geometric',
+        help='type of decay of the gaussian ansatz weights. Default: geometric',
+    )
+    parser.add_argument(
+        '--omega-0-meta',
+        dest='omega_0_meta',
+        type=float,
+        default=1.,
+        help='scaling factor of the weights. Default: 1.',
+    )
+    parser.add_argument(
         '--dt-meta',
         dest='dt_meta',
         type=float,
-        default=0.001,
-        help='Set dt. Default: 0.001',
+        default=0.01,
+        help='Set dt. Default: 0.01',
     )
     parser.add_argument(
         '--N-meta',

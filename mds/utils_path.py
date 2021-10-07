@@ -183,15 +183,6 @@ def get_gaussian_ansatz_dir_path(settings_dir_path, distributed, theta, m_i=None
 
     return dir_path
 
-def get_nn_function_approximation_dir_path(settings_dir_path, target_function,
-                                           nn_rel_path, initialization):
-    dir_path = os.path.join(
-        settings_dir_path,
-        'appr_{}'.format(target_function),
-        nn_rel_path,
-        'theta_{}'.format(initialization),
-    )
-    return dir_path
 
 
 def get_som_dir_path(func_appr_dir_path, loss_type, optimizer, lr, dt, N):
