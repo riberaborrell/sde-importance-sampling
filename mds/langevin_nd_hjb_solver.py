@@ -2,6 +2,9 @@ from mds.langevin_nd_sde import LangevinSDE
 from mds.utils_path import get_hjb_solution_dir_path, get_time_in_hms
 from mds.utils_numeric import arange_generator
 
+from figures.myfigure import MyFigure
+
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as linalg
@@ -376,3 +379,73 @@ class SolverHJB(LangevinSDE):
         f = open(file_path, 'r')
         print(f.read())
         f.close()
+
+    def plot_1d_psi(self, ylim=None):
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='psi',
+        )
+        x = self.domain_h[:, 0]
+        fig.set_xlabel = 'x'
+        fig.set_xlim(-2, 2)
+        if ylim is not None:
+            fig.set_ylim(ylim[0], ylim[1])
+        fig.plot(x, self.Psi, labels='num sol HJB PDE', colors='tab:cyan')
+
+    def plot_1d_free_energy(self, ylim=None):
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='free-energy',
+        )
+        x = self.domain_h[:, 0]
+        fig.set_xlabel = 'x'
+        fig.set_xlim(-2, 2)
+        if ylim is not None:
+            fig.set_ylim(ylim[0], ylim[1])
+        fig.plot(x, self.F, labels='num sol HJB PDE', colors='tab:cyan')
+
+    def plot_1d_controlled_potential(self, ylim=None):
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='controlled-potential',
+        )
+        x = self.domain_h[:, 0]
+        if self.controlled_potential is None:
+            self.get_controlled_potential_and_drift()
+
+        fig.set_xlabel = 'x'
+        fig.set_xlim(-2, 2)
+        if ylim is not None:
+            fig.set_ylim(ylim[0], ylim[1])
+        fig.plot(x, self.controlled_potential, labels='num sol HJB PDE', colors='tab:cyan')
+
+    def plot_1d_control(self, ylim=None):
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='control',
+        )
+        x = self.domain_h[:, 0]
+        fig.set_xlabel = 'x'
+        fig.set_xlim(-2, 2)
+        if ylim is not None:
+            fig.set_ylim(ylim[0], ylim[1])
+        fig.plot(x, self.u_opt[:, 0], labels='num sol HJB PDE', colors='tab:cyan')
+
+    def plot_1d_controlled_drift(self, ylim=None):
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='controlled-drift',
+        )
+        x = self.domain_h[:, 0]
+        if self.controlled_drift is None:
+            self.get_controlled_potential_and_drift()
+        fig.set_xlabel = 'x'
+        fig.set_xlim(-2, 2)
+        if ylim is not None:
+            fig.set_ylim(ylim[0], ylim[1])
+        fig.plot(x, self.controlled_drift[:, 0], labels='num sol HJB PDE', colors='tab:cyan')

@@ -63,11 +63,11 @@ def main():
 
         # 1d
         if sol_hjb.n == 1:
-            sol_hjb.plot_1d_psi(sol_hjb.Psi, label='num sol HJB PDE')
-            sol_hjb.plot_1d_free_energy(sol_hjb.F, label='num sol HJB PDE')
-            sol_hjb.plot_1d_controlled_potential(sol_hjb.controlled_potential, label='num sol HJB PDE')
-            sol_hjb.plot_1d_control(sol_hjb.u_opt[:, 0], label='num sol HJB PDE')
-            sol_hjb.plot_1d_controlled_drift(sol_hjb.controlled_drift[:, 0], label='num sol HJB PDE')
+            sol_hjb.plot_1d_psi()
+            sol_hjb.plot_1d_free_energy()
+            sol_hjb.plot_1d_controlled_potential()
+            sol_hjb.plot_1d_control()
+            sol_hjb.plot_1d_controlled_drift()
 
         # 2d
         elif sol_hjb.n == 2:

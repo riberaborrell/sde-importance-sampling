@@ -2,6 +2,10 @@ from mds.plots import Plot
 from mds.utils_path import make_dir_path, get_som_dir_path, get_time_in_hms
 from mds.utils_numeric import slice_1d_array
 
+from figures.myfigure import MyFigure
+
+import matplotlib.pyplot as plt
+
 import numpy as np
 import torch
 import torch.optim as optim
@@ -517,7 +521,6 @@ class StochasticOptimizationMethod:
 
         self.set_iterations_dir_path()
         ext = '_iter{}'.format(i)
-        label = r'iteration: {}'.format(i)
 
         # set theta
         if self.sample.ansatz is not None:
@@ -531,17 +534,59 @@ class StochasticOptimizationMethod:
         self.sample.get_grid_control()
 
         # get hjb solution
-        sol = self.sample.get_hjb_solver(h=0.001)
-        sol.get_controlled_potential_and_drift()
+        sol_hjb = self.sample.get_hjb_solver(h=0.001)
+        sol_hjb.get_controlled_potential_and_drift()
 
-        # do plots
+        # colors and labels
+        labels = [r'SOC (iteration: {})'.format(i), 'num sol HJB PDE']
+        colors = ['tab:blue', 'tab:cyan']
+
+        # domain
+        x = self.sample.domain_h[:, 0]
+
         if self.sample.grid_value_function is not None:
-            self.sample.plot_1d_free_energy(self.sample.grid_value_function, sol.F,
-                                            label=label, dir_path=self.iterations_dir_path,
-                                            ext=ext)
 
-        self.sample.plot_1d_control(self.sample.grid_control[:, 0], sol.u_opt[:, 0],
-                                    label=label, dir_path=self.iterations_dir_path, ext=ext)
+            # plot free energy
+            fig = plt.figure(
+                FigureClass=MyFigure,
+                dir_path=self.iterations_dir_path,
+                file_name='free-energy' + ext,
+            )
+            y = np.vstack((
+                self.sample.grid_value_function,
+                sol_hjb.F,
+            ))
+            fig.set_xlabel = 'x'
+            fig.set_xlim(-2, 2)
+            fig.plot(x, y, labels=labels, colors=colors)
+
+            # plot controlled potential
+            fig = plt.figure(
+                FigureClass=MyFigure,
+                dir_path=self.iterations_dir_path,
+                file_name='controlled-potential' + ext,
+            )
+            y = np.vstack((
+                self.sample.grid_controlled_potential,
+                sol_hjb.controlled_potential,
+            ))
+            fig.set_xlabel = 'x'
+            fig.set_xlim(-2, 2)
+            fig.plot(x, y, labels=labels, colors=colors)
+
+        # plot control
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.iterations_dir_path,
+            file_name='control' + ext,
+        )
+        y = np.vstack((
+            self.sample.grid_control[:, 0],
+            sol_hjb.u_opt[:, 0],
+        ))
+        fig.set_xlabel = 'x'
+        fig.set_xlim(-2, 2)
+        fig.plot(x, y, labels=labels, colors=colors)
 
 
     def plot_1d_iterations(self):
