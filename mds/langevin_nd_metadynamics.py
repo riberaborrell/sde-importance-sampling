@@ -136,10 +136,10 @@ class Metadynamics:
             self.weights = self.omega_0 * np.ones(self.N)
 
         # geometric decay
-        elif self.weights_type == 'geom' and self.meta_type == 'ind':
+        elif self.weights_type == 'geometric' and self.meta_type == 'ind':
             r = 0.95
             self.weights = np.array([self.omega_0 * (r**i) for i in np.arange(self.updates_lim)])
-        elif self.weights_type == 'geom' and self.meta_type == 'cum':
+        elif self.weights_type == 'geometric' and self.meta_type == 'cum':
             r = 0.95
             self.weights = np.array([self.omega_0 * (r**i) for i in np.arange(self.N)])
 
