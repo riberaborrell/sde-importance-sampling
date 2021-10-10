@@ -205,7 +205,6 @@ class Metadynamics:
                 sample.is_controlled = False
             else:
                 sample.is_controlled = True
-                self.omegas = np.append(self.omegas, self.weights[i])
                 sample.ansatz.set_given_ansatz_functions(self.means, self.cov)
                 sample.ansatz.theta = self.omegas / 2
 
@@ -218,6 +217,7 @@ class Metadynamics:
                 break
 
             # add new bias ansatz function and weight
+            self.omegas = np.append(self.omegas, self.weights[i])
             self.means = np.vstack((self.means, np.mean(xtemp, axis=(0, 1))))
 
             # update initial point
