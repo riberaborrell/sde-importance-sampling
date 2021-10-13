@@ -2,8 +2,6 @@ from mds.plots import Plot
 from mds.utils_path import make_dir_path, get_som_dir_path, get_time_in_hms
 from mds.utils_numeric import slice_1d_array
 
-from figures.myfigure import MyFigure
-
 import matplotlib.pyplot as plt
 
 import numpy as np
@@ -379,18 +377,10 @@ class StochasticOptimizationMethod:
                     ''.format(np.linalg.norm(self.grad_losses[i])))
             f.write('time steps = {}\n'.format(self.time_steps[i]))
 
-    def plot_losses(self, h_hjb=0.1, dt_mc=0.001, N_mc=100000):
+    def plot_losses(self, dt_mc=0.01, N_mc=10**5, h_hjb=0.1):
+        from figures.myfigure import MyFigure
 
-        # hjb F at xzero
-        h_hjb=0.001
-        sol = self.sample.get_hjb_solver(h_hjb)
-        if sol.F is not None:
-            hjb_f_at_x = sol.get_f_at_x(self.sample.xzero)
-            value_f_hjb = np.full(self.n_iterations, hjb_f_at_x)
-        else:
-            value_f_hjb = np.full(self.n_iterations, np.nan)
-
-        # mc F 
+        # get free energy estimation from mc sampling
         sample_mc = self.sample.get_not_controlled_sampling(dt_mc, N_mc)
         if sample_mc.mean_I is not None:
             mc_f = - np.log(sample_mc.mean_I)
@@ -398,43 +388,100 @@ class StochasticOptimizationMethod:
         else:
             value_f_mc = np.full(self.n_iterations, np.nan)
 
+        # get free energy from hjb solution
+        sol_hjb = self.sample.get_hjb_solver(h_hjb)
+        if sol_hjb.F is not None:
+            hjb_f_at_x = sol_hjb.get_f_at_x(self.sample.xzero)
+            value_f_hjb = np.full(self.n_iterations, hjb_f_at_x)
+
         x = np.arange(self.n_iterations)
-        ys = np.vstack((self.losses, value_f_hjb, value_f_mc))
-        colors = ['tab:blue', 'tab:orange', 'tab:cyan']
-        linestyles = ['-', 'dashed', 'dashdot']
-        labels = [
-            r'SGD',
-            'MC Sampling (dt={:.0e}, N={:.0e})'.format(dt_mc, N_mc),
-            'HJB solution (h={:.0e})'.format(h_hjb),
-        ]
 
-        plt = Plot(self.dir_path, 'loss')
-        plt.xlabel = 'iterations'
-        #plt.set_ylim(1, 3) # n=1, beta=1
-        #plt.set_ylim(3, 5) # n=2, beta=1
-        #plt.set_ylim(4, 10) # n=3, beta=1
-        #plt.set_ylim(5, 10) # n=4, beta=1
-        plt.multiple_lines_plot(x, ys, colors, linestyles, labels)
+        if sol_hjb.F is not None:
+            y = np.vstack((self.losses, value_f_mc, value_f_hjb))
+            colors = ['tab:blue', 'tab:cyan', 'tab:orange']
+            linestyles = ['-', 'dashed', 'dashdot']
+            labels = [
+                r'SOC',
+                'MC Sampling (dt={:.0e}, N={:.0e})'.format(dt_mc, N_mc),
+                'HJB solution (h={:.0e})'.format(h_hjb),
+            ]
+        else:
+            y = np.vstack((self.losses, value_f_mc))
+            colors = ['tab:blue', 'tab:orange']
+            linestyles = ['-', 'dashed']
+            labels = [
+                r'SOC',
+                'MC Sampling (dt={:.0e}, N={:.0e})'.format(dt_mc, N_mc),
+            ]
+
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='loss',
+        )
+        fig.set_xlabel = 'iterations'
+        fig.set_plot_type('semilogy')
+        fig.plot(x, y, colors, linestyles, labels)
 
 
-    def plot_I_u(self, dt_mc=0.001, N_mc=100000):
+    def plot_I_u(self, dt_mc=0.01, N_mc=10**5, h_hjb=0.1, dt_hjb=0.01, N_hjb=10**3):
+        from figures.myfigure import MyFigure
 
-        # not controlled sampling 
+        # get psi estimation from mc sampling
         sample_mc = self.sample.get_not_controlled_sampling(dt_mc, N_mc)
-
-        # mc mean I
         if sample_mc.mean_I is not None:
             mean_I_mc = np.full(self.n_iterations, sample_mc.mean_I)
         else:
             mean_I_mc = np.full(self.n_iterations, np.nan)
 
-        # mc var I
-        if sample_mc.var_I is not None:
-            var_I_mc = np.full(self.n_iterations, sample_mc.var_I)
-        else:
-            var_I_mc = np.full(self.n_iterations, np.nan)
+        # get psi estimation from hjb controlled sampling
+        sol_hjb = self.sample.get_hjb_solver(h_hjb)
+        if sol_hjb.F is not None:
+            hjb_f_at_x = sol_hjb.get_f_at_x(self.sample.xzero)
+            value_f_hjb = np.full(self.n_iterations, hjb_f_at_x)
 
-        # mc re I
+            sample_hjb = Sampling.new_from(self.sample)
+            sample_hjb.is_controlled = True
+            sample_hjb.N = N_hjb
+            sample_hjb.dt = dt_hjb
+            sample_hjb.set_controlled_dir_path(sol_hjb.dir_path)
+            sample_hjb.load()
+            if sample_cont.mean_I is not None:
+                mean_I_hjb = np.full(self.n_iterations, sample_hjb.mean_I)
+            else:
+                mean_I_hjb = np.full(self.n_iterations, np.nan)
+
+        x = np.arange(self.n_iterations)
+
+        if sol_hjb.F is not None:
+            y = np.vstack((self.means_I_u, value_f_mc, value_f_hjb))
+            colors = ['tab:blue', 'tab:cyan', 'tab:orange']
+            linestyles = ['-', 'dashed', 'dashdot']
+            labels = [
+                r'SOC',
+                'MC Sampling (dt={:.0e}, N={:.0e})'.format(dt_mc, N_mc),
+                'HJB Sampling (h={:.0e}, dt={:.0e}, N={:.0e})'.format(h_hjb, dt_hjb, N_hjb),
+            ]
+        else:
+            y = np.vstack((self.losses, value_f_mc))
+            colors = ['tab:blue', 'tab:orange']
+            linestyles = ['-', 'dashed']
+            labels = [
+                r'SOC',
+                'MC Sampling (dt={:.0e}, N={:.0e})'.format(dt_mc, N_mc),
+            ]
+
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='loss',
+        )
+        fig.set_xlabel = 'iterations'
+        fig.set_plot_type('semilogy')
+        fig.plot(x, y, colors, linestyles, labels)
+
+        # get re estimation from mc sampling
+        sample_mc = self.sample.get_not_controlled_sampling(dt_mc, N_mc)
         if sample_mc.re_I is not None:
             re_I_mc = np.full(self.n_iterations, sample_mc.re_I)
         else:
@@ -513,6 +560,8 @@ class StochasticOptimizationMethod:
         plt.one_line_plot(x, self.cts, color='purple', label='cts')
 
     def plot_1d_iteration(self, i=None):
+        from figures.myfigure import MyFigure
+
         # last iteration is i is not given
         if i is None:
             i = self.n_iterations - 1
@@ -590,6 +639,7 @@ class StochasticOptimizationMethod:
 
 
     def plot_1d_iterations(self):
+        from figures.myfigure import MyFigure
 
         # discretize domain and evaluate in grid
         self.sample.discretize_domain(h=0.001)
@@ -598,15 +648,20 @@ class StochasticOptimizationMethod:
         # filter iterations to show
         iterations = np.arange(self.n_iterations)
         sliced_iterations = slice_1d_array(iterations, n_elements=5)
+        n_sliced_iterations = sliced_iterations.shape[0]
 
-        # preallocate functions
+        # preallocate arrays
+        controlled_potentials = np.zeros((n_sliced_iterations + 1, x.shape[0]))
+        frees = np.zeros((n_sliced_iterations + 1, x.shape[0]))
+        controls = np.zeros((n_sliced_iterations + 1, x.shape[0]))
+
+        # preallocate labels and colors
         labels = []
-        controlled_potentials = np.zeros((sliced_iterations.shape[0], x.shape[0]))
-        frees = np.zeros((sliced_iterations.shape[0], x.shape[0]))
-        controls = np.zeros((sliced_iterations.shape[0], x.shape[0]))
+        colors = []
 
         for idx, i in enumerate(sliced_iterations):
-            labels.append(r'iteration = {:d}'.format(i))
+            labels.append(r'SOC (iteration = {:d})'.format(i))
+            colors.append(None)
 
             # set theta
             if self.sample.ansatz is not None:
@@ -624,20 +679,49 @@ class StochasticOptimizationMethod:
             controls[idx, :] = self.sample.grid_control[:, 0]
 
         # get hjb solution
-        sol = self.sample.get_hjb_solver(h=0.001)
-        sol.get_controlled_potential_and_drift()
+        sol_hjb = self.sample.get_hjb_solver(h=0.001)
+        sol_hjb.get_controlled_potential_and_drift()
+        labels.append('num sol HJB PDE')
+        colors.append('tab:cyan')
 
-        # do plots
         if self.sample.grid_value_function is not None:
-            self.sample.plot_1d_controlled_potentials(controlled_potentials,
-                                                      controlledV_hjb=sol.controlled_potential,
-                                                      labels=labels[:], dir_path=self.dir_path)
-            self.sample.plot_1d_free_energies(frees, F_hjb=sol.F, labels=labels[:],
-                                              dir_path=self.dir_path)
-        self.sample.plot_1d_controls(controls, u_hjb=sol.u_opt[:, 0],
-                                     labels=labels[:], dir_path=self.dir_path)
+
+            # plot free energy
+            fig = plt.figure(
+                FigureClass=MyFigure,
+                dir_path=self.dir_path,
+                file_name='free-energy',
+            )
+            frees[-1, :] = sol_hjb.F
+            fig.set_xlabel = 'x'
+            fig.set_xlim(-2, 2)
+            fig.plot(x, frees, labels=labels, colors=colors)
+
+            # plot controlled potential
+            fig = plt.figure(
+                FigureClass=MyFigure,
+                dir_path=self.dir_path,
+                file_name='controlled-potential',
+            )
+            controlled_potentials[-1, :] = sol_hjb.controlled_potential
+            fig.set_xlabel = 'x'
+            fig.set_xlim(-2, 2)
+            fig.plot(x, controlled_potentials, labels=labels, colors=colors)
+
+
+        # plot control
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='control',
+        )
+        controls[-1, :] = sol_hjb.u_opt[:, 0]
+        fig.set_xlabel = 'x'
+        fig.set_xlim(-2, 2)
+        fig.plot(x, controls, labels=labels, colors=colors)
 
     def plot_2d_iteration(self, i=None):
+        from figures.myfigure import MyFigure
 
         # last iteration is i is not given
         if i is None:
@@ -659,9 +743,54 @@ class StochasticOptimizationMethod:
         self.sample.get_grid_value_function()
         self.sample.get_grid_control()
 
+        # domain
+        X = self.sample.domain_h[:, :, 0]
+        Y = self.sample.domain_h[:, :, 1]
+
         if self.sample.grid_value_function is not None:
-            self.sample.plot_2d_controlled_potential(self.sample.grid_controlled_potential,
-                                                     self.iterations_dir_path, ext)
-        self.sample.plot_2d_control(self.sample.grid_control, self.iterations_dir_path, ext)
-        self.sample.plot_2d_controlled_drift(self.sample.grid_controlled_drift,
-                                             self.iterations_dir_path, ext)
+
+            # plot free energy
+            fig = plt.figure(
+                FigureClass=MyFigure,
+                dir_path=self.iterations_dir_path,
+                file_name='free-energy' + ext,
+            )
+            fig.set_xlim(-2, 2)
+            fig.set_ylim(-2, 2)
+            fig.set_contour_levels_scale('log')
+            fig.contour(X, Y, self.sample.grid_value_function)
+
+            # plot controlled potential
+            fig = plt.figure(
+                FigureClass=MyFigure,
+                dir_path=self.iterations_dir_path,
+                file_name='controlled-potential' + ext,
+            )
+            fig.set_xlim(-2, 2)
+            fig.set_ylim(-2, 2)
+            fig.set_contour_levels_scale('log')
+            fig.contour(X, Y, self.sample.grid_controlled_potential)
+
+        # plot control
+        U = self.sample.grid_control[:, :, 0]
+        V = self.sample.grid_control[:, :, 1]
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.iterations_dir_path,
+            file_name='control' + ext,
+        )
+        fig.set_xlim(-2, 2)
+        fig.set_ylim(-2, 2)
+        fig.vector_field(X, Y, U, V, scale=30)
+
+        # plot controlled drift
+        U = self.sample.grid_controlled_drift[:, :, 0]
+        V = self.sample.grid_controlled_drift[:, :, 1]
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.iterations_dir_path,
+            file_name='controlled-drift' + ext,
+        )
+        fig.set_xlim(-2, 2)
+        fig.set_ylim(-2, 2)
+        fig.vector_field(X, Y, U, V, scale=30)

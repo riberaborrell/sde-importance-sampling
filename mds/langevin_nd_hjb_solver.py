@@ -2,8 +2,6 @@ from mds.langevin_nd_sde import LangevinSDE
 from mds.utils_path import get_hjb_solution_dir_path, get_time_in_hms
 from mds.utils_numeric import arange_generator
 
-from figures.myfigure import MyFigure
-
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.sparse as sparse
@@ -381,6 +379,7 @@ class SolverHJB(LangevinSDE):
         f.close()
 
     def plot_1d_psi(self, ylim=None):
+        from figures.myfigure import MyFigure
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
@@ -394,6 +393,7 @@ class SolverHJB(LangevinSDE):
         fig.plot(x, self.Psi, labels='num sol HJB PDE', colors='tab:cyan')
 
     def plot_1d_free_energy(self, ylim=None):
+        from figures.myfigure import MyFigure
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
@@ -407,6 +407,7 @@ class SolverHJB(LangevinSDE):
         fig.plot(x, self.F, labels='num sol HJB PDE', colors='tab:cyan')
 
     def plot_1d_controlled_potential(self, ylim=None):
+        from figures.myfigure import MyFigure
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
@@ -423,6 +424,7 @@ class SolverHJB(LangevinSDE):
         fig.plot(x, self.controlled_potential, labels='num sol HJB PDE', colors='tab:cyan')
 
     def plot_1d_control(self, ylim=None):
+        from figures.myfigure import MyFigure
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
@@ -436,6 +438,7 @@ class SolverHJB(LangevinSDE):
         fig.plot(x, self.u_opt[:, 0], labels='num sol HJB PDE', colors='tab:cyan')
 
     def plot_1d_controlled_drift(self, ylim=None):
+        from figures.myfigure import MyFigure
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
