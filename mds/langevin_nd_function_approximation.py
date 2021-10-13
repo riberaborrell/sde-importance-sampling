@@ -130,8 +130,8 @@ class FunctionApproximation():
 
         elif n == 2:
             self.n_iterations_lim = 10**4
-            self.N_train = 10**2
-            self.epsilon = 0.05
+            self.N_train = 10**3
+            self.epsilon = 0.1
         else:
             self.n_iterations_lim = 10**4
             self.N_train = 10**3
