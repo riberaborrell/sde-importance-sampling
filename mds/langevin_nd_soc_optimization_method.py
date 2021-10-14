@@ -377,152 +377,173 @@ class StochasticOptimizationMethod:
                     ''.format(np.linalg.norm(self.grad_losses[i])))
             f.write('time steps = {}\n'.format(self.time_steps[i]))
 
-    def plot_losses(self, dt_mc=0.01, N_mc=10**5, h_hjb=0.1):
-        from figures.myfigure import MyFigure
+    def load_mc_sampling(self, dt_mc=0.01, N_mc=10**3):
+        '''
+        '''
 
-        # get free energy estimation from mc sampling
+        # save parameters
+        self.dt_mc = dt_mc
+        self.N_mc = N_mc
+
+        # load mc sampling
         sample_mc = self.sample.get_not_controlled_sampling(dt_mc, N_mc)
-        if sample_mc.mean_I is not None:
-            mc_f = - np.log(sample_mc.mean_I)
-            value_f_mc = np.full(self.n_iterations, mc_f)
-        else:
-            value_f_mc = np.full(self.n_iterations, np.nan)
 
-        # get free energy from hjb solution
+        if sample_mc.mean_I is not None:
+            self.value_f_mc = np.full(self.n_iterations, - np.log(sample_mc.mean_I))
+            self.mean_I_mc = np.full(self.n_iterations, sample_mc.mean_I)
+            self.re_I_mc = np.full(self.n_iterations_lim, sample_mc.re_I)
+            self.time_steps_mc = np.full(self.n_iterations_lim, sample_mc.k)
+            self.ct_mc = np.full(self.n_iterations_lim, sample_mc.ct)
+        else:
+            self.value_f_mc = np.full(self.n_iterations, np.nan)
+            self.mean_I_mc = np.full(self.n_iterations, np.nan)
+            self.re_I_mc = np.full(self.n_iterations, np.nan)
+            self.time_steps_mc = np.full(self.n_iterations, np.nan)
+            self.ct_mc = np.full(self.n_iterations, np.nan)
+
+    def load_hjb_solution_and_sampling(self, h_hjb=0.1, dt_hjb=0.01, N_hjb=10**3):
+        '''
+        '''
+        from mds.langevin_nd_importance_sampling import Sampling
+        # save parameters
+        self.h_hjb = h_hjb
+        self.dt_hjb = dt_hjb
+        self.N_hjb = N_hjb
+
+        # load hjb solver
         sol_hjb = self.sample.get_hjb_solver(h_hjb)
         if sol_hjb.F is not None:
             hjb_f_at_x = sol_hjb.get_f_at_x(self.sample.xzero)
-            value_f_hjb = np.full(self.n_iterations, hjb_f_at_x)
-
-        x = np.arange(self.n_iterations)
-
-        if sol_hjb.F is not None:
-            y = np.vstack((self.losses, value_f_mc, value_f_hjb))
-            colors = ['tab:blue', 'tab:cyan', 'tab:orange']
-            linestyles = ['-', 'dashed', 'dashdot']
-            labels = [
-                r'SOC',
-                'MC Sampling (dt={:.0e}, N={:.0e})'.format(dt_mc, N_mc),
-                'HJB solution (h={:.0e})'.format(h_hjb),
-            ]
+            hjb_psi_at_x = sol_hjb.get_psi_at_x(self.sample.xzero)
+            self.hjb_is_loaded = True
+            self.f_hjb = np.full(self.n_iterations, hjb_f_at_x)
+            self.psi_hjb = np.full(self.n_iterations_lim, hjb_psi_at_x)
         else:
-            y = np.vstack((self.losses, value_f_mc))
-            colors = ['tab:blue', 'tab:orange']
-            linestyles = ['-', 'dashed']
-            labels = [
-                r'SOC',
-                'MC Sampling (dt={:.0e}, N={:.0e})'.format(dt_mc, N_mc),
-            ]
+            self.hjb_is_loaded = False
+            self.f_hjb = np.full(self.n_iterations, np.nan)
+            self.psi_hjb = np.full(self.n_iterations_lim, np.nan)
 
-        fig = plt.figure(
-            FigureClass=MyFigure,
-            dir_path=self.dir_path,
-            file_name='loss',
-        )
-        fig.set_xlabel = 'iterations'
-        fig.set_plot_type('semilogy')
-        fig.plot(x, y, colors, linestyles, labels)
-
-
-    def plot_I_u(self, dt_mc=0.01, N_mc=10**5, h_hjb=0.1, dt_hjb=0.01, N_hjb=10**3):
-        from figures.myfigure import MyFigure
-
-        # get psi estimation from mc sampling
-        sample_mc = self.sample.get_not_controlled_sampling(dt_mc, N_mc)
-        if sample_mc.mean_I is not None:
-            mean_I_mc = np.full(self.n_iterations, sample_mc.mean_I)
+        # load hjb sampling
+        sample_hjb = Sampling.new_from(self.sample)
+        sample_hjb.is_controlled = True
+        sample_hjb.N = N_hjb
+        sample_hjb.dt = dt_hjb
+        sample_hjb.set_controlled_dir_path(sol_hjb.dir_path)
+        sample_hjb.load()
+        if sample_hjb.mean_I_u is not None:
+            self.value_f_is_hjb = np.full(self.n_iterations_lim, -np.log(sample_hjb.mean_I_u))
+            self.mean_I_u_hjb = np.full(self.n_iterations_lim, sample_hjb.mean_I_u)
+            self.re_I_u_hjb = np.full(self.n_iterations_lim, sample_hjb.re_I_u)
+            self.time_steps_is_hjb = np.full(self.n_iterations_lim, sample_hjb.k)
+            self.ct_is_hjb = np.full(self.n_iterations_lim, sample_hjb.ct)
         else:
-            mean_I_mc = np.full(self.n_iterations, np.nan)
+            self.value_is_hjb = np.full(self.n_iterations, np.nan)
+            self.mean_I_u_hjb = np.full(self.n_iterations, np.nan)
+            self.re_I_u_hjb = np.full(self.n_iterations, np.nan)
+            self.time_steps_is_hjb = np.full(self.n_iterations, np.nan)
+            self.ct_is_hjb = np.full(self.n_iterations, np.nan)
 
-        # get psi estimation from hjb controlled sampling
-        sol_hjb = self.sample.get_hjb_solver(h_hjb)
-        if sol_hjb.F is not None:
-            hjb_f_at_x = sol_hjb.get_f_at_x(self.sample.xzero)
-            value_f_hjb = np.full(self.n_iterations, hjb_f_at_x)
+    def load_plot_labels_colors_and_lniestyles(self):
 
-            sample_hjb = Sampling.new_from(self.sample)
-            sample_hjb.is_controlled = True
-            sample_hjb.N = N_hjb
-            sample_hjb.dt = dt_hjb
-            sample_hjb.set_controlled_dir_path(sol_hjb.dir_path)
-            sample_hjb.load()
-            if sample_cont.mean_I is not None:
-                mean_I_hjb = np.full(self.n_iterations, sample_hjb.mean_I)
-            else:
-                mean_I_hjb = np.full(self.n_iterations, np.nan)
-
-        x = np.arange(self.n_iterations)
-
-        if sol_hjb.F is not None:
-            y = np.vstack((self.means_I_u, value_f_mc, value_f_hjb))
-            colors = ['tab:blue', 'tab:cyan', 'tab:orange']
-            linestyles = ['-', 'dashed', 'dashdot']
-            labels = [
-                r'SOC',
-                'MC Sampling (dt={:.0e}, N={:.0e})'.format(dt_mc, N_mc),
-                'HJB Sampling (h={:.0e}, dt={:.0e}, N={:.0e})'.format(h_hjb, dt_hjb, N_hjb),
-            ]
-        else:
-            y = np.vstack((self.losses, value_f_mc))
-            colors = ['tab:blue', 'tab:orange']
-            linestyles = ['-', 'dashed']
-            labels = [
-                r'SOC',
-                'MC Sampling (dt={:.0e}, N={:.0e})'.format(dt_mc, N_mc),
-            ]
-
-        fig = plt.figure(
-            FigureClass=MyFigure,
-            dir_path=self.dir_path,
-            file_name='loss',
-        )
-        fig.set_xlabel = 'iterations'
-        fig.set_plot_type('semilogy')
-        fig.plot(x, y, colors, linestyles, labels)
-
-        # get re estimation from mc sampling
-        sample_mc = self.sample.get_not_controlled_sampling(dt_mc, N_mc)
-        if sample_mc.re_I is not None:
-            re_I_mc = np.full(self.n_iterations, sample_mc.re_I)
-        else:
-            re_I_mc = np.full(self.n_iterations, np.nan)
-
-        colors = ['tab:blue', 'tab:orange']
-        linestyles = ['-', 'dashed']
-        labels = [
-            'SGD',
-            'MC Sampling (dt={:.0e}, N={:.0e})'.format(dt_mc, N_mc),
+        self.colors = ['tab:blue', 'tab:orange', 'tab:cyan', 'tab:grey']
+        self.linestyles = ['-', 'dashed', 'dashdot', 'dashdot']
+        self.labels = [
+            r'SOC (dt={:.0e}, N={:.0e})'.format(self.sample.dt, self.sample.N),
+            'MC Sampling (dt={:.0e}, N={:.0e})'.format(self.dt_mc, self.N_mc),
+            'HJB solution (h={:.0e})'.format(self.h_hjb),
+            'HJB Sampling (dt={:.0e}, N={:.0e})'.format(self.dt_hjb, self.N_hjb),
         ]
+        if not self.hjb_is_loaded:
+            self.colors = self.colors[:-2]
+            self.linestyles = self.linestyles[:-2]
+            self.labels = self.labels[:-2]
 
-        # iterations array
+    def plot_loss(self):
+        '''
+        '''
+        from figures.myfigure import MyFigure
+
         x = np.arange(self.n_iterations)
 
-        # plot mean I_u
-        plt = Plot(self.dir_path, 'I_u_mean')
-        plt.xlabel = 'iterations'
-        #plt.set_ylim(0.125, 0.2) # n=1, beta=1
-        #plt.set_ylim(0.03, 0.05) # n=2, beta=1
-        #plt.set_ylim(0.005, 0.02) # n=3, beta=1
-        #plt.set_ylim(0, 0.005) # n=4, beta=1
-        breakpoint()
-        ys = np.vstack((self.means_I_u, mean_I_mc))
-        plt.multiple_lines_plot(x, ys, colors, linestyles, labels)
+        if self.hjb_is_loaded:
+            y = np.vstack((
+                self.losses,
+                self.value_f_mc,
+                self.f_hjb,
+                self.value_f_is_hjb,
+            ))
+        else:
+            y = np.vstack((self.losses, self.value_f_mc))
 
-        # plot var I_u
-        plt = Plot(self.dir_path, 'I_u_var')
-        plt.xlabel = 'iterations'
-        plt.set_logplot()
-        ys = np.vstack((self.vars_I_u, var_I_mc))
-        plt.multiple_lines_plot(x, ys, colors, linestyles, labels)
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='loss',
+        )
+        fig.set_xlabel = 'iterations'
+        fig.set_plot_scale('semilogy')
+        fig.plot(x, y, self.colors, self.linestyles, self.labels)
 
-        # plot re I_u
-        plt = Plot(self.dir_path, 'I_u_re')
-        plt.xlabel = 'iterations'
-        plt.set_logplot()
-        ys = np.vstack((self.res_I_u, re_I_mc))
-        plt.multiple_lines_plot(x, ys, colors, linestyles, labels)
-        return
 
+    def plot_mean_I_u(self):
+        '''
+        '''
+        from figures.myfigure import MyFigure
+
+        x = np.arange(self.n_iterations)
+
+        if self.hjb_is_loaded:
+            y = np.vstack((
+                self.means_I_u,
+                self.mean_I_mc,
+                self.psi_hjb,
+                self.mean_I_u_hjb,
+            ))
+        else:
+            y = np.vstack((self.means_I_u, self.mean_I_mc))
+
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='mean',
+        )
+        fig.set_xlabel = 'iterations'
+        fig.set_plot_scale('semilogy')
+        fig.plot(x, y, self.colors, self.linestyles, self.labels)
+
+    def plot_re_I_u(self):
+        '''
+        '''
+        from figures.myfigure import MyFigure
+
+        x = np.arange(self.n_iterations)
+
+        if self.hjb_is_loaded:
+            y = np.vstack((
+                self.res_I_u,
+                self.re_I_mc,
+                self.re_I_u_hjb,
+            ))
+            self.colors = self.colors[:2] + self.colors[3:]
+            self.linestyles = self.linestyles[:2] + self.linestyles[3:]
+            self.labels = self.labels[:2] + self.labels[3:]
+        else:
+            y = np.vstack((self.res_I_u, self.re_I_mc))
+
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='re',
+        )
+        fig.set_xlabel = 'iterations'
+        fig.set_plot_scale('semilogy')
+        fig.plot(x, y, self.colors, self.linestyles, self.labels)
+
+    def plot_error_bar_I_u(self):
+        '''
+        '''
+        from figures.myfigure import MyFigure
+        #TODO! debug
         plt = Plot(self.dir_path, 'I_u')
         plt.plt.plot(x, self.means_I_u, color='b', linestyle='-')
         plt.plt.fill_between(
@@ -530,34 +551,80 @@ class StochasticOptimizationMethod:
             self.means_I_u - self.vars_I_u,
             self.means_I_u + self.vars_I_u,
         )
-        #plt.plt.ylim(0.03, 0.05) # n=2, beta=1
-        breakpoint()
         plt.plt.savefig(plt.file_path)
         plt.plt.close()
 
-    def plot_u_l2_error(self):
-        plt = Plot(self.dir_path, 'u_l2_error_log')
-        plt.set_scientific_notation('y')
-        plt.xlabel = 'iterations'
-        plt.set_logplot()
-        x = np.arange(self.n_iterations)
-        plt.one_line_plot(x, self.u_l2_errors, color='purple', label='TS')
-
     def plot_time_steps(self):
-        plt = Plot(self.dir_path, 'time_steps_log')
-        plt.set_scientific_notation('y')
-        plt.xlabel = 'iterations'
-        plt.set_logplot()
+        '''
+        '''
+        from figures.myfigure import MyFigure
+
         x = np.arange(self.n_iterations)
-        plt.one_line_plot(x, self.time_steps, color='purple', label='TS')
+
+        if self.hjb_is_loaded:
+            y = np.vstack((
+                self.time_steps,
+                self.time_steps_mc,
+                self.time_steps_is_hjb,
+            ))
+            self.colors = self.colors[:2] + self.colors[3:]
+            self.linestyles = self.linestyles[:2] + self.linestyles[3:]
+            self.labels = self.labels[:2] + self.labels[3:]
+        else:
+            y = np.vstack((self.time_steps, self.time_steps.mc))
+
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='time-steps',
+        )
+        fig.set_xlabel = 'iterations'
+        fig.set_plot_scale('semilogy')
+        fig.plot(x, y, self.colors, self.linestyles, self.labels)
 
     def plot_cts(self):
-        plt = Plot(self.dir_path, 'cts_log')
-        plt.set_scientific_notation('y')
-        plt.xlabel = 'iterations'
-        plt.set_logplot()
+        '''
+        '''
+        from figures.myfigure import MyFigure
+
         x = np.arange(self.n_iterations)
-        plt.one_line_plot(x, self.cts, color='purple', label='cts')
+
+        if self.hjb_is_loaded:
+            y = np.vstack((
+                self.cts,
+                self.ct_mc,
+                self.ct_is_hjb,
+            ))
+            self.colors = self.colors[:2] + self.colors[3:]
+            self.linestyles = self.linestyles[:2] + self.linestyles[3:]
+            self.labels = self.labels[:2] + self.labels[3:]
+        else:
+            y = np.vstack((self.cts, self.ct_mc))
+
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='cts',
+        )
+        fig.set_xlabel = 'iterations'
+        fig.set_plot_scale('semilogy')
+        fig.plot(x, y, self.colors, self.linestyles, self.labels)
+
+    def plot_u_l2_error(self):
+        '''
+        '''
+        from figures.myfigure import MyFigure
+
+        x = np.arange(self.n_iterations)
+        y = self.u_l2_errors
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='u-l2-error',
+        )
+        fig.set_xlabel = 'iterations'
+        fig.set_plot_scale('semilogy')
+        fig.plot(x, y, self.colors[0], self.linestyles[0], self.labels[0])
 
     def plot_1d_iteration(self, i=None):
         from figures.myfigure import MyFigure
