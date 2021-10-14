@@ -137,14 +137,6 @@ def main():
     # do plots 
     if args.do_plots:
 
-        # plot loss function, relative error and time steps
-        sgd.plot_losses(args.h_hjb)
-        sgd.plot_I_u()
-        if sgd.u_l2_errors is not None:
-            sgd.plot_u_l2_error()
-        sgd.plot_time_steps()
-        sgd.plot_cts()
-
         if args.n == 1:
             #sgd.plot_1d_iteration()
             sgd.plot_1d_iterations()
@@ -152,6 +144,26 @@ def main():
         elif args.n == 2:
             sgd.plot_2d_iteration(i=0)
 
+        # load mc sampling and hjb solution and prepare labels
+        sgd.load_mc_sampling(dt_mc=0.01, N_mc=10**5)
+        sgd.load_hjb_solution_and_sampling(h_hjb=0.005, dt_hjb=0.01, N_hjb=10**5)
+        sgd.load_plot_labels_colors_and_lniestyles()
+
+        # loss
+        sgd.plot_loss()
+
+        # mean and relative error of the reweighted quantity of interest
+        sgd.plot_mean_I_u()
+        sgd.plot_re_I_u()
+
+        # time steps and computational time
+        sgd.plot_time_steps()
+        sgd.plot_cts()
+
+        # u l2 error and its change
+        if sgd.u_l2_errors is not None:
+            sgd.plot_u_l2_error()
+            sgd.plot_u_l2_error_change()
 
 if __name__ == "__main__":
     main()

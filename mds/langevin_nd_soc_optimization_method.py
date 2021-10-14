@@ -445,18 +445,14 @@ class StochasticOptimizationMethod:
 
     def load_plot_labels_colors_and_lniestyles(self):
 
-        self.colors = ['tab:blue', 'tab:orange', 'tab:cyan', 'tab:grey']
+        self.colors = ['tab:blue', 'tab:orange', 'tab:grey', 'tab:cyan']
         self.linestyles = ['-', 'dashed', 'dashdot', 'dashdot']
         self.labels = [
             r'SOC (dt={:.0e}, N={:.0e})'.format(self.sample.dt, self.sample.N),
             'MC Sampling (dt={:.0e}, N={:.0e})'.format(self.dt_mc, self.N_mc),
-            'HJB solution (h={:.0e})'.format(self.h_hjb),
             'HJB Sampling (dt={:.0e}, N={:.0e})'.format(self.dt_hjb, self.N_hjb),
+            'HJB solution (h={:.0e})'.format(self.h_hjb),
         ]
-        if not self.hjb_is_loaded:
-            self.colors = self.colors[:-2]
-            self.linestyles = self.linestyles[:-2]
-            self.labels = self.labels[:-2]
 
     def plot_loss(self):
         '''
@@ -464,17 +460,12 @@ class StochasticOptimizationMethod:
         from figures.myfigure import MyFigure
 
         x = np.arange(self.n_iterations)
-
-        if self.hjb_is_loaded:
-            y = np.vstack((
-                self.losses,
-                self.value_f_mc,
-                self.f_hjb,
-                self.value_f_is_hjb,
-            ))
-        else:
-            y = np.vstack((self.losses, self.value_f_mc))
-
+        y = np.vstack((
+            self.losses,
+            self.value_f_mc,
+            self.value_f_is_hjb,
+            self.f_hjb,
+        ))
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
@@ -491,17 +482,12 @@ class StochasticOptimizationMethod:
         from figures.myfigure import MyFigure
 
         x = np.arange(self.n_iterations)
-
-        if self.hjb_is_loaded:
-            y = np.vstack((
-                self.means_I_u,
-                self.mean_I_mc,
-                self.psi_hjb,
-                self.mean_I_u_hjb,
-            ))
-        else:
-            y = np.vstack((self.means_I_u, self.mean_I_mc))
-
+        y = np.vstack((
+            self.means_I_u,
+            self.mean_I_mc,
+            self.mean_I_u_hjb,
+            self.psi_hjb,
+        ))
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
@@ -517,19 +503,11 @@ class StochasticOptimizationMethod:
         from figures.myfigure import MyFigure
 
         x = np.arange(self.n_iterations)
-
-        if self.hjb_is_loaded:
-            y = np.vstack((
-                self.res_I_u,
-                self.re_I_mc,
-                self.re_I_u_hjb,
-            ))
-            self.colors = self.colors[:2] + self.colors[3:]
-            self.linestyles = self.linestyles[:2] + self.linestyles[3:]
-            self.labels = self.labels[:2] + self.labels[3:]
-        else:
-            y = np.vstack((self.res_I_u, self.re_I_mc))
-
+        y = np.vstack((
+            self.res_I_u,
+            self.re_I_mc,
+            self.re_I_u_hjb,
+        ))
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
@@ -537,7 +515,7 @@ class StochasticOptimizationMethod:
         )
         fig.set_xlabel = 'iterations'
         fig.set_plot_scale('semilogy')
-        fig.plot(x, y, self.colors, self.linestyles, self.labels)
+        fig.plot(x, y, self.colors[:3], self.linestyles[:3], self.labels[:3])
 
     def plot_error_bar_I_u(self):
         '''
@@ -560,19 +538,11 @@ class StochasticOptimizationMethod:
         from figures.myfigure import MyFigure
 
         x = np.arange(self.n_iterations)
-
-        if self.hjb_is_loaded:
-            y = np.vstack((
-                self.time_steps,
-                self.time_steps_mc,
-                self.time_steps_is_hjb,
-            ))
-            self.colors = self.colors[:2] + self.colors[3:]
-            self.linestyles = self.linestyles[:2] + self.linestyles[3:]
-            self.labels = self.labels[:2] + self.labels[3:]
-        else:
-            y = np.vstack((self.time_steps, self.time_steps.mc))
-
+        y = np.vstack((
+            self.time_steps,
+            self.time_steps_mc,
+            self.time_steps_is_hjb,
+        ))
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
@@ -580,7 +550,7 @@ class StochasticOptimizationMethod:
         )
         fig.set_xlabel = 'iterations'
         fig.set_plot_scale('semilogy')
-        fig.plot(x, y, self.colors, self.linestyles, self.labels)
+        fig.plot(x, y, self.colors[:3], self.linestyles[:3], self.labels[:3])
 
     def plot_cts(self):
         '''
@@ -588,19 +558,11 @@ class StochasticOptimizationMethod:
         from figures.myfigure import MyFigure
 
         x = np.arange(self.n_iterations)
-
-        if self.hjb_is_loaded:
-            y = np.vstack((
-                self.cts,
-                self.ct_mc,
-                self.ct_is_hjb,
-            ))
-            self.colors = self.colors[:2] + self.colors[3:]
-            self.linestyles = self.linestyles[:2] + self.linestyles[3:]
-            self.labels = self.labels[:2] + self.labels[3:]
-        else:
-            y = np.vstack((self.cts, self.ct_mc))
-
+        y = np.vstack((
+            self.cts,
+            self.ct_mc,
+            self.ct_is_hjb,
+        ))
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
@@ -608,7 +570,7 @@ class StochasticOptimizationMethod:
         )
         fig.set_xlabel = 'iterations'
         fig.set_plot_scale('semilogy')
-        fig.plot(x, y, self.colors, self.linestyles, self.labels)
+        fig.plot(x, y, self.colors[:3], self.linestyles[:3], self.labels[:3])
 
     def plot_u_l2_error(self):
         '''
@@ -624,6 +586,21 @@ class StochasticOptimizationMethod:
         )
         fig.set_xlabel = 'iterations'
         fig.set_plot_scale('semilogy')
+        fig.plot(x, y, self.colors[0], self.linestyles[0], self.labels[0])
+
+    def plot_u_l2_error_change(self):
+        '''
+        '''
+        from figures.myfigure import MyFigure
+
+        x = np.arange(1, self.n_iterations)
+        y = self.u_l2_errors[:-1] - self.u_l2_errors[1:]
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='u-l2-error-change',
+        )
+        fig.set_xlabel = 'iterations'
         fig.plot(x, y, self.colors[0], self.linestyles[0], self.labels[0])
 
     def plot_1d_iteration(self, i=None):
@@ -806,9 +783,13 @@ class StochasticOptimizationMethod:
             self.sample.nn_func_appr.model.load_parameters(self.thetas[i])
 
         # discretize domain and evaluate in grid
-        self.sample.discretize_domain(h=0.05)
+        self.sample.discretize_domain(h=0.005)
         self.sample.get_grid_value_function()
         self.sample.get_grid_control()
+
+        # get hjb solution
+        sol_hjb = self.sample.get_hjb_solver(h=0.005)
+        sol_hjb.get_controlled_potential_and_drift()
 
         # domain
         X = self.sample.domain_h[:, :, 0]
@@ -860,4 +841,30 @@ class StochasticOptimizationMethod:
         )
         fig.set_xlim(-2, 2)
         fig.set_ylim(-2, 2)
+        fig.vector_field(X, Y, U, V, scale=30)
+
+        # plot difference between control and hjb solution
+        U = np.abs(self.sample.grid_control[:, :, 0] - sol_hjb.u_opt[:, :, 0])
+        V = np.abs(self.sample.grid_control[:, :, 1] - sol_hjb.u_opt[:, :, 1])
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.iterations_dir_path,
+            file_name='control-minus-hjb' + ext,
+        )
+        fig.set_xlim(-1.5, 1.5)
+        fig.set_ylim(-1.5, 1.5)
+        fig.set_colormap('PuRd')
+        fig.vector_field(X, Y, U, V, scale=30)
+
+        # plot difference between controlled drift and hjb solution
+        U = np.abs(self.sample.grid_controlled_drift[:, :, 0] - sol_hjb.controlled_drift[:, :, 0])
+        V = np.abs(self.sample.grid_controlled_drift[:, :, 1] - sol_hjb.controlled_drift[:, :, 1])
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.iterations_dir_path,
+            file_name='controlled-drift-minus-hjb' + ext,
+        )
+        fig.set_xlim(-1.5, 1.5)
+        fig.set_ylim(-1.5, 1.5)
+        fig.set_colormap('PuRd')
         fig.vector_field(X, Y, U, V, scale=30)
