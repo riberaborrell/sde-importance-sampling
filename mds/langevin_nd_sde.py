@@ -1,3 +1,4 @@
+from mds.functions import constant, quadratic_one_well
 from mds.potentials_and_gradients_nd import get_potential_and_gradient
 from mds.plots import Plot
 from mds.utils_path import get_data_dir
@@ -7,6 +8,7 @@ import numpy as np
 import torch
 from torch.distributions.multivariate_normal import MultivariateNormal
 
+import functools
 import os
 import sys
 
@@ -21,23 +23,28 @@ class LangevinSDE(object):
         '''
         # check problem name
         assert problem_name in ['langevin_det-t', 'langevin_stop-t'], ''
+        self.problem_name = problem_name
 
         # check potential name
         assert type(potential_name) == str, ''
+        self.potential_name = potential_name
 
         # check dimension
         assert type(n) == int, ''
+        self.n = n
 
         # check alpha
         type(alpha) == np.ndarray, ''
         assert alpha.ndim == 1, ''
         assert alpha.shape[0] == n, ''
+        self.alpha = alpha
 
         # get potential and gradient functions
-        potential, gradient, _ = get_potential_and_gradient(potential_name, n, alpha)
+        self.potential, self.gradient, _ = get_potential_and_gradient(potential_name, n, alpha)
 
         # check beta
         type(float) == float, ''
+        self.beta = beta
 
         # check domain 
         if domain is not None:
@@ -46,6 +53,10 @@ class LangevinSDE(object):
             assert domain.shape == (n, 2), ''
         else:
             domain = np.full((n, 2), [-3, 3])
+        self.domain = domain
+
+        # set functions f and g
+        self.set_work_path_functional()
 
         # check target set if we are in the stopping time case
         if target_set is not None and problem_name == 'langevin_stop-t':
@@ -54,17 +65,7 @@ class LangevinSDE(object):
             assert target_set.shape == (n, 2), ''
         else:
             target_set = np.full((n, 2), [1, 3])
-
-        # sde parameters
-        self.problem_name = problem_name
-        self.potential_name = potential_name
-        self.n = n
-        self.potential = potential
-        self.gradient = gradient
-        self.alpha = alpha
-        self.beta = beta
         self.target_set = target_set
-        self.domain = domain
 
         # dir_path
         self.set_settings_dir_path()
@@ -78,6 +79,25 @@ class LangevinSDE(object):
         else:
             msg = 'Expected subclass of <class LangevinSDE>, got {}.'.format(type(obj))
             raise TypeError(msg)
+
+    def set_work_path_functional(self):
+        '''
+        '''
+        if self.problem_name == 'langevin_stop-t':
+            #def f(x):
+            #    return 1
+
+            #def g(x):
+            #    return 0
+            self.f = functools.partial(constant, a=1.)
+            self.g = functools.partial(constant, a=0.)
+
+        elif self.problem_name == 'langevin_det-t':
+            #def f(x):
+            #    return 0
+
+            self.f = functools.partial(constant, a=0.)
+            self.g = functools.partial(quadratic_one_well, nu=np.ones(self.n))
 
     def set_settings_dir_path(self):
 
