@@ -14,12 +14,6 @@ def get_parser():
                          'The space of possible controls is given by the linear combination' \
                          'of vector fields from Gaussian ansatz functions.'
     parser.add_argument(
-        '--do-iteration-plots',
-        dest='do_iteration_plots',
-        action='store_true',
-        help='Do plots for each iteration. Default: False',
-    )
-    parser.add_argument(
         '--do-importance-sampling',
         dest='do_importance_sampling',
         action='store_true',
@@ -32,8 +26,9 @@ def main():
 
     # initialize sampling object
     sample = Sampling(
-        n=args.n,
+        problem_name=args.problem_name,
         potential_name=args.potential_name,
+        n=args.n,
         alpha=np.full(args.n, args.alpha_i),
         beta=args.beta,
         is_controlled=True,
@@ -86,7 +81,6 @@ def main():
         optimizer='sgd',
         lr=args.lr,
         n_iterations_lim=args.n_iterations_lim,
-        do_iteration_plots=args.do_iteration_plots,
     )
 
     # start gd with ipa estimator for the gradient

@@ -1,4 +1,3 @@
-from mds.plots import Plot
 from mds.utils_path import make_dir_path, get_som_dir_path, get_time_in_hms
 from mds.utils_numeric import slice_1d_array
 
@@ -14,8 +13,7 @@ import os
 class StochasticOptimizationMethod:
     '''
     '''
-    def __init__(self, sample, loss_type, optimizer, lr, n_iterations_lim,
-                 do_iteration_plots=False):
+    def __init__(self, sample, loss_type, optimizer, lr, n_iterations_lim):
         '''
         '''
         # sampling object to estimate the loss and its gradient
@@ -59,16 +57,10 @@ class StochasticOptimizationMethod:
         self.ct_final = None
         self.ct = None
 
-        # flag for plotting at each iteration
-        self.do_iteration_plots = do_iteration_plots
-
         # set path
         self.dir_path = None
         self.set_dir_path()
-        if do_iteration_plots:
-            self.set_iterations_dir_path()
-        else:
-            self.iterations_dir_path = None
+        self.iterations_dir_path = None
 
     def set_dir_path(self):
         if self.sample.ansatz is not None:
@@ -184,10 +176,6 @@ class StochasticOptimizationMethod:
         self.preallocate_arrays()
 
         for i in np.arange(self.n_iterations_lim):
-
-            # plot control, free_energy and tilted potential
-            if self.do_iteration_plots:
-                pass
 
             # compute loss and its gradient 
             succ = self.sample.sample_loss_ipa_ansatz()
@@ -443,7 +431,7 @@ class StochasticOptimizationMethod:
             self.time_steps_is_hjb = np.full(self.n_iterations, np.nan)
             self.ct_is_hjb = np.full(self.n_iterations, np.nan)
 
-    def load_plot_labels_colors_and_lniestyles(self):
+    def load_plot_labels_colors_and_linestyles(self):
 
         self.colors = ['tab:blue', 'tab:orange', 'tab:grey', 'tab:cyan']
         self.linestyles = ['-', 'dashed', 'dashdot', 'dashdot']
@@ -522,15 +510,15 @@ class StochasticOptimizationMethod:
         '''
         from figures.myfigure import MyFigure
         #TODO! debug
-        plt = Plot(self.dir_path, 'I_u')
-        plt.plt.plot(x, self.means_I_u, color='b', linestyle='-')
-        plt.plt.fill_between(
+        x = np.arange(self.n_iterations)
+        plt.plot(x, self.means_I_u, color='b', linestyle='-')
+        plt.fill_between(
             self.iterations,
             self.means_I_u - self.vars_I_u,
             self.means_I_u + self.vars_I_u,
         )
-        plt.plt.savefig(plt.file_path)
-        plt.plt.close()
+        plt.savefig(plt.file_path)
+        plt.close()
 
     def plot_time_steps(self):
         '''

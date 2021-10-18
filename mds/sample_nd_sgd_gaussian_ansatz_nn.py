@@ -12,12 +12,6 @@ import torch
 def get_parser():
     parser = get_base_parser()
     parser.description = ''
-    parser.add_argument(
-        '--do-iteration-plots',
-        dest='do_iteration_plots',
-        action='store_true',
-        help='Do plots for each iteration. Default: False',
-    )
     return parser
 
 def main():
@@ -33,6 +27,7 @@ def main():
 
     # initialize sampling object
     sample = Sampling(
+        problem_name=args.problem_name,
         potential_name=args.potential_name,
         n=args.n,
         alpha=alpha,
@@ -123,7 +118,6 @@ def main():
         optimizer='adam',
         lr=args.lr,
         n_iterations_lim=args.n_iterations_lim,
-        do_iteration_plots=args.do_iteration_plots,
     )
 
     # start sgd
