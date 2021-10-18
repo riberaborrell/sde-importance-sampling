@@ -185,9 +185,15 @@ def get_gaussian_ansatz_dir_path(settings_dir_path, distributed, theta, m_i=None
 
 
 
-def get_som_dir_path(func_appr_dir_path, loss_type, optimizer, lr, dt, N):
+def get_som_dir_path(func_appr_dir_path, loss_type, optimizer, lr, dt, N, seed):
     ''' Get stochastic optimization method absolute dir path and create its directories
     '''
+
+    if seed is not None:
+        seed_str = 'seed_{:d}'.format(seed)
+    else:
+        seed_str = ''
+
     # get dir path
     dir_path = os.path.join(
         func_appr_dir_path,
@@ -196,6 +202,7 @@ def get_som_dir_path(func_appr_dir_path, loss_type, optimizer, lr, dt, N):
         'lr_{}'.format(float(lr)),
         'dt_{}'.format(dt),
         'N_{}'.format(N),
+        seed_str,
     )
     return dir_path
 

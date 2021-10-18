@@ -16,6 +16,7 @@ class StochasticOptimizationMethod:
     def __init__(self, sample, loss_type, optimizer, lr, n_iterations_lim):
         '''
         '''
+
         # sampling object to estimate the loss and its gradient
         self.sample = sample
 
@@ -75,6 +76,7 @@ class StochasticOptimizationMethod:
             self.lr,
             self.sample.dt,
             self.sample.N,
+            self.sample.seed,
         )
 
     def set_iterations_dir_path(self):
@@ -258,6 +260,9 @@ class StochasticOptimizationMethod:
         # save npz file
         np.savez(
             os.path.join(self.dir_path, 'som.npz'),
+            seed=self.sample.seed,
+            dt=self.sample.dt,
+            N=self.sample.N,
             n_iterations=self.n_iterations,
             thetas=self.thetas,
             losses=self.losses,
