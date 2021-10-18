@@ -2,7 +2,6 @@ from mds.langevin_nd_sde import LangevinSDE
 from mds.utils_path import get_not_controlled_dir_path, \
                            get_controlled_dir_path, \
                            get_time_in_hms
-from mds.plots import Plot
 
 import numpy as np
 import torch
@@ -314,6 +313,28 @@ class Sampling(LangevinSDE):
 
         return idx
 
+    def sample_not_controlled_det(self):
+        self.start_timer()
+
+        # initialize xt
+        xt = self.initial_position()
+
+        for k in np.arange(1, self.k_lim + 1):
+
+            # compute gradient
+            gradient = self.gradient(xt)
+
+            # get Brownian increment
+            dB = self.brownian_increment()
+
+            # sde update
+            xt = self.sde_update(xt, gradient, dB)
+
+        # save work functional
+        self.work = self.g(xt)
+
+        self.stop_timer()
+
     def sample_not_controlled(self):
         self.start_timer()
         self.preallocate_fht()
@@ -429,6 +450,44 @@ class Sampling(LangevinSDE):
         self.compute_I_u_statistics()
         if self.do_u_l2_error:
             self.u_l2_error = np.mean(self.u_l2_error_fht)
+        self.stop_timer()
+
+    def sample_optimal_controlled_det(self, h):
+        self.start_timer()
+
+        # initialize xt
+        xt = self.initial_position()
+
+        # initialize deterministic and stochastic integrals at time t
+        self.initialize_running_integrals()
+
+        # load hjb solver and get the "optimal" control
+        sol_hjb = self.get_hjb_solver(h)
+        u_opt = sol_hjb.u_opt
+        self.Nx = sol_hjb.Nx
+
+        for k in np.arange(1, self.k_lim +1):
+
+            # control at xt
+            idx_xt = self.get_index_vectorized(xt)
+            ut = u_opt[idx_xt]
+
+            # compute gradient
+            gradient = self.tilted_gradient(xt, ut)
+
+            # get Brownian increment
+            dB = self.brownian_increment()
+
+            # sde update
+            xt = self.sde_update(xt, gradient, dB)
+
+            # stochastic and deterministic integrals 
+            self.update_integrals(ut, dB)
+
+        # save work functional
+        self.work = self.g(xt)
+
+        #self.compute_I_u_statistics()
         self.stop_timer()
 
     def sample_optimal_controlled(self, h):
@@ -1114,8 +1173,12 @@ class Sampling(LangevinSDE):
         self.re_fht = self.compute_mean_variance_and_rel_error(self.fht)
 
     def compute_I_statistics(self):
-        # compute mean, variance and relative error of I
-        I = np.exp(- self.fht)
+        ''' compute mean, variance and relative error of the sampled quantity of interest
+        '''
+        if self.problem_name == 'langevin_stop-t':
+            I = np.exp(- self.fht)
+        elif self.problem_name == 'langevin_det-t':
+            I = np.exp(- self.work)
         self.mean_I, \
         self.var_I, \
         self.re_I = self.compute_mean_variance_and_rel_error(I)
@@ -1132,6 +1195,23 @@ class Sampling(LangevinSDE):
             - self.fht
             - np.sqrt(self.beta) * self.stoch_int_fht
             - (self.beta / 2) * self.det_int_fht
+        )
+        self.mean_I_u, \
+        self.var_I_u, \
+        self.re_I_u = self.compute_mean_variance_and_rel_error(I_u)
+
+    def compute_I_u_statistics_det(self):
+        #TODO: compute mean of M_fht
+        M_fht = np.exp(
+            - np.sqrt(self.beta) * self.stoch_int_t
+            - (self.beta / 2) * self.det_int_t
+        )
+
+        # compute mean, variance and relative error of I_u
+        I_u = np.exp(
+            - self.work
+            - np.sqrt(self.beta) * self.stoch_int_t
+            - (self.beta / 2) * self.det_int_t
         )
         self.mean_I_u, \
         self.var_I_u, \
@@ -1398,20 +1478,27 @@ class Sampling(LangevinSDE):
         self.grid_controlled_drift = - self.grid_gradient + np.sqrt(2) * self.grid_control
 
     def plot_trajectory(self):
+        from figures.myfigure import MyFigure
         traj_fhs = self.traj.shape[0]
         traj_fht = traj_fhs * self.dt
         x = np.linspace(0, traj_fht, traj_fhs)
-        ys = np.moveaxis(self.traj, 0, -1)
+        y = np.moveaxis(self.traj, 0, -1)
         labels = [r'$x_{}$'.format(i+1) for i in np.arange(self.n)]
 
         for i in np.arange(self.n):
-            file_name = 'trajectory_x{:d}'.format(i+1)
-            plt = Plot(self.dir_path, file_name)
-            plt.xlabel = 't'
-            plt.ylabel = r'$x_{:d}$'.format(i+1)
-            plt.one_line_plot(x, self.traj[:, i])
+            fig = plt.figure(
+                FigureClass=MyFigure,
+                dir_path=self.dir_path,
+                file_name='trajectory_x{:d}'.format(i+1),
+            )
+            fig.set_xlabel = 't'
+            fig.set_ylabel = r'$x_{:d}$'.format(i+1)
+            fig.plot(x, self.traj[:, i])
 
-        file_name = 'trajectory'
-        plt = Plot(self.dir_path, file_name)
-        plt.xlabel = 't'
-        plt.multiple_lines_plot(x, ys, labels=labels)
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='trajectory',
+        )
+        fig.set_xlabel = 't'
+        fig.plot(x, y, labels=labels)

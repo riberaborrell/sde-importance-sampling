@@ -29,15 +29,15 @@ class SolverHJB(LangevinSDE):
         super().__init__(problem_name, potential_name, n, alpha, beta,
                          target_set, domain)
 
-        def f(x):
-            return 1
-
-        def g(x):
-            return 0
+        #def f(x):
+        #    return 1
+        #
+        #def g(x):
+        #    return 0
 
         # work functional
-        self.f = f
-        self.g = g
+        #self.f = f
+        #self.g = g
 
         # discretization step
         self.h = h
@@ -219,6 +219,73 @@ class SolverHJB(LangevinSDE):
 
         Psi = linalg.spsolve(A.tocsc(), b)
         self.Psi = Psi.reshape(self.Nx)
+        self.solved = True
+
+    def solve_bvp_det(self):
+        # preallocate psi at each time step
+        K = int(self.T / self.dt)
+        self.Psi = np.empty((K+1,) + self.Nx)
+
+        # flat domain
+        x = self.domain_h.reshape(self.Nh, self.n)
+
+        # evaluate psi at T
+        psi_T_flat = np.exp(- self.g(x))
+        psi_T = psi_T_flat.reshape(self.Nx)
+        self.Psi[K, :] = psi_T
+
+        # reverse loop over the time step indices
+        for l in range(K - 1, -1, -1):
+
+            #if l // 10 == 1:
+            print(l)
+
+            # assemble linear system of equations: A \Psi = b.
+            A = sparse.lil_matrix((self.Nh, self.Nh))
+            b = np.zeros(self.Nh)
+
+            for k in arange_generator(self.Nh):
+
+                # get discretized domain index
+                idx = self.get_bumpy_index(k)
+
+                # classify type of node
+                is_on_boundary = self.is_on_domain_boundary(idx)
+
+                if not is_on_boundary:
+                    # assemble matrix A and vector b on S
+                    x = self.get_x(idx)
+                    grad = self.gradient(np.array([x]))[0]
+                    A[k, k] = + self.dt * (2 * self.n) / (self.beta * self.h**2) + self.dt * self.f(x) + 1
+                    for i in range(self.n):
+                        k_left, k_right = self.get_flatten_idx_from_axis_neighbours(idx, i)
+                        A[k, k_left] = - self.dt / (self.beta * self.h**2) - self.dt * grad[i] / (2 * self.h)
+                        A[k, k_right] = self.dt / (self.beta * self.h**2) + self.dt * grad[i] / (2 * self.h)
+
+                    psi_l_plus_flat = self.Psi[l + 1, :].reshape(self.Nh)
+                    b[k] = psi_l_plus_flat[k]
+                else:
+                    neighbour_counter = 0
+                    for i in range(self.n):
+                        if self.is_on_domain_boundary_i_axis(idx, i):
+
+                            # update counter
+                            neighbour_counter += 1
+
+                            # add neighbour
+                            k_left, k_right = self.get_flatten_idx_from_axis_neighbours(idx, i)
+                            if k_left is not None:
+                                A[k, k_left] = - 1
+                            elif k_right is not None:
+                                A[k, k_right] = - 1
+
+                    # normalize
+                    A[k, k] = neighbour_counter
+
+            # solve linear system
+            self.Psi[l, :] = linalg.spsolve(A.tocsc(), b)
+
+
         self.solved = True
 
     def compute_free_energy(self):

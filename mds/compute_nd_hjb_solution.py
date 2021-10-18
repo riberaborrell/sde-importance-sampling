@@ -22,7 +22,7 @@ def main():
 
     # initialize hjb solver
     sol_hjb = SolverHJB(
-        problem_name=args.problem_name,
+        problem_name='langevin_stop-t',
         potential_name=args.potential_name,
         n=args.n,
         alpha=alpha,

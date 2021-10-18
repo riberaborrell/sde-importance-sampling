@@ -97,7 +97,7 @@ class LangevinSDE(object):
             #    return 0
 
             self.f = functools.partial(constant, a=0.)
-            self.g = functools.partial(quadratic_one_well, nu=np.ones(self.n))
+            self.g = functools.partial(quadratic_one_well, nu=3 * np.ones(self.n))
 
     def set_settings_dir_path(self):
 

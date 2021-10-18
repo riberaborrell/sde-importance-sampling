@@ -74,6 +74,13 @@ def get_base_parser():
         help='Set the discretization step size for the hjb sol. Default: 0.1',
     )
     parser.add_argument(
+        '--dt-hjb',
+        dest='dt_hjb',
+        type=float,
+        default=0.005,
+        help='Set the time discretization increment for the hjb sol with det time horizont. Default: 0.005',
+    )
+    parser.add_argument(
         '--N',
         dest='N',
         type=int,
