@@ -71,11 +71,11 @@ def main():
 
         # 2d
         elif sol_hjb.n == 2:
-            sol_hjb.plot_2d_psi(sol_hjb.Psi)
-            sol_hjb.plot_2d_free_energy(sol_hjb.F)
-            sol_hjb.plot_2d_controlled_potential(sol_hjb.controlled_potential)
-            sol_hjb.plot_2d_control(sol_hjb.u_opt)
-            sol_hjb.plot_2d_controlled_drift(sol_hjb.controlled_drift)
+            sol_hjb.plot_2d_psi()
+            sol_hjb.plot_2d_free_energy()
+            sol_hjb.plot_2d_controlled_potential()
+            sol_hjb.plot_2d_control()
+            sol_hjb.plot_2d_controlled_drift()
         else:
             pass
 

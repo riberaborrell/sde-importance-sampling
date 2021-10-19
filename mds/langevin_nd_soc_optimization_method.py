@@ -2,7 +2,6 @@ from mds.utils_path import make_dir_path, get_som_dir_path, get_time_in_hms
 from mds.utils_numeric import slice_1d_array
 
 import matplotlib.pyplot as plt
-
 import numpy as np
 import torch
 import torch.optim as optim

@@ -2,7 +2,6 @@ from ansatz_functions import fe_1d_1o_basis_function, \
                              fe_1d_1o_basis_function_derivative, \
                              finite_element_1d_1order_basis, \
                              finite_element_1d_1order_basis_derivative
-from plotting import Plot
 
 import numpy as np
 import matplotlib.pyplot as plt

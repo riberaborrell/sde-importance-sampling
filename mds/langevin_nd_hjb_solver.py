@@ -29,16 +29,6 @@ class SolverHJB(LangevinSDE):
         super().__init__(problem_name, potential_name, n, alpha, beta,
                          target_set, domain)
 
-        #def f(x):
-        #    return 1
-        #
-        #def g(x):
-        #    return 0
-
-        # work functional
-        #self.f = f
-        #self.g = g
-
         # discretization step
         self.h = h
 
@@ -519,3 +509,103 @@ class SolverHJB(LangevinSDE):
         if ylim is not None:
             fig.set_ylim(ylim[0], ylim[1])
         fig.plot(x, self.controlled_drift[:, 0], labels='num sol HJB PDE', colors='tab:cyan')
+
+    def plot_2d_psi(self):
+        from figures.myfigure import MyFigure
+
+        # contour plot
+        X = self.domain_h[:, :, 0]
+        Y = self.domain_h[:, :, 1]
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='psi',
+        )
+        fig.set_xlabel = r'$x_1$'
+        fig.set_ylabel = r'$x_2$'
+        fig.set_xlim(-2, 2)
+        fig.set_ylim(-2, 2)
+        fig.set_contour_levels_scale('log')
+        fig.contour(X, Y, self.Psi)
+
+        # surface plot
+
+
+    def plot_2d_free_energy(self):
+        from figures.myfigure import MyFigure
+
+        # contour plot
+        X = self.domain_h[:, :, 0]
+        Y = self.domain_h[:, :, 1]
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='free-energy',
+        )
+        fig.set_xlabel = r'$x_1$'
+        fig.set_ylabel = r'$x_2$'
+        fig.set_xlim(-2, 2)
+        fig.set_ylim(-2, 2)
+        fig.set_contour_levels_scale('log')
+        fig.contour(X, Y, self.F)
+
+        # surface plot
+
+
+    def plot_2d_controlled_potential(self):
+        from figures.myfigure import MyFigure
+
+        # contour plot
+        X = self.domain_h[:, :, 0]
+        Y = self.domain_h[:, :, 1]
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='controlled-potential',
+        )
+        fig.set_xlabel = r'$x_1$'
+        fig.set_ylabel = r'$x_2$'
+        fig.set_xlim(-2, 2)
+        fig.set_ylim(-2, 2)
+        fig.set_contour_levels_scale('log')
+        fig.contour(X, Y, self.controlled_potential)
+
+        # surface plot
+
+
+    def plot_2d_control(self, scale=None, width=0.005):
+        from figures.myfigure import MyFigure
+
+        X = self.domain_h[:, :, 0]
+        Y = self.domain_h[:, :, 1]
+        U = self.u_opt[:, :, 0]
+        V = self.u_opt[:, :, 1]
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='control',
+        )
+        fig.set_xlabel = r'$x_1$'
+        fig.set_ylabel = r'$x_2$'
+        fig.set_xlim(-2, 2)
+        fig.set_ylim(-2, 2)
+        fig.vector_field(X, Y, U, V, scale=scale, width=width)
+
+
+    def plot_2d_controlled_drift(self, scale=None, width=0.005):
+        from figures.myfigure import MyFigure
+
+        X = self.domain_h[:, :, 0]
+        Y = self.domain_h[:, :, 1]
+        U = self.controlled_drift[:, :, 0]
+        V = self.controlled_drift[:, :, 1]
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='controlled-drift',
+        )
+        fig.set_xlabel = r'$x_1$'
+        fig.set_ylabel = r'$x_2$'
+        fig.set_xlim(-1.5, 1.5)
+        fig.set_ylim(-1.5, 1.5)
+        fig.vector_field(X, Y, U, V, scale=scale, width=width)

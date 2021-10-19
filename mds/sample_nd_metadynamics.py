@@ -111,11 +111,11 @@ def main():
             idx_traj_with_updates = [i for i in range(args.N_meta) if meta.ms[i] != 0]
             for i in idx_traj_with_updates:
                 meta.plot_1d_updates(i=i)
-                #meta.plot_1d_update()
+                meta.plot_1d_update()
 
         # 2d plots
         elif sample.n == 2:
-            #meta.plot_2d_update()
+            meta.plot_2d_update()
             meta.plot_2d_means()
 
         # 3d plots

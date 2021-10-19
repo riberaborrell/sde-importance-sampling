@@ -99,11 +99,17 @@ class GetFlatBiasPotential:
             return False
 
     def plot_2d_training_data(self):
-        from mds.plots import Plot
+        from figures.myfigure import MyFigure
+
         x, y = np.moveaxis(self.x, -1, 0)
-        plt = Plot(self.dir_path, 'training_data')
-        plt.plt.scatter(x, y)
-        plt.plt.xlim(-3, 3)
-        plt.plt.ylim(-3, 3)
-        plt.plt.savefig(plt.file_path)
-        plt.plt.close()
+
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='training-data',
+        )
+        plt.scatter(x, y)
+        plt.xlim(-3, 3)
+        plt.ylim(-3, 3)
+        plt.savefig(fig.file_path)
+        plt.close()

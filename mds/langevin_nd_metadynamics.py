@@ -1,11 +1,11 @@
 from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
 from mds.utils_path import get_metadynamics_dir_path, make_dir_path, empty_dir, get_time_in_hms
 from mds.utils_numeric import slice_1d_array
-from mds.plots import Plot
 
-import time
+import matplotlib.pyplot as plt
 import numpy as np
 import os
+import time
 
 META_TYPES = [
     'cum', # cumulative, bias potential with gaussian ansatz
@@ -418,19 +418,21 @@ class Metadynamics:
         f.close()
 
     def plot_n_gaussians(self, dir_path=None):
-
-        # set directory path
-        if dir_path is None:
-            dir_path = self.dir_path
-
+        from figures.myfigure import MyFigure
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='n-gaussians',
+        )
         trajectories = np.arange(self.N)
-        plt = Plot(dir_path, 'n_gaussians')
-        plt.plt.hist(trajectories, self.ms)
-        plt.plt.savefig(plt.file_path)
-        plt.plt.close()
-        #plt.one_line_plot(trajectories, self.ms)
+        plt.hist(trajectories, self.ms)
+        plt.savefig(fig.file_path)
+        plt.close()
+        #plt.plot(trajectories, self.ms)
 
     def plot_1d_updates(self, i=0):
+        from figures.myfigure import MyFigure
+
         # discretize domain and evaluate in grid
         self.sample.discretize_domain(h=0.001)
         x = self.sample.domain_h[:, 0]
@@ -442,14 +444,18 @@ class Metadynamics:
 
         if n_updates < n_sliced_updates:
             sliced_updates = updates
+            n_sliced_updates = n_updates
         else:
             sliced_updates = slice_1d_array(updates, n_elements=n_sliced_updates)
 
+        # preallocate arrays
+        frees = np.zeros((n_sliced_updates + 2, x.shape[0]))
+        controls = np.zeros((n_sliced_updates + 2, x.shape[0]))
+        controlled_potentials = np.zeros((n_sliced_updates + 2, x.shape[0]))
+
         # preallocate functions
         labels = []
-        frees = np.zeros((sliced_updates.shape[0] + 1, x.shape[0]))
-        controls = np.zeros((sliced_updates.shape[0] + 1, x.shape[0]))
-        controlled_potentials = np.zeros((sliced_updates.shape[0] + 1, x.shape[0]))
+        colors = [None for i in range(n_sliced_updates + 2)]
 
         # the initial bias potential is the not controlled potential
         if self.meta_type == 'ind':
@@ -487,20 +493,59 @@ class Metadynamics:
         sol_hjb = self.sample.get_hjb_solver(h=0.001)
         sol_hjb.discretize_domain()
         sol_hjb.get_controlled_potential_and_drift()
+        frees[-1, :] = sol_hjb.F
+        controlled_potentials[-1, :] = sol_hjb.controlled_potential
+        controls[-1, :] = sol_hjb.u_opt[:, 0]
+        labels.append('num sol HJB PDE')
+        colors[-1] = 'tab:cyan'
+        breakpoint()
 
         # file extension
         ext = '_i_{}'.format(i)
 
-        self.sample.plot_1d_free_energies(frees, F_hjb=sol_hjb.F, labels=labels[:],
-                                          dir_path=self.dir_path, ext=ext)
-        self.sample.plot_1d_controls(controls, u_hjb=sol_hjb.u_opt[:, 0], labels=labels[:],
-                                     dir_path=self.dir_path, ext=ext)
-        self.sample.plot_1d_controlled_potentials(controlled_potentials,
-                                                  controlledV_hjb=sol_hjb.controlled_potential,
-                                                  labels=labels[:], dir_path=self.dir_path,
-                                                  ext=ext)
+        #self.sample.plot_1d_free_energies(frees, F_hjb=sol_hjb.F, labels=labels[:],
+        #                                  dir_path=self.dir_path, ext=ext)
+        #self.sample.plot_1d_controls(controls, u_hjb=sol_hjb.u_opt[:, 0], labels=labels[:],
+        #                             dir_path=self.dir_path, ext=ext)
+        #self.sample.plot_1d_controlled_potentials(controlled_potentials,
+        #3                                          controlledV_hjb=sol_hjb.controlled_potential,
+        #                                          labels=labels[:], dir_path=self.dir_path,
+        #                                          ext=ext)
+
+        # plot free energy
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='free-energy' + ext,
+        )
+        fig.set_xlabel = 'x'
+        fig.set_xlim(-2, 2)
+        fig.plot(x, frees, labels=labels, colors=colors)
+
+        # plot controlled potential
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='controlled-potential' + ext,
+        )
+        controlled_potentials[-1, :] = sol_hjb.controlled_potential
+        fig.set_xlabel = 'x'
+        fig.set_xlim(-2, 2)
+        fig.plot(x, controlled_potentials, labels=labels, colors=colors)
+
+        # plot control
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='control' + ext,
+        )
+        controls[-1, :] = sol_hjb.u_opt[:, 0]
+        fig.set_xlabel = 'x'
+        fig.set_xlim(-2, 2)
+        fig.plot(x, controls, labels=labels, colors=colors)
 
     def plot_1d_update(self, i=None, update=None):
+        from figures.myfigure import MyFigure
 
         # plot given update for the chosen trajectory
         if i is not None:
@@ -522,11 +567,11 @@ class Metadynamics:
             # set ansatz
             self.set_ansatz_trajectory(i, update)
 
-        # plot averaged bias potential
+        # plot bias potential
         else:
-            if not self.is_cumulative:
+            if self.meta_type == 'ind':
                 self.set_ansatz_averaged()
-            else:
+            elif self.meta_type == 'cum':
                 self.set_ansatz_cumulative()
 
             # set plot dir path and file extension
@@ -538,24 +583,63 @@ class Metadynamics:
         self.sample.get_grid_value_function()
         self.sample.get_grid_control()
 
-        controlled_potentials = self.sample.grid_controlled_potential
-        frees = self.sample.grid_value_function
-        controls = self.sample.grid_control
-
         # get hjb solution
         sol_hjb = self.sample.get_hjb_solver(h=0.001)
         sol_hjb.discretize_domain()
         sol_hjb.get_controlled_potential_and_drift()
 
+        # colors and labels
+        labels = [r'meta (trajectory: {}, update: {})'.format(i, update), 'num sol HJB PDE']
+        colors = ['tab:purple', 'tab:cyan']
 
-        self.sample.plot_1d_controlled_potential(self.sample.grid_controlled_potential,
-                                                 dir_path=plot_dir_path, ext=ext)
-        self.sample.plot_1d_control(self.sample.grid_control[:, 0],
-                                    dir_path=plot_dir_path, ext=ext)
-        self.sample.plot_1d_controlled_drift(self.sample.grid_controlled_drift[:, 0],
-                                             dir_path=plot_dir_path, ext=ext)
+        # domain
+        x = self.sample.domain_h[:, 0]
+
+        # plot free energy
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=plot_dir_path,
+            file_name='free-energy' + ext,
+        )
+        y = np.vstack((
+            self.sample.grid_value_function,
+            sol_hjb.F,
+        ))
+        fig.set_xlabel = 'x'
+        fig.set_xlim(-2, 2)
+        fig.plot(x, y, labels=labels, colors=colors)
+
+        # plot controlled potential
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=plot_dir_path,
+            file_name='controlled-potential' + ext,
+        )
+        y = np.vstack((
+            self.sample.grid_controlled_potential,
+            sol_hjb.controlled_potential,
+        ))
+        fig.set_xlabel = 'x'
+        fig.set_xlim(-2, 2)
+        fig.plot(x, y, labels=labels, colors=colors)
+
+        # plot control
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=plot_dir_path,
+            file_name='control' + ext,
+        )
+        y = np.vstack((
+            self.sample.grid_control[:, 0],
+            sol_hjb.u_opt[:, 0],
+        ))
+        fig.set_xlabel = 'x'
+        fig.set_xlim(-2, 2)
+        fig.plot(x, y, labels=labels, colors=colors)
+
 
     def plot_2d_update(self, i=None, update=None):
+        from figures.myfigure import MyFigure
 
         # plot given update for the chosen trajectory
         if i is not None:
@@ -578,14 +662,14 @@ class Metadynamics:
             self.set_ansatz_trajectory(i, update)
 
         # plot averaged bias potential
-        elif not self.is_cumulative:
+        elif self.meta_type == 'ind':
             self.set_ansatz_averaged()
 
             # set plot dir path and file extension
             plot_dir_path = self.dir_path
             ext = ''
 
-        else:
+        elif self.meta_type == 'cum':
             self.set_ansatz_cumulative()
 
             # set plot dir path and file extension
@@ -597,56 +681,99 @@ class Metadynamics:
         self.sample.get_grid_value_function()
         self.sample.get_grid_control()
 
-        self.sample.plot_2d_controlled_potential(self.sample.grid_controlled_potential,
-                                                 plot_dir_path, ext)
-        self.sample.plot_2d_control(self.sample.grid_control, plot_dir_path, ext)
-        self.sample.plot_2d_controlled_drift(self.sample.grid_controlled_drift,
-                                             plot_dir_path, ext)
+        # domain
+        X = self.sample.domain_h[:, :, 0]
+        Y = self.sample.domain_h[:, :, 1]
+
+        # plot free energy
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=plot_dir_path,
+            file_name='free-energy' + ext,
+        )
+        fig.set_xlim(-2, 2)
+        fig.set_ylim(-2, 2)
+        fig.set_contour_levels_scale('log')
+        fig.contour(X, Y, self.sample.grid_value_function)
+
+        # plot controlled potential
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=plot_dir_path,
+            file_name='controlled-potential' + ext,
+        )
+        fig.set_xlim(-2, 2)
+        fig.set_ylim(-2, 2)
+        fig.set_contour_levels_scale('log')
+        fig.contour(X, Y, self.sample.grid_controlled_potential)
+
+        # plot control
+        U = self.sample.grid_control[:, :, 0]
+        V = self.sample.grid_control[:, :, 1]
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=plot_dir_path,
+            file_name='control' + ext,
+        )
+        fig.set_xlim(-2, 2)
+        fig.set_ylim(-2, 2)
+        fig.vector_field(X, Y, U, V, scale=30)
 
     def plot_2d_means(self):
+        from figures.myfigure import MyFigure
         assert self.means.shape[1] == 2, ''
-
         x, y = np.moveaxis(self.means, -1, 0)
-        plt = Plot(self.dir_path, 'means')
-        plt.plt.scatter(x, y)
-        plt.plt.xlim(-2, 2)
-        plt.plt.ylim(-2, 2)
-        plt.plt.savefig(plt.file_path)
-        plt.plt.close()
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='means',
+        )
+        plt.scatter(x, y)
+        plt.xlim(-2, 2)
+        plt.ylim(-2, 2)
+        plt.savefig(fig.file_path)
+        plt.close()
 
     def plot_3d_means(self):
-        assert self.means.shape[1] == 3, ''
+        from figures.myfigure import MyFigure
 
+        assert self.means.shape[1] == 3, ''
         x, y, z = np.moveaxis(self.means, -1, 0)
-        plt = Plot(self.dir_path, 'means')
-        plt.plt.scatter(x, y, z)
-        plt.plt.xlim(-2, 2)
-        plt.plt.ylim(-2, 2)
-        plt.plt.savefig(plt.file_path)
-        plt.plt.close()
+
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='means',
+        )
+        plt.scatter(x, y, z)
+        plt.xlim(-2, 2)
+        plt.ylim(-2, 2)
+        plt.savefig(plt.file_path)
+        plt.close()
 
     def plot_projected_means(self, i, j):
+        from figures.myfigure import MyFigure
+
         m = np.sum(self.ms)
         proj_means = np.empty((m, 2))
         for k in range(m):
             proj_means[k, 0] = self.means[k, i]
             proj_means[k, 1] = self.means[k, j]
         x, y = np.moveaxis(proj_means, -1, 0)
-        plt = Plot(self.dir_path, 'means-{}-{}'.format(i, j))
-        plt.plt.scatter(x, y)
-        plt.plt.xlim(-2, 2)
-        plt.plt.ylim(-2, 2)
-        plt.plt.savefig(plt.file_path)
-        plt.plt.close()
+
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='means-{}-{}'.format(i, j),
+        )
+        plt.scatter(x, y)
+        plt.xlim(-2, 2)
+        plt.ylim(-2, 2)
+        plt.savefig(fig.file_path)
+        plt.close()
 
     def plot_nd_means(self):
         n = self.sample.n
         idx_dim_pairs = [(i, j) for i in range(n) for j in range(n) if j > i]
         for i, j in idx_dim_pairs:
             self.plot_projected_means(i, j)
-
-
-
-
-
-
