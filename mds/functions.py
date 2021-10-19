@@ -41,7 +41,7 @@ def quadratic_one_well(x, nu, tensor=False):
             return np.sum(nu * (x -1)**2)
         else:
             nu_tensor = torch.tensor(nu, requires_grad=False)
-            return torch.sum(nu_tensor * torch.power((x -1), 2), axis=0)
+            return torch.sum(nu_tensor * torch.float_power((x -1), 2), axis=0)
 
     # n-dimensional vector funcion
     elif x.ndim == 2:
@@ -53,7 +53,5 @@ def quadratic_one_well(x, nu, tensor=False):
         if not tensor:
             return np.sum(nu * (x -1)**2, axis=1)
         else:
-            pass
-        #f= np.zeros(N)
-        #for i in range(n):
-        #    f += alpha[i] * np.power(np.power(x[:, i], 2) - 1, 2)
+            nu_tensor = torch.tensor(nu, requires_grad=False)
+            return torch.sum(nu_tensor * torch.float_power((x -1), 2), axis=1)

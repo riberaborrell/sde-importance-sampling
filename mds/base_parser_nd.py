@@ -95,6 +95,13 @@ def get_base_parser():
         help='Set dt. Default: 0.001',
     )
     parser.add_argument(
+        '--T',
+        dest='T',
+        type=float,
+        default=1.,
+        help='Set deterministic time horizont. Default: 1.',
+    )
+    parser.add_argument(
         '--k-lim',
         dest='k_lim',
         type=int,
