@@ -1,4 +1,4 @@
-from mds.potentials_and_gradients_nd import POTENTIAL_NAMES
+from mds.langevin_nd_sde import POTENTIAL_NAMES
 
 import argparse
 

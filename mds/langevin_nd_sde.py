@@ -1,5 +1,4 @@
-from mds.functions import constant, quadratic_one_well
-from mds.potentials_and_gradients_nd import get_potential_and_gradient
+from mds.functions import constant, quadratic_one_well, double_well, double_well_gradient
 from mds.utils_path import get_data_dir
 
 import numpy as np
@@ -11,13 +10,17 @@ import functools
 import os
 import sys
 
+POTENTIAL_NAMES = [
+    'nd_2well',
+    'nd_2well_asym',
+]
 
 class LangevinSDE(object):
     '''
     '''
 
     def __init__(self, problem_name, potential_name, n, alpha, beta,
-                 target_set=None, domain=None):
+                 domain=None, target_set=None, T=None):
         '''
         '''
         # check problem name
@@ -25,7 +28,7 @@ class LangevinSDE(object):
         self.problem_name = problem_name
 
         # check potential name
-        assert type(potential_name) == str, ''
+        assert type(potential_name) == str and potential_name in POTENTIAL_NAMES, ''
         self.potential_name = potential_name
 
         # check dimension
@@ -39,7 +42,7 @@ class LangevinSDE(object):
         self.alpha = alpha
 
         # get potential and gradient functions
-        self.potential, self.gradient, _ = get_potential_and_gradient(potential_name, n, alpha)
+        self.set_potential_and_gradient()
 
         # check beta
         type(float) == float, ''
@@ -62,9 +65,16 @@ class LangevinSDE(object):
             assert type(target_set) == np.ndarray, ''
             assert target_set.ndim == 2, ''
             assert target_set.shape == (n, 2), ''
-        else:
+        elif target_set is None and problem_name == 'langevin_stop-t':
             target_set = np.full((n, 2), [1, 3])
         self.target_set = target_set
+
+        # check final time if we are in the deterministic time case
+        if T is not None and problem_name == 'langevin_det-t':
+            assert type(T) == float, ''
+        elif T is None and problem_name == 'langevin_det-t':
+            T = 1.
+        self.T = T
 
         # dir_path
         self.set_settings_dir_path()
@@ -79,22 +89,22 @@ class LangevinSDE(object):
             msg = 'Expected subclass of <class LangevinSDE>, got {}.'.format(type(obj))
             raise TypeError(msg)
 
+    def set_potential_and_gradient(self):
+        '''
+        '''
+        self.potential = functools.partial(double_well, alpha=self.alpha)
+        self.gradient = functools.partial(double_well_gradient, alpha=self.alpha)
+
     def set_work_path_functional(self):
         '''
         '''
+        # set f=1 and g=0, leading to W=fht
         if self.problem_name == 'langevin_stop-t':
-            #def f(x):
-            #    return 1
-
-            #def g(x):
-            #    return 0
             self.f = functools.partial(constant, a=1.)
             self.g = functools.partial(constant, a=0.)
 
+        # set f=0 and g=quadratic one well, leading to W=g(X_T)
         elif self.problem_name == 'langevin_det-t':
-            #def f(x):
-            #    return 0
-
             self.f = functools.partial(constant, a=0.)
             self.g = functools.partial(quadratic_one_well, nu=3 * np.ones(self.n))
 
