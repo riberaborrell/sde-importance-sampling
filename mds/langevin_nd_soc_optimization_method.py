@@ -12,7 +12,7 @@ import os
 class StochasticOptimizationMethod:
     '''
     '''
-    def __init__(self, sample, loss_type, optimizer, lr, n_iterations_lim):
+    def __init__(self, sample, loss_type=None, optimizer=None, lr=None, n_iterations_lim=None):
         '''
         '''
 
@@ -43,14 +43,6 @@ class StochasticOptimizationMethod:
         self.u_l2_errors = None
         self.time_steps = None
         self.cts = None
-
-        # running averages
-        self.n_last_iter = None
-        self.run_avg_mean_I_u = None
-        self.run_avg_var_I_u = None
-        self.run_avg_re_I_u = None
-        self.run_avg_loss = None
-        self.run_avg_u_l2_error = None
 
         # computational time
         self.ct_initial = None
@@ -139,7 +131,10 @@ class StochasticOptimizationMethod:
             self.u_l2_errors[i] = self.sample.u_l2_error
 
         # add time statistics
-        self.time_steps[i] = int(np.max(self.sample.fht) / self.sample.dt)
+        if self.sample.problem_name == 'langevin_stop-t':
+            self.time_steps[i] = int(np.max(self.sample.fht) / self.sample.dt)
+        elif self.sample.problem_name == 'langevin_det-t':
+            self.time_steps[i] = self.sample.k_lim
         self.cts[i] = self.sample.ct
 
     def cut_arrays(self):
@@ -222,12 +217,11 @@ class StochasticOptimizationMethod:
             # compute loss 
             if self.loss_type == 'ipa':
                 succ = self.sample.sample_loss_ipa_nn(device)
+                #succ = self.sample.sample_loss_ipa_nn_det(device)
             elif self.loss_type == 're':
                 succ = self.sample.sample_loss_re_nn(device)
             elif self.loss_type == 'logvar':
                 succ = self.sample.sample_loss_logvar_nn(device)
-
-            print('{:d}, {:2.3f}'.format(i, self.sample.loss))
 
             # check if sample succeeded
             if not succ:
@@ -235,6 +229,15 @@ class StochasticOptimizationMethod:
 
             # save information of the iteration
             self.update_arrays(i)
+            msg = 'it.: {:d}, loss: {:2.3f}, mean I^u: {:2.3e}, re I^u: {:2.3f},' \
+                  'time steps: {:2.1e}'.format(
+                      i,
+                      self.losses[i],
+                      self.means_I_u[i],
+                      self.res_I_u[i],
+                      self.time_steps[i],
+                  )
+            print(msg)
 
             # compute gradients
             if self.loss_type == 'ipa':
@@ -291,14 +294,27 @@ class StochasticOptimizationMethod:
             print('no som found')
             return False
 
-    def compute_running_averages(self, n_last_iter=10):
-        self.n_last_iter = n_last_iter
-        self.run_avg_mean_I_u = np.mean(self.means_I_u[n_last_iter:])
-        self.run_avg_var_I_u = np.mean(self.vars_I_u[n_last_iter:])
-        self.run_avg_re_I_u = np.mean(self.res_I_u[n_last_iter:])
-        self.run_avg_loss = np.mean(self.losses[n_last_iter:])
-        #if self.u_l2_errors is not None:
-        #    self.run_avg_u_l2_error = np.mean(self.u_l2_errors[n_last_iter:])
+    def compute_running_averages(self, n_iter_avg=10):
+        self.n_iter_avg = n_iter_avg
+        self.run_avg_losses = np.convolve(
+            self.losses, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
+        )
+        self.run_avg_means_I_u = np.convolve(
+            self.means_I_u, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
+        )
+        self.run_avg_vars_I_u = np.convolve(
+            self.vars_I_u, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
+        )
+        self.run_avg_res_I_u = np.convolve(
+            self.res_I_u, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
+        )
+        self.run_avg_time_steps = np.convolve(
+            self.time_steps, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
+        )
+        if self.u_l2_errors is not None:
+            self.run_avg_u_l2_errors = np.convolve(
+                self.u_l2_errors, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
+            )
 
     def write_report(self):
         sample = self.sample
@@ -309,9 +325,9 @@ class StochasticOptimizationMethod:
         # write in file
         f = open(file_path, 'w')
 
-        sample.write_setting(f)
-        sample.write_euler_maruyama_parameters(f)
-        sample.write_sampling_parameters(f)
+        #sample.write_setting(f)
+        #sample.write_euler_maruyama_parameters(f)
+        #sample.write_sampling_parameters(f)
 
         if self.sample.ansatz is not None:
             pass
@@ -334,19 +350,18 @@ class StochasticOptimizationMethod:
         f.write('RE[I_u]: {:2.3f}\n'.format(self.res_I_u[-1]))
         f.write('F: {:2.3f}\n'.format(- np.log(self.means_I_u[-1])))
         f.write('loss function: {:2.3f}\n'.format(self.losses[-1]))
-        #if self.u_l2_errors is not None:
-        #   f.write('u l2 error: {:2.3f}\n'.format(self.u_l2_errors[-1]))
-
+        if self.u_l2_errors is not None:
+           f.write('u l2 error: {:2.3f}\n'.format(self.u_l2_errors[-1]))
 
         self.compute_running_averages()
-        f.write('\nRunning averages of last {:d} iterations\n'.format(self.n_last_iter))
-        f.write('E[I_u]: {:2.3e}\n'.format(self.run_avg_mean_I_u))
-        f.write('Var[I_u]: {:2.3e}\n'.format(self.run_avg_var_I_u))
-        f.write('RE[I_u]: {:2.3f}\n'.format(self.run_avg_re_I_u))
-        f.write('F: {:2.3f}\n'.format(- np.log(self.run_avg_mean_I_u)))
-        f.write('loss function: {:2.3f}\n\n'.format(self.run_avg_loss))
-        #if self.run_avg_u_l2_error is not None:
-        #    f.write('u l2 error: {:2.3f}\n'.format(self.run_avg_u_l2_error))
+        f.write('\nRunning averages of last {:d} iterations\n'.format(self.n_iter_avg))
+        f.write('E[I_u]: {:2.3e}\n'.format(self.run_avg_means_I_u[-1]))
+        f.write('Var[I_u]: {:2.3e}\n'.format(self.run_avg_vars_I_u[-1]))
+        f.write('RE[I_u]: {:2.3f}\n'.format(self.run_avg_res_I_u[-1]))
+        f.write('F: {:2.3f}\n'.format(- np.log(self.run_avg_means_I_u[-1])))
+        f.write('loss function: {:2.3f}\n\n'.format(self.run_avg_losses[-1]))
+        if self.run_avg_u_l2_errors is not None:
+            f.write('u l2 error: {:2.3f}\n'.format(self.run_avg_u_l2_errors[-1]))
 
         h, m, s = get_time_in_hms(self.ct)
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
@@ -440,10 +455,13 @@ class StochasticOptimizationMethod:
         self.colors = ['tab:blue', 'tab:orange', 'tab:grey', 'tab:cyan']
         self.linestyles = ['-', 'dashed', 'dashdot', 'dashdot']
         self.labels = [
-            r'SOC (dt={:.0e}, N={:.0e})'.format(self.sample.dt, self.sample.N),
-            'MC Sampling (dt={:.0e}, N={:.0e})'.format(self.dt_mc, self.N_mc),
-            'HJB Sampling (dt={:.0e}, N={:.0e})'.format(self.dt_hjb, self.N_hjb),
-            'HJB solution (h={:.0e})'.format(self.h_hjb),
+            'SOC',
+            'Not contronlled Sampling',
+            'HJB Sampling',
+            #r'SOC (dt={:.0e}, N={:.0e})'.format(self.sample.dt, self.sample.N),
+            #r'Not contronlled Sampling (dt={:.0e}, N={:.0e})'.format(self.dt_mc, self.N_mc),
+            #r'HJB Sampling (dt={:.0e}, N={:.0e})'.format(self.dt_hjb, self.N_hjb),
+            r'HJB solution (h={:.0e})'.format(self.h_hjb),
         ]
 
     def plot_loss(self):
@@ -451,7 +469,10 @@ class StochasticOptimizationMethod:
         '''
         from figures.myfigure import MyFigure
 
+        # iterations
         x = np.arange(self.n_iterations)
+
+        # plot losses
         y = np.vstack((
             self.losses,
             self.value_f_mc,
@@ -467,13 +488,35 @@ class StochasticOptimizationMethod:
         fig.set_plot_scale('semilogy')
         fig.plot(x, y, self.colors, self.linestyles, self.labels)
 
+        # plot running averages losses
+        if not hasattr(self, 'run_avg_losses'):
+            return
+
+        y = np.vstack((
+            self.run_avg_losses,
+            self.value_f_mc[self.n_iter_avg - 1:],
+            self.value_f_is_hjb[self.n_iter_avg - 1:],
+            self.f_hjb[self.n_iter_avg - 1:],
+        ))
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='loss-avg',
+        )
+        fig.set_xlabel = 'iterations'
+        fig.set_plot_scale('semilogy')
+        fig.plot(x[self.n_iter_avg - 1:], y, self.colors, self.linestyles, self.labels)
+
 
     def plot_mean_I_u(self):
         '''
         '''
         from figures.myfigure import MyFigure
 
+        # iterations
         x = np.arange(self.n_iterations)
+
+        # plot mean I^u
         y = np.vstack((
             self.means_I_u,
             self.mean_I_mc,
@@ -489,12 +532,34 @@ class StochasticOptimizationMethod:
         fig.set_plot_scale('semilogy')
         fig.plot(x, y, self.colors, self.linestyles, self.labels)
 
+        # plot running averages mean I^u
+        if not hasattr(self, 'run_avg_means_I_u'):
+            return
+
+        y = np.vstack((
+            self.run_avg_means_I_u,
+            self.mean_I_mc[self.n_iter_avg - 1:],
+            self.mean_I_u_hjb[self.n_iter_avg - 1:],
+            self.psi_hjb[self.n_iter_avg - 1:],
+        ))
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='mean-avg',
+        )
+        fig.set_xlabel = 'iterations'
+        fig.set_plot_scale('semilogy')
+        fig.plot(x[self.n_iter_avg - 1:], y, self.colors, self.linestyles, self.labels)
+
     def plot_re_I_u(self):
         '''
         '''
         from figures.myfigure import MyFigure
 
+        # iterations
         x = np.arange(self.n_iterations)
+
+        # plot relative error I^u
         y = np.vstack((
             self.res_I_u,
             self.re_I_mc,
@@ -508,6 +573,25 @@ class StochasticOptimizationMethod:
         fig.set_xlabel = 'iterations'
         fig.set_plot_scale('semilogy')
         fig.plot(x, y, self.colors[:3], self.linestyles[:3], self.labels[:3])
+
+        # plot relative error I^u
+        if not hasattr(self, 'run_avg_res_I_u'):
+            return
+
+        y = np.vstack((
+            self.run_avg_res_I_u,
+            self.value_f_mc[self.n_iter_avg - 1:],
+            self.value_f_is_hjb[self.n_iter_avg - 1:],
+            self.f_hjb[self.n_iter_avg - 1:],
+        ))
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='re-avg',
+        )
+        fig.set_xlabel = 'iterations'
+        fig.set_plot_scale('semilogy')
+        fig.plot(x[self.n_iter_avg - 1:], y, self.colors, self.linestyles, self.labels)
 
     def plot_error_bar_I_u(self):
         '''
@@ -529,7 +613,10 @@ class StochasticOptimizationMethod:
         '''
         from figures.myfigure import MyFigure
 
+        # iterations
         x = np.arange(self.n_iterations)
+
+        # plot time steps
         y = np.vstack((
             self.time_steps,
             self.time_steps_mc,
@@ -543,6 +630,24 @@ class StochasticOptimizationMethod:
         fig.set_xlabel = 'iterations'
         fig.set_plot_scale('semilogy')
         fig.plot(x, y, self.colors[:3], self.linestyles[:3], self.labels[:3])
+
+        # plot running averages time steps
+        if not hasattr(self, 'run_avg_losses'):
+            return
+
+        y = np.vstack((
+            self.run_avg_time_steps,
+            self.time_steps_mc[self.n_iter_avg - 1:],
+            self.time_steps_is_hjb[self.n_iter_avg - 1:],
+        ))
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='time-steps-avg',
+        )
+        fig.set_xlabel = 'iterations'
+        fig.set_plot_scale('semilogy')
+        fig.plot(x[self.n_iter_avg - 1:], y, self.colors[:3], self.linestyles[:3], self.labels[:3])
 
     def plot_cts(self):
         '''
@@ -569,7 +674,10 @@ class StochasticOptimizationMethod:
         '''
         from figures.myfigure import MyFigure
 
+        # iterations
         x = np.arange(self.n_iterations)
+
+        # plot u l2 error
         y = self.u_l2_errors
         fig = plt.figure(
             FigureClass=MyFigure,
@@ -579,6 +687,25 @@ class StochasticOptimizationMethod:
         fig.set_xlabel = 'iterations'
         fig.set_plot_scale('semilogy')
         fig.plot(x, y, self.colors[0], self.linestyles[0], self.labels[0])
+
+        # plot running averages u l2 errors
+        if not hasattr(self, 'run_avg_u_l2_errors'):
+            return
+
+        y = np.vstack((
+            self.run_avg_u_l2_errors,
+            self.value_f_mc[self.n_iter_avg - 1:],
+            self.value_f_is_hjb[self.n_iter_avg - 1:],
+            self.f_hjb[self.n_iter_avg - 1:],
+        ))
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='u-l2-error-avg',
+        )
+        fig.set_xlabel = 'iterations'
+        fig.set_plot_scale('semilogy')
+        fig.plot(x[self.n_iter_avg - 1:], y, self.colors, self.linestyles, self.labels)
 
     def plot_u_l2_error_change(self):
         '''
