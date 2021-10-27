@@ -300,6 +300,33 @@ class LangevinSDE(object):
         sol_hjb.load()
         return sol_hjb
 
+    def get_hjb_solver_det(self, h=None, dt=0.005):
+        from mds.langevin_det_hjb_solver import SolverHJBDet
+
+        if h is None and self.n == 1:
+            h = 0.001
+        elif h is None and self.n == 2:
+            h = 0.005
+        elif h is None and self.n == 3:
+            h = 0.1
+        elif h is None:
+            return
+
+        # initialize hjb solver
+        sol_hjb = SolverHJBDet(
+            problem_name=self.problem_name,
+            potential_name=self.potential_name,
+            n=self.n,
+            alpha=self.alpha,
+            beta=self.beta,
+            h=h,
+            dt=dt,
+        )
+
+        # load already computed solution
+        sol_hjb.load()
+        return sol_hjb
+
     def get_not_controlled_sampling(self, dt, N):
         from mds.langevin_nd_importance_sampling import Sampling
 

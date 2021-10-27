@@ -452,7 +452,7 @@ class Sampling(LangevinSDE):
             self.u_l2_error = np.mean(self.u_l2_error_fht)
         self.stop_timer()
 
-    def sample_optimal_controlled_det(self, h):
+    def sample_optimal_controlled_det(self, h, dt):
         self.start_timer()
 
         # initialize xt
@@ -462,15 +462,14 @@ class Sampling(LangevinSDE):
         self.initialize_running_integrals()
 
         # load hjb solver and get the "optimal" control
-        sol_hjb = self.get_hjb_solver(h)
-        u_opt = sol_hjb.u_opt
-        self.Nx = sol_hjb.Nx
+        sol_hjb = self.get_hjb_solver_det(h, dt)
 
         for k in np.arange(1, self.k_lim +1):
 
             # control at xt
-            idx_xt = self.get_index_vectorized(xt)
-            ut = u_opt[idx_xt]
+            idx_xt = sol_hjb.get_space_index_vectorized(xt)
+            ut = sol_hjb.u_opt_i[k, idx_xt]
+            ut = np.moveaxis(ut, 0, -1)
 
             # compute gradient
             gradient = self.tilted_gradient(xt, ut)
