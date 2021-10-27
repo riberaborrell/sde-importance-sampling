@@ -443,7 +443,7 @@ class SolverHJB(LangevinSDE):
             file_name='psi',
         )
         x = self.domain_h[:, 0]
-        fig.set_xlabel = 'x'
+        fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
         if ylim is not None:
             fig.set_ylim(ylim[0], ylim[1])
@@ -457,7 +457,7 @@ class SolverHJB(LangevinSDE):
             file_name='free-energy',
         )
         x = self.domain_h[:, 0]
-        fig.set_xlabel = 'x'
+        fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
         if ylim is not None:
             fig.set_ylim(ylim[0], ylim[1])
@@ -474,7 +474,7 @@ class SolverHJB(LangevinSDE):
         if self.controlled_potential is None:
             self.get_controlled_potential_and_drift()
 
-        fig.set_xlabel = 'x'
+        fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
         if ylim is not None:
             fig.set_ylim(ylim[0], ylim[1])
@@ -488,7 +488,7 @@ class SolverHJB(LangevinSDE):
             file_name='control',
         )
         x = self.domain_h[:, 0]
-        fig.set_xlabel = 'x'
+        fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
         if ylim is not None:
             fig.set_ylim(ylim[0], ylim[1])
@@ -504,7 +504,7 @@ class SolverHJB(LangevinSDE):
         x = self.domain_h[:, 0]
         if self.controlled_drift is None:
             self.get_controlled_potential_and_drift()
-        fig.set_xlabel = 'x'
+        fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
         if ylim is not None:
             fig.set_ylim(ylim[0], ylim[1])
@@ -521,8 +521,8 @@ class SolverHJB(LangevinSDE):
             dir_path=self.dir_path,
             file_name='psi',
         )
-        fig.set_xlabel = r'$x_1$'
-        fig.set_ylabel = r'$x_2$'
+        fig.set_xlabel(r'$x_1$')
+        fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-2, 2)
         fig.set_ylim(-2, 2)
         fig.set_contour_levels_scale('log')
@@ -542,8 +542,8 @@ class SolverHJB(LangevinSDE):
             dir_path=self.dir_path,
             file_name='free-energy',
         )
-        fig.set_xlabel = r'$x_1$'
-        fig.set_ylabel = r'$x_2$'
+        fig.set_xlabel(r'$x_1$')
+        fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-2, 2)
         fig.set_ylim(-2, 2)
         fig.set_contour_levels_scale('log')
@@ -563,8 +563,8 @@ class SolverHJB(LangevinSDE):
             dir_path=self.dir_path,
             file_name='controlled-potential',
         )
-        fig.set_xlabel = r'$x_1$'
-        fig.set_ylabel = r'$x_2$'
+        fig.set_xlabel(r'$x_1$')
+        fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-2, 2)
         fig.set_ylim(-2, 2)
         fig.set_contour_levels_scale('log')
@@ -585,10 +585,10 @@ class SolverHJB(LangevinSDE):
             dir_path=self.dir_path,
             file_name='control',
         )
-        fig.set_xlabel = r'$x_1$'
-        fig.set_ylabel = r'$x_2$'
-        fig.set_xlim(-2, 2)
-        fig.set_ylim(-2, 2)
+        fig.set_xlabel(r'$x_1$')
+        fig.set_ylabel(r'$x_2$')
+        fig.set_xlim(-1.5, 1.5)
+        fig.set_ylim(-1.5, 1.5)
         fig.vector_field(X, Y, U, V, scale=scale, width=width)
 
 
@@ -604,8 +604,8 @@ class SolverHJB(LangevinSDE):
             dir_path=self.dir_path,
             file_name='controlled-drift',
         )
-        fig.set_xlabel = r'$x_1$'
-        fig.set_ylabel = r'$x_2$'
+        fig.set_xlabel(r'$x_1$')
+        fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-1.5, 1.5)
         fig.set_ylim(-1.5, 1.5)
         fig.vector_field(X, Y, U, V, scale=scale, width=width)
