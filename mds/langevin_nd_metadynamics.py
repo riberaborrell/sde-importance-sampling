@@ -417,20 +417,7 @@ class Metadynamics:
         print(f.read())
         f.close()
 
-    def plot_n_gaussians(self, dir_path=None):
-        from figures.myfigure import MyFigure
-        fig = plt.figure(
-            FigureClass=MyFigure,
-            dir_path=self.dir_path,
-            file_name='n-gaussians',
-        )
-        trajectories = np.arange(self.N)
-        plt.hist(trajectories, self.ms)
-        plt.savefig(fig.file_path)
-        plt.close()
-        #plt.plot(trajectories, self.ms)
-
-    def plot_1d_updates(self, i=0):
+    def plot_1d_updates(self, i=0, n_sliced_updates=5):
         from figures.myfigure import MyFigure
 
         # discretize domain and evaluate in grid
@@ -438,7 +425,6 @@ class Metadynamics:
         x = self.sample.domain_h[:, 0]
 
         # filter updates to show
-        n_sliced_updates = 5
         n_updates = self.ms[i]
         updates = np.arange(n_updates)
 
@@ -447,6 +433,7 @@ class Metadynamics:
             n_sliced_updates = n_updates
         else:
             sliced_updates = slice_1d_array(updates, n_elements=n_sliced_updates)
+            n_sliced_updates = sliced_updates.shape[0]
 
         # preallocate arrays
         frees = np.zeros((n_sliced_updates + 2, x.shape[0]))
@@ -498,19 +485,9 @@ class Metadynamics:
         controls[-1, :] = sol_hjb.u_opt[:, 0]
         labels.append('num sol HJB PDE')
         colors[-1] = 'tab:cyan'
-        breakpoint()
 
         # file extension
         ext = '_i_{}'.format(i)
-
-        #self.sample.plot_1d_free_energies(frees, F_hjb=sol_hjb.F, labels=labels[:],
-        #                                  dir_path=self.dir_path, ext=ext)
-        #self.sample.plot_1d_controls(controls, u_hjb=sol_hjb.u_opt[:, 0], labels=labels[:],
-        #                             dir_path=self.dir_path, ext=ext)
-        #self.sample.plot_1d_controlled_potentials(controlled_potentials,
-        #3                                          controlledV_hjb=sol_hjb.controlled_potential,
-        #                                          labels=labels[:], dir_path=self.dir_path,
-        #                                          ext=ext)
 
         # plot free energy
         fig = plt.figure(
@@ -518,7 +495,7 @@ class Metadynamics:
             dir_path=self.dir_path,
             file_name='free-energy' + ext,
         )
-        fig.set_xlabel = 'x'
+        fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
         fig.plot(x, frees, labels=labels, colors=colors)
 
@@ -529,8 +506,9 @@ class Metadynamics:
             file_name='controlled-potential' + ext,
         )
         controlled_potentials[-1, :] = sol_hjb.controlled_potential
-        fig.set_xlabel = 'x'
+        fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
+        fig.set_ylim(0, 20)
         fig.plot(x, controlled_potentials, labels=labels, colors=colors)
 
         # plot control
@@ -540,7 +518,7 @@ class Metadynamics:
             file_name='control' + ext,
         )
         controls[-1, :] = sol_hjb.u_opt[:, 0]
-        fig.set_xlabel = 'x'
+        fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
         fig.plot(x, controls, labels=labels, colors=colors)
 
@@ -605,7 +583,7 @@ class Metadynamics:
             self.sample.grid_value_function,
             sol_hjb.F,
         ))
-        fig.set_xlabel = 'x'
+        fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
         fig.plot(x, y, labels=labels, colors=colors)
 
@@ -619,7 +597,7 @@ class Metadynamics:
             self.sample.grid_controlled_potential,
             sol_hjb.controlled_potential,
         ))
-        fig.set_xlabel = 'x'
+        fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
         fig.plot(x, y, labels=labels, colors=colors)
 
@@ -633,7 +611,7 @@ class Metadynamics:
             self.sample.grid_control[:, 0],
             sol_hjb.u_opt[:, 0],
         ))
-        fig.set_xlabel = 'x'
+        fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
         fig.plot(x, y, labels=labels, colors=colors)
 
@@ -691,6 +669,8 @@ class Metadynamics:
             dir_path=plot_dir_path,
             file_name='free-energy' + ext,
         )
+        fig.set_xlabel(r'$x_1$')
+        fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-2, 2)
         fig.set_ylim(-2, 2)
         fig.set_contour_levels_scale('log')
@@ -702,6 +682,8 @@ class Metadynamics:
             dir_path=plot_dir_path,
             file_name='controlled-potential' + ext,
         )
+        fig.set_xlabel(r'$x_1$')
+        fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-2, 2)
         fig.set_ylim(-2, 2)
         fig.set_contour_levels_scale('log')
@@ -715,9 +697,46 @@ class Metadynamics:
             dir_path=plot_dir_path,
             file_name='control' + ext,
         )
-        fig.set_xlim(-2, 2)
-        fig.set_ylim(-2, 2)
+        fig.set_xlabel(r'$x_1$')
+        fig.set_ylabel(r'$x_2$')
+        fig.set_xlim(-1.5, 1.5)
+        fig.set_ylim(-1.5, 1.5)
         fig.vector_field(X, Y, U, V, scale=30)
+
+    def plot_n_gaussians(self, dir_path=None):
+        ''' plot number of gaussians added at each trajectory
+        '''
+        from figures.myfigure import MyFigure
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='n-gaussians',
+        )
+        x = np.arange(self.N)
+        fig.set_xlabel('trajectories')
+        fig.set_plot_scale('semilogx')
+        fig.plot(x, self.ms)
+        plt.savefig(fig.file_path)
+
+    def plot_fht(self):
+        ''' plot fht for each meta trajectory
+        '''
+        from figures.myfigure import MyFigure
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='fht',
+        )
+        x = np.arange(self.N)
+        y = np.vstack((
+                self.time_steps,
+                np.full(self.N, self.k),
+        ))
+        labels = ['cumulative metadynamics', 'k']
+        fig.set_xlabel('trajectories')
+        fig.plot(x, y, labels=labels)
+        plt.savefig(fig.file_path)
+
 
     def plot_2d_means(self):
         from figures.myfigure import MyFigure
@@ -728,11 +747,12 @@ class Metadynamics:
             dir_path=self.dir_path,
             file_name='means',
         )
-        plt.scatter(x, y)
+        fig.set_xlabel(r'$x_1$')
+        fig.set_ylabel(r'$x_2$')
         plt.xlim(-2, 2)
         plt.ylim(-2, 2)
+        plt.scatter(x, y)
         plt.savefig(fig.file_path)
-        plt.close()
 
     def plot_3d_means(self):
         from figures.myfigure import MyFigure
