@@ -269,6 +269,12 @@ def get_base_parser():
         help='Type of activation function. Default: relu',
     )
     parser.add_argument(
+        '--do-importance-sampling',
+        dest='do_importance_sampling',
+        action='store_true',
+        help='Sample controlled dynamics',
+    )
+    parser.add_argument(
         '--do-plots',
         dest='do_plots',
         action='store_true',

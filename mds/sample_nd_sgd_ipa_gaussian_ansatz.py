@@ -13,23 +13,25 @@ def get_parser():
     parser.description = 'Performs SGD method using the inexact ipa gradient estimator.' \
                          'The space of possible controls is given by the linear combination' \
                          'of vector fields from Gaussian ansatz functions.'
-    parser.add_argument(
-        '--do-importance-sampling',
-        dest='do_importance_sampling',
-        action='store_true',
-        help='Sample controlled dynamics',
-    )
     return parser
 
 def main():
     args = get_parser().parse_args()
+
+    # set alpha array
+    if args.potential_name == 'nd_2well':
+        alpha = np.full(args.n, args.alpha_i)
+    elif args.potential_name == 'nd_2well_asym':
+        alpha = np.empty(args.n)
+        alpha[0] = args.alpha_i
+        alpha[1:] = args.alpha_j
 
     # initialize sampling object
     sample = Sampling(
         problem_name=args.problem_name,
         potential_name=args.potential_name,
         n=args.n,
-        alpha=np.full(args.n, args.alpha_i),
+        alpha=alpha,
         beta=args.beta,
         is_controlled=True,
     )
@@ -67,7 +69,7 @@ def main():
         xzero=np.full(args.n, args.xzero_i),
         N=args.N,
         dt=args.dt,
-        k_lim=100000,
+        k_lim=args.k_lim,
     )
 
     # set l2 error flag
