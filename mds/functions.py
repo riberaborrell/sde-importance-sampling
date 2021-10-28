@@ -36,7 +36,7 @@ def quadratic_one_well(x, nu, tensor=False):
         return nu[0] * (x - 1) ** 2
 
     # check nu and x
-    assert type(x) == np.ndarray, ''
+    assert type(x) == np.ndarray or type(x) == torch.Tensor, ''
     assert type(nu) == np.ndarray and nu.ndim == 1, ''
     n = nu.shape[0]
 
@@ -65,14 +65,14 @@ def double_well(x, alpha, tensor=False):
     '''
     '''
     # 1-dimensional function
-    if type(x) == float and type(alpha) == float:
+    if type(x) == np.float64 and type(alpha) == np.float64:
         return alpha * (x**2 - 1) ** 2
-    elif type(x) == float and type(alpha) == np.ndarray:
+    elif type(x) == np.float64 and type(alpha) == np.ndarray:
         assert alpha.ndim == 1 and alpha.shape[0] == 1, ''
         return alpha[0] * (x**2 - 1) ** 2
 
     # check alpha and x
-    assert type(x) == np.ndarray, ''
+    assert type(x) == np.ndarray or type(x) == torch.Tensor, ''
     assert type(alpha) == np.ndarray and alpha.ndim == 1, ''
     n = alpha.shape[0]
 
@@ -112,7 +112,7 @@ def double_well_gradient(x, alpha, tensor=False):
         return 4 * alpha[0] * x * (x**2 - 1)
 
     # check alpha and x
-    assert type(x) == np.ndarray, ''
+    assert type(x) == np.ndarray or type(x) == torch.Tensor, ''
     assert type(alpha) == np.ndarray and alpha.ndim == 1, ''
     n = alpha.shape[0]
 

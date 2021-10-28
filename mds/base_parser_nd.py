@@ -187,6 +187,13 @@ def get_base_parser():
         help='Type of control. Default: null',
     )
     parser.add_argument(
+        '--target-f',
+        dest='target_function',
+        choices=['value-f', 'control'],
+        default='value-f',
+        help='Target function to approximate. Default: value-f',
+    )
+    parser.add_argument(
         '--theta-init',
         dest='theta_init',
         choices=['null', 'meta', 'optimal'],
