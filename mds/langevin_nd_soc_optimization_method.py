@@ -162,6 +162,17 @@ class StochasticOptimizationMethod:
         elif self.sample.nn_func_appr is not None and self.loss_type == 'logvar':
             self.logvar_losses = self.logvar_losses[:self.n_iterations, :]
 
+    def get_iteration_statistics(self, i):
+        msg = 'it.: {:d}, loss: {:2.3f}, mean I^u: {:2.3e}, re I^u: {:2.3f},' \
+              'time steps: {:2.1e}'.format(
+                  i,
+                  self.losses[i],
+                  self.means_I_u[i],
+                  self.res_I_u[i],
+                  self.time_steps[i],
+              )
+        return msg
+
     def sgd_ipa_gaussian_ansatz(self):
         self.start_timer()
 
@@ -175,7 +186,6 @@ class StochasticOptimizationMethod:
 
             # compute loss and its gradient 
             succ = self.sample.sample_loss_ipa_ansatz()
-            print('{:d}, {:2.3f}'.format(i, self.sample.loss))
 
             # check if sample succeeded
             if not succ:
@@ -183,6 +193,10 @@ class StochasticOptimizationMethod:
 
             # save parameters, statistics and losses
             self.update_arrays(i)
+
+            # print iteration info
+            msg = self.get_iteration_statistics(i)
+            print(msg)
 
             # update coefficients
             self.sample.ansatz.theta = self.thetas[i, :] - self.lr * self.grad_losses[i, :]
@@ -214,12 +228,17 @@ class StochasticOptimizationMethod:
             # reset gradients
             optimizer.zero_grad()
 
-            # compute loss 
-            if self.loss_type == 'ipa':
+            # compute ipa loss 
+            if self.loss_type == 'ipa' and self.sample.problem_name == 'langevin_stop-t':
                 succ = self.sample.sample_loss_ipa_nn(device)
-                #succ = self.sample.sample_loss_ipa_nn_det(device)
+            elif self.loss_type == 'ipa' and self.sample.problem_name == 'langevin_det-t':
+                succ = self.sample.sample_loss_ipa_nn_det(device)
+
+            # compute relative error loss
             elif self.loss_type == 're':
                 succ = self.sample.sample_loss_re_nn(device)
+
+            # compute logvar loss
             elif self.loss_type == 'logvar':
                 succ = self.sample.sample_loss_logvar_nn(device)
 
@@ -229,14 +248,9 @@ class StochasticOptimizationMethod:
 
             # save information of the iteration
             self.update_arrays(i)
-            msg = 'it.: {:d}, loss: {:2.3f}, mean I^u: {:2.3e}, re I^u: {:2.3f},' \
-                  'time steps: {:2.1e}'.format(
-                      i,
-                      self.losses[i],
-                      self.means_I_u[i],
-                      self.res_I_u[i],
-                      self.time_steps[i],
-                  )
+
+            # print iteration info
+            msg = self.get_iteration_statistics(i)
             print(msg)
 
             # compute gradients
@@ -311,7 +325,7 @@ class StochasticOptimizationMethod:
         self.run_avg_time_steps = np.convolve(
             self.time_steps, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
         )
-        if self.u_l2_errors is not None:
+        if self.u_l2_errors is not None and self.u_l2_errors.ndim != 0:
             self.run_avg_u_l2_errors = np.convolve(
                 self.u_l2_errors, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
             )
@@ -418,10 +432,10 @@ class StochasticOptimizationMethod:
         self.N_hjb = N_hjb
 
         # load hjb solver
-        sol_hjb = self.sample.get_hjb_solver(h_hjb)
+        sol_hjb = self.sample.get_hjb_solver_det(h_hjb, dt_hjb)
         if sol_hjb.F is not None:
-            hjb_f_at_x = sol_hjb.get_f_at_x(self.sample.xzero)
             hjb_psi_at_x = sol_hjb.get_psi_at_x(self.sample.xzero)
+            hjb_f_at_x = sol_hjb.get_f_at_x(self.sample.xzero)
             self.hjb_is_loaded = True
             self.f_hjb = np.full(self.n_iterations, hjb_f_at_x)
             self.psi_hjb = np.full(self.n_iterations_lim, hjb_psi_at_x)
@@ -692,12 +706,7 @@ class StochasticOptimizationMethod:
         if not hasattr(self, 'run_avg_u_l2_errors'):
             return
 
-        y = np.vstack((
-            self.run_avg_u_l2_errors,
-            self.value_f_mc[self.n_iter_avg - 1:],
-            self.value_f_is_hjb[self.n_iter_avg - 1:],
-            self.f_hjb[self.n_iter_avg - 1:],
-        ))
+        y = self.run_avg_u_l2_errors
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
@@ -705,7 +714,7 @@ class StochasticOptimizationMethod:
         )
         fig.set_xlabel = 'iterations'
         fig.set_plot_scale('semilogy')
-        fig.plot(x[self.n_iter_avg - 1:], y, self.colors, self.linestyles, self.labels)
+        fig.plot(x[self.n_iter_avg - 1:], y, self.colors[0], self.linestyles[0], self.labels[0])
 
     def plot_u_l2_error_change(self):
         '''
@@ -946,8 +955,8 @@ class StochasticOptimizationMethod:
             dir_path=self.iterations_dir_path,
             file_name='control' + ext,
         )
-        fig.set_xlim(-2, 2)
-        fig.set_ylim(-2, 2)
+        fig.set_xlim(-1.5, 1.5)
+        fig.set_ylim(-1.5, 1.5)
         fig.vector_field(X, Y, U, V, scale=30)
 
         # plot controlled drift
@@ -958,9 +967,9 @@ class StochasticOptimizationMethod:
             dir_path=self.iterations_dir_path,
             file_name='controlled-drift' + ext,
         )
-        fig.set_xlim(-2, 2)
-        fig.set_ylim(-2, 2)
-        fig.vector_field(X, Y, U, V, scale=30)
+        fig.set_xlim(-1.5, 1.5)
+        fig.set_ylim(-1.5, 1.5)
+        fig.vector_field(X, Y, U, V, scale=100)
 
         # plot difference between control and hjb solution
         U = np.abs(self.sample.grid_control[:, :, 0] - sol_hjb.u_opt[:, :, 0])
@@ -973,7 +982,7 @@ class StochasticOptimizationMethod:
         fig.set_xlim(-1.5, 1.5)
         fig.set_ylim(-1.5, 1.5)
         fig.set_colormap('PuRd')
-        fig.vector_field(X, Y, U, V, scale=30)
+        fig.vector_field(X, Y, U, V, scale=10)
 
         # plot difference between controlled drift and hjb solution
         U = np.abs(self.sample.grid_controlled_drift[:, :, 0] - sol_hjb.controlled_drift[:, :, 0])
@@ -986,4 +995,4 @@ class StochasticOptimizationMethod:
         fig.set_xlim(-1.5, 1.5)
         fig.set_ylim(-1.5, 1.5)
         fig.set_colormap('PuRd')
-        fig.vector_field(X, Y, U, V, scale=30)
+        fig.vector_field(X, Y, U, V, scale=10)
