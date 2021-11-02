@@ -53,16 +53,10 @@ def main():
 
         # sample and compute statistics
         sample.sample_not_controlled_det()
-        #sample.compute_fht_statistics()
         sample.compute_I_statistics()
-        print('\nQuantity of interest\n')
-        print('E[exp(- fht)] = {:2.3e}'.format(sample.mean_I))
-        print('Var[exp(- fht)] = {:2.3e}'.format(sample.var_I))
-        print('RE[exp(- fht)] = {:2.3e}'.format(sample.re_I))
-        print('-log(E[exp(- fht)]) = {:2.3e}\n'.format(-np.log(sample.mean_I)))
 
         # save files
-        #sample.save()
+        sample.save()
 
     # load already computed statistics
     else:
@@ -74,8 +68,8 @@ def main():
         sample.write_report()
 
     # plot trajectory
-    if args.do_plots and args.save_trajectory:
-        sample.plot_trajectory()
+    #if args.do_plots and args.save_trajectory:
+    #    sample.plot_trajectory()
 
 
 if __name__ == "__main__":

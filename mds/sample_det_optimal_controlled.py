@@ -52,13 +52,6 @@ def main():
 
         # sample and compute statistics
         sample.sample_optimal_controlled_det(h=args.h_hjb, dt=args.dt_hjb)
-        sample.compute_I_u_statistics_det()
-        print('\n reweighted Quantity of interest\n')
-        print('E[exp(- fht)] = {:2.3e}'.format(sample.mean_I_u))
-        print('Var[exp(- fht)] = {:2.3e}'.format(sample.var_I_u))
-        print('RE[exp(- fht)] = {:2.3e}'.format(sample.re_I_u))
-        print('-log(E[exp(- fht)]) = {:2.3e}\n'.format(-np.log(sample.mean_I_u)))
-        return
 
         # save statistics
         sample.save()

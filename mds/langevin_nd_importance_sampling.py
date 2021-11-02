@@ -486,7 +486,7 @@ class Sampling(LangevinSDE):
         # save work functional
         self.work = self.g(xt)
 
-        #self.compute_I_u_statistics()
+        self.compute_I_u_statistics_det()
         self.stop_timer()
 
     def sample_optimal_controlled(self, h):
@@ -1340,16 +1340,17 @@ class Sampling(LangevinSDE):
         files_dict['k_lim'] =self.k_lim
 
         # fht
-        files_dict['been_in_target_set'] = self.been_in_target_set
-        files_dict['fht'] = self.fht
-        self.k = int(np.max(self.fht) / self.dt)
-        files_dict['k'] = self.k
-        files_dict['N_arrived'] = self.N_arrived
-        files_dict['first_fht'] = self.first_fht
-        files_dict['last_fht'] = self.last_fht
-        files_dict['mean_fht'] = self.mean_fht
-        files_dict['var_fht'] = self.var_fht
-        files_dict['re_fht'] = self.re_fht
+        if self.problem_name == 'langevin-stop-t':
+            files_dict['been_in_target_set'] = self.been_in_target_set
+            files_dict['fht'] = self.fht
+            self.k = int(np.max(self.fht) / self.dt)
+            files_dict['k'] = self.k
+            files_dict['N_arrived'] = self.N_arrived
+            files_dict['first_fht'] = self.first_fht
+            files_dict['last_fht'] = self.last_fht
+            files_dict['mean_fht'] = self.mean_fht
+            files_dict['var_fht'] = self.var_fht
+            files_dict['re_fht'] = self.re_fht
 
         # quantity of interest
         files_dict['mean_I'] = self.mean_I
@@ -1452,46 +1453,48 @@ class Sampling(LangevinSDE):
         # write file
         f = open(file_path, "w")
 
-        self.write_setting(f)
+        #self.write_setting(f)
         self.write_euler_maruyama_parameters(f)
         self.write_sampling_parameters(f)
 
         if self.is_controlled and not self.is_optimal:
             self.ansatz.write_ansatz_parameters(f)
 
-        f.write('\nStatistics\n')
 
-        f.write('trajectories which arrived: {:2.2f} %\n'
-                ''.format(100 * self.N_arrived / self.N))
+        if self.problem_name == 'langevin-stop-t':
+            f.write('\nStatistics\n')
 
-        if self.N_arrived < self.N:
-            f.write('used time steps: {:,d}\n\n'.format(self.k_lim))
+            f.write('trajectories which arrived: {:2.2f} %\n'
+                    ''.format(100 * self.N_arrived / self.N))
 
-            # close file
-            f.close()
+            if self.N_arrived < self.N:
+                f.write('used time steps: {:,d}\n\n'.format(self.k_lim))
 
-            # print file
-            f = open(file_path, 'r')
-            print(f.read())
-            f.close()
-            return
-        else:
-            f.write('used time steps: {:,d}\n\n'.format(self.k))
+                # close file
+                f.close()
 
-        f.write('First hitting time (fht)\n')
-        f.write('first fht = {:2.3f}\n'.format(self.first_fht))
-        f.write('last fht = {:2.3f}\n'.format(self.last_fht))
-        f.write('E[fht] = {:2.3f}\n'.format(self.mean_fht))
-        f.write('Var[fht] = {:2.3f}\n'.format(self.var_fht))
-        f.write('RE[fht] = {:2.3f}\n\n'.format(self.re_fht))
+                # print file
+                f = open(file_path, 'r')
+                print(f.read())
+                f.close()
+                return
+            else:
+                f.write('used time steps: {:,d}\n\n'.format(self.k))
 
-        f.write('First hitting time step (fhts)\n')
-        f.write('E[fhts] = {:2.3f}\n'.format(self.mean_fht / self.dt))
-        f.write('Var[fhts] = {:2.3f}\n'.format(self.var_fht / (self.dt **2)))
-        f.write('RE[fhts] = {:2.3f}\n\n'.format(self.re_fht))
+            f.write('First hitting time (fht)\n')
+            f.write('first fht = {:2.3f}\n'.format(self.first_fht))
+            f.write('last fht = {:2.3f}\n'.format(self.last_fht))
+            f.write('E[fht] = {:2.3f}\n'.format(self.mean_fht))
+            f.write('Var[fht] = {:2.3f}\n'.format(self.var_fht))
+            f.write('RE[fht] = {:2.3f}\n\n'.format(self.re_fht))
+
+            f.write('First hitting time step (fhts)\n')
+            f.write('E[fhts] = {:2.3f}\n'.format(self.mean_fht / self.dt))
+            f.write('Var[fhts] = {:2.3f}\n'.format(self.var_fht / (self.dt **2)))
+            f.write('RE[fhts] = {:2.3f}\n\n'.format(self.re_fht))
 
         if not self.is_controlled:
-            f.write('Quantity of interest\n')
+            f.write('\nQuantity of interest\n')
             f.write('E[exp(- fht)] = {:2.3e}\n'.format(self.mean_I))
             f.write('Var[exp(- fht)] = {:2.3e}\n'.format(self.var_I))
             f.write('RE[exp(- fht)] = {:2.3e}\n\n'.format(self.re_I))
