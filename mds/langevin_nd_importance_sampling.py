@@ -797,6 +797,95 @@ class Sampling(LangevinSDE):
 
         return True
 
+    def sample_loss_ipa_nn_det(self, device):
+        self.start_timer()
+
+        if self.do_u_l2_error:
+
+            # load hjb solution
+            sol_hjb = self.get_hjb_solver()
+            self.u_hjb = sol_hjb.u_opt
+            self.Nx = sol_hjb.Nx
+
+            # preallocate l2 error
+            self.preallocate_l2_error()
+
+        # nn model
+        model = self.nn_func_appr.model
+
+        # number of flattened parameters
+        m = model.d_flat
+
+        # initialize phi and S
+        phi_t = torch.zeros(self.N)
+        S_t = torch.zeros(self.N)
+
+        # initialize trajectory
+        xt = self.initial_position()
+
+        # initialize deterministic and stochastic integrals at time t
+        self.initialize_running_integrals()
+
+        # initialize l2 error at time t
+        if self.do_u_l2_error:
+            self.initialize_running_l2_error()
+
+        for k in np.arange(1, self.k_lim + 1):
+
+            # get Brownian increment and tensorize it
+            dB = self.brownian_increment()
+            dB_tensor = torch.tensor(dB, requires_grad=False, dtype=torch.float32).to(device)
+
+            # control
+            xt_tensor = torch.tensor(xt, dtype=torch.float)
+            ut_tensor = model.forward(k, xt_tensor)
+            ut_tensor_det = ut_tensor.detach()
+            ut = ut_tensor_det.numpy()
+
+            # sde update
+            controlled_gradient = self.gradient(xt) - np.sqrt(2) * ut
+            xt = self.sde_update(xt, controlled_gradient, dB)
+
+            # update statistics
+
+            ut_norm = torch.linalg.norm(ut_tensor, axis=1)
+            phi_t = phi_t + (0.5 * (ut_norm ** 2) * self.dt).reshape(self.N,)
+
+            S_t = S_t \
+                - np.sqrt(self.beta) * torch.matmul(
+                    torch.unsqueeze(ut_tensor, 1),
+                    torch.unsqueeze(dB_tensor, 2),
+                ).reshape(self.N,)
+
+            # stochastic and deterministic integrals 
+            self.update_integrals(ut, dB)
+
+            # update l2 running error
+            if self.do_u_l2_error:
+                self.update_running_l2_error(xt, ut)
+
+        # save work functional
+        self.work = self.g(xt)
+
+        # update phi
+        phi_t = phi_t + self.g(xt_tensor, tensor=True)
+
+        # compute loss
+        a = torch.mean(phi_t)
+        self.loss = a.detach().numpy()
+
+        # compute ipa loss
+        b = - torch.mean(phi_t.detach() * S_t)
+        self.ipa_loss = a + b
+
+        self.compute_I_u_statistics_det()
+        if self.do_u_l2_error:
+            self.u_l2_error = np.mean(self.u_l2_error_fht)
+
+        self.stop_timer()
+
+        return True
+
     def sample_loss_ipa2_nn(self, device):
         self.preallocate_fht()
         self.preallocate_integrals()

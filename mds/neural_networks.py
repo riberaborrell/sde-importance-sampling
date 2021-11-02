@@ -11,12 +11,15 @@ ACTIVATION_FUNCTION_TYPES = [
 ]
 
 class GaussianAnsatzNN(nn.Module):
-    def __init__(self, n, m, means, cov, seed=None):
+    def __init__(self, n, m, means, cov, normalized=True, seed=None):
         super(GaussianAnsatzNN, self).__init__()
 
         # set seed
         if seed is not None:
             torch.manual_seed(seed)
+
+        # normalize Gaussian flag
+        self.normalized = normalized
 
         # define the scalar product layer
         self.n = n
@@ -497,3 +500,73 @@ class DenseNN(nn.Module):
         f.write('activation function: {}\n'.format(self.activation_type))
         f.write('flattened parameters dim: {:d}\n'.format(self.d_flat))
 
+class SequentialNN(nn.Module):
+    def __init__(self, N, d_layers, activation_type='relu', is_dense=False, seed=None):
+        super(SequentialNN, self).__init__()
+
+        # set seed
+        if seed is not None:
+            torch.manual_seed(seed)
+
+        # model name
+        self.name = 'sequential-nn'
+
+        # number of models
+        assert N >= 1, ''
+        self.N = N
+
+        # initialize models for each time step
+        for i in range(N):
+            if not is_dense:
+                setattr(
+                    self,
+                    'model_{:d}'.format(i),
+                    FeedForwardNN(d_layers, activation_type),
+                )
+            else:
+                setattr(
+                    self,
+                    'model_{:d}'.format(i),
+                    DenseNN(d_layers, activation_type),
+                )
+
+        # flattened dimension of each model
+        self.d_flat_k = self.model_0.d_flat
+
+        # flattened dimension of all parameters
+        self.d_flat = self.d_flat_k * N
+
+    def forward(self, k, x):
+        model_k = getattr(self, 'model_{:d}'.format(k))
+        return model_k.forward(x)
+
+    def get_parameters(self):
+        '''
+        '''
+        # preallocate flattened parameters
+        flatten_theta = np.empty(self.d_flat)
+
+        # get flattened parameters for each model
+        for k in range(self.N):
+            model_k = getattr(self, 'model_{:d}'.format(k))
+            flatten_theta_k = model_k.get_parameters()
+            flatten_theta[k * self.d_flat_k: (k + 1) * self.d_flat_k] = flatten_theta_k
+
+        return flatten_theta
+
+    def load_parameters(self, theta):
+        ''' load model parameters
+        '''
+        assert theta.ndim == 1, ''
+        assert theta.shape[0] == self.d_flat, ''
+
+        # reshape theta
+        theta = theta.reshape(self.N, self.d_flat_k)
+
+        # load parameters for each model
+        for k in range(self.N):
+            model_k = getattr(self, 'model_{:d}'.format(k))
+            model_k.load_parameters(theta[k])
+
+    def get_rel_path(self):
+        return self.model_0.get_rel_path()
