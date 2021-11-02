@@ -226,6 +226,13 @@ class LangevinSDE(object):
         '''
         return self.domain_h.reshape(self.Nh, self.n)
 
+    def get_time_index(self, t):
+        ''' returns time index for the given time t
+        '''
+        assert 0 <= t <= self.T, ''
+
+        return int(np.ceil(t / self.dt))
+
     def get_index(self, x):
         ''' returns the index of the point of the grid closest to x
         '''
@@ -274,7 +281,7 @@ class LangevinSDE(object):
         # get index
         return np.where(is_in_target_set == True)[0]
 
-    def get_hjb_solver(self, h=None):
+    def get_hjb_solver(self, h=None) -> None:
         from mds.langevin_nd_hjb_solver import SolverHJB
 
         if h is None and self.n == 1:
@@ -297,20 +304,11 @@ class LangevinSDE(object):
         )
 
         # load already computed solution
-        sol_hjb.load()
-        return sol_hjb
+        if sol_hjb.load():
+            return sol_hjb
 
-    def get_hjb_solver_det(self, h=None, dt=0.005):
+    def get_hjb_solver_det(self, h=0.01, dt=0.005) -> None:
         from mds.langevin_det_hjb_solver import SolverHJBDet
-
-        if h is None and self.n == 1:
-            h = 0.001
-        elif h is None and self.n == 2:
-            h = 0.005
-        elif h is None and self.n == 3:
-            h = 0.1
-        elif h is None:
-            return
 
         # initialize hjb solver
         sol_hjb = SolverHJBDet(
@@ -324,8 +322,8 @@ class LangevinSDE(object):
         )
 
         # load already computed solution
-        sol_hjb.load()
-        return sol_hjb
+        if sol_hjb.load():
+            return sol_hjb
 
     def get_not_controlled_sampling(self, dt, N):
         from mds.langevin_nd_importance_sampling import Sampling

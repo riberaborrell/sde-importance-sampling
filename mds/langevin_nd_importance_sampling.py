@@ -284,6 +284,16 @@ class Sampling(LangevinSDE):
         # update u l2 running error
         self.u_l2_error_t += (np.linalg.norm(ut - ut_hjb, axis=1) ** 2) * self.dt
 
+    def update_running_l2_error_det(self, k, xt, ut):
+
+        # hjb control
+        idx_xt = self.sol_hjb.get_space_index_vectorized(xt)
+        ut_hjb = self.sol_hjb.u_opt_i[k, idx_xt]
+        ut_hjb = np.moveaxis(ut, 0, -1)
+
+        # update u l2 running error
+        self.u_l2_error_t += (np.linalg.norm(ut - ut_hjb, axis=1) ** 2) * self.dt
+
     def sde_update(self, x, gradient, dB, tensor=False):
         drift = - gradient * self.dt
 
@@ -802,10 +812,8 @@ class Sampling(LangevinSDE):
 
         if self.do_u_l2_error:
 
-            # load hjb solution
-            sol_hjb = self.get_hjb_solver()
-            self.u_hjb = sol_hjb.u_opt
-            self.Nx = sol_hjb.Nx
+            # load hjb solver 
+            self.sol_hjb = self.get_hjb_solver_det(dt=self.dt)
 
             # preallocate l2 error
             self.preallocate_l2_error()
@@ -862,7 +870,7 @@ class Sampling(LangevinSDE):
 
             # update l2 running error
             if self.do_u_l2_error:
-                self.update_running_l2_error(xt, ut)
+                self.update_running_l2_error_det(k, xt, ut)
 
         # save work functional
         self.work = self.g(xt)
