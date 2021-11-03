@@ -289,7 +289,7 @@ class Sampling(LangevinSDE):
         # hjb control
         idx_xt = self.sol_hjb.get_space_index_vectorized(xt)
         ut_hjb = self.sol_hjb.u_opt_i[k, idx_xt]
-        ut_hjb = np.moveaxis(ut, 0, -1)
+        ut_hjb = np.moveaxis(ut_hjb, 0, -1)
 
         # update u l2 running error
         self.u_l2_error_t += (np.linalg.norm(ut - ut_hjb, axis=1) ** 2) * self.dt
