@@ -843,7 +843,7 @@ class Sampling(LangevinSDE):
         if self.do_u_l2_error:
             self.initialize_running_l2_error()
 
-        for k in np.arange(1, self.k_lim + 1):
+        for k in np.arange(0, self.k_lim+1):
 
             # get Brownian increment and tensorize it
             dB = self.brownian_increment()
@@ -856,17 +856,19 @@ class Sampling(LangevinSDE):
             ut_norm = torch.linalg.norm(ut_tensor, axis=1)
 
             # update stochastic and deterministic running integrals 
-            self.update_integrals(ut, dB)
+            if k >= 1:
+                self.update_integrals(ut, dB)
 
             # update running phi
             phi_t = phi_t + (0.5 * (ut_norm ** 2) * self.dt).reshape(self.N,)
 
             # update running discretized action
-            S_t = S_t \
-                - np.sqrt(self.beta) * torch.matmul(
-                    torch.unsqueeze(ut_tensor, 1),
-                    torch.unsqueeze(dB_tensor, 2),
-                ).reshape(self.N,)
+            if k <= self.k_lim:
+                S_t = S_t \
+                    - np.sqrt(self.beta) * torch.matmul(
+                        torch.unsqueeze(ut_tensor, 1),
+                        torch.unsqueeze(dB_tensor, 2),
+                    ).reshape(self.N,)
 
             # update l2 running error
             if self.do_u_l2_error:
