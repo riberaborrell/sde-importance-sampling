@@ -12,7 +12,8 @@ import os
 class StochasticOptimizationMethod:
     '''
     '''
-    def __init__(self, sample, loss_type=None, optimizer=None, lr=None, n_iterations_lim=None):
+    def __init__(self, sample, loss_type=None, optimizer=None, lr=None, n_iterations_lim=None,
+                 save_thetas_all_it=True):
         '''
         '''
 
@@ -33,6 +34,8 @@ class StochasticOptimizationMethod:
         self.m = None
         self.n_iterations = None
         self.thetas = None
+        self.last_thetas = None
+        self.save_thetas_all_it = save_thetas_all_it
         self.losses = None
         self.ipa_losses = None
         self.re_losses = None
@@ -83,7 +86,8 @@ class StochasticOptimizationMethod:
 
     def preallocate_arrays(self):
 
-        self.thetas = np.empty((self.n_iterations_lim, self.m))
+        if self.save_thetas_all_it:
+            self.thetas = np.empty((self.n_iterations_lim, self.m))
         self.losses = np.empty(self.n_iterations_lim)
         self.means_I_u = np.empty(self.n_iterations_lim)
         self.vars_I_u = np.empty(self.n_iterations_lim)
@@ -106,12 +110,21 @@ class StochasticOptimizationMethod:
         # update number of iterations used
         self.n_iterations = i + 1
 
-        # add parameters
-        if self.sample.ansatz is not None:
-            self.thetas[i, :] = self.sample.ansatz.theta
-        elif self.sample.nn_func_appr is not None:
-            model = self.sample.nn_func_appr.model
-            self.thetas[i, :] = model.get_parameters()
+        # add parameters for each iteration
+        if self.save_thetas_all_it:
+            if self.sample.ansatz is not None:
+                self.thetas[i, :] = self.sample.ansatz.theta
+            elif self.sample.nn_func_appr is not None:
+                model = self.sample.nn_func_appr.model
+                self.thetas[i, :] = model.get_parameters()
+
+        # add parameters for the last iteration
+        if not self.save_thetas_all_it and i == self.n_iterations_lim -1 :
+            if self.sample.ansatz is not None:
+                self.last_thetas = self.sample.ansatz.theta
+            elif self.sample.nn_func_appr is not None:
+                model = self.sample.nn_func_appr.model
+                self.last_thetas = model.get_parameters()
 
         # add loss and gradient
         self.losses[i] = self.sample.loss
@@ -281,6 +294,7 @@ class StochasticOptimizationMethod:
             N=self.sample.N,
             n_iterations=self.n_iterations,
             thetas=self.thetas,
+            last_thetas=self.last_thetas,
             losses=self.losses,
             ipa_losses=self.ipa_losses,
             re_losses=self.re_losses,

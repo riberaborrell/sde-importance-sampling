@@ -105,6 +105,7 @@ def main():
         optimizer='adam',
         lr=args.lr,
         n_iterations_lim=args.n_iterations_lim,
+        save_thetas_all_it=False,
     )
 
     # start sgd
@@ -151,6 +152,15 @@ def main():
         #    sgd.plot_u_l2_error()
         #    sgd.plot_u_l2_error_change()
 
+        # plot control_i
+        sgd.plot_control_i_t(i=0, t=0.)
+
+        #if args.n == 1:
+            #sgd.plot_1d_iteration()
+            #sgd.plot_1d_iterations()
+
+        #elif args.n == 2:
+        #    sgd.plot_2d_iteration(i=0)
 
 
 if __name__ == "__main__":
