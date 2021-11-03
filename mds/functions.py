@@ -47,7 +47,7 @@ def quadratic_one_well(x, nu, tensor=False):
             return np.sum(nu * (x -1)**2)
         else:
             nu_tensor = torch.tensor(nu, requires_grad=False)
-            return torch.sum(nu_tensor * torch.float_power((x -1), 2), axis=0)
+            return torch.sum(nu_tensor * torch.pow((x -1), 2), axis=0)
 
     # n-dimensional vector funcion
     elif x.ndim == 2:
@@ -58,7 +58,7 @@ def quadratic_one_well(x, nu, tensor=False):
             return np.sum(nu * (x -1)**2, axis=1)
         else:
             nu_tensor = torch.tensor(nu, requires_grad=False)
-            return torch.sum(nu_tensor * torch.float_power((x -1), 2), axis=1)
+            return torch.sum(nu_tensor * torch.pow((x -1), 2), axis=1)
 
 
 def double_well(x, alpha, tensor=False):
@@ -122,8 +122,8 @@ def double_well_gradient(x, alpha, tensor=False):
         if not tensor:
             return 4 * alpha * x * (x**2 - 1)
         else:
-            alpha_tensor = torch.tensor(alpha, requires_grad=False)
-            return 4 * alpha_tensor * x * (torch.float_power(x, 2) - 1)
+            alpha_tensor = torch.tensor(alpha, requires_grad=False, dtype=torch.float32)
+            return 4 * alpha_tensor * x * (torch.pow(x, 2) - 1)
 
     # n-dimensional vector funcion
     elif x.ndim == 2:
@@ -133,8 +133,5 @@ def double_well_gradient(x, alpha, tensor=False):
         if not tensor:
             return 4 * alpha * x * (x ** 2 - 1)
         else:
-            alpha_tensor = torch.tensor(alpha, requires_grad=False)
-            return torch.sum(
-                alpha_tensor * torch.float_power((torch.float_power(x, 2) -1), 2),
-                axis=1,
-            )
+            alpha_tensor = torch.tensor(alpha, requires_grad=False, dtype=torch.float32)
+            return 4 * alpha_tensor * x * ((torch.pow(x, 2) - 1))

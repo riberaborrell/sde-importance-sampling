@@ -2,6 +2,7 @@ from mds.functions import constant, quadratic_one_well, double_well, double_well
 
 import functools
 import numpy as np
+import torch
 import pytest
 
 class TestQuadraticOneWell:
@@ -221,6 +222,42 @@ class TestDoubleWellGradient:
         assert (y[1] == alpha * 3 / 2).all()
         assert (y[2] == 0).all()
         assert (y[3] == - alpha * 3 / 2).all()
+        assert (y[4] == 0).all()
+
+        # test vectorization
+        x = np.random.rand(N, n)
+        y_test = np.empty((N, n))
+        for i in range(n):
+            y_test[:, i] = 4 * alpha[i] * x[:, i] * (x[:, i]**2 - 1)
+        assert (f(x) == y_test).all(), ''
+
+    def test_nd_vec_double_well_gradient_tensor(self):
+
+        # set n nd N
+        n = 3
+        N = 10
+
+        # get function
+        alpha = np.random.rand(n)
+        alpha_tensor = torch.tensor(alpha, requires_grad=False, dtype=torch.float32)
+        f = functools.partial(double_well_gradient, alpha=alpha)
+
+        # test points
+        x = torch.rand(N, n)
+        x[0] = - torch.ones(n)
+        x[1] = -0.5 * torch.ones(n)
+        x[2] = torch.zeros(n)
+        x[3] = 0.5 * torch.ones(n)
+        x[4] = torch.ones(n)
+        y = f(x, tensor=True)
+        assert y.ndim == 2
+        assert y.shape[0] == N
+        assert y.shape[1] == n
+
+        assert (y[0] == 0).all()
+        assert (y[1] == alpha_tensor * 3 / 2).all()
+        assert (y[2] == 0).all()
+        assert (y[3] == - alpha_tensor * 3 / 2).all()
         assert (y[4] == 0).all()
 
         # test vectorization
