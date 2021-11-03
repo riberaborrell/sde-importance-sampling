@@ -724,6 +724,7 @@ class Sampling(LangevinSDE):
 
         # initialize trajectory
         xt = self.initial_position()
+        xt_tensor = torch.tensor(xt, dtype=torch.float32)
 
         # initialize deterministic and stochastic integrals at time t
         self.initialize_running_integrals()
@@ -736,23 +737,18 @@ class Sampling(LangevinSDE):
 
             # get Brownian increment and tensorize it
             dB = self.brownian_increment()
-            dB_tensor = torch.tensor(dB, requires_grad=False, dtype=torch.float32).to(device)
+            dB_tensor = torch.tensor(dB, requires_grad=False, dtype=torch.float32)
 
             # control
-            xt_tensor = torch.tensor(xt, dtype=torch.float)
             ut_tensor = model.forward(xt_tensor)
             ut_tensor_det = ut_tensor.detach()
             ut = ut_tensor_det.numpy()
-
-            # sde update
-            controlled_gradient = self.gradient(xt) - np.sqrt(2) * ut
-            xt = self.sde_update(xt, controlled_gradient, dB)
-
-            # update statistics
-
             ut_norm = torch.linalg.norm(ut_tensor, axis=1)
+
+            # update running phi
             phi_t = phi_t + ((1 + 0.5 * (ut_norm ** 2)) * self.dt).reshape(self.N,)
 
+            # update running discretized action
             S_t = S_t \
                 - np.sqrt(self.beta) * torch.matmul(
                     torch.unsqueeze(ut_tensor, 1),
@@ -790,6 +786,14 @@ class Sampling(LangevinSDE):
             # stop if all trajectories have arrived to the target set
             if self.been_in_target_set.all() == True:
                break
+
+            # sde update
+            #controlled_gradient = self.gradient(xt) - np.sqrt(2) * ut
+            #xt = self.sde_update(xt, controlled_gradient, dB)
+            #xt_tensor = torch.tensor(xt, dtype=torch.float32)
+            controlled_gradient = self.gradient(xt_tensor, tensor=True) - np.sqrt(2) * ut_tensor
+            xt_tensor = self.sde_update(xt_tensor, controlled_gradient, dB_tensor, tensor=True)
+            xt = xt_tensor.detach().numpy()
 
         # compute loss
         a = torch.mean(phi_fht)
@@ -830,6 +834,7 @@ class Sampling(LangevinSDE):
 
         # initialize trajectory
         xt = self.initial_position()
+        xt_tensor = torch.tensor(xt, dtype=torch.float32)
 
         # initialize deterministic and stochastic integrals at time t
         self.initialize_running_integrals()
@@ -842,35 +847,38 @@ class Sampling(LangevinSDE):
 
             # get Brownian increment and tensorize it
             dB = self.brownian_increment()
-            dB_tensor = torch.tensor(dB, requires_grad=False, dtype=torch.float32).to(device)
+            dB_tensor = torch.tensor(dB, requires_grad=False, dtype=torch.float32)
 
             # control
-            xt_tensor = torch.tensor(xt, dtype=torch.float)
             ut_tensor = model.forward(k, xt_tensor)
             ut_tensor_det = ut_tensor.detach()
             ut = ut_tensor_det.numpy()
-
-            # sde update
-            controlled_gradient = self.gradient(xt) - np.sqrt(2) * ut
-            xt = self.sde_update(xt, controlled_gradient, dB)
-
-            # update statistics
-
             ut_norm = torch.linalg.norm(ut_tensor, axis=1)
+
+            # update stochastic and deterministic running integrals 
+            self.update_integrals(ut, dB)
+
+            # update running phi
             phi_t = phi_t + (0.5 * (ut_norm ** 2) * self.dt).reshape(self.N,)
 
+            # update running discretized action
             S_t = S_t \
                 - np.sqrt(self.beta) * torch.matmul(
                     torch.unsqueeze(ut_tensor, 1),
                     torch.unsqueeze(dB_tensor, 2),
                 ).reshape(self.N,)
 
-            # stochastic and deterministic integrals 
-            self.update_integrals(ut, dB)
-
             # update l2 running error
             if self.do_u_l2_error:
                 self.update_running_l2_error_det(k, xt, ut)
+
+            # sde update
+            #controlled_gradient = self.gradient(xt) - np.sqrt(2) * ut
+            #xt = self.sde_update(xt, controlled_gradient, dB_tensor)
+            #xt_tensor = torch.tensor(xt, dtype=torch.float32)
+            controlled_gradient = self.gradient(xt_tensor, tensor=True) - np.sqrt(2) * ut_tensor
+            xt_tensor = self.sde_update(xt_tensor, controlled_gradient, dB_tensor, tensor=True)
+            xt = xt_tensor.detach().numpy()
 
         # save work functional
         self.work = self.g(xt)
