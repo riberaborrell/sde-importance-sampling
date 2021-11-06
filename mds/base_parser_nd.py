@@ -194,13 +194,6 @@ def get_base_parser():
         help='Target function to approximate. Default: value-f',
     )
     parser.add_argument(
-        '--theta-init',
-        dest='theta_init',
-        choices=['null', 'meta', 'optimal'],
-        default='null',
-        help='Type of initial control. Default: null',
-    )
-    parser.add_argument(
         '--loss-type',
         dest='loss_type',
         choices=['ipa', 're', 'logvar'],
