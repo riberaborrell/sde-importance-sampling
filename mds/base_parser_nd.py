@@ -35,22 +35,36 @@ def get_base_parser():
         '--alpha-i',
         dest='alpha_i',
         type=float,
-        default=1,
+        default=1.,
         help='Set nd double well barrier height i-coordinate. Default: 1',
     )
     parser.add_argument(
         '--alpha-j',
         dest='alpha_j',
         type=float,
-        default=1,
+        default=1.,
         help='Set nd double well barrier height j-cooredinate. Default: 1',
     )
     parser.add_argument(
         '--beta',
         dest='beta',
         type=float,
-        default=1,
+        default=1.,
         help='Set the beta parameter. Default: 1',
+    )
+    parser.add_argument(
+        '--nu-i',
+        dest='nu_i',
+        type=float,
+        default=3.,
+        help='Set nd quadratic one well i-th parameters. Default: 1.',
+    )
+    parser.add_argument(
+        '--nu-j',
+        dest='nu_j',
+        type=float,
+        default=3.,
+        help='Set nd quadratic one well j-th parameters. Default: 1.',
     )
     parser.add_argument(
         '--xzero-i',

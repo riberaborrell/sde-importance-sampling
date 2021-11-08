@@ -2,7 +2,6 @@ from mds.functions import constant, quadratic_one_well, double_well, double_well
 from mds.utils_path import get_data_dir
 
 import numpy as np
-
 import torch
 from torch.distributions.multivariate_normal import MultivariateNormal
 
@@ -20,7 +19,7 @@ class LangevinSDE(object):
     '''
 
     def __init__(self, problem_name, potential_name, n, alpha, beta,
-                 domain=None, target_set=None, T=None):
+                 domain=None, target_set=None, T=None, nu=None):
         '''
         '''
         # check problem name
@@ -35,30 +34,18 @@ class LangevinSDE(object):
         assert type(n) == int, ''
         self.n = n
 
-        # check alpha
-        type(alpha) == np.ndarray, ''
-        assert alpha.ndim == 1, ''
-        assert alpha.shape[0] == n, ''
-        self.alpha = alpha
-
         # get potential and gradient functions
-        self.set_potential_and_gradient()
+        self.set_potential_and_gradient(alpha)
 
         # check beta
         type(float) == float, ''
         self.beta = beta
 
         # check domain 
-        if domain is not None:
-            assert type(domain) == np.ndarray, ''
-            assert domain.ndim == 2, ''
-            assert domain.shape == (n, 2), ''
-        else:
-            domain = np.full((n, 2), [-3, 3])
-        self.domain = domain
+        self.set_domain(domain)
 
         # set functions f and g
-        self.set_work_path_functional()
+        self.set_work_path_functional(nu)
 
         # check target set if we are in the stopping time case
         if target_set is not None and problem_name == 'langevin_stop-t':
@@ -89,13 +76,20 @@ class LangevinSDE(object):
             msg = 'Expected subclass of <class LangevinSDE>, got {}.'.format(type(obj))
             raise TypeError(msg)
 
-    def set_potential_and_gradient(self):
+    def set_potential_and_gradient(self, alpha):
         '''
         '''
+        # set alpha
+        type(alpha) == np.ndarray, ''
+        assert alpha.ndim == 1, ''
+        assert alpha.shape[0] == self.n, ''
+        self.alpha = alpha
+
+        # set potential and gradient
         self.potential = functools.partial(double_well, alpha=self.alpha)
         self.gradient = functools.partial(double_well_gradient, alpha=self.alpha)
 
-    def set_work_path_functional(self):
+    def set_work_path_functional(self, nu):
         '''
         '''
         # set f=1 and g=0, leading to W=fht
@@ -105,8 +99,16 @@ class LangevinSDE(object):
 
         # set f=0 and g=quadratic one well, leading to W=g(X_T)
         elif self.problem_name == 'langevin_det-t':
+
+            # set nu
+            type(nu) == np.ndarray, ''
+            assert nu.ndim == 1, ''
+            assert nu.shape[0] == self.n, ''
+            self.nu = nu
+
+            # set f and g
             self.f = functools.partial(constant, a=0.)
-            self.g = functools.partial(quadratic_one_well, nu=3 * np.ones(self.n))
+            self.g = functools.partial(quadratic_one_well, nu=nu)
 
     def set_settings_dir_path(self):
 
@@ -136,6 +138,37 @@ class LangevinSDE(object):
         # create dir path if not exists
         if not os.path.isdir(self.settings_dir_path):
             os.makedirs(self.settings_dir_path)
+
+    def set_domain(self, domain):
+        ''' set domain. check if it is an hypercube
+        '''
+        # set default domain
+        if domain is None:
+            self.domain = np.full((self.n, 2), [-3, 3])
+            self.is_domain_hypercube = True
+            return
+
+        # assert domain is an hyperrectangle
+        assert type(domain) == np.ndarray, ''
+        assert domain.ndim == 2, ''
+        assert domain.shape == (self.n, 2), ''
+        self.domain = domain
+
+        # check if domain is a rectangle
+        # assume it is
+        self.is_domain_hypercube = True
+
+        # 1d case
+        if self.n == 1:
+            return
+
+        # nd case
+        lb = domain[0, 0]
+        rb = domain[0, 1]
+        for i in range(1, self.n):
+            if lb != domain[i, 0] or rb != domain[i, 1]:
+                self.is_domain_hypercube = False
+                return
 
     def discretize_domain(self, h=None):
         ''' this method discretizes the hyper-rectangular domain uniformly with step-size h
@@ -167,6 +200,19 @@ class LangevinSDE(object):
         for i in range(self.n):
             N *= self.Nx[i]
         self.Nh = N
+
+    def discretize_domain_1d(self, h=None):
+        ''' this method discretizes the i-th domain coordinate
+        '''
+        assert self.is_domain_hypercube, ''
+
+        if h is not None:
+            self.h = h
+        assert self.h is not None, ''
+
+        self.domain_i_h = np.arange(self.domain[0, 0], self.domain[0, 1] + h, h)
+        #self.domain_i_h = np.expand_dims(self.domain_i_h, 1)
+        self.Nh = self.domain_i_h.shape[0]
 
     def sample_domain_uniformly(self, N):
         x = np.random.uniform(
@@ -317,6 +363,8 @@ class LangevinSDE(object):
             n=self.n,
             alpha=self.alpha,
             beta=self.beta,
+            T=self.T,
+            nu=self.nu,
             h=h,
             dt=dt,
         )

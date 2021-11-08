@@ -21,6 +21,14 @@ def main():
         alpha[0] = args.alpha_i
         alpha[1:] = args.alpha_j
 
+    # set nu array
+    if args.potential_name == 'nd_2well':
+        nu = np.full(args.n, args.nu_i)
+    elif args.potential_name == 'nd_2well_asym':
+        nu = np.empty(args.n)
+        nu[0] = args.nu_i
+        nu[1:] = args.nu_j
+
     # initialize sampling object
     sample = Sampling(
         problem_name='langevin_det-t',
@@ -30,6 +38,7 @@ def main():
         beta=args.beta,
         is_controlled=False,
         T=args.T,
+        nu=nu,
     )
 
     # set sampling and Euler-Marujama parameters

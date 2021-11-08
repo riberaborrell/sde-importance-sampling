@@ -27,10 +27,10 @@ class SolverHJBDet(LangevinSDE):
    '''
 
     def __init__(self, problem_name, potential_name, n, alpha,
-                 beta, h, domain=None, target_set=None, T=None, dt=None):
+                 beta, h, domain=None, target_set=None, T=None, nu=None, dt=None):
 
         super().__init__(problem_name, potential_name, n, alpha, beta,
-                         domain, target_set, T)
+                         domain, target_set, T, nu)
 
         # discretization step
         self.h = h

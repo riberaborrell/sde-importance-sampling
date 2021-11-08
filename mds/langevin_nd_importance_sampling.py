@@ -14,13 +14,13 @@ class Sampling(LangevinSDE):
     '''
 
     def __init__(self, problem_name, potential_name, n, alpha, beta, target_set=None,
-                 domain=None, h=None, is_controlled=None, T=None, is_optimal=None,
+                 domain=None, h=None, is_controlled=None, T=None, nu=None, is_optimal=None,
                  is_batch=False):
         '''
         '''
 
         super().__init__(problem_name, potential_name, n, alpha, beta,
-                         domain, target_set, T)
+                         domain, target_set, T, nu)
 
         # sampling
         self.is_controlled = is_controlled

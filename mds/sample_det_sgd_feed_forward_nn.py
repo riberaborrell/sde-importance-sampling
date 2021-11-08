@@ -23,6 +23,14 @@ def main():
         alpha[0] = args.alpha_i
         alpha[1:] = args.alpha_j
 
+    # set nu array
+    if args.potential_name == 'nd_2well':
+        nu = np.full(args.n, args.nu_i)
+    elif args.potential_name == 'nd_2well_asym':
+        nu = np.empty(args.n)
+        nu[0] = args.nu_i
+        nu[1:] = args.nu_j
+
     # initialize sampling object
     sample = Sampling(
         problem_name='langevin_det-t',
@@ -32,6 +40,7 @@ def main():
         beta=args.beta,
         is_controlled=True,
         T=args.T,
+        nu=nu,
     )
 
     # set sampling and Euler-Marujama parameters
@@ -131,6 +140,10 @@ def main():
     # do plots 
     if args.do_plots:
 
+        # plot control_i
+        sgd.plot_control_i_t(i=0, t=0.)
+        return
+
         # load mc sampling and hjb solution and prepare labels
         sgd.load_mc_sampling(dt_mc=0.005, N_mc=10**3)
         sgd.load_hjb_solution_and_sampling(h_hjb=0.01, dt_hjb=0.005, N_hjb=10**3)
@@ -142,10 +155,6 @@ def main():
         # mean and relative error of the reweighted quantity of interest
         sgd.plot_mean_I_u()
         sgd.plot_re_I_u()
-
-        # time steps and computational time
-        sgd.plot_time_steps()
-        sgd.plot_cts()
 
         # u l2 error and its change
         #if sgd.u_l2_errors is not None:
