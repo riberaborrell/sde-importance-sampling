@@ -1358,7 +1358,7 @@ class Sampling(LangevinSDE):
         files_dict['k_lim'] =self.k_lim
 
         # fht
-        if self.problem_name == 'langevin-stop-t':
+        if self.problem_name == 'langevin_stop-t':
             files_dict['been_in_target_set'] = self.been_in_target_set
             files_dict['fht'] = self.fht
             self.k = int(np.max(self.fht) / self.dt)
