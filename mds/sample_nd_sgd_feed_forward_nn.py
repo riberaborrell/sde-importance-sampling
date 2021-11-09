@@ -138,9 +138,9 @@ def main():
             sgd.plot_2d_iteration(i=0)
 
         # load mc sampling and hjb solution and prepare labels
-        sgd.load_mc_sampling(dt_mc=0.01, N_mc=10**5)
-        sgd.load_hjb_solution_and_sampling(h_hjb=0.005, dt_hjb=0.01, N_hjb=10**5)
-        sgd.load_plot_labels_colors_and_lniestyles()
+        sgd.load_mc_sampling(dt_mc=0.01, N_mc=10**3)
+        sgd.load_hjb_solution_and_sampling(h_hjb=0.001, dt_hjb=0.01, N_hjb=10**3)
+        sgd.load_plot_labels_colors_and_linestyles()
 
         # loss
         sgd.plot_loss()
