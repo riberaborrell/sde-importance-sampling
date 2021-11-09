@@ -446,10 +446,20 @@ class StochasticOptimizationMethod:
         self.N_hjb = N_hjb
 
         # load hjb solver
-        sol_hjb = self.sample.get_hjb_solver_det(h_hjb, dt_hjb)
-        if sol_hjb.F is not None:
+        if self.sample.problem_name == 'langevin_stop-t':
+            sol_hjb = self.sample.get_hjb_solver(h_hjb)
+        elif self.sample.problem_name == 'langevin_det-t':
+            sol_hjb = self.sample.get_hjb_solver_det(h_hjb, dt_hjb)
+
+        if sol_hjb is not None and self.sample.problem_name == 'langevin_stop-t':
             hjb_psi_at_x = sol_hjb.get_psi_at_x(self.sample.xzero)
             hjb_f_at_x = sol_hjb.get_f_at_x(self.sample.xzero)
+            self.hjb_is_loaded = True
+            self.f_hjb = np.full(self.n_iterations, hjb_f_at_x)
+            self.psi_hjb = np.full(self.n_iterations_lim, hjb_psi_at_x)
+        elif sol_hjb is not None and self.sample.problem_name == 'langevin_det-t':
+            hjb_psi_at_x = sol_hjb.get_psi_t_x(0., self.sample.xzero)
+            hjb_f_at_x = sol_hjb.get_f_t_x(0., self.sample.xzero)
             self.hjb_is_loaded = True
             self.f_hjb = np.full(self.n_iterations, hjb_f_at_x)
             self.psi_hjb = np.full(self.n_iterations_lim, hjb_psi_at_x)
@@ -512,7 +522,7 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='loss',
         )
-        fig.set_xlabel = 'iterations'
+        fig.set_xlabel('iterations')
         fig.set_plot_scale('semilogy')
         fig.plot(x, y, self.colors, self.linestyles, self.labels)
 
@@ -531,7 +541,7 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='loss-avg',
         )
-        fig.set_xlabel = 'iterations'
+        fig.set_xlabel('iterations')
         fig.set_plot_scale('semilogy')
         fig.plot(x[self.n_iter_avg - 1:], y, self.colors, self.linestyles, self.labels)
 
@@ -556,7 +566,7 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='mean',
         )
-        fig.set_xlabel = 'iterations'
+        fig.set_xlabel('iterations')
         fig.set_plot_scale('semilogy')
         fig.plot(x, y, self.colors, self.linestyles, self.labels)
 
@@ -575,7 +585,7 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='mean-avg',
         )
-        fig.set_xlabel = 'iterations'
+        fig.set_xlabel('iterations')
         fig.set_plot_scale('semilogy')
         fig.plot(x[self.n_iter_avg - 1:], y, self.colors, self.linestyles, self.labels)
 
@@ -598,7 +608,7 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='re',
         )
-        fig.set_xlabel = 'iterations'
+        fig.set_xlabel('iterations')
         fig.set_plot_scale('semilogy')
         fig.plot(x, y, self.colors[:3], self.linestyles[:3], self.labels[:3])
 
@@ -608,18 +618,17 @@ class StochasticOptimizationMethod:
 
         y = np.vstack((
             self.run_avg_res_I_u,
-            self.value_f_mc[self.n_iter_avg - 1:],
-            self.value_f_is_hjb[self.n_iter_avg - 1:],
-            self.f_hjb[self.n_iter_avg - 1:],
+            self.re_I_mc[self.n_iter_avg - 1:],
+            self.re_I_u_hjb[self.n_iter_avg - 1:],
         ))
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
             file_name='re-avg',
         )
-        fig.set_xlabel = 'iterations'
+        fig.set_xlabel('iterations')
         fig.set_plot_scale('semilogy')
-        fig.plot(x[self.n_iter_avg - 1:], y, self.colors, self.linestyles, self.labels)
+        fig.plot(x[self.n_iter_avg - 1:], y, self.colors[:3], self.linestyles[:3], self.labels[:3])
 
     def plot_error_bar_I_u(self):
         '''
@@ -655,7 +664,7 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='time-steps',
         )
-        fig.set_xlabel = 'iterations'
+        fig.set_xlabel('iterations')
         fig.set_plot_scale('semilogy')
         fig.plot(x, y, self.colors[:3], self.linestyles[:3], self.labels[:3])
 
@@ -673,7 +682,7 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='time-steps-avg',
         )
-        fig.set_xlabel = 'iterations'
+        fig.set_xlabel('iterations')
         fig.set_plot_scale('semilogy')
         fig.plot(x[self.n_iter_avg - 1:], y, self.colors[:3], self.linestyles[:3], self.labels[:3])
 
@@ -693,7 +702,7 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='cts',
         )
-        fig.set_xlabel = 'iterations'
+        fig.set_xlabel('iterations')
         fig.set_plot_scale('semilogy')
         fig.plot(x, y, self.colors[:3], self.linestyles[:3], self.labels[:3])
 
@@ -712,7 +721,7 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='u-l2-error',
         )
-        fig.set_xlabel = 'iterations'
+        fig.set_xlabel('iterations')
         fig.set_plot_scale('semilogy')
         fig.plot(x, y, self.colors[0], self.linestyles[0], self.labels[0])
 
@@ -726,7 +735,7 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='u-l2-error-avg',
         )
-        fig.set_xlabel = 'iterations'
+        fig.set_xlabel('iterations')
         fig.set_plot_scale('semilogy')
         fig.plot(x[self.n_iter_avg - 1:], y, self.colors[0], self.linestyles[0], self.labels[0])
 
@@ -744,6 +753,41 @@ class StochasticOptimizationMethod:
         )
         fig.set_xlabel = 'iterations'
         fig.plot(x, y, self.colors[0], self.linestyles[0], self.labels[0])
+
+    def plot_control_i_t(self, i, t):
+        '''
+        '''
+        from figures.myfigure import MyFigure
+
+        # load last iteration
+        #self.sample.nn_func_appr.model.load_parameters(self.thetas[-1])
+        self.sample.nn_func_appr.model.load_parameters(self.last_thetas)
+
+        # get time index
+        k = self.sample.get_time_index(t)
+
+        # get control
+        self.sample.discretize_domain_1d(h=0.01)
+        self.sample.get_grid_control_i(k=k)
+
+        # get hjb solution
+        sol_hjb = self.sample.get_hjb_solver_det(h=0.01, dt=0.005)
+        u_opt_i = sol_hjb.u_opt_i[k, :]
+
+        x = self.sample.domain_i_h
+        y = np.vstack((
+            self.sample.grid_control_i,
+            u_opt_i,
+        ))
+
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='control-i',
+        )
+        fig.set_xlabel(r'$x_{:d}$'.format(i))
+        fig.plot(x, y)
+
 
     def plot_1d_iteration(self, i=None):
         from figures.myfigure import MyFigure

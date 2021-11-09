@@ -1,8 +1,9 @@
 from mds.base_parser_nd import get_base_parser
-from mds.langevin_nd_sde import LangevinSDE
 from mds.langevin_nd_function_approximation import FunctionApproximation
-from mds.neural_networks import FeedForwardNN, DenseNN
 from mds.langevin_nd_importance_sampling import Sampling
+from mds.langevin_nd_metadynamics import Metadynamics
+from mds.langevin_nd_sde import LangevinSDE
+from mds.neural_networks import FeedForwardNN, DenseNN
 
 import numpy as np
 import os
@@ -12,12 +13,6 @@ def get_parser():
     parser.description = 'Sample controlled nd overdamped Langevin SDE. The control ' \
                          'is parametrized with neural network. ' \
                          'The weights are fitted from the metadynamics bias potential.'
-    parser.add_argument(
-        '--is-cumulative',
-        dest='is_cumulative',
-        action='store_true',
-        help='Cumulative metadynamics algorithm. Default: False',
-    )
     return parser
 
 def main():
@@ -33,6 +28,7 @@ def main():
 
     # initialize sampling object
     sample = Sampling(
+        problem_name=args.problem_name,
         potential_name=args.potential_name,
         n=args.n,
         alpha=alpha,
@@ -49,10 +45,22 @@ def main():
         N=args.N,
     )
 
-    # get meta sampling
-    meta = sample.get_metadynamics_sampling(args.dt_meta, args.sigma_i_meta,
-                                            args.is_cumulative, args.k_meta, args.N_meta)
+    # initialize meta nd object
+    meta = Metadynamics(
+        sample=sample,
+        k=args.k_meta,
+        N=args.N_meta,
+        seed=args.seed,
+        meta_type=args.meta_type,
+        weights_type=args.weights_type,
+        omega_0=args.omega_0_meta,
+    )
 
+    # set path
+    meta.set_dir_path()
+
+    # load arrays
+    meta.load()
 
     # set u l2 error flag
     if args.do_u_l2_error:
@@ -74,17 +82,15 @@ def main():
     func = FunctionApproximation(
         target_function='control',
         model=model,
+        initialization='meta',
     )
+
+    # set dir path for nn
+    func.set_dir_path(meta.dir_path)
 
     # train nn network
     if not args.load:
-        sde = LangevinSDE.new_from(sample)
-        func.fit_parameters_from_metadynamics(sde, args.dt_meta, args.sigma_i_meta,
-                                              args.k_meta, args.N_meta)
-
-    # set dir path for nn
-    func.initialization = 'meta'
-    func.set_dir_path(sample.settings_dir_path)
+        func.train_parameters_with_metadynamics(meta)
 
     # add nn function approximation
     sample.nn_func_appr = func
