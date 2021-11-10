@@ -230,6 +230,9 @@ class Metadynamics:
         self.ms[i] = j
         self.time_steps[i] = time_steps
 
+        msg = 'trajectory: {:d},  K: {:d}, fht: {:2.2f}'.format(i, j, time_steps * self.sample.dt)
+        print(msg)
+
     def save(self):
         ''' saves some attributes as arrays into a .npz file
         '''
