@@ -121,6 +121,7 @@ class Sampling(LangevinSDE):
             self.settings_dir_path,
             self.dt,
             self.N,
+            self.seed,
         )
 
     def set_controlled_dir_path(self, parent_dir_path):
@@ -131,6 +132,7 @@ class Sampling(LangevinSDE):
             parent_dir_path,
             self.dt,
             self.N,
+            self.seed,
         )
 
     def bias_potential(self, x, theta=None):

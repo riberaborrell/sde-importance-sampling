@@ -64,20 +64,35 @@ def get_hjb_solution_dir_path(settings_dir_path, h):
     )
     return dir_path
 
-def get_not_controlled_dir_path(settings_dir_path, dt, N):
+def get_not_controlled_dir_path(settings_dir_path, dt, N, seed):
     ''' returns the absolute path of mc sampling directory
     '''
+    # set seed string
+    if seed is not None:
+        seed_str = 'seed_{:d}'.format(seed)
+    else:
+        seed_str = ''
+
+    # get dir path
     dir_path = os.path.join(
         settings_dir_path,
         'mc-sampling',
         'dt_{}'.format(dt),
         'N_{:.0e}'.format(N),
+        seed_str,
     )
     return dir_path
 
-def get_controlled_dir_path(parent_dir_path, dt, N):
+def get_controlled_dir_path(parent_dir_path, dt, N, seed):
     ''' returns the relative path of an importance sampling
     '''
+    # set seed string
+    if seed is not None:
+        seed_str = 'seed_{:d}'.format(seed)
+    else:
+        seed_str = ''
+
+    # get dir path
     dir_path = os.path.join(
         parent_dir_path,
         'is',
@@ -171,7 +186,7 @@ def get_gaussian_ansatz_dir_path(settings_dir_path, distributed, theta, m_i=None
         )
     elif distributed == 'meta' and theta == 'meta':
         dir_path = os.path.join(dir_path, 'theta_' + theta)
-    elif theta == 'optimal':
+    elif theta == 'hjb':
         dir_path = os.path.join(
             dir_path,
             'theta_' + theta,
@@ -189,6 +204,7 @@ def get_som_dir_path(func_appr_dir_path, loss_type, optimizer, lr, dt, N, seed):
     ''' Get stochastic optimization method absolute dir path and create its directories
     '''
 
+    # set seed string
     if seed is not None:
         seed_str = 'seed_{:d}'.format(seed)
     else:
