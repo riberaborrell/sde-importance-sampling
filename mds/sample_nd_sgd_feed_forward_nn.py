@@ -61,7 +61,9 @@ def main():
     elif args.theta == 'null':
 
         # set parameters to zero
-        func.zero_parameters()
+        #func.zero_parameters()
+        sde = LangevinSDE.new_from(sample)
+        func.train_parameters_with_not_controlled_potential(sde)
 
         # set dir path for nn
         func.set_dir_path(sample.settings_dir_path)
@@ -130,13 +132,6 @@ def main():
     # do plots 
     if args.do_plots:
 
-        if args.n == 1:
-            #sgd.plot_1d_iteration()
-            sgd.plot_1d_iterations()
-
-        elif args.n == 2:
-            sgd.plot_2d_iteration(i=0)
-
         # load mc sampling and hjb solution and prepare labels
         sgd.load_mc_sampling(dt_mc=0.01, N_mc=10**3)
         sgd.load_hjb_solution_and_sampling(h_hjb=0.001, dt_hjb=0.01, N_hjb=10**3)
@@ -157,6 +152,14 @@ def main():
         if sgd.u_l2_errors is not None:
             sgd.plot_u_l2_error()
             sgd.plot_u_l2_error_change()
+
+        if args.n == 1:
+            #sgd.plot_1d_iteration()
+            sgd.plot_1d_iterations()
+
+        elif args.n == 2:
+            sgd.plot_2d_iteration(i=0)
+
 
 if __name__ == "__main__":
     main()

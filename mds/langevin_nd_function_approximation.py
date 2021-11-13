@@ -8,6 +8,7 @@ import torch.optim as optim
 
 import os
 
+
 class FunctionApproximation():
 
     def __init__(self, target_function, model, initialization='random'):
@@ -48,6 +49,29 @@ class FunctionApproximation():
                     layer._parameters[key], requires_grad=True
                 )
 
+    def set_sgd_parameters(self, n):
+        if n == 1:
+            self.n_iterations_lim = 10**3
+            self.N_train = 10**3
+            self.epsilon = 0.001
+        elif n == 2:
+            self.n_iterations_lim = 10**4
+            self.N_train = 10**3
+            self.epsilon = 0.1
+        #elif n == 3:
+        elif n == 4:
+            self.n_iterations_lim = 10**4
+            self.N_train = 10**4
+            self.epsilon = 0.1
+        elif n == 6:
+            self.n_iterations_lim = 10**4
+            self.N_train = 10**3
+            self.epsilon = 0.01
+        else:
+            self.n_iterations_lim = 10**3
+            self.N_train = 10**3
+            self.epsilon = 0.1
+
     def train_parameters_with_not_controlled_potential(self, sde):
 
         # define optimizer
@@ -59,35 +83,26 @@ class FunctionApproximation():
         # define loss
         loss = nn.MSELoss()
 
-        # training parameters
-        n_iterations_lim = 10**4
-        N_train = 10**2
-        epsilon = 0.001
+        # set sgd parameters
+        self.set_sgd_parameters(sde.n)
 
-        for i in np.arange(n_iterations_lim):
+        # target function
+        target_tensor = torch.zeros(self.N_train)
+
+        for i in np.arange(self.n_iterations_lim):
 
             # sample training data
-            x = sde.sample_domain_uniformly(N_train)
+            x = sde.sample_domain_uniformly(self.N_train)
             x_tensor = torch.tensor(x, requires_grad=False, dtype=torch.float32)
-
-            # value function parametrization
-            if self.target_function == 'value-f':
-                pass
-
-            # control parametrization
-            elif self.target_function == 'control':
-                pass
-
-            target_tensor = torch.zeros_like(x_tensor)
 
             # compute loss
             inputs = self.model.forward(x_tensor)
             output = loss(inputs, target_tensor)
             if i % 100 == 0:
-                print('{:d}, {:2.3f}'.format(i, output))
+                print('{:d}, {:2.5f}'.format(i, output))
 
             # stop if we have reached enough accuracy
-            if output <= epsilon:
+            if output <= self.epsilon:
                 break
 
             # compute gradients
@@ -100,7 +115,7 @@ class FunctionApproximation():
             optimizer.zero_grad()
 
         print('nn trained with not controlled potential!')
-        print('{:d}, {:2.3f}'.format(i, output))
+        print('{:d}, {:2.5f}'.format(i, output))
 
 
     def train_parameters_with_metadynamics(self, meta):
@@ -121,21 +136,8 @@ class FunctionApproximation():
             lr=0.01,
         )
 
-        # training parameters
-
-        if n == 1:
-            self.n_iterations_lim = 10**4
-            self.N_train = 10**3
-            self.epsilon = 0.01
-
-        elif n == 2:
-            self.n_iterations_lim = 10**4
-            self.N_train = 10**3
-            self.epsilon = 0.1
-        else:
-            self.n_iterations_lim = 10**4
-            self.N_train = 10**3
-            self.epsilon = 0.1
+        # set sgd parameters
+        self.set_sgd_parameters(meta.sample.n)
 
         for i in np.arange(self.n_iterations_lim):
 
