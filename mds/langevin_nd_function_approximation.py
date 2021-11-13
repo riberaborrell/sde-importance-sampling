@@ -87,7 +87,7 @@ class FunctionApproximation():
         self.set_sgd_parameters(sde.n)
 
         # target function
-        target_tensor = torch.zeros(self.N_train)
+        target_tensor = torch.zeros(self.N_train, sde.n)
 
         for i in np.arange(self.n_iterations_lim):
 
