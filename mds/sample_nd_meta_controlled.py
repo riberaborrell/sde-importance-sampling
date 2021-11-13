@@ -1,6 +1,7 @@
 from mds.base_parser_nd import get_base_parser
 from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
 from mds.langevin_nd_importance_sampling import Sampling
+from mds.langevin_nd_metadynamics import Metadynamics
 
 import numpy as np
 import os
@@ -10,12 +11,6 @@ def get_parser():
     parser.description = 'Sample controlled nd overdamped Langevin SDE. The bias potential ' \
                          'is parametrized with linear combination of Gaussian functions. ' \
                          'The weights are chosen from the metadynamics sampling.'
-    parser.add_argument(
-        '--is-cumulative',
-        dest='is_cumulative',
-        action='store_true',
-        help='Cumulative metadynamics algorithm. Default: False',
-    )
     return parser
 
 def main():
@@ -48,13 +43,27 @@ def main():
         N=args.N,
     )
 
+    # initialize meta nd object
+    meta = Metadynamics(
+        sample=sample,
+        k=args.k_meta,
+        N=args.N_meta,
+        seed=args.seed,
+        meta_type=args.meta_type,
+        weights_type=args.weights_type,
+        omega_0=args.omega_0_meta,
+    )
+
+    # set path
+    meta.set_dir_path()
+
+    # load arrays
+    meta.load()
+
     # set u l2 error flag
     if args.do_u_l2_error:
         sample.do_u_l2_error = True
 
-    # get meta sampling
-    meta = sample.get_metadynamics_sampling(args.meta_type, args.weights_type, args.omega_0_meta,
-                                            args.k_meta, args.N_meta)
 
     # get the corresponding Gaussian ansatz
     meta.sample.ansatz = GaussianAnsatz(n=args.n, normalized=False)
