@@ -60,8 +60,8 @@ class FunctionApproximation():
             self.epsilon = 0.1
         #elif n == 3:
         elif n == 4:
-            self.n_iterations_lim = 10**4
-            self.N_train = 10**4
+            self.n_iterations_lim = 10**3
+            self.N_train = 5 * 10**2
             self.epsilon = 0.1
         elif n == 6:
             self.n_iterations_lim = 10**4
@@ -71,6 +71,9 @@ class FunctionApproximation():
             self.n_iterations_lim = 10**3
             self.N_train = 10**3
             self.epsilon = 0.1
+
+
+        self.losses = np.empty(self.n_iterations_lim)
 
     def train_parameters_with_not_controlled_potential(self, sde):
 
@@ -130,14 +133,17 @@ class FunctionApproximation():
         meta.sample.ansatz = GaussianAnsatz(n=n, normalized=False)
         meta.set_ansatz_cumulative()
 
+        # define loss
+        loss = nn.MSELoss()
+
+        # set sgd parameters
+        self.set_sgd_parameters(meta.sample.n)
+
         # define optimizer
         optimizer = optim.Adam(
             self.model.parameters(),
             lr=0.01,
         )
-
-        # set sgd parameters
-        self.set_sgd_parameters(meta.sample.n)
 
         for i in np.arange(self.n_iterations_lim):
 
@@ -153,12 +159,15 @@ class FunctionApproximation():
                 target = meta.sample.ansatz.control(x)
             target_tensor = torch.tensor(target, requires_grad=False, dtype=torch.float32)
 
-            # define loss
             inputs = self.model.forward(x_tensor)
-            loss = nn.MSELoss()
+
+            # compute loss
             output = loss(inputs, target_tensor)
             if i % 100 == 0:
-                print('{:d}, {:2.3f}'.format(i, output))
+                print('it.: {:d}, loss: {:2.3f}'.format(i, output))
+
+            # save loss
+            self.losses[i] = output.detach().numpy()
 
             # stop if we have reached enough accuracy
             if output <= self.epsilon:
@@ -174,7 +183,7 @@ class FunctionApproximation():
             optimizer.zero_grad()
 
         print('nn fitted from metadynamics!')
-        print('{:d}, {:2.3f}'.format(i, output))
+        print('it.: {:d}, loss: {:2.3f}'.format(i, self.losses[i]))
 
         # number of iterations used
         self.n_iterations = i
@@ -199,6 +208,7 @@ class FunctionApproximation():
             N_train=self.N_train,
             epsilon=self.epsilon,
             theta=self.theta,
+            losses=self.losses,
         )
 
     def load_trained_parameters(self, dir_path):
