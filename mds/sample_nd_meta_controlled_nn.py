@@ -95,7 +95,7 @@ def main():
     sample.nn_func_appr = func
 
     # set controlled sampling dir path
-    sample.set_controlled_dir_path(meta.dir_path)
+    sample.set_controlled_dir_path(func.dir_path)
 
     if not args.load:
 

@@ -64,7 +64,6 @@ def main():
     if args.do_u_l2_error:
         sample.do_u_l2_error = True
 
-
     # get the corresponding Gaussian ansatz
     meta.sample.ansatz = GaussianAnsatz(n=args.n, normalized=False)
     if meta.meta_type == 'cum':

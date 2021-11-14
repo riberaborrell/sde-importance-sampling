@@ -58,20 +58,10 @@ class FunctionApproximation():
             self.n_iterations_lim = 10**4
             self.N_train = 10**3
             self.epsilon = 0.1
-        #elif n == 3:
-        elif n == 4:
-            self.n_iterations_lim = 10**3
+        elif n >= 3:
+            self.n_iterations_lim = 10**5
             self.N_train = 5 * 10**2
             self.epsilon = 0.1
-        elif n == 6:
-            self.n_iterations_lim = 10**4
-            self.N_train = 10**3
-            self.epsilon = 0.01
-        else:
-            self.n_iterations_lim = 10**3
-            self.N_train = 10**3
-            self.epsilon = 0.1
-
 
         self.losses = np.empty(self.n_iterations_lim)
 
