@@ -51,17 +51,14 @@ class FunctionApproximation():
 
     def set_sgd_parameters(self, n):
         if n == 1:
-            self.n_iterations_lim = 10**3
+            self.n_iterations_lim = 10**4
             self.N_train = 10**3
-            self.epsilon = 0.001
         elif n == 2:
             self.n_iterations_lim = 10**4
             self.N_train = 10**3
-            self.epsilon = 0.1
         elif n >= 3:
             self.n_iterations_lim = 10**5
             self.N_train = 5 * 10**2
-            self.epsilon = 0.1
 
         self.losses = np.empty(self.n_iterations_lim)
 
@@ -91,12 +88,8 @@ class FunctionApproximation():
             # compute loss
             inputs = self.model.forward(x_tensor)
             output = loss(inputs, target_tensor)
-            if i % 100 == 0:
-                print('{:d}, {:2.5f}'.format(i, output))
-
-            # stop if we have reached enough accuracy
-            if output <= self.epsilon:
-                break
+            if i % 1000 == 0:
+                print('{:d}, {:2.3e}'.format(i, output))
 
             # compute gradients
             output.backward()
@@ -108,7 +101,7 @@ class FunctionApproximation():
             optimizer.zero_grad()
 
         print('nn trained with not controlled potential!')
-        print('{:d}, {:2.5f}'.format(i, output))
+        print('{:d}, {:2.3e}'.format(i, output))
 
 
     def train_parameters_with_metadynamics(self, meta):
@@ -153,15 +146,11 @@ class FunctionApproximation():
 
             # compute loss
             output = loss(inputs, target_tensor)
-            if i % 100 == 0:
-                print('it.: {:d}, loss: {:2.3f}'.format(i, output))
+            if i % 1000 == 0:
+                print('it.: {:d}, loss: {:2.3e}'.format(i, output))
 
             # save loss
             self.losses[i] = output.detach().numpy()
-
-            # stop if we have reached enough accuracy
-            if output <= self.epsilon:
-                break
 
             # compute gradients
             output.backward()
@@ -173,7 +162,7 @@ class FunctionApproximation():
             optimizer.zero_grad()
 
         print('nn fitted from metadynamics!')
-        print('it.: {:d}, loss: {:2.3f}'.format(i, self.losses[i]))
+        print('it.: {:d}, loss: {:2.3e}'.format(i, self.losses[i]))
 
         # number of iterations used
         self.n_iterations = i

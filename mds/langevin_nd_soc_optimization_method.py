@@ -57,6 +57,9 @@ class StochasticOptimizationMethod:
         self.set_dir_path()
         self.iterations_dir_path = None
 
+        # hjb solver
+        self.sol_hjb = None
+
     def set_dir_path(self):
         if self.sample.ansatz is not None:
             func_appr_dir_path = self.sample.ansatz.dir_path
@@ -185,8 +188,6 @@ class StochasticOptimizationMethod:
                   self.time_steps[i],
               )
         return msg
-
-    def sgd_ipa_gaussian_ansatz(self):
         self.start_timer()
 
         # number of parameters
@@ -323,22 +324,42 @@ class StochasticOptimizationMethod:
             return False
 
     def compute_running_averages(self, n_iter_avg=10):
+        '''
+        '''
+        # number of iterations of the running window
         self.n_iter_avg = n_iter_avg
+
+        # loss
         self.run_avg_losses = np.convolve(
             self.losses, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
         )
+
+        # mean I^u
         self.run_avg_means_I_u = np.convolve(
             self.means_I_u, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
         )
+
+        # var I^u
         self.run_avg_vars_I_u = np.convolve(
             self.vars_I_u, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
         )
+
+        # re I^u
         self.run_avg_res_I_u = np.convolve(
             self.res_I_u, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
         )
+
+        # time steps
         self.run_avg_time_steps = np.convolve(
             self.time_steps, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
         )
+
+        # computational time
+        self.run_avg_cts = np.convolve(
+            self.cts, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
+        )
+
+        # u l2 error
         if self.u_l2_errors is not None and self.u_l2_errors.ndim != 0:
             self.run_avg_u_l2_errors = np.convolve(
                 self.u_l2_errors, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
@@ -423,7 +444,7 @@ class StochasticOptimizationMethod:
         # load mc sampling
         sample_mc = self.sample.get_not_controlled_sampling(dt_mc, N_mc)
 
-        if sample_mc.mean_I is not None:
+        if sample_mc is not None:
             self.value_f_mc = np.full(self.n_iterations, - np.log(sample_mc.mean_I))
             self.mean_I_mc = np.full(self.n_iterations, sample_mc.mean_I)
             self.re_I_mc = np.full(self.n_iterations_lim, sample_mc.re_I)
@@ -440,6 +461,7 @@ class StochasticOptimizationMethod:
         '''
         '''
         from mds.langevin_nd_importance_sampling import Sampling
+
         # save parameters
         self.h_hjb = h_hjb
         self.dt_hjb = dt_hjb
@@ -447,60 +469,57 @@ class StochasticOptimizationMethod:
 
         # load hjb solver
         if self.sample.problem_name == 'langevin_stop-t':
-            sol_hjb = self.sample.get_hjb_solver(h_hjb)
+            self.sol_hjb = self.sample.get_hjb_solver(h_hjb)
         elif self.sample.problem_name == 'langevin_det-t':
-            sol_hjb = self.sample.get_hjb_solver_det(h_hjb, dt_hjb)
+            self.sol_hjb = self.sample.get_hjb_solver_det(h_hjb, dt_hjb)
 
-        if sol_hjb is not None and self.sample.problem_name == 'langevin_stop-t':
-            hjb_psi_at_x = sol_hjb.get_psi_at_x(self.sample.xzero)
-            hjb_f_at_x = sol_hjb.get_f_at_x(self.sample.xzero)
-            self.hjb_is_loaded = True
+        # break if there is no hjb solution
+        if self.sol_hjb is None:
+            return
+
+        if self.sample.problem_name == 'langevin_stop-t':
+            hjb_psi_at_x = self.sol_hjb.get_psi_at_x(self.sample.xzero)
+            hjb_f_at_x = self.sol_hjb.get_f_at_x(self.sample.xzero)
             self.f_hjb = np.full(self.n_iterations, hjb_f_at_x)
             self.psi_hjb = np.full(self.n_iterations_lim, hjb_psi_at_x)
-        elif sol_hjb is not None and self.sample.problem_name == 'langevin_det-t':
-            hjb_psi_at_x = sol_hjb.get_psi_t_x(0., self.sample.xzero)
-            hjb_f_at_x = sol_hjb.get_f_t_x(0., self.sample.xzero)
-            self.hjb_is_loaded = True
+        elif self.sample.problem_name == 'langevin_det-t':
+            hjb_psi_at_x = self.sol_hjb.get_psi_t_x(0., self.sample.xzero)
+            hjb_f_at_x = self.sol_hjb.get_f_t_x(0., self.sample.xzero)
             self.f_hjb = np.full(self.n_iterations, hjb_f_at_x)
             self.psi_hjb = np.full(self.n_iterations_lim, hjb_psi_at_x)
-        else:
-            self.hjb_is_loaded = False
-            self.f_hjb = np.full(self.n_iterations, np.nan)
-            self.psi_hjb = np.full(self.n_iterations_lim, np.nan)
 
         # load hjb sampling
-        sample_hjb = Sampling.new_from(self.sample)
-        sample_hjb.is_controlled = True
-        sample_hjb.N = N_hjb
-        sample_hjb.dt = dt_hjb
-        sample_hjb.set_controlled_dir_path(sol_hjb.dir_path)
-        sample_hjb.load()
-        if sample_hjb.mean_I_u is not None:
-            self.value_f_is_hjb = np.full(self.n_iterations_lim, -np.log(sample_hjb.mean_I_u))
-            self.mean_I_u_hjb = np.full(self.n_iterations_lim, sample_hjb.mean_I_u)
-            self.re_I_u_hjb = np.full(self.n_iterations_lim, sample_hjb.re_I_u)
-            self.time_steps_is_hjb = np.full(self.n_iterations_lim, sample_hjb.k)
-            self.ct_is_hjb = np.full(self.n_iterations_lim, sample_hjb.ct)
-        else:
-            self.value_is_hjb = np.full(self.n_iterations, np.nan)
-            self.mean_I_u_hjb = np.full(self.n_iterations, np.nan)
-            self.re_I_u_hjb = np.full(self.n_iterations, np.nan)
-            self.time_steps_is_hjb = np.full(self.n_iterations, np.nan)
-            self.ct_is_hjb = np.full(self.n_iterations, np.nan)
+        sample_hjb = self.sample.get_hjb_sampling(self.sol_hjb.dir_path, dt_hjb, N_hjb)
+
+        # break if there is no hjb sampling
+        if sample_hjb is None:
+            return
+
+        self.value_f_is_hjb = np.full(self.n_iterations_lim, -np.log(sample_hjb.mean_I_u))
+        self.mean_I_u_hjb = np.full(self.n_iterations_lim, sample_hjb.mean_I_u)
+        self.re_I_u_hjb = np.full(self.n_iterations_lim, sample_hjb.re_I_u)
+        self.time_steps_is_hjb = np.full(self.n_iterations_lim, sample_hjb.k)
+        self.ct_is_hjb = np.full(self.n_iterations_lim, sample_hjb.ct)
 
     def load_plot_labels_colors_and_linestyles(self):
+        '''
+        '''
 
-        self.colors = ['tab:blue', 'tab:orange', 'tab:grey', 'tab:cyan']
-        self.linestyles = ['-', 'dashed', 'dashdot', 'dashdot']
-        self.labels = [
-            'SOC',
-            'Not contronlled Sampling',
-            'HJB Sampling',
-            #r'SOC (dt={:.0e}, N={:.0e})'.format(self.sample.dt, self.sample.N),
-            #r'Not contronlled Sampling (dt={:.0e}, N={:.0e})'.format(self.dt_mc, self.N_mc),
-            #r'HJB Sampling (dt={:.0e}, N={:.0e})'.format(self.dt_hjb, self.N_hjb),
-            r'HJB solution (h={:.0e})'.format(self.h_hjb),
-        ]
+        if self.sol_hjb is None:
+            self.colors = ['tab:blue', 'tab:orange']
+            self.linestyles = ['-', 'dashed']
+            self.labels = ['SOC', 'Not contronlled Sampling']
+
+        else :
+            self.colors = ['tab:blue', 'tab:orange', 'tab:grey', 'tab:cyan']
+            self.linestyles = ['-', 'dashed', 'dashdot', 'dashdot']
+            self.labels = [
+                'SOC',
+                'Not contronlled Sampling',
+                'HJB Sampling',
+                r'HJB solution (h={:.0e})'.format(self.h_hjb),
+            ]
+
 
     def plot_loss(self):
         '''
@@ -511,12 +530,19 @@ class StochasticOptimizationMethod:
         x = np.arange(self.n_iterations)
 
         # plot losses
-        y = np.vstack((
-            self.losses,
-            self.value_f_mc,
-            self.value_f_is_hjb,
-            self.f_hjb,
-        ))
+        if self.sol_hjb is None:
+            y = np.vstack((
+                self.losses,
+                self.value_f_mc,
+            ))
+        else:
+            y = np.vstack((
+                self.losses,
+                self.value_f_mc,
+                self.value_f_is_hjb,
+                self.f_hjb,
+            ))
+
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
@@ -530,12 +556,19 @@ class StochasticOptimizationMethod:
         if not hasattr(self, 'run_avg_losses'):
             return
 
-        y = np.vstack((
-            self.run_avg_losses,
-            self.value_f_mc[self.n_iter_avg - 1:],
-            self.value_f_is_hjb[self.n_iter_avg - 1:],
-            self.f_hjb[self.n_iter_avg - 1:],
-        ))
+        if self.sol_hjb is None:
+            y = np.vstack((
+                self.run_avg_losses,
+                self.value_f_mc[self.n_iter_avg - 1:],
+            ))
+        else:
+            y = np.vstack((
+                self.run_avg_losses,
+                self.value_f_mc[self.n_iter_avg - 1:],
+                self.value_f_is_hjb[self.n_iter_avg - 1:],
+                self.f_hjb[self.n_iter_avg - 1:],
+            ))
+
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
@@ -555,12 +588,18 @@ class StochasticOptimizationMethod:
         x = np.arange(self.n_iterations)
 
         # plot mean I^u
-        y = np.vstack((
-            self.means_I_u,
-            self.mean_I_mc,
-            self.mean_I_u_hjb,
-            self.psi_hjb,
-        ))
+        if self.sol_hjb is None:
+            y = np.vstack((
+                self.means_I_u,
+                self.mean_I_mc,
+            ))
+        else:
+            y = np.vstack((
+                self.means_I_u,
+                self.mean_I_mc,
+                self.mean_I_u_hjb,
+                self.psi_hjb,
+            ))
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
@@ -574,12 +613,18 @@ class StochasticOptimizationMethod:
         if not hasattr(self, 'run_avg_means_I_u'):
             return
 
-        y = np.vstack((
-            self.run_avg_means_I_u,
-            self.mean_I_mc[self.n_iter_avg - 1:],
-            self.mean_I_u_hjb[self.n_iter_avg - 1:],
-            self.psi_hjb[self.n_iter_avg - 1:],
-        ))
+        if self.sol_hjb is None:
+            y = np.vstack((
+                self.run_avg_means_I_u,
+                self.mean_I_mc[self.n_iter_avg - 1:],
+            ))
+        else:
+            y = np.vstack((
+                self.run_avg_means_I_u,
+                self.mean_I_mc[self.n_iter_avg - 1:],
+                self.mean_I_u_hjb[self.n_iter_avg - 1:],
+                self.psi_hjb[self.n_iter_avg - 1:],
+            ))
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
@@ -598,11 +643,17 @@ class StochasticOptimizationMethod:
         x = np.arange(self.n_iterations)
 
         # plot relative error I^u
-        y = np.vstack((
-            self.res_I_u,
-            self.re_I_mc,
-            self.re_I_u_hjb,
-        ))
+        if self.sol_hjb is None:
+            y = np.vstack((
+                self.res_I_u,
+                self.re_I_mc,
+            ))
+        else:
+            y = np.vstack((
+                self.res_I_u,
+                self.re_I_mc,
+                self.re_I_u_hjb,
+            ))
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
@@ -610,17 +661,27 @@ class StochasticOptimizationMethod:
         )
         fig.set_xlabel('iterations')
         fig.set_plot_scale('semilogy')
-        fig.plot(x, y, self.colors[:3], self.linestyles[:3], self.labels[:3])
+
+        if self.sol_hjb is None:
+            fig.plot(x, y, self.colors, self.linestyles, self.labels)
+        else:
+            fig.plot(x, y, self.colors[:3], self.linestyles[:3], self.labels[:3])
 
         # plot relative error I^u
         if not hasattr(self, 'run_avg_res_I_u'):
             return
 
-        y = np.vstack((
-            self.run_avg_res_I_u,
-            self.re_I_mc[self.n_iter_avg - 1:],
-            self.re_I_u_hjb[self.n_iter_avg - 1:],
-        ))
+        if self.sol_hjb is None:
+            y = np.vstack((
+                self.run_avg_res_I_u,
+                self.re_I_mc[self.n_iter_avg - 1:],
+            ))
+        else:
+            y = np.vstack((
+                self.run_avg_res_I_u,
+                self.re_I_mc[self.n_iter_avg - 1:],
+                self.re_I_u_hjb[self.n_iter_avg - 1:],
+            ))
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
@@ -628,7 +689,10 @@ class StochasticOptimizationMethod:
         )
         fig.set_xlabel('iterations')
         fig.set_plot_scale('semilogy')
-        fig.plot(x[self.n_iter_avg - 1:], y, self.colors[:3], self.linestyles[:3], self.labels[:3])
+        if self.sol_hjb is None:
+            fig.plot(x[self.n_iter_avg - 1:], y, self.colors, self.linestyles, self.labels)
+        else:
+            fig.plot(x[self.n_iter_avg - 1:], y, self.colors[:3], self.linestyles[:3], self.labels[:3])
 
     def plot_error_bar_I_u(self):
         '''
@@ -654,11 +718,17 @@ class StochasticOptimizationMethod:
         x = np.arange(self.n_iterations)
 
         # plot time steps
-        y = np.vstack((
-            self.time_steps,
-            self.time_steps_mc,
-            self.time_steps_is_hjb,
-        ))
+        if self.sol_hjb is None:
+            y = np.vstack((
+                self.time_steps,
+                self.time_steps_mc,
+            ))
+        else:
+            y = np.vstack((
+                self.time_steps,
+                self.time_steps_mc,
+                self.time_steps_is_hjb,
+            ))
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
@@ -666,17 +736,28 @@ class StochasticOptimizationMethod:
         )
         fig.set_xlabel('iterations')
         fig.set_plot_scale('semilogy')
-        fig.plot(x, y, self.colors[:3], self.linestyles[:3], self.labels[:3])
+
+        if self.sol_hjb is None:
+            fig.plot(x, y, self.colors, self.linestyles, self.labels)
+        else:
+            fig.plot(x, y, self.colors[:3], self.linestyles[:3], self.labels[:3])
+        return
 
         # plot running averages time steps
         if not hasattr(self, 'run_avg_losses'):
             return
 
-        y = np.vstack((
-            self.run_avg_time_steps,
-            self.time_steps_mc[self.n_iter_avg - 1:],
-            self.time_steps_is_hjb[self.n_iter_avg - 1:],
-        ))
+        if self.sol_hjb is None:
+            y = np.vstack((
+                self.run_avg_time_steps,
+                self.time_steps_mc[self.n_iter_avg - 1:],
+            ))
+        else:
+            y = np.vstack((
+                self.run_avg_time_steps,
+                self.time_steps_mc[self.n_iter_avg - 1:],
+                self.time_steps_is_hjb[self.n_iter_avg - 1:],
+            ))
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
@@ -684,7 +765,10 @@ class StochasticOptimizationMethod:
         )
         fig.set_xlabel('iterations')
         fig.set_plot_scale('semilogy')
-        fig.plot(x[self.n_iter_avg - 1:], y, self.colors[:3], self.linestyles[:3], self.labels[:3])
+        if self.sol_hjb is None:
+            fig.plot(x[self.n_iter_avg - 1:], y, self.colors, self.linestyles, self.labels)
+        else:
+            fig.plot(x[self.n_iter_avg - 1:], y, self.colors[:3], self.linestyles[:3], self.labels[:3])
 
     def plot_cts(self):
         '''
