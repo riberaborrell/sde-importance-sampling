@@ -61,8 +61,10 @@ def main():
     elif args.theta == 'null':
 
         # set parameters to zero
-        #func.zero_parameters()
         sde = LangevinSDE.new_from(sample)
+
+        # set dir path for nn
+        func.set_dir_path(sde.settings_dir_path)
         func.train_parameters_with_not_controlled_potential(sde)
 
         # set dir path for nn

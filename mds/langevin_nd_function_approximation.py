@@ -50,19 +50,16 @@ class FunctionApproximation():
                 )
 
     def set_sgd_parameters(self, n):
-        if n == 1:
-            self.n_iterations_lim = 10**4
-            self.N_train = 10**3
-        elif n == 2:
-            self.n_iterations_lim = 10**4
-            self.N_train = 10**3
-        elif n >= 3:
-            self.n_iterations_lim = 10**5
-            self.N_train = 5 * 10**2
-
+        self.n_iterations_lim = 10**5
+        self.N_train = 5 * 10**2
         self.losses = np.empty(self.n_iterations_lim)
 
     def train_parameters_with_not_controlled_potential(self, sde):
+        # load trained parameters if already computed
+        succ = self.load_trained_parameters(self.dir_path)
+        if succ:
+            print('\nnn already trained with not controlled potential.\n')
+            return
 
         # define optimizer
         optimizer = optim.Adam(
@@ -101,14 +98,23 @@ class FunctionApproximation():
             optimizer.zero_grad()
 
         print('nn trained with not controlled potential!')
-        print('{:d}, {:2.3e}'.format(i, output))
+        print('it.: {:d}, loss: {:2.3e}\n'.format(i, output))
 
+        # number of iterations used
+        self.n_iterations = i
+
+        # save parameters
+        self.theta = self.model.get_parameters()
+
+        # save nn training
+        self.save_trained_parameters(self.dir_path)
 
     def train_parameters_with_metadynamics(self, meta):
 
-        # load trained parameters if so
+        # load trained parameters if already computed
         succ = self.load_trained_parameters(self.dir_path)
         if succ:
+            print('\nnn already trained with metadynamics.\n')
             return
 
         # create ansatz functions from meta
@@ -161,8 +167,8 @@ class FunctionApproximation():
             # reset gradients
             optimizer.zero_grad()
 
-        print('nn fitted from metadynamics!')
-        print('it.: {:d}, loss: {:2.3e}'.format(i, self.losses[i]))
+        print('nn trained from metadynamics!')
+        print('it.: {:d}, loss: {:2.3e}\n'.format(i, self.losses[i]))
 
         # number of iterations used
         self.n_iterations = i
@@ -185,7 +191,7 @@ class FunctionApproximation():
             n_iterations_lim=self.n_iterations_lim,
             n_iterations=self.n_iterations,
             N_train=self.N_train,
-            epsilon=self.epsilon,
+            #epsilon=self.epsilon,
             theta=self.theta,
             losses=self.losses,
         )
