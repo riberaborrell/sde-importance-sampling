@@ -139,6 +139,58 @@ class LangevinSDE(object):
         if not os.path.isdir(self.settings_dir_path):
             os.makedirs(self.settings_dir_path)
 
+    def get_nd_doublewell_local_minimums(self):
+        ''' returns an (2^n, n)-array with the 2^n local minimums of the double well potential
+        '''
+        # number of local minimums of the nd double well
+        n_local_mins = 2 ** self.n
+
+        # preallocate list for the minimums
+        local_mins = []
+
+        # as long as the list is not fulll
+        while len(local_mins) < n_local_mins:
+
+            # sample possible minima
+            trial = np.random.randint(2, size=self.n).tolist()
+
+            # add if it is not in the list
+            if trial not in local_mins:
+                local_mins.append(trial)
+
+        # order list
+        local_mins.sort()
+
+        # convert into numpy array
+        local_mins = np.array(local_mins, dtype=np.float32)
+
+        # substitute 0 for -1
+        local_mins[local_mins == 0] = -1.
+
+        return local_mins
+
+    def compute_euclidian_distance_to_local_minimums(self, x):
+        '''
+        '''
+        assert type(x) == np.ndarray, ''
+        assert x.ndim == 2, ''
+        assert x.shape[1] == self.n, ''
+
+        # compute local minimums of the nd 2well potential
+        mins = self.get_nd_doublewell_local_minimums()
+
+        # minimums expanded
+        mins_expand = np.expand_dims(mins, axis=0)
+
+        # x expanded
+        x_expand = np.expand_dims(x, axis=1)
+
+        # compute euclidian distance between the expanded mins and x 
+        eucl_dist = np.linalg.norm(x_expand - mins_expand, axis=2)
+
+        return eucl_dist
+
+
     def set_domain(self, domain):
         ''' set domain. check if it is an hypercube
         '''
@@ -373,7 +425,7 @@ class LangevinSDE(object):
         if sol_hjb.load():
             return sol_hjb
 
-    def get_not_controlled_sampling(self, dt, N):
+    def get_not_controlled_sampling(self, dt, N) -> None:
         from mds.langevin_nd_importance_sampling import Sampling
 
         # initialize not controlled sampling object
@@ -388,8 +440,26 @@ class LangevinSDE(object):
         sample.set_not_controlled_dir_path()
 
         # load already sampled statistics
-        sample.load()
-        return sample
+        if sample.load():
+            return sample
+
+    def get_hjb_sampling(self, sol_hjb_dir_path, dt, N) -> None:
+        from mds.langevin_nd_importance_sampling import Sampling
+
+        # initialize not controlled sampling object
+        sample = Sampling.new_from(self)
+        sample.is_controlled = True
+
+        # set Euler-Marujama discretiztion step and number of trajectories
+        sample.dt = dt
+        sample.N = N
+
+        # set path
+        sample.set_controlled_dir_path(sol_hjb_dir_path)
+
+        # load already sampled statistics
+        if sample.load():
+            return sample
 
     def get_metadynamics_sampling(self, meta_type, weights_type, omega_0, k, N):
         from mds.langevin_nd_importance_sampling import Sampling
