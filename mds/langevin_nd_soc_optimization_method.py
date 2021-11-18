@@ -229,10 +229,16 @@ class StochasticOptimizationMethod:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         # define optimizer
-        optimizer = optim.Adam(
-            model.parameters(),
-            lr=self.lr,
-        )
+        if self.optimizer == 'sgd':
+            optimizer = optim.SGD(
+                model.parameters(),
+                lr=self.lr,
+            )
+        elif self.optimizer == 'adam':
+            optimizer = optim.Adam(
+                model.parameters(),
+                lr=self.lr,
+            )
 
         # preallocate parameters and losses
         self.preallocate_arrays()

@@ -215,6 +215,13 @@ def get_base_parser():
         help='Set type of loss. Default: "ipa"',
     )
     parser.add_argument(
+        '--optimizer',
+        dest='optimizer',
+        choices=['sgd', 'adam'],
+        default='adam',
+        help='Set type of optimizer. Default: "adam"',
+    )
+    parser.add_argument(
         '--lr',
         dest='lr',
         type=float,
