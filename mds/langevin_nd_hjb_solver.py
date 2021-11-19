@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as linalg
-from scipy.linalg import solve_banded
 import time
 
 import os
@@ -32,21 +31,6 @@ class SolverHJB(LangevinSDE):
 
         # discretization step
         self.h = h
-
-        # solution in the grid
-        self.psi = None
-        self.value_f = None
-        self.u_opt = None
-
-        # bias, controlled potential and controlled drift in the grid
-        self.bias_potential = None
-        self.controlled_potential = None
-        self.controlled_drift = None
-
-        # computational time
-        self.ct_initial = None
-        self.ct_final = None
-        self.ct = None
 
         # dir_path
         self.dir_path = get_hjb_solution_dir_path(self.settings_dir_path, self.h)
@@ -216,7 +200,7 @@ class SolverHJB(LangevinSDE):
         ''' this methos computes the free energy
                 value_f = - log (psi)
         '''
-        assert self.psi is not None, ''
+        assert hasattr(self, 'psi'), ''
         assert self.psi.ndim == self.n, ''
         assert self.psi.shape == self.Nx, ''
 
@@ -234,9 +218,9 @@ class SolverHJB(LangevinSDE):
 
     def compute_optimal_control(self):
         ''' this method computes by finite differences the optimal control vector field
-                u_opt = - (√2 / beta) ∇value_f
+                u_opt = - (√2 / beta) ∇ value_f
         '''
-        assert self.value_f is not None, ''
+        assert hasattr(self, 'value_f'), ''
         assert self.value_f.ndim == self.n, ''
         assert self.value_f.shape == self.Nx, ''
 
@@ -298,8 +282,21 @@ class SolverHJB(LangevinSDE):
                 os.path.join(self.dir_path, 'hjb-solution.npz'),
                 allow_pickle=True,
             )
-            for file_name in data.files:
-                setattr(self, file_name, data[file_name])
+            for attr_name in data.files:
+
+                # get attribute from data
+                if data[attr_name].ndim == 0:
+                    attr = data[attr_name][()]
+                else:
+                    attr = data[attr_name]
+
+                # if attribute exists check if they are the same
+                if hasattr(self, attr_name):
+                    assert getattr(self, attr_name) == attr
+
+                # if attribute does not exist save attribute
+                else:
+                    setattr(self, attr_name, attr)
             return True
 
         except:
@@ -311,14 +308,14 @@ class SolverHJB(LangevinSDE):
         idx = self.get_index(x)
 
         # evaluate psi at idx
-        return self.psi[idx] if self.psi is not None else None
+        return self.psi[idx] if hasattr(self, 'psi') else None
 
     def get_value_function_at_x(self, x):
         # get index of x
         idx = self.get_index(x)
 
         # evaluate psi at idx
-        return self.value_f[idx] if self.value_f is not None else None
+        return self.value_f[idx] if hasattr(self, 'value_f') else None
 
     def get_controlled_potential_and_drift(self):
 
