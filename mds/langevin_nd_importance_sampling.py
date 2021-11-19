@@ -678,7 +678,7 @@ class Sampling(LangevinSDE):
                 self.det_int_fht[idx] = self.det_int_t[idx]
 
                 # save loss and grad loss for the arrived trajectories
-                loss_traj[idx] = self.fht[idx] + 0.5 * self.det_int_fht[idx]
+                loss_traj[idx] = self.fht[idx] / self.beta + 0.5 * self.det_int_fht[idx]
                 grad_loss_traj[idx, :] = grad_phi_t[idx, :] \
                                        - loss_traj[idx][:, np.newaxis] \
                                        * grad_S_t[idx, :]
@@ -755,7 +755,7 @@ class Sampling(LangevinSDE):
 
             # update running phi
             ut_norm_tensor = torch.linalg.norm(ut_tensor, axis=1)
-            phi_t = phi_t + ((1 + 0.5 * (ut_norm_tensor ** 2)) * self.dt).reshape(self.N,)
+            phi_t = phi_t + ((1 / self.beta + 0.5 * (ut_norm_tensor ** 2)) * self.dt).reshape(self.N,)
 
             # update running discretized action
             S_t = S_t \
