@@ -331,7 +331,7 @@ class SolverHJB(LangevinSDE):
 
         # potential, bias potential and tilted potential
         V = self.potential(x).reshape(self.Nx)
-        self.bias_potential = 2 * self.value_f
+        self.bias_potential = 2 * self.value_f / self.beta
         self.controlled_potential = V + self.bias_potential
 
         # gradient and tilted drift
@@ -375,8 +375,13 @@ class SolverHJB(LangevinSDE):
         u_opt_str += ')\n'
 
         f.write(x_str)
-        f.write('psi(x) = {:2.3e}\n'.format(psi))
-        f.write('value_f(x) = {:2.3e}\n'.format(value_f))
+        if psi is not None:
+            f.write('psi(x) = {:2.3e}\n'.format(psi))
+
+        if value_f is not None:
+            f.write('value_f(x) = {:2.3e}\n'.format(value_f))
+
+        # TODO! write general method in utils to write np.array into string
         f.write(u_opt_str)
 
         # computational time

@@ -142,7 +142,7 @@ class Sampling(LangevinSDE):
             x ((N, n)-array) : position
             theta ((m,)-array): parameters
         '''
-        return 2 * self.ansatz.value_function(x, theta)
+        return 2 * self.ansatz.value_function(x, theta) / self.beta
 
     def bias_gradient(self, u):
         '''This method computes the bias gradient at x
@@ -798,7 +798,6 @@ class Sampling(LangevinSDE):
 
             # sde update
             controlled_gradient = self.gradient(xt) - np.sqrt(2) * ut
-            xt = self.sde_update(xt, controlled_gradient, dB)
             xt_tensor = torch.tensor(xt, dtype=torch.float32)
             #controlled_gradient = self.gradient(xt_tensor, tensor=True) - np.sqrt(2) * ut_tensor
             #xt_tensor = self.sde_update(xt_tensor, controlled_gradient, dB_tensor, tensor=True)
