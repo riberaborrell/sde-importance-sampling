@@ -21,7 +21,7 @@ class SolverHJBDet(LangevinSDE):
             Ψ(T, x) = exp(− g(x)) for all x \in \R^n
         where f = 0, g = quadratic one well and L is the infinitessimal generator
         of the not controlled n-dimensional overdamped langevin process:
-            L = - ∇V·∇ + epsilon Δ
+            L = - ∇V·∇ + beta^{-1} Δ
         Its solution is the moment generating function associated
         to the overdamped langevin sde.
    '''
@@ -101,7 +101,7 @@ class SolverHJBDet(LangevinSDE):
         # evaluate psi at T
         psi_T_flat = np.exp(- self.g(x))
         psi_T = psi_T_flat.reshape(self.Nx)
-        self.Psi[K, :] = psi_T
+        self.psi[K, :] = psi_T
 
         # reverse loop over the time step indices
         for l in range(K - 1, -1, -1):
@@ -109,7 +109,7 @@ class SolverHJBDet(LangevinSDE):
             #if l // 10 == 1:
             print(l)
 
-            # assemble linear system of equations: A \Psi = b.
+            # assemble linear system of equations: A \psi = b.
             A = sparse.lil_matrix((self.Nh, self.Nh))
             b = np.zeros(self.Nh)
 
@@ -130,7 +130,7 @@ class SolverHJBDet(LangevinSDE):
                     A[k, k - 1] = self.dt / (self.beta * self.h**2) + self.dt * grad / (2 * self.h)
                     A[k, k + 1] = self.dt / (self.beta * self.h**2) - self.dt * grad / (2 * self.h)
 
-                    psi_l_plus_flat = self.Psi[l + 1, :].reshape(self.Nh)
+                    psi_l_plus_flat = self.psi[l + 1, :].reshape(self.Nh)
                     b[k] = psi_l_plus_flat[k]
 
                 # assemble matrix A and vector b on the boundary
@@ -142,11 +142,10 @@ class SolverHJBDet(LangevinSDE):
                         #A[k, k - 1] = - 1
                         A[k, k - 1] = - self.dt
                     #b[k] = 0
-                    psi_l_plus_flat = self.Psi[l + 1, :].reshape(self.Nh)
+                    psi_l_plus_flat = self.psi[l + 1, :].reshape(self.Nh)
                     b[k] = psi_l_plus_flat[k]
 
             # solve linear system
-            breakpoint()
             self.psi_i[l, :] = linalg.spsolve(A.tocsc(), b)
 
         self.solved = True
@@ -254,11 +253,21 @@ class SolverHJBDet(LangevinSDE):
                 os.path.join(self.dir_path, 'hjb-solution.npz'),
                 allow_pickle=True,
             )
-            for file_name in data.files:
-                if hasattr(self, file_name):
-                    assert getattr(self, file_name) == data[file_name]
+            for attr_name in data.files:
+
+                # get attribute from data
+                if data[attr_name].ndim == 0:
+                    attr = data[attr_name][()]
                 else:
-                    setattr(self, file_name, data[file_name])
+                    attr = data[attr_name]
+
+                # if attribute exists check if they are the same
+                if hasattr(self, attr_name):
+                    assert getattr(self, attr_name) == attr
+
+                # if attribute does not exist save attribute
+                else:
+                    setattr(self, attr_name, attr)
             return True
 
         except:
@@ -311,19 +320,19 @@ class SolverHJBDet(LangevinSDE):
 
         return psi
 
-    def get_f_t_x(self, t, x):
+    def get_value_f_t_x(self, t, x):
         # get time index
         l = self.get_time_index(t)
 
         # get index of x
         idx = self.get_space_index(x)
 
-        # evaluate F at idx
-        F = 0.
+        # evaluate value_f at idx
+        value_f = 0.
         for i in range(self.n):
-            F += - np.log(self.psi_i[l, idx[i]])
+            value_f += - np.log(self.psi_i[l, idx[i]])
 
-        return F
+        return value_f
 
     def get_u_opt_t_x(self, t, x):
         # get time index
@@ -332,7 +341,7 @@ class SolverHJBDet(LangevinSDE):
         # get index of x
         idx = self.get_space_index(x)
 
-        # evaluate F at idx
+        # evaluate value_f at idx
         u_opt = np.empty(self.n)
         for i in range(self.n):
             u_opt[i] = self.u_opt_i[l, idx[i]]
@@ -341,28 +350,28 @@ class SolverHJBDet(LangevinSDE):
 
     def write_report(self, t, x):
 
-        # psi and F at x
-        psi = self.get_psi_t_x(t, x)
-        F = self.get_f_t_x(t, x)
-        u = self.get_u_opt_t_x(t, x)
-
         # set path
         file_path = os.path.join(self.dir_path, 'report.txt')
 
         # write file
         f = open(file_path, 'w')
 
+        # time and space discretization
         f.write('\n space discretization\n')
         f.write('h = {:2.4f}\n'.format(self.h))
         f.write('N_h = {:d}\n'.format(self.Nh))
-
         f.write('\n time discretization\n')
         f.write('T = {:2.4f}\n'.format(self.T))
         f.write('dt = {:2.4f}\n'.format(self.dt))
         f.write('K = {:d}\n'.format(self.K))
 
-        f.write('\n psi and value function at x\n')
-        f.write('t = {:2.4f}\n'.format(t))
+        # psi, value function and control
+        f.write('\n psi, value function and optimal control at (t, x)\n')
+
+        psi = self.get_psi_t_x(t, x)
+        value_f = self.get_value_f_t_x(t, x)
+        u_opt = self.get_u_opt_t_x(t, x)
+
         x_str = 'x: ('
         for i in range(self.n):
             if i == 0:
@@ -370,19 +379,22 @@ class SolverHJBDet(LangevinSDE):
             else:
                 x_str += ', {:2.1f}'.format(x[i])
         x_str += ')\n'
-        f.write(x_str)
 
-        f.write('psi(t, x) = {:2.3e}\n'.format(psi))
-        f.write('F(t, x) = {:2.3e}\n'.format(F))
         u_opt_str = 'u_opt(t, x) = ('
         for i in range(self.n):
             if i == 0:
-                u_opt_str += '{:2.1f}'.format(u[i])
+                u_opt_str += '{:2.1f}'.format(u_opt[i])
             else:
-                u_opt_str += ', {:2.1f}'.format(u[i])
+                u_opt_str += ', {:2.1f}'.format(u_opt[i])
         u_opt_str += ')\n'
+
+        f.write('t = {:2.4f}\n'.format(t))
+        f.write(x_str)
+        f.write('psi(t, x) = {:2.3e}\n'.format(psi))
+        f.write('value_f(t, x) = {:2.3e}\n'.format(value_f))
         f.write(u_opt_str)
 
+        # computational time
         h, m, s = get_time_in_hms(self.ct)
         f.write('\nComputational time: {:d}:{:02d}:{:02.2f}\n'.format(h, m, s))
         f.close()
@@ -422,19 +434,19 @@ class SolverHJBDet(LangevinSDE):
         ]
         fig.plot(x, y, labels=labels, colors=colors)
 
-    def plot_1d_free_energy(self, ylim=None):
+    def plot_1d_value_function(self, ylim=None):
         from figures.myfigure import MyFigure
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
-            file_name='free-energy',
+            file_name='value-function',
         )
         x = self.domain_h[:, 0]
         fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
         if ylim is not None:
             fig.set_ylim(ylim[0], ylim[1])
-        fig.plot(x, self.F, labels='num sol HJB PDE', colors='tab:cyan')
+        fig.plot(x, self.value_function, labels='num sol HJB PDE', colors='tab:cyan')
 
     def plot_1d_controlled_potential(self, ylim=None):
         from figures.myfigure import MyFigure

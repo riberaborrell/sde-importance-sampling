@@ -20,6 +20,14 @@ def main():
         alpha[0] = args.alpha_i
         alpha[1:] = args.alpha_j
 
+    # set nu array
+    if args.potential_name == 'nd_2well':
+        nu = np.full(args.n, args.nu_i)
+    elif args.potential_name == 'nd_2well_asym':
+        nu = np.empty(args.n)
+        nu[0] = args.nu_i
+        nu[1:] = args.nu_j
+
     # initialize hjb solver
     sol_hjb = SolverHJBDet(
         problem_name='langevin_det-t',
@@ -28,6 +36,7 @@ def main():
         alpha=alpha,
         beta=args.beta,
         T=args.T,
+        nu=nu,
         h=args.h_hjb,
         dt=args.dt_hjb,
     )
@@ -66,7 +75,7 @@ def main():
     if args.do_plots:
 
         sol_hjb.plot_1d_psi_i()
-        #sol_hjb.plot_1d_free_energy()
+        #sol_hjb.plot_1d_value_function()
         #sol_hjb.plot_1d_controlled_potential()
         #sol_hjb.plot_1d_control()
         #sol_hjb.plot_1d_controlled_drift()

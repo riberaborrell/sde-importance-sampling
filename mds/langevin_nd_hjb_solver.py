@@ -317,6 +317,13 @@ class SolverHJB(LangevinSDE):
         # evaluate psi at idx
         return self.value_f[idx] if hasattr(self, 'value_f') else None
 
+    def get_u_opt_at_x(self, x):
+        # get index of x
+        idx = self.get_index(x)
+
+        # evaluate psi at idx
+        return self.u_opt[idx] if hasattr(self, 'u_opt') else None
+
     def get_controlled_potential_and_drift(self):
 
         # flatten domain_h
@@ -333,32 +340,48 @@ class SolverHJB(LangevinSDE):
 
     def write_report(self, x):
 
-        # psi and value_f at x
-        psi = self.get_psi_at_x(x)
-        value_f = self.get_value_function_at_x(x)
-
         # set path
         file_path = os.path.join(self.dir_path, 'report.txt')
 
         # write file
         f = open(file_path, 'w')
 
+        # space discretization
+        f.write('\n space discretization\n')
         f.write('h = {:2.4f}\n'.format(self.h))
         f.write('N_h = {:d}\n'.format(self.Nh))
 
-        posicion = 'x: ('
+        # psi, value function and control
+        f.write('\n psi, value function and optimal control at x\n')
+
+        psi = self.get_psi_at_x(x)
+        value_f = self.get_value_function_at_x(x)
+        u_opt = self.get_u_opt_at_x(x)
+
+        x_str = 'x: ('
         for i in range(self.n):
             if i == 0:
-                posicion += '{:2.1f}'.format(x[i])
+                x_str += '{:2.1f}'.format(x[i])
             else:
-                posicion += ', {:2.1f}'.format(x[i])
-        posicion += ')\n'
-        f.write(posicion)
+                x_str += ', {:2.1f}'.format(x[i])
+        x_str += ')\n'
 
-        f.write('psi at x = {:2.3e}\n'.format(psi))
-        f.write('value_f at x = {:2.3e}\n'.format(value_f))
+        u_opt_str = 'u_opt(x) = ('
+        for i in range(self.n):
+            if i == 0:
+                u_opt_str += '{:2.1f}'.format(u_opt[i])
+            else:
+                u_opt_str += ', {:2.1f}'.format(u_opt[i])
+        u_opt_str += ')\n'
+
+        f.write(x_str)
+        f.write('psi(x) = {:2.3e}\n'.format(psi))
+        f.write('value_f(x) = {:2.3e}\n'.format(value_f))
+        f.write(u_opt_str)
+
+        # computational time
         h, m, s = get_time_in_hms(self.ct)
-        f.write('Computational time: {:d}:{:02d}:{:02.2f}\n'.format(h, m, s))
+        f.write('\nComputational time: {:d}:{:02d}:{:02.2f}\n'.format(h, m, s))
         f.close()
 
         # print file
