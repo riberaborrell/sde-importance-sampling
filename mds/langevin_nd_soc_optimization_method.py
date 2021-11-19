@@ -487,14 +487,14 @@ class StochasticOptimizationMethod:
 
         if self.sample.problem_name == 'langevin_stop-t':
             hjb_psi_at_x = self.sol_hjb.get_psi_at_x(self.sample.xzero)
-            hjb_f_at_x = self.sol_hjb.get_f_at_x(self.sample.xzero)
-            self.f_hjb = np.full(self.n_iterations, hjb_f_at_x)
+            hjb_value_f_at_x = self.sol_hjb.get_value_function_at_x(self.sample.xzero)
             self.psi_hjb = np.full(self.n_iterations_lim, hjb_psi_at_x)
+            self.value_f_hjb = np.full(self.n_iterations, hjb_value_f_at_x)
         elif self.sample.problem_name == 'langevin_det-t':
             hjb_psi_at_x = self.sol_hjb.get_psi_t_x(0., self.sample.xzero)
-            hjb_f_at_x = self.sol_hjb.get_f_t_x(0., self.sample.xzero)
-            self.f_hjb = np.full(self.n_iterations, hjb_f_at_x)
+            hjb_value_f_at_x = self.sol_hjb.get_value_funtion_t_x(0., self.sample.xzero)
             self.psi_hjb = np.full(self.n_iterations_lim, hjb_psi_at_x)
+            self.value_f_hjb = np.full(self.n_iterations, hjb_value_f_at_x)
 
         # load hjb sampling
         sample_hjb = self.sample.get_hjb_sampling(self.sol_hjb.dir_path, dt_hjb, N_hjb)
@@ -548,7 +548,7 @@ class StochasticOptimizationMethod:
                 self.losses,
                 self.value_f_mc,
                 self.value_f_is_hjb,
-                self.f_hjb,
+                self.value_f_hjb,
             ))
 
         fig = plt.figure(
@@ -574,7 +574,7 @@ class StochasticOptimizationMethod:
                 self.run_avg_losses,
                 self.value_f_mc[self.n_iter_avg - 1:],
                 self.value_f_is_hjb[self.n_iter_avg - 1:],
-                self.f_hjb[self.n_iter_avg - 1:],
+                self.value_f_hjb[self.n_iter_avg - 1:],
             ))
 
         fig = plt.figure(
@@ -921,11 +921,11 @@ class StochasticOptimizationMethod:
             fig = plt.figure(
                 FigureClass=MyFigure,
                 dir_path=self.iterations_dir_path,
-                file_name='free-energy' + ext,
+                file_name='value-function' + ext,
             )
             y = np.vstack((
                 self.sample.grid_value_function,
-                sol_hjb.F,
+                sol_hjb.value_f,
             ))
             fig.set_xlabel = 'x'
             fig.set_xlim(-2, 2)
@@ -1012,9 +1012,9 @@ class StochasticOptimizationMethod:
             fig = plt.figure(
                 FigureClass=MyFigure,
                 dir_path=self.dir_path,
-                file_name='free-energy',
+                file_name='value-function',
             )
-            frees[-1, :] = sol_hjb.F
+            frees[-1, :] = sol_hjb.value_f
             fig.set_xlabel = 'x'
             fig.set_xlim(-2, 2)
             fig.plot(x, frees, labels=labels, colors=colors)
@@ -1079,7 +1079,7 @@ class StochasticOptimizationMethod:
             fig = plt.figure(
                 FigureClass=MyFigure,
                 dir_path=self.iterations_dir_path,
-                file_name='free-energy' + ext,
+                file_name='value-function' + ext,
             )
             fig.set_xlim(-2, 2)
             fig.set_ylim(-2, 2)

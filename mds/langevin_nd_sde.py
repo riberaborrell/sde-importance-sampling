@@ -425,7 +425,7 @@ class LangevinSDE(object):
         if sol_hjb.load():
             return sol_hjb
 
-    def get_not_controlled_sampling(self, dt, N) -> None:
+    def get_not_controlled_sampling(self, dt, N, seed=None) -> None:
         from mds.langevin_nd_importance_sampling import Sampling
 
         # initialize not controlled sampling object
@@ -435,6 +435,7 @@ class LangevinSDE(object):
         # set Euler-Marujama discretiztion step and number of trajectories
         sample.dt = dt
         sample.N = N
+        sample.seed = seed
 
         # set path
         sample.set_not_controlled_dir_path()
@@ -443,7 +444,7 @@ class LangevinSDE(object):
         if sample.load():
             return sample
 
-    def get_hjb_sampling(self, sol_hjb_dir_path, dt, N) -> None:
+    def get_hjb_sampling(self, sol_hjb_dir_path, dt, N, seed=None) -> None:
         from mds.langevin_nd_importance_sampling import Sampling
 
         # initialize not controlled sampling object
@@ -453,6 +454,7 @@ class LangevinSDE(object):
         # set Euler-Marujama discretiztion step and number of trajectories
         sample.dt = dt
         sample.N = N
+        sample.seed = seed
 
         # set path
         sample.set_controlled_dir_path(sol_hjb_dir_path)
