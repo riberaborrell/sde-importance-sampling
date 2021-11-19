@@ -179,8 +179,8 @@ class StochasticOptimizationMethod:
             self.logvar_losses = self.logvar_losses[:self.n_iterations, :]
 
     def get_iteration_statistics(self, i):
-        msg = 'it.: {:d}, loss: {:2.3f}, mean I^u: {:2.3e}, re I^u: {:2.3f},' \
-              'time steps: {:2.1e}'.format(
+        msg = 'it.: {:d}, loss: {:2.3f}, mean I^u: {:2.3e}, re I^u: {:2.3f}' \
+              ', time steps: {:2.1e}'.format(
                   i,
                   self.losses[i],
                   self.means_I_u[i],
@@ -188,6 +188,8 @@ class StochasticOptimizationMethod:
                   self.time_steps[i],
               )
         return msg
+
+    def sgd_ipa_gaussian_ansatz(self):
         self.start_timer()
 
         # number of parameters
