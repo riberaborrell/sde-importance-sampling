@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as linalg
+from scipy.linalg import solve_banded
 import time
 
 import os
@@ -18,23 +19,23 @@ class SolverHJB(LangevinSDE):
             Ψ = exp(− g) in ∂S,
         where f = 1, g = 0 and L is the infinitessimal generator
         of the not controlled n-dimensional overdamped langevin process:
-            L = - ∇V·∇ + epsilon Δ
+            L = - ∇V·∇ + beta^{-1} Δ
         Its solution is the moment generating function associated
         to the overdamped langevin sde.
    '''
 
     def __init__(self, problem_name, potential_name, n, alpha,
-                 beta, h, target_set=None, domain=None):
+                 beta, h, domain=None, target_set=None, T=None):
 
         super().__init__(problem_name, potential_name, n, alpha, beta,
-                         target_set, domain)
+                         domain, target_set, T)
 
         # discretization step
         self.h = h
 
         # solution in the grid
-        self.Psi = None
-        self.F = None
+        self.psi = None
+        self.value_f = None
         self.u_opt = None
 
         # bias, controlled potential and controlled drift in the grid
@@ -160,7 +161,7 @@ class SolverHJB(LangevinSDE):
         return self.get_flatten_index(tuple(idx_inside))
 
     def solve_bvp(self):
-        # assemble linear system of equations: A \Psi = b.
+        # assemble linear system of equations: A \psi = b.
         A = sparse.lil_matrix((self.Nh, self.Nh))
         b = np.zeros(self.Nh)
 
@@ -207,88 +208,21 @@ class SolverHJB(LangevinSDE):
                 # normalize
                 A[k, k] = neighbour_counter
 
-        Psi = linalg.spsolve(A.tocsc(), b)
-        self.Psi = Psi.reshape(self.Nx)
+        psi = linalg.spsolve(A.tocsc(), b)
+        self.psi = psi.reshape(self.Nx)
         self.solved = True
 
-    def solve_bvp_det(self):
-        # preallocate psi at each time step
-        K = int(self.T / self.dt)
-        self.Psi = np.empty((K+1,) + self.Nx)
-
-        # flat domain
-        x = self.domain_h.reshape(self.Nh, self.n)
-
-        # evaluate psi at T
-        psi_T_flat = np.exp(- self.g(x))
-        psi_T = psi_T_flat.reshape(self.Nx)
-        self.Psi[K, :] = psi_T
-
-        # reverse loop over the time step indices
-        for l in range(K - 1, -1, -1):
-
-            #if l // 10 == 1:
-            print(l)
-
-            # assemble linear system of equations: A \Psi = b.
-            A = sparse.lil_matrix((self.Nh, self.Nh))
-            b = np.zeros(self.Nh)
-
-            for k in arange_generator(self.Nh):
-
-                # get discretized domain index
-                idx = self.get_bumpy_index(k)
-
-                # classify type of node
-                is_on_boundary = self.is_on_domain_boundary(idx)
-
-                if not is_on_boundary:
-                    # assemble matrix A and vector b on S
-                    x = self.get_x(idx)
-                    grad = self.gradient(np.array([x]))[0]
-                    A[k, k] = + self.dt * (2 * self.n) / (self.beta * self.h**2) + self.dt * self.f(x) + 1
-                    for i in range(self.n):
-                        k_left, k_right = self.get_flatten_idx_from_axis_neighbours(idx, i)
-                        A[k, k_left] = - self.dt / (self.beta * self.h**2) - self.dt * grad[i] / (2 * self.h)
-                        A[k, k_right] = self.dt / (self.beta * self.h**2) + self.dt * grad[i] / (2 * self.h)
-
-                    psi_l_plus_flat = self.Psi[l + 1, :].reshape(self.Nh)
-                    b[k] = psi_l_plus_flat[k]
-                else:
-                    neighbour_counter = 0
-                    for i in range(self.n):
-                        if self.is_on_domain_boundary_i_axis(idx, i):
-
-                            # update counter
-                            neighbour_counter += 1
-
-                            # add neighbour
-                            k_left, k_right = self.get_flatten_idx_from_axis_neighbours(idx, i)
-                            if k_left is not None:
-                                A[k, k_left] = - 1
-                            elif k_right is not None:
-                                A[k, k_right] = - 1
-
-                    # normalize
-                    A[k, k] = neighbour_counter
-
-            # solve linear system
-            self.Psi[l, :] = linalg.spsolve(A.tocsc(), b)
-
-
-        self.solved = True
-
-    def compute_free_energy(self):
+    def compute_value_function(self):
         ''' this methos computes the free energy
-                F = - epsilon log (Psi)
+                value_f = - log (psi)
         '''
-        assert self.Psi is not None, ''
-        assert self.Psi.ndim == self.n, ''
-        assert self.Psi.shape == self.Nx, ''
+        assert self.psi is not None, ''
+        assert self.psi.ndim == self.n, ''
+        assert self.psi.shape == self.Nx, ''
 
-        self.F =  - np.log(self.Psi)
+        self.value_f =  - np.log(self.psi)
 
-    def get_idx_F_type(self, i):
+    def get_idx_value_f_type(self, i):
         return [slice(self.Nx[i]) for i in range(self.n)]
 
     def get_idx_u_type(self, i):
@@ -300,18 +234,18 @@ class SolverHJB(LangevinSDE):
 
     def compute_optimal_control(self):
         ''' this method computes by finite differences the optimal control vector field
-                u_opt = - (√2 / beta) ∇F
+                u_opt = - (√2 / beta) ∇value_f
         '''
-        assert self.F is not None, ''
-        assert self.F.ndim == self.n, ''
-        assert self.F.shape == self.Nx, ''
+        assert self.value_f is not None, ''
+        assert self.value_f.ndim == self.n, ''
+        assert self.value_f.shape == self.Nx, ''
 
         u_opt = np.zeros(self.Nx + (self.n, ))
 
         for i in range(self.n):
 
-            idx_F_k_plus = self.get_idx_F_type(i)
-            idx_F_k_minus = self.get_idx_F_type(i)
+            idx_value_f_k_plus = self.get_idx_value_f_type(i)
+            idx_value_f_k_minus = self.get_idx_value_f_type(i)
             idx_u_k = self.get_idx_u_type(i)
             idx_u_0 = self.get_idx_u_type(i)
             idx_u_1 = self.get_idx_u_type(i)
@@ -320,8 +254,8 @@ class SolverHJB(LangevinSDE):
 
             for j in range(self.n):
                 if j == i:
-                    idx_F_k_plus[j] = slice(2, self.Nx[j])
-                    idx_F_k_minus[j] = slice(0, self.Nx[j] - 2)
+                    idx_value_f_k_plus[j] = slice(2, self.Nx[j])
+                    idx_value_f_k_minus[j] = slice(0, self.Nx[j] - 2)
                     idx_u_k[j] = slice(1, self.Nx[j] - 1)
                     idx_u_0[j] = 0
                     idx_u_1[j] = 1
@@ -330,7 +264,7 @@ class SolverHJB(LangevinSDE):
                     break
 
             u_opt[tuple(idx_u_k)] = - np.sqrt(2) * (1 / self.beta) *(
-                self.F[tuple(idx_F_k_plus)] - self.F[tuple(idx_F_k_minus)]
+                self.value_f[tuple(idx_value_f_k_plus)] - self.value_f[tuple(idx_value_f_k_minus)]
             ) / (2 * self.h)
             u_opt[tuple(idx_u_0)] = u_opt[tuple(idx_u_1)]
             u_opt[tuple(idx_u_N)] = u_opt[tuple(idx_u_N_minus)]
@@ -350,8 +284,8 @@ class SolverHJB(LangevinSDE):
             domain_h=self.domain_h,
             Nx=self.Nx,
             Nh=self.Nh,
-            Psi=self.Psi,
-            F=self.F,
+            psi=self.psi,
+            value_f=self.value_f,
             u_opt=self.u_opt,
             ct=self.ct,
         )
@@ -377,14 +311,14 @@ class SolverHJB(LangevinSDE):
         idx = self.get_index(x)
 
         # evaluate psi at idx
-        return self.Psi[idx] if self.Psi is not None else None
+        return self.psi[idx] if self.psi is not None else None
 
-    def get_f_at_x(self, x):
+    def get_value_function_at_x(self, x):
         # get index of x
         idx = self.get_index(x)
 
         # evaluate psi at idx
-        return self.F[idx] if self.F is not None else None
+        return self.value_f[idx] if self.value_f is not None else None
 
     def get_controlled_potential_and_drift(self):
 
@@ -393,7 +327,7 @@ class SolverHJB(LangevinSDE):
 
         # potential, bias potential and tilted potential
         V = self.potential(x).reshape(self.Nx)
-        self.bias_potential = 2 * self.F
+        self.bias_potential = 2 * self.value_f
         self.controlled_potential = V + self.bias_potential
 
         # gradient and tilted drift
@@ -402,9 +336,9 @@ class SolverHJB(LangevinSDE):
 
     def write_report(self, x):
 
-        # Psi and F at x
-        Psi = self.get_psi_at_x(x)
-        F = self.get_f_at_x(x)
+        # psi and value_f at x
+        psi = self.get_psi_at_x(x)
+        value_f = self.get_value_function_at_x(x)
 
         # set path
         file_path = os.path.join(self.dir_path, 'report.txt')
@@ -424,8 +358,8 @@ class SolverHJB(LangevinSDE):
         posicion += ')\n'
         f.write(posicion)
 
-        f.write('Psi at x = {:2.3e}\n'.format(Psi))
-        f.write('F at x = {:2.3e}\n'.format(F))
+        f.write('psi at x = {:2.3e}\n'.format(psi))
+        f.write('value_f at x = {:2.3e}\n'.format(value_f))
         h, m, s = get_time_in_hms(self.ct)
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n'.format(h, m, s))
         f.close()
@@ -447,21 +381,21 @@ class SolverHJB(LangevinSDE):
         fig.set_xlim(-2, 2)
         if ylim is not None:
             fig.set_ylim(ylim[0], ylim[1])
-        fig.plot(x, self.Psi, labels='num sol HJB PDE', colors='tab:cyan')
+        fig.plot(x, self.psi, labels='num sol HJB PDE', colors='tab:cyan')
 
-    def plot_1d_free_energy(self, ylim=None):
+    def plot_1d_value_function(self, ylim=None):
         from figures.myfigure import MyFigure
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
-            file_name='free-energy',
+            file_name='value-function',
         )
         x = self.domain_h[:, 0]
         fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
         if ylim is not None:
             fig.set_ylim(ylim[0], ylim[1])
-        fig.plot(x, self.F, labels='num sol HJB PDE', colors='tab:cyan')
+        fig.plot(x, self.value_f, labels='num sol HJB PDE', colors='tab:cyan')
 
     def plot_1d_controlled_potential(self, ylim=None):
         from figures.myfigure import MyFigure
@@ -525,13 +459,13 @@ class SolverHJB(LangevinSDE):
         fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-2, 2)
         fig.set_ylim(-2, 2)
-        fig.set_contour_levels_scale('log')
-        fig.contour(X, Y, self.Psi)
+        #fig.set_contour_levels_scale('log')
+        fig.contour(X, Y, self.psi)
 
         # surface plot
 
 
-    def plot_2d_free_energy(self):
+    def plot_2d_value_function(self):
         from figures.myfigure import MyFigure
 
         # contour plot
@@ -540,14 +474,14 @@ class SolverHJB(LangevinSDE):
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
-            file_name='free-energy',
+            file_name='value-function',
         )
         fig.set_xlabel(r'$x_1$')
         fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-2, 2)
         fig.set_ylim(-2, 2)
         fig.set_contour_levels_scale('log')
-        fig.contour(X, Y, self.F)
+        fig.contour(X, Y, self.value_f)
 
         # surface plot
 

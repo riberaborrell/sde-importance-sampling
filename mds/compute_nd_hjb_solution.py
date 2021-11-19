@@ -39,7 +39,7 @@ def main():
 
         # compute hjb solution 
         sol_hjb.solve_bvp()
-        sol_hjb.compute_free_energy()
+        sol_hjb.compute_value_function()
         sol_hjb.compute_optimal_control()
         sol_hjb.stop_timer()
 
@@ -64,7 +64,7 @@ def main():
         # 1d
         if sol_hjb.n == 1:
             sol_hjb.plot_1d_psi()
-            sol_hjb.plot_1d_free_energy()
+            sol_hjb.plot_1d_value_function()
             sol_hjb.plot_1d_controlled_potential()
             sol_hjb.plot_1d_control()
             sol_hjb.plot_1d_controlled_drift()
@@ -72,7 +72,7 @@ def main():
         # 2d
         elif sol_hjb.n == 2:
             sol_hjb.plot_2d_psi()
-            sol_hjb.plot_2d_free_energy()
+            sol_hjb.plot_2d_value_function()
             sol_hjb.plot_2d_controlled_potential()
             sol_hjb.plot_2d_control()
             sol_hjb.plot_2d_controlled_drift()
