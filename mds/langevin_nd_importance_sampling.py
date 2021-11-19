@@ -798,10 +798,8 @@ class Sampling(LangevinSDE):
 
             # sde update
             controlled_gradient = self.gradient(xt) - np.sqrt(2) * ut
+            xt = self.sde_update(xt, controlled_gradient, dB)
             xt_tensor = torch.tensor(xt, dtype=torch.float32)
-            #controlled_gradient = self.gradient(xt_tensor, tensor=True) - np.sqrt(2) * ut_tensor
-            #xt_tensor = self.sde_update(xt_tensor, controlled_gradient, dB_tensor, tensor=True)
-            #xt = xt_tensor.detach().numpy()
 
             # control
             ut_tensor = model.forward(xt_tensor)
