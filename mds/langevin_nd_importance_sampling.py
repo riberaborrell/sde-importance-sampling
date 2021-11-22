@@ -650,7 +650,7 @@ class Sampling(LangevinSDE):
             dB = self.brownian_increment()
 
             # update running gradient of phi and running gradient of S
-            grad_phi_t += np.sum(ut[:, np.newaxis, :] * grad_ut, axis=2) * self.dt
+            grad_phi_t += self. beta * np.sum(ut[:, np.newaxis, :] * grad_ut, axis=2) * self.dt
             grad_S_t -= np.sqrt(self.beta) * np.sum(dB[:, np.newaxis, :] * grad_ut, axis=2)
 
             # compute gradient
