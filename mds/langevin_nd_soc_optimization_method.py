@@ -441,7 +441,7 @@ class StochasticOptimizationMethod:
                     ''.format(np.linalg.norm(self.grad_losses[i])))
             f.write('time steps = {}\n'.format(self.time_steps[i]))
 
-    def load_mc_sampling(self, dt_mc=0.01, N_mc=10**3):
+    def load_mc_sampling(self, dt_mc=0.01, N_mc=10**3, seed=None):
         '''
         '''
 
@@ -450,7 +450,7 @@ class StochasticOptimizationMethod:
         self.N_mc = N_mc
 
         # load mc sampling
-        sample_mc = self.sample.get_not_controlled_sampling(dt_mc, N_mc)
+        sample_mc = self.sample.get_not_controlled_sampling(dt_mc, N_mc, seed)
 
         if sample_mc is not None:
             self.value_f_mc = np.full(self.n_iterations, - np.log(sample_mc.mean_I))
@@ -465,7 +465,7 @@ class StochasticOptimizationMethod:
             self.time_steps_mc = np.full(self.n_iterations, np.nan)
             self.ct_mc = np.full(self.n_iterations, np.nan)
 
-    def load_hjb_solution_and_sampling(self, h_hjb=0.1, dt_hjb=0.01, N_hjb=10**3):
+    def load_hjb_solution_and_sampling(self, h_hjb=0.1, dt_hjb=0.01, N_hjb=10**3, seed=None):
         '''
         '''
         from mds.langevin_nd_importance_sampling import Sampling
@@ -497,7 +497,7 @@ class StochasticOptimizationMethod:
             self.value_f_hjb = np.full(self.n_iterations, hjb_value_f_at_x)
 
         # load hjb sampling
-        sample_hjb = self.sample.get_hjb_sampling(self.sol_hjb.dir_path, dt_hjb, N_hjb)
+        sample_hjb = self.sample.get_hjb_sampling(self.sol_hjb.dir_path, dt_hjb, N_hjb, seed)
 
         # break if there is no hjb sampling
         if sample_hjb is None:
@@ -1083,6 +1083,8 @@ class StochasticOptimizationMethod:
             )
             fig.set_xlim(-2, 2)
             fig.set_ylim(-2, 2)
+            fig.set_xlabel(r'$x_1$')
+            fig.set_ylabel(r'$x_2$')
             fig.set_contour_levels_scale('log')
             fig.contour(X, Y, self.sample.grid_value_function)
 
@@ -1094,6 +1096,8 @@ class StochasticOptimizationMethod:
             )
             fig.set_xlim(-2, 2)
             fig.set_ylim(-2, 2)
+            fig.set_xlabel(r'$x_1$')
+            fig.set_ylabel(r'$x_2$')
             fig.set_contour_levels_scale('log')
             fig.contour(X, Y, self.sample.grid_controlled_potential)
 
@@ -1105,6 +1109,9 @@ class StochasticOptimizationMethod:
             dir_path=self.iterations_dir_path,
             file_name='control' + ext,
         )
+        fig.set_title('control')
+        fig.set_xlabel(r'$x_1$')
+        fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-1.5, 1.5)
         fig.set_ylim(-1.5, 1.5)
         fig.vector_field(X, Y, U, V, scale=30)
@@ -1117,6 +1124,9 @@ class StochasticOptimizationMethod:
             dir_path=self.iterations_dir_path,
             file_name='controlled-drift' + ext,
         )
+        fig.set_title('controlled drift')
+        fig.set_xlabel(r'$x_1$')
+        fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-1.5, 1.5)
         fig.set_ylim(-1.5, 1.5)
         fig.vector_field(X, Y, U, V, scale=100)
@@ -1129,6 +1139,9 @@ class StochasticOptimizationMethod:
             dir_path=self.iterations_dir_path,
             file_name='control-minus-hjb' + ext,
         )
+        fig.set_title('control vs hjb')
+        fig.set_xlabel(r'$x_1$')
+        fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-1.5, 1.5)
         fig.set_ylim(-1.5, 1.5)
         fig.set_colormap('PuRd')
@@ -1142,6 +1155,9 @@ class StochasticOptimizationMethod:
             dir_path=self.iterations_dir_path,
             file_name='controlled-drift-minus-hjb' + ext,
         )
+        fig.set_title('controlled drift vs hjb')
+        fig.set_xlabel(r'$x_1$')
+        fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-1.5, 1.5)
         fig.set_ylim(-1.5, 1.5)
         fig.set_colormap('PuRd')
