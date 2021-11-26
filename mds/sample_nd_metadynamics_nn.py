@@ -1,7 +1,7 @@
 from mds.base_parser_nd import get_base_parser
 from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
 from mds.langevin_nd_importance_sampling import Sampling
-from mds.langevin_nd_metadynamics_nn import MetadynamicsNN
+from mds.langevin_nd_metadynamics import Metadynamics
 from mds.langevin_nd_sde import LangevinSDE
 from mds.langevin_nd_function_approximation import FunctionApproximation
 from mds.neural_networks import FeedForwardNN, DenseNN
@@ -13,19 +13,6 @@ import os
 def get_parser():
     parser = get_base_parser()
     parser.description = 'Metadynamics for the nd overdamped Langevin SDE'
-    parser.add_argument(
-        '--meta-type',
-        dest='meta_type',
-        choices=['cum', 'ind'],
-        default='cum',
-        help='Type of metadynamics algorithm. Default: cum',
-    )
-    parser.add_argument(
-        '--do-updates-plots',
-        dest='do_updates_plots',
-        action='store_true',
-        help='Do plots after adding a gaussian. Default: False',
-    )
     return parser
 
 def main():
@@ -41,11 +28,11 @@ def main():
 
     # initialize sampling object
     sample = Sampling(
+        problem_name=args.problem_name,
         potential_name=args.potential_name,
         n=args.n,
         alpha=alpha,
         beta=args.beta,
-        h=args.h,
         is_controlled=True,
     )
 
@@ -70,20 +57,22 @@ def main():
     # train control to be zero
     if not args.load:
         sde = LangevinSDE.new_from(sample)
+        func.initialization = 'null'
+        func.set_dir_path(sde.settings_dir_path)
         func.train_parameters_with_not_controlled_potential(sde)
 
     # add nn function approximation
     sample.nn_func_appr = func
 
     # initialize meta nd object
-    meta = MetadynamicsNN(
+    meta = Metadynamics(
         sample=sample,
         k=args.k_meta,
         N=args.N_meta,
-        sigma_i=args.sigma_i_meta,
         seed=args.seed,
-        meta_type=args.meta_type,
-        do_updates_plots=args.do_updates_plots,
+        meta_type='cum-nn',
+        weights_type=args.weights_type,
+        omega_0=args.omega_0_meta,
     )
 
     # set sampling parameters
@@ -104,10 +93,13 @@ def main():
         # sample metadynamics trjectories
         meta.preallocate_metadynamics_coefficients()
 
+        # set the weights of the bias functions for each trajectory
+        meta.set_weights()
+
         # metadynamics algorythm for different samples
         for i in np.arange(meta.N):
-            if meta.meta_type == 'cum':
-                meta.cumulative_metadynamics_algorithm(i)
+            if meta.meta_type == 'cum-nn':
+                meta.cumulative_nn_metadynamics_algorithm(i)
             else:
                 pass
 

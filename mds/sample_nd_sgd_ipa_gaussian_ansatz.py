@@ -52,12 +52,15 @@ def main():
     # set initial coefficients
     if args.theta == 'null':
         sample.ansatz.set_theta_null()
+    elif args.theta == 'random':
+        sample.ansatz.set_theta_random()
     elif args.theta == 'meta':
         sde.h = args.h
-        sample.ansatz.set_theta_from_metadynamics(sde, args.dt_meta, args.sigma_i_meta,
+        sample.ansatz.set_theta_metadynamics(sde, args.dt_meta, args.sigma_i_meta,
                                                   args.k, args.N_meta)
-    elif args.theta == 'optimal':
-        #sample.set_theta_optimal()
+    elif args.theta == 'hjb':
+        sample.ansatz.set_theta_hjb(sde, args.h_hjb)
+    else:
         return
 
     # set dir path for gaussian ansatz
@@ -98,7 +101,7 @@ def main():
 
     # load already run gd
     else:
-        if not sgd.load_som():
+        if not sgd.load():
             return
 
     # report gd
@@ -108,17 +111,34 @@ def main():
     # do plots 
     if args.do_plots:
 
-        # plot loss function, relative error and time steps
-        #sgd.plot_losses()
-        #sgd.plot_I_u()
-        #sgd.plot_time_steps()
-
         if args.n == 1:
             sgd.plot_1d_iteration()
             sgd.plot_1d_iterations()
 
         elif args.n == 2:
             sgd.plot_2d_iteration()
+
+        # load mc sampling and hjb solution and prepare labels
+        sgd.load_mc_sampling(dt_mc=0.01, N_mc=10**3)
+        sgd.load_hjb_solution_and_sampling(h_hjb=0.001, dt_hjb=0.01, N_hjb=10**3)
+        sgd.load_plot_labels_colors_and_linestyles()
+
+        # loss
+        sgd.plot_loss()
+
+        # mean and relative error of the reweighted quantity of interest
+        sgd.plot_mean_I_u()
+        sgd.plot_re_I_u()
+
+        # time steps and computational time
+        sgd.plot_time_steps()
+        sgd.plot_cts()
+
+        # u l2 error and its change
+        if sgd.u_l2_errors is not None:
+            sgd.plot_u_l2_error()
+            sgd.plot_u_l2_error_change()
+
 
     if args.do_importance_sampling:
         # set sampling and Euler-Marujama parameters

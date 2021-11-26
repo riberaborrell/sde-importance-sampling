@@ -129,7 +129,12 @@ class GaussianAnsatz():
         self.theta = np.zeros(self.m)
         self.theta_type = 'null'
 
-    def set_theta_from_hjb_solution(self, sde, h):
+    def set_theta_random(self):
+        bound = 0.1
+        self.theta = np.random.uniform(-bound, bound, self.m)
+        self.theta_type = 'random'
+
+    def set_theta_hjb(self, sde, h):
         '''
         '''
         # get hjb solver
@@ -146,7 +151,7 @@ class GaussianAnsatz():
         self.h = h
         self.theta_type = 'optimal'
 
-    def set_theta_from_metadynamics(self, sde, dt_meta, sigma_i_meta, k, N_meta):
+    def set_theta_metadynamics(self, sde, dt_meta, sigma_i_meta, k, N_meta):
         '''
         '''
         if self.distributed == 'meta':

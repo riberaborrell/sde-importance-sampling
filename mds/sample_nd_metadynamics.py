@@ -11,12 +11,6 @@ import os
 def get_parser():
     parser = get_base_parser()
     parser.description = 'Metadynamics for the nd overdamped Langevin SDE'
-    parser.add_argument(
-        '--do-updates-plots',
-        dest='do_updates_plots',
-        action='store_true',
-        help='Do plots after adding a gaussian. Default: False',
-    )
     return parser
 
 def main():
@@ -52,7 +46,6 @@ def main():
         meta_type=args.meta_type,
         weights_type=args.weights_type,
         omega_0=args.omega_0_meta,
-        do_updates_plots=args.do_updates_plots,
     )
 
     # set sampling parameters
@@ -98,6 +91,7 @@ def main():
             return
 
 
+    #meta.compute_means_distance()
     if args.do_report:
         meta.write_report()
 
@@ -108,6 +102,8 @@ def main():
 
         # 1d plots
         if sample.n == 1:
+            meta.plot_1d_updates(i=0)
+            return
             idx_traj_with_updates = [i for i in range(args.N_meta) if meta.ms[i] != 0]
             for i in idx_traj_with_updates:
                 meta.plot_1d_updates(i=i)
