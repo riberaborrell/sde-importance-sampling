@@ -14,8 +14,7 @@ class Sampling(LangevinSDE):
     '''
 
     def __init__(self, problem_name, potential_name, n, alpha, beta, target_set=None,
-                 domain=None, h=None, is_controlled=None, T=None, nu=None, is_optimal=None,
-                 is_batch=False):
+                 domain=None, h=None, is_controlled=None, T=None, nu=None, is_optimal=None):
         '''
         '''
 
@@ -31,10 +30,6 @@ class Sampling(LangevinSDE):
         self.xt = None
         self.save_trajectory = False
         self.traj = None
-
-        # batch sampling
-        self.is_batch = is_batch
-        self.batch_id = None
 
         # Euler-Marujama
         self.dt = None
@@ -1342,10 +1337,8 @@ class Sampling(LangevinSDE):
     def save(self):
 
         # set file name
-        if not self.is_controlled and not self.is_batch:
+        if not self.is_controlled:
             file_name = 'mc-sampling.npz'
-        elif not self.is_controlled and self.is_batch:
-            file_name = 'mc-sampling_batch-{}.npz'.format(str(self.batch_id))
         elif self.is_controlled:
             file_name = 'is.npz'
         else:
@@ -1412,10 +1405,8 @@ class Sampling(LangevinSDE):
     def load(self):
 
         # set file name
-        if not self.is_controlled and not self.is_batch:
+        if not self.is_controlled:
             file_name = 'mc-sampling.npz'
-        elif not self.is_controlled and self.is_batch:
-            file_name = 'mc-sampling_batch-{}.npz'.format(str(self.batch_id))
         elif self.is_controlled:
             file_name = 'is.npz'
         else:
@@ -1473,10 +1464,10 @@ class Sampling(LangevinSDE):
         '''
 
         # set file name
-        if self.seed is None:
+        if not hasattr(self, 'n_batch_samples'):
             file_name = 'report.txt'
         else:
-            file_name = 'report_batch-{}.txt'.format(str(self.seed))
+            file_name = 'report_batch-wise.txt'
 
         # set file path
         file_path = os.path.join(self.dir_path, file_name)
@@ -1491,8 +1482,7 @@ class Sampling(LangevinSDE):
         if self.is_controlled and not self.is_optimal:
             self.ansatz.write_ansatz_parameters(f)
 
-
-        if self.problem_name == 'langevin-stop-t':
+        if self.problem_name == 'langevin_stop-t':
             f.write('\nStatistics\n')
 
             f.write('trajectories which arrived: {:2.2f} %\n'
@@ -1515,28 +1505,31 @@ class Sampling(LangevinSDE):
             f.write('First hitting time (fht)\n')
             f.write('first fht = {:2.3f}\n'.format(self.first_fht))
             f.write('last fht = {:2.3f}\n'.format(self.last_fht))
-            f.write('E[fht] = {:2.3f}\n'.format(self.mean_fht))
-            f.write('Var[fht] = {:2.3f}\n'.format(self.var_fht))
-            f.write('RE[fht] = {:2.3f}\n\n'.format(self.re_fht))
+            f.write('m_N(fht) = {:2.3f}\n'.format(self.mean_fht))
+            f.write('s_N^2(fht) = {:2.3f}\n'.format(self.var_fht))
+            f.write('re_N(fht) = {:2.3f}\n'.format(self.re_fht))
+            f.write('mc-error(fht) = {:2.3f}\n\n'.format(np.sqrt(self.var_fht / self.N)))
 
-            f.write('First hitting time step (fhts)\n')
-            f.write('E[fhts] = {:2.3f}\n'.format(self.mean_fht / self.dt))
-            f.write('Var[fhts] = {:2.3f}\n'.format(self.var_fht / (self.dt **2)))
-            f.write('RE[fhts] = {:2.3f}\n\n'.format(self.re_fht))
+            f.write('First hitting time step (fhts)\n\n')
+            f.write('m_N(fhts) = {:2.3f}\n'.format(self.mean_fht / self.dt))
+            #f.write('s_N^2(fhts) = {:2.3f}\n'.format(self.var_fht / (self.dt **2)))
+            #f.write('re_N(fhts) = {:2.3f}\n\n'.format(self.re_fht))
 
         if not self.is_controlled:
             f.write('\nQuantity of interest\n')
-            f.write('E[exp(- fht)] = {:2.3e}\n'.format(self.mean_I))
-            f.write('Var[exp(- fht)] = {:2.3e}\n'.format(self.var_I))
-            f.write('RE[exp(- fht)] = {:2.3e}\n\n'.format(self.re_I))
-            f.write('-log(E[exp(- fht)]) = {:2.3e}\n\n'.format(-np.log(self.mean_I)))
+            f.write('m_N(I) = {:2.3e}\n'.format(self.mean_I))
+            f.write('s_N^2(I) = {:2.3e}\n'.format(self.var_I))
+            f.write('re_N(I) = {:2.3e}\n'.format(self.re_I))
+            f.write('mc-error(I) = {:2.3e}\n'.format(np.sqrt(self.var_I / self.N)))
+            f.write('-log(m_N(I)) = {:2.3e}\n\n'.format(-np.log(self.mean_I)))
 
         else:
             f.write('\nReweighted Quantity of interest\n')
-            f.write('E[exp(- fht) * M_fht] = {:2.3e}\n'.format(self.mean_I_u))
-            f.write('Var[exp(- fht) * M_fht] = {:2.3e}\n'.format(self.var_I_u))
-            f.write('RE[exp(- fht) * M_fht] = {:2.3e}\n\n'.format(self.re_I_u))
-            f.write('-log(E[exp(- fht) * M_fht]) = {:2.3e}\n\n'.format(-np.log(self.mean_I_u)))
+            f.write('m_N(I^u) = {:2.3e}\n'.format(self.mean_I_u))
+            f.write('s_N^2(I^u) = {:2.3e}\n'.format(self.var_I_u))
+            f.write('re_N(I^u) = {:2.3e}\n'.format(self.re_I_u))
+            f.write('mc-error(I^u) = {:2.3e}\n'.format(np.sqrt(self.var_I_u / self.N)))
+            f.write('-log(m_N(I^u)) = {:2.3e}\n\n'.format(-np.log(self.mean_I_u)))
 
         h, m, s = get_time_in_hms(self.ct)
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))

@@ -8,13 +8,6 @@ import re
 def get_parser():
     parser = get_base_parser()
     parser.description = 'Sample not controlled nd overdamped Langevin SDE. Multiple batches'
-    parser.add_argument(
-        '--N-batch',
-        dest='N_batch',
-        type=int,
-        default=1000,
-        help='Set number of trajectories for the batch sampling. Default: 1000',
-    )
     return parser
 
 def main():
@@ -34,15 +27,16 @@ def main():
         alpha[0] = args.alpha_i
         alpha[1:] = args.alpha_j
 
-    # initialize sampling object
+    # initialize sampling and batch sampling object
     sample = Sampling(
+        problem_name=args.problem_name,
         potential_name=args.potential_name,
         n=args.n,
         alpha=alpha,
         beta=args.beta,
         is_controlled=False,
-        is_batch=False,
     )
+    batch_sample = Sampling.new_from(sample)
 
     # set sampling and Euler-Marujama parameters
     assert args.seed is None, ''
@@ -54,58 +48,42 @@ def main():
         seed=args.seed,
     )
 
+    # set number of batch samples used
+    sample.n_batch_samples = n_batch_samples
+
     # set path
     sample.set_not_controlled_dir_path()
-
-    # check batch samples
-    batch_files = [
-        name for name in os.listdir(sample.dir_path)
-        if re.match(r'mc-sampling_batch-\d+.npz', name) is not None
-    ]
-    assert len(batch_files) == n_batch_samples
 
     # preallocate first hitting times array and been in target set array flag
     sample.preallocate_fht()
 
     # initialize total number of time steps and delta time
     sample.k = 0
-    sample.ct_delta = 0
+    sample.ct = 0.
 
     for i in np.arange(n_batch_samples):
 
-        # initialize batch sampling object
-        batch_sample = Sampling(
-            potential_name=args.potential_name,
-            n=args.n,
-            alpha=alpha,
-            beta=args.beta,
-            is_controlled=False,
-            is_batch=True,
-        )
-
         # set same dir path
-        batch_sample.dir_path = sample.dir_path
-        batch_sample.batch_id = i
+        batch_sample.dt = args.dt
+        batch_sample.N = args.N_batch
+        batch_sample.seed = i
 
         # load files
-        batch_sample.load_not_controlled_statistics()
+        batch_sample.set_not_controlled_dir_path()
+        batch_sample.load()
 
         # add fht
-        #idx_i_batch = slice(batch_sample.N * i, batch_sample.N * (i + 1))
-        idx_i_batch = slice(args.N_batch * i, args.N_batch * (i + 1))
+        idx_i_batch = slice(batch_sample.N * i, batch_sample.N * (i + 1))
         sample.been_in_target_set[idx_i_batch] = batch_sample.been_in_target_set
         sample.fht[idx_i_batch] = batch_sample.fht
 
         # add time steps and computational time
         sample.k += batch_sample.k
-        sample.ct_delta += batch_sample.ct_delta
+        sample.ct += batch_sample.ct
 
     # compute statistics
     sample.compute_fht_statistics()
     sample.compute_I_statistics()
-
-    # save files
-    sample.save_not_controlled_statistics()
 
     # report statistics
     if args.do_report:

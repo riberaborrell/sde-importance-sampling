@@ -98,8 +98,15 @@ def get_base_parser():
         '--N',
         dest='N',
         type=int,
-        default=10**4,
-        help='Set number of trajectories to sample. Default: 10.000',
+        default=10**3,
+        help='Set number of trajectories to sample. Default: 1.000',
+    )
+    parser.add_argument(
+        '--N-batch',
+        dest='N_batch',
+        type=int,
+        default=10**5,
+        help='Set number of trajectories to sample. Default: 100.000',
     )
     parser.add_argument(
         '--dt',

@@ -6,28 +6,17 @@ import os
 
 def get_parser():
     parser = get_base_parser()
-    parser.description = 'Sample not controlled nd overdamped Langevin SDE. Save fht array'
-    parser.add_argument(
-        '--batch-id',
-        dest='batch_id',
-        type=int,
-        default=1,
-        help='Set batch id. Default: 1',
-    )
-    parser.add_argument(
-        '--N-batch',
-        dest='N_batch',
-        type=int,
-        default=1000,
-        help='Set number of trajectories for the batch sampling. Default: 1000',
-    )
+    parser.description = 'Sample not controlled nd overdamped Langevin SDE split in ' \
+                         'multiple batches'
     return parser
 
 def main():
     args = get_parser().parse_args()
 
     # check number of batch trajectories
+    assert args.N > args.N_batch, ''
     assert args.N % args.N_batch == 0, ''
+    n_batch_samples = int(args.N / args.N_batch)
 
     # set alpha array
     if args.potential_name == 'nd_2well':
@@ -39,12 +28,12 @@ def main():
 
     # initialize sampling object
     sample = Sampling(
+        problem_name=args.problem_name,
         potential_name=args.potential_name,
         n=args.n,
         alpha=alpha,
         beta=args.beta,
         is_controlled=False,
-        is_batch=True,
     )
 
     # set sampling and Euler-Marujama parameters
@@ -52,23 +41,23 @@ def main():
         dt=args.dt,
         k_lim=args.k_lim,
         xzero=np.full(args.n, args.xzero_i),
-        N=args.N,
-        seed=args.seed,
+        N=args.N_batch,
     )
 
-    # set path
-    sample.set_not_controlled_dir_path()
+    for i in np.arange(n_batch_samples):
 
-    # set batch number of trajectories and batch id
-    sample.N = args.N_batch
-    sample.batch_id = args.batch_id
+        # set path
+        sample.seed = i
+        sample.set_not_controlled_dir_path()
 
-    # sample not controlled trajectories
-    sample.sample_not_controlled()
+        # sample not controlled trajectories
+        sample.sample_not_controlled()
 
-    # save files
-    sample.save_not_controlled_statistics()
+        # save files
+        sample.save()
 
+        msg = 'mc sampling with seed {:d} done'.format(i)
+        print(msg)
 
 if __name__ == "__main__":
     main()
