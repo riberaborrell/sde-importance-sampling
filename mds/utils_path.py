@@ -98,6 +98,7 @@ def get_controlled_dir_path(parent_dir_path, dt, N, seed):
         'is',
         'dt_{}'.format(dt),
         'N_{:.0e}'.format(N),
+        seed_str,
     )
     return dir_path
 
