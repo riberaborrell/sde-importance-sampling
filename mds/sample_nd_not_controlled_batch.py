@@ -50,8 +50,10 @@ def main():
         sample.seed = i
         sample.set_not_controlled_dir_path()
 
-        # sample not controlled trajectories
+        # sample and compute statistics
         sample.sample_not_controlled()
+        sample.compute_fht_statistics()
+        sample.compute_I_statistics()
 
         # save files
         sample.save()
