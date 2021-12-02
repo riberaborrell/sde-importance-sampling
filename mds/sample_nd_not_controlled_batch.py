@@ -47,7 +47,7 @@ def main():
     for i in np.arange(n_batch_samples):
 
         # set path
-        sample.seed = i
+        sample.seed = i + 1
         sample.set_not_controlled_dir_path()
 
         # sample and compute statistics

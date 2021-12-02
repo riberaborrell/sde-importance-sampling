@@ -66,7 +66,7 @@ def main():
         # set same dir path
         batch_sample.dt = args.dt
         batch_sample.N = args.N_batch
-        batch_sample.seed = i
+        batch_sample.seed = i + 1
 
         # load files
         batch_sample.set_not_controlled_dir_path()
@@ -74,7 +74,7 @@ def main():
 
         # add fht
         idx_i_batch = slice(batch_sample.N * i, batch_sample.N * (i + 1))
-        sample.been_in_target_set[idx_i_batch] = batch_sample.been_in_target_set
+        sample.been_in_target_set[(idx_i_batch, 0)] = batch_sample.been_in_target_set[:, 0]
         sample.fht[idx_i_batch] = batch_sample.fht
 
         # add time steps and computational time
@@ -84,6 +84,9 @@ def main():
     # compute statistics
     sample.compute_fht_statistics()
     sample.compute_I_statistics()
+
+    # save files
+    sample.save()
 
     # report statistics
     if args.do_report:
