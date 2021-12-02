@@ -9,11 +9,14 @@ import os
 class GaussianAnsatz():
     '''
     '''
-    def __init__(self, n, normalized=True):
+    def __init__(self, n, beta, normalized=True):
         '''
         '''
         # dimension of the state space
         self.n = n
+
+        # inverse of temperature
+        self.beta = beta
 
         # number of ansatz, means and cov
         self.m = None
@@ -92,6 +95,7 @@ class GaussianAnsatz():
     def set_meta_dist_ansatz_functions(self, sde, dt_meta, sigma_i_meta, is_cumulative, k, N_meta):
         '''
         '''
+        #TODO: update meta parameters
         meta = sde.get_metadynamics_sampling(dt_meta, sigma_i_meta, is_cumulative, k, N_meta)
         assert N_meta == meta.ms.shape[0], ''
 
@@ -104,6 +108,7 @@ class GaussianAnsatz():
     def set_meta_ansatz_functions(self, sde, dt_meta, sigma_i_meta, k, N_meta):
         '''
         '''
+        #TODO: update meta parameters
         meta = sde.get_metadynamics_sampling(dt_meta, sigma_i_meta, k, N_meta)
         meta_total_m = int(np.sum(meta.ms))
         assert N_meta == meta.ms.shape[0], ''
@@ -151,33 +156,34 @@ class GaussianAnsatz():
         self.h = h
         self.theta_type = 'optimal'
 
-    def set_theta_metadynamics(self, sde, dt_meta, sigma_i_meta, k, N_meta):
+    def set_theta_metadynamics(self, meta, h):
         '''
         '''
         if self.distributed == 'meta':
-            assert self.sigma_i_meta ==sigma_i_meta, ''
-            assert self.k == k, ''
-            assert self.N_meta == N_meta, ''
+            assert self.sigma_i_meta == meta.sigma_i, ''
+            assert self.k == meta.k, ''
+            assert self.N_meta == meta.N, ''
 
         # discretize domain
-        sde.discretize_domain()
+        meta.sample.discretize_domain(h)
 
         # flatten domain_h
-        x = sde.domain_h.reshape(sde.Nh, self.n)
+        Nh = meta.sample.Nh
+        x = meta.sample.domain_h.reshape(Nh, self.n)
 
-        meta = sde.get_metadynamics_sampling(dt_meta, sigma_i_meta, k, N_meta)
-        assert meta.ms.shape[0] == N_meta, ''
+        assert meta.ms.shape[0] == meta.N, ''
 
-        thetas = np.empty((N_meta, self.m))
+        thetas = np.empty((meta.N, self.m))
 
-        for i in np.arange(N_meta):
+        for i in np.arange(meta.N):
             # get means and thetas for each trajectory
             idx_i = slice(np.sum(meta.ms[:i]), np.sum(meta.ms[:i]) + meta.ms[i])
             meta_means_i = meta.means[idx_i]
-            meta_thetas_i = meta.thetas[idx_i]
+            meta_thetas_i = meta.omegas[idx_i] * self.beta / 2
+            #meta_thetas_i = np.sqrt(2) * meta.omegas[idx_i]
 
             # create ansatz functions from meta
-            meta_ansatz = GaussianAnsatz(n=self.n)
+            meta_ansatz = GaussianAnsatz(n=self.n, beta=self.beta)
             meta_ansatz.set_given_ansatz_functions(
                 means=meta_means_i,
                 cov=meta.cov,
@@ -195,9 +201,12 @@ class GaussianAnsatz():
 
         self.theta = np.mean(thetas, axis=0)
         self.theta_type = 'meta'
-        self.sigma_i_meta = sigma_i_meta
-        self.k = k
-        self.N_meta = N_meta
+        self.sigma_i_meta = meta.sigma_i
+        self.k = meta.k
+        self.N_meta = meta.N
+        msg = 'uniformly distributed gaussian ansatz trained with metadynamics'
+        print(msg)
+
 
     def mv_normal_pdf(self, x, mean=None, cov=None):
         ''' Multivariate normal probability density function (nd Gaussian)
@@ -359,7 +368,8 @@ class GaussianAnsatz():
         assert x.ndim == 2, ''
         assert x.shape[1] == self.n, ''
 
-        basis_control = - np.sqrt(2) * self.vec_grad_mv_normal_pdf(x, self.means, self.cov)
+        basis_control = - (np.sqrt(2) / self.beta) \
+                      * self.vec_grad_mv_normal_pdf(x, self.means, self.cov)
         return basis_control
 
     def set_value_function_constant_target_set(self):
@@ -386,7 +396,7 @@ class GaussianAnsatz():
 
         # evaluate value function at x
         basis_value_f_at_x = self.basis_value_f(x)
-        value_f_at_x =  np.dot(basis_value_f_at_x, theta)
+        value_f_at_x = np.dot(basis_value_f_at_x, theta)
 
         self.K_value_f = - value_f_at_x
 

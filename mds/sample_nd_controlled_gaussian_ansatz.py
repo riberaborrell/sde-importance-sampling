@@ -42,12 +42,17 @@ def main():
     # set chosen coefficients
     if args.theta == 'null':
         sample.ansatz.set_theta_null()
+    elif args.theta == 'random':
+        sample.ansatz.set_theta_random()
     elif args.theta == 'meta':
         sde.h = args.h
-        sample.ansatz.set_theta_from_metadynamics(sde, args.dt_meta, args.sigma_i_meta,
+        sample.ansatz.set_theta_metadynamics(sde, args.dt_meta, args.sigma_i_meta,
                                                   args.k, args.N_meta)
-    elif args.theta == 'optimal':
-        sample.ansatz.set_theta_from_hjb_solution(sde, args.h_hjb)
+    elif args.theta == 'hjb':
+        sde = LangevinSDE.new_from(sample)
+        sample.ansatz.set_theta_hjb(sde, args.h_hjb)
+    else:
+        return
 
     # set dir path for gaussian ansatz
     sample.ansatz.set_dir_path(sde)

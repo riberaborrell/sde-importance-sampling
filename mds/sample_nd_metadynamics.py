@@ -35,7 +35,7 @@ def main():
     )
 
     # initialize Gaussian Ansatz
-    sample.ansatz = GaussianAnsatz(n=args.n, normalized=False)
+    sample.ansatz = GaussianAnsatz(n=args.n, beta=args.beta, normalized=False)
 
     # initialize meta nd object
     meta = Metadynamics(

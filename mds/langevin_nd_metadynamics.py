@@ -174,7 +174,7 @@ class Metadynamics:
                 sample.is_controlled = True
                 idx = slice(np.sum(self.ms[:i]), np.sum(self.ms[:i]) + j)
                 sample.ansatz.set_given_ansatz_functions(self.means[idx], self.cov)
-                sample.ansatz.theta = self.weights[:j] / 2
+                sample.ansatz.theta = self.weights[:j] * sample.beta / 2
 
             # sample with the given weights
             self.succ[i], xtemp = sample.sample_meta()
@@ -217,7 +217,7 @@ class Metadynamics:
             else:
                 sample.is_controlled = True
                 sample.ansatz.set_given_ansatz_functions(self.means, self.cov)
-                sample.ansatz.theta = self.omegas / 2
+                sample.ansatz.theta = self.omegas * sample.beta / 2
 
             # sample with the given weights
             self.succ[i], xtemp = sample.sample_meta()
@@ -432,7 +432,7 @@ class Metadynamics:
             means=self.means[idx],
             cov=self.cov,
         )
-        self.sample.ansatz.theta = self.omegas[idx] / 2
+        self.sample.ansatz.theta = self.omegas[idx] * self.sample.beta / 2
         self.sample.ansatz.set_value_function_constant_corner()
 
     def set_ansatz_cumulative(self):
@@ -455,7 +455,7 @@ class Metadynamics:
             # get means and thetas for each trajectory
             idx_i = self.get_trajectory_indices(i)
             meta_means_i = self.means[idx_i]
-            meta_thetas_i = self.omegas[idx_i] / 2
+            meta_thetas_i = self.omegas[idx_i] * self.sample.beta / 2
 
             # create ansatz functions corresponding to the ith metadynamics trajectory
             meta_ansatz_i = GaussianAnsatz(n=self.sample.n, normalized=False)

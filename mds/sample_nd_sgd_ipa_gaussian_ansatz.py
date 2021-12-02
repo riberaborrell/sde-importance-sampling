@@ -40,14 +40,15 @@ def main():
     sde = LangevinSDE.new_from(sample)
 
     # initialize Gaussian ansatz
-    sample.ansatz = GaussianAnsatz(n=args.n)
+    sample.ansatz = GaussianAnsatz(n=args.n, beta=args.n)
 
     # distribute Gaussian ansatz
     if args.distributed == 'uniform':
         sample.ansatz.set_unif_dist_ansatz_functions(sde, args.m_i, args.sigma_i)
     elif args.distributed == 'meta':
-        sample.ansatz.set_meta_dist_ansatz_functions(sde, args.dt_meta, args.sigma_i_meta,
-                                                     args.k, args.N_meta)
+        #sample.ansatz.set_meta_dist_ansatz_functions(sde, args.dt_meta, args.sigma_i_meta,
+        #                                             args.k, args.N_meta)
+        pass
 
     # set initial coefficients
     if args.theta == 'null':
@@ -56,8 +57,10 @@ def main():
         sample.ansatz.set_theta_random()
     elif args.theta == 'meta':
         sde.h = args.h
-        sample.ansatz.set_theta_metadynamics(sde, args.dt_meta, args.sigma_i_meta,
-                                                  args.k, args.N_meta)
+        meta = sde.get_metadynamics_sampling(args.meta_type, args.weights_type,
+                                             args.omega_0_meta, args.k_meta, args.N_meta)
+
+        sample.ansatz.set_theta_metadynamics(meta, args.h)
     elif args.theta == 'hjb':
         sample.ansatz.set_theta_hjb(sde, args.h_hjb)
     else:
