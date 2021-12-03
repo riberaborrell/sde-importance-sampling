@@ -50,7 +50,7 @@ class FunctionApproximation():
                 )
 
     def set_sgd_parameters(self, n):
-        self.n_iterations_lim = 10**5
+        self.n_iterations_lim = 10**3
         self.N_train = 5 * 10**2
         self.losses = np.empty(self.n_iterations_lim)
 
@@ -117,9 +117,106 @@ class FunctionApproximation():
             print('\nnn already trained with metadynamics.\n')
             return
 
+        # set sgd parameters
+
+        self.n_iterations_lim = 10**1
+        self.losses_train = np.empty(self.n_iterations_lim)
+        self.losses_test = np.empty(self.n_iterations_lim)
+
+        # define loss
+        loss = nn.MSELoss()
+
+        # define optimizer
+        optimizer = optim.Adam(
+            self.model.parameters(),
+            lr=0.01,
+        )
+
         # create ansatz functions from meta
         n = meta.sample.n
-        meta.sample.ansatz = GaussianAnsatz(n=n, normalized=False)
+        meta.sample.ansatz = GaussianAnsatz(n=n, normalized=False, beta=meta.sample.beta)
+        meta.set_ansatz()
+
+        # get data point from uniform grid 
+        if meta.sample.n == 1:
+            h = 0.001
+        elif meta.sample.n == 2:
+            h = 0.005
+        elif meta.sample.n == 3:
+            h = 0.1
+        elif meta.sample.n == 4:
+            h = 0.5
+        meta.sample.discretize_domain(h)
+        data = meta.sample.get_flat_domain_h()
+        self.N_data = data.shape[0]
+
+        # split into training and test data
+        self.N_train = int(0.75 * self.N_data)
+        np.random.shuffle(data)
+        x_train = data[:self.N_train]
+        x_test = data[self.N_train:]
+        self.N_test = x_test.shape[0]
+
+        # convert to tensors
+        x_train_tensor = torch.tensor(x_train, requires_grad=False, dtype=torch.float32)
+        x_test_tensor = torch.tensor(x_test, requires_grad=False, dtype=torch.float32)
+
+        # evaluate meta control at the training data
+        target_train = meta.sample.ansatz.control(x_train)
+        target_test = meta.sample.ansatz.control(x_test)
+        target_train_tensor = torch.tensor(target_train, requires_grad=False, dtype=torch.float32)
+        target_test_tensor = torch.tensor(target_test, requires_grad=False, dtype=torch.float32)
+
+        for i in np.arange(self.n_iterations_lim):
+
+            # evaluate nn control at the training data
+            inputs_train = self.model.forward(x_train_tensor)
+            inputs_test = self.model.forward(x_test_tensor)
+
+            # compute loss
+            output_train = loss(inputs_train, target_train_tensor)
+            output_test = loss(inputs_test, target_test_tensor).detach().numpy()
+            if i % 1 == 0:
+                print('it.: {:d}, loss (train): {:2.3e}, loss (test): {:2.3e}' \
+                      ''.format(i, output_train, output_test))
+
+            # save loss
+            self.losses_train[i] = output_train.detach().numpy()
+            self.losses_test[i] = output_test
+
+            # compute gradients
+            output_train.backward()
+
+            # update parameters
+            optimizer.step()
+
+            # reset gradients
+            optimizer.zero_grad()
+
+        print('nn trained from metadynamics!')
+        print('it.: {:d}, loss (train): {:2.3e}, loss (test): {:2.3e}' \
+              ''.format(i, output_train, output_test))
+
+        # number of iterations used
+        self.n_iterations = i
+
+        # save parameters
+        self.theta = self.model.get_parameters()
+
+        # save nn training
+        self.save_trained_parameters(self.dir_path)
+
+    def train_parameters_with_metadynamics_2(self, meta):
+
+        # load trained parameters if already computed
+        succ = self.load_trained_parameters(self.dir_path)
+        if succ:
+            print('\nnn already trained with metadynamics.\n')
+            return
+
+        # create ansatz functions from meta
+        n = meta.sample.n
+        meta.sample.ansatz = GaussianAnsatz(n=n, normalized=False, beta=meta.sample.beta)
         meta.set_ansatz_cumulative()
 
         # define loss
@@ -189,11 +286,14 @@ class FunctionApproximation():
         np.savez(
             file_path,
             n_iterations_lim=self.n_iterations_lim,
-            n_iterations=self.n_iterations,
+            #n_iterations=self.n_iterations,
+            N_data=self.N_data,
             N_train=self.N_train,
+            N_test=self.N_test,
             #epsilon=self.epsilon,
             theta=self.theta,
-            losses=self.losses,
+            losses_train=self.losses_train,
+            losses_test=self.losses_test,
         )
 
     def load_trained_parameters(self, dir_path):

@@ -77,7 +77,7 @@ class StochasticOptimizationMethod:
         )
 
     def set_iterations_dir_path(self):
-        self.iterations_dir_path = os.path.join(self.dir_path, 'iterations')
+        self.iterations_dir_path = os.path.join(self.dir_path, 'SGD iterations')
         make_dir_path(self.iterations_dir_path)
 
     def start_timer(self):
@@ -455,12 +455,14 @@ class StochasticOptimizationMethod:
         if sample_mc is not None:
             self.value_f_mc = np.full(self.n_iterations, - np.log(sample_mc.mean_I))
             self.mean_I_mc = np.full(self.n_iterations, sample_mc.mean_I)
+            self.var_I_mc = np.full(self.n_iterations_lim, sample_mc.var_I)
             self.re_I_mc = np.full(self.n_iterations_lim, sample_mc.re_I)
             self.time_steps_mc = np.full(self.n_iterations_lim, sample_mc.k)
             self.ct_mc = np.full(self.n_iterations_lim, sample_mc.ct)
         else:
             self.value_f_mc = np.full(self.n_iterations, np.nan)
             self.mean_I_mc = np.full(self.n_iterations, np.nan)
+            self.var_I_mc = np.full(self.n_iterations, np.nan)
             self.re_I_mc = np.full(self.n_iterations, np.nan)
             self.time_steps_mc = np.full(self.n_iterations, np.nan)
             self.ct_mc = np.full(self.n_iterations, np.nan)
@@ -556,9 +558,9 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='loss',
         )
-        fig.set_xlabel('iterations')
+        fig.set_xlabel('SGD iterations')
         fig.set_plot_scale('semilogy')
-        fig.plot(x, y, self.colors, self.linestyles, self.labels)
+        fig.plot(x, y, self.labels, self.colors, self.linestyles)
 
         # plot running averages losses
         if not hasattr(self, 'run_avg_losses'):
@@ -582,9 +584,9 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='loss-avg',
         )
-        fig.set_xlabel('iterations')
+        fig.set_xlabel('SGD iterations')
         fig.set_plot_scale('semilogy')
-        fig.plot(x[self.n_iter_avg - 1:], y, self.colors, self.linestyles, self.labels)
+        fig.plot(x[self.n_iter_avg - 1:], y, self.labels, self.colors, self.linestyles)
 
 
     def plot_mean_I_u(self):
@@ -613,9 +615,9 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='mean',
         )
-        fig.set_xlabel('iterations')
+        fig.set_xlabel('SGD iterations')
         fig.set_plot_scale('semilogy')
-        fig.plot(x, y, self.colors, self.linestyles, self.labels)
+        fig.plot(x, y, self.labels, self.colors, self.linestyles)
 
         # plot running averages mean I^u
         if not hasattr(self, 'run_avg_means_I_u'):
@@ -638,9 +640,9 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='mean-avg',
         )
-        fig.set_xlabel('iterations')
+        fig.set_xlabel('SGD iterations')
         fig.set_plot_scale('semilogy')
-        fig.plot(x[self.n_iter_avg - 1:], y, self.colors, self.linestyles, self.labels)
+        fig.plot(x[self.n_iter_avg - 1:], y, self.labels, self.colors, self.linestyles)
 
     def plot_re_I_u(self):
         '''
@@ -667,13 +669,13 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='re',
         )
-        fig.set_xlabel('iterations')
+        fig.set_xlabel('SGD iterations')
         fig.set_plot_scale('semilogy')
 
         if self.sol_hjb is None:
-            fig.plot(x, y, self.colors, self.linestyles, self.labels)
+            fig.plot(x, y, self.labels, self.colors, self.linestyles)
         else:
-            fig.plot(x, y, self.colors[:3], self.linestyles[:3], self.labels[:3])
+            fig.plot(x, y, self.labels[:3], self.colors[:3], self.linestyles[:3])
 
         # plot relative error I^u
         if not hasattr(self, 'run_avg_res_I_u'):
@@ -695,27 +697,32 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='re-avg',
         )
-        fig.set_xlabel('iterations')
+        fig.set_xlabel('SGD iterations')
         fig.set_plot_scale('semilogy')
         if self.sol_hjb is None:
-            fig.plot(x[self.n_iter_avg - 1:], y, self.colors, self.linestyles, self.labels)
+            fig.plot(x[self.n_iter_avg - 1:], y, self.labels, self.colors, self.linestyles)
         else:
-            fig.plot(x[self.n_iter_avg - 1:], y, self.colors[:3], self.linestyles[:3], self.labels[:3])
+            fig.plot(x[self.n_iter_avg - 1:], y, self.labels[:3], self.colors[:3], self.linestyles[:3])
 
     def plot_error_bar_I_u(self):
         '''
         '''
         from figures.myfigure import MyFigure
-        #TODO! debug
+
+        # iterations
         x = np.arange(self.n_iterations)
-        plt.plot(x, self.means_I_u, color='b', linestyle='-')
-        plt.fill_between(
-            self.iterations,
-            self.means_I_u - self.vars_I_u,
-            self.means_I_u + self.vars_I_u,
-        )
-        plt.savefig(plt.file_path)
-        plt.close()
+
+        y = self.means_I_u
+        y_err = np.sqrt(self.vars_I_u / self.sample.N)
+
+        # plot mean I u with error bars
+        fig, ax = plt.subplots()
+        ax.set_yscale("log", nonpositive='clip')
+        plt.plot(x, y, color='b', linestyle='-')
+        plt.fill_between(x, y - y_err, y + y_err, alpha=0.5)
+        plt.show()
+        #plt.savefig(plt.file_path)
+        #plt.close()
 
     def plot_time_steps(self):
         '''
@@ -742,13 +749,13 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='time-steps',
         )
-        fig.set_xlabel('iterations')
+        fig.set_xlabel('SGD iterations')
         fig.set_plot_scale('semilogy')
 
         if self.sol_hjb is None:
-            fig.plot(x, y, self.colors, self.linestyles, self.labels)
+            fig.plot(x, y, self.labels, self.colors, self.linestyles)
         else:
-            fig.plot(x, y, self.colors[:3], self.linestyles[:3], self.labels[:3])
+            fig.plot(x, y, self.labels[:3], self.colors[:3], self.linestyles[:3])
         return
 
         # plot running averages time steps
@@ -771,12 +778,12 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='time-steps-avg',
         )
-        fig.set_xlabel('iterations')
+        fig.set_xlabel('SGD iterations')
         fig.set_plot_scale('semilogy')
         if self.sol_hjb is None:
-            fig.plot(x[self.n_iter_avg - 1:], y, self.colors, self.linestyles, self.labels)
+            fig.plot(x[self.n_iter_avg - 1:], y, self.labels, self.colors, self.linestyles)
         else:
-            fig.plot(x[self.n_iter_avg - 1:], y, self.colors[:3], self.linestyles[:3], self.labels[:3])
+            fig.plot(x[self.n_iter_avg - 1:], y, self.labels[:3], self.colors[:3], self.linestyles[:3])
 
     def plot_cts(self):
         '''
@@ -794,9 +801,9 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='cts',
         )
-        fig.set_xlabel('iterations')
+        fig.set_xlabel('SGD iterations')
         fig.set_plot_scale('semilogy')
-        fig.plot(x, y, self.colors[:3], self.linestyles[:3], self.labels[:3])
+        fig.plot(x, y, self.labels[:3], self.colors[:3], self.linestyles[:3])
 
     def plot_u_l2_error(self):
         '''
@@ -813,9 +820,9 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='u-l2-error',
         )
-        fig.set_xlabel('iterations')
+        fig.set_xlabel('SGD iterations')
         fig.set_plot_scale('semilogy')
-        fig.plot(x, y, self.colors[0], self.linestyles[0], self.labels[0])
+        fig.plot(x, y, self.labels[0], self.colors[0], self.linestyles[0])
 
         # plot running averages u l2 errors
         if not hasattr(self, 'run_avg_u_l2_errors'):
@@ -827,9 +834,9 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='u-l2-error-avg',
         )
-        fig.set_xlabel('iterations')
+        fig.set_xlabel('SGD iterations')
         fig.set_plot_scale('semilogy')
-        fig.plot(x[self.n_iter_avg - 1:], y, self.colors[0], self.linestyles[0], self.labels[0])
+        fig.plot(x[self.n_iter_avg - 1:], y, self.labels[0], self.colors[0], self.linestyles[0])
 
     def plot_u_l2_error_change(self):
         '''
@@ -843,8 +850,8 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='u-l2-error-change',
         )
-        fig.set_xlabel = 'iterations'
-        fig.plot(x, y, self.colors[0], self.linestyles[0], self.labels[0])
+        fig.set_xlabel('SGD iterations')
+        fig.plot(x, y, self.labels[0], self.colors[0], self.linestyles[0])
 
     def plot_control_i_t(self, i, t):
         '''
