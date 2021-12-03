@@ -463,7 +463,7 @@ class LangevinSDE(object):
         if sample.load():
             return sample
 
-    def get_metadynamics_sampling(self, meta_type, weights_type, omega_0, k, N):
+    def get_metadynamics_sampling(self, meta_type, weights_type, omega_0, k, N, seed=None):
         from mds.langevin_nd_importance_sampling import Sampling
         from mds.langevin_nd_metadynamics import Metadynamics
 
@@ -479,6 +479,7 @@ class LangevinSDE(object):
             omega_0=omega_0,
             k=k,
             N=N,
+            seed=seed,
         )
 
         # set path
