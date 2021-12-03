@@ -435,8 +435,18 @@ class Metadynamics:
         self.sample.ansatz.theta = self.omegas[idx] * self.sample.beta / 2
         self.sample.ansatz.set_value_function_constant_corner()
 
-    def set_ansatz_cumulative(self):
-        self.set_ansatz_trajectory(i=self.N -1)
+    def set_ansatz(self):
+        '''
+        '''
+        # initialize Gaussian object if there is not one already
+        if self.sample.ansatz is None:
+            self.sample.ansatz = GaussianAnsatz(self.sample.n, self.sample.beta,
+                                                normalized=False)
+
+        if self.meta_type == 'ind':
+            self.set_ansatz_averaged()
+        elif self.meta_type == 'cum':
+            self.set_ansatz_trajectory(i=self.N -1)
 
     def set_ansatz_averaged(self):
         ''' average omegas such that each trajectory is equally important

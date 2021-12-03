@@ -148,11 +148,11 @@ class GaussianAnsatz():
         # flatten domain and free energy
         Nh = hjb_sol.Nh
         x = hjb_sol.domain_h.reshape(Nh, self.n)
-        F = hjb_sol.F.reshape(Nh,)
+        value_f = hjb_sol.value_f.reshape(Nh,)
 
         # compute the optimal theta given a basis of ansatz functions
         v = self.basis_value_f(x)
-        self.theta, _, _, _ = np.linalg.lstsq(v, F, rcond=None)
+        self.theta, _, _, _ = np.linalg.lstsq(v, value_f, rcond=None)
         self.h = h
         self.theta_type = 'optimal'
 
@@ -167,45 +167,30 @@ class GaussianAnsatz():
         # discretize domain
         meta.sample.discretize_domain(h)
 
-        # flatten domain_h
-        Nh = meta.sample.Nh
-        x = meta.sample.domain_h.reshape(Nh, self.n)
+        # flattened domain_h
+        x = meta.sample.get_flat_domain_h()
 
-        assert meta.ms.shape[0] == meta.N, ''
+        # set ansatz functions
+        meta.set_ansatz()
 
-        thetas = np.empty((meta.N, self.m))
+        # meta value function evaluated at the grid
+        meta.sample.ansatz.set_value_function_constant_corner()
+        value_f_meta = meta.sample.ansatz.value_function(x)
 
-        for i in np.arange(meta.N):
-            # get means and thetas for each trajectory
-            idx_i = slice(np.sum(meta.ms[:i]), np.sum(meta.ms[:i]) + meta.ms[i])
-            meta_means_i = meta.means[idx_i]
-            meta_thetas_i = meta.omegas[idx_i] * self.beta / 2
-            #meta_thetas_i = np.sqrt(2) * meta.omegas[idx_i]
+        # ansatz functions evaluated at the grid
+        v = self.basis_value_f(x)
 
-            # create ansatz functions from meta
-            meta_ansatz = GaussianAnsatz(n=self.n, beta=self.beta)
-            meta_ansatz.set_given_ansatz_functions(
-                means=meta_means_i,
-                cov=meta.cov,
-            )
+        # solve theta v \theta = value_f_meta
+        self.theta, _, _, _ = np.linalg.lstsq(v, value_f_meta, rcond=None)
 
-            # meta value function evaluated at the grid
-            meta_ansatz.set_value_function_constant_corner(meta_thetas_i)
-            value_f_meta = meta_ansatz.value_function(x, meta_thetas_i)
+        msg = 'uniformly distributed gaussian ansatz fitted (least squares) with metadynamics\n'
+        print(msg)
 
-            # ansatz functions evaluated at the grid
-            v = self.basis_value_f(x)
-
-            # solve theta V = \Phi
-            thetas[i], _, _, _ = np.linalg.lstsq(v, value_f_meta, rcond=None)
-
-        self.theta = np.mean(thetas, axis=0)
+        # save parameters
         self.theta_type = 'meta'
         self.sigma_i_meta = meta.sigma_i
         self.k = meta.k
         self.N_meta = meta.N
-        msg = 'uniformly distributed gaussian ansatz trained with metadynamics'
-        print(msg)
 
 
     def mv_normal_pdf(self, x, mean=None, cov=None):

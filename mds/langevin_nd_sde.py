@@ -70,7 +70,7 @@ class LangevinSDE(object):
     def new_from(cls, obj):
         if issubclass(obj.__class__, LangevinSDE):
             _new = cls(obj.problem_name, obj.potential_name, obj.n, obj.alpha,
-                       obj.beta, obj.target_set, obj.domain)
+                       obj.beta, obj.domain, obj.target_set)
             return _new
         else:
             msg = 'Expected subclass of <class LangevinSDE>, got {}.'.format(type(obj))
@@ -319,7 +319,7 @@ class LangevinSDE(object):
             x[j] = x_j
         return x
 
-    def get_flattened_domain_h(self):
+    def get_flat_domain_h(self):
         ''' this method returns the flattened discretized domain
         '''
         return self.domain_h.reshape(self.Nh, self.n)

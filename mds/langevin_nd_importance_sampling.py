@@ -13,8 +13,8 @@ class Sampling(LangevinSDE):
     '''
     '''
 
-    def __init__(self, problem_name, potential_name, n, alpha, beta, target_set=None,
-                 domain=None, h=None, is_controlled=None, T=None, nu=None, is_optimal=None):
+    def __init__(self, problem_name, potential_name, n, alpha, beta, domain=None,
+                 target_set=None, h=None, is_controlled=None, T=None, nu=None, is_optimal=None):
         '''
         '''
 
