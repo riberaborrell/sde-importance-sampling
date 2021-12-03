@@ -83,6 +83,7 @@ class Metadynamics:
             self.omega_0,
             self.k,
             self.N,
+            self.seed,
         )
         self.dir_path = os.path.join(
             self.sample.settings_dir_path,
