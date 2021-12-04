@@ -65,7 +65,7 @@ def main():
         sample.do_u_l2_error = True
 
     # get the corresponding Gaussian ansatz
-    meta.sample.ansatz = GaussianAnsatz(n=args.n, normalized=False)
+    meta.sample.ansatz = GaussianAnsatz(n=args.n, beta=args.beta, normalized=False)
     if meta.meta_type == 'cum':
         meta.set_ansatz_cumulative()
     elif meta.meta_type == 'ind':
