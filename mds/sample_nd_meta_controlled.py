@@ -66,10 +66,7 @@ def main():
 
     # get the corresponding Gaussian ansatz
     meta.sample.ansatz = GaussianAnsatz(n=args.n, beta=args.beta, normalized=False)
-    if meta.meta_type == 'cum':
-        meta.set_ansatz_cumulative()
-    elif meta.meta_type == 'ind':
-        meta.set_ansatz_averaged()
+    meta.set_ansatz()
     sample.ansatz = meta.sample.ansatz
 
     # set controlled sampling dir path
