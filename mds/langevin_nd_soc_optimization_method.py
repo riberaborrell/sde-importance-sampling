@@ -331,6 +331,19 @@ class StochasticOptimizationMethod:
             print('no som found')
             return False
 
+    def reduce_iterations(self, n_iter):
+        assert n_iter < self.n_iterations, ''
+
+        self.n_iterations = n_iter
+        self.thetas = self.thetas[:n_iter]
+        self.losses = self.losses[:n_iter]
+        self.means_I_u = self.means_I_u[:n_iter]
+        self.vars_I_u = self.vars_I_u[:n_iter]
+        self.res_I_u = self.res_I_u[:n_iter]
+        self.time_steps = self.time_steps[:n_iter]
+        self.cts = self.cts[:n_iter]
+        #self.u_l2_errors = self.u_l2_errors[:n_iter]
+
     def compute_running_averages(self, n_iter_avg=10):
         '''
         '''

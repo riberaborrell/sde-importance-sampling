@@ -3,6 +3,7 @@ from mds.utils_path import get_not_controlled_dir_path, \
                            get_controlled_dir_path, \
                            get_time_in_hms
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
@@ -1606,26 +1607,38 @@ class Sampling(LangevinSDE):
 
     def plot_trajectory(self):
         from figures.myfigure import MyFigure
+
+        # discretized time array
         traj_fhs = self.traj.shape[0]
         traj_fht = traj_fhs * self.dt
         x = np.linspace(0, traj_fht, traj_fhs)
-        y = np.moveaxis(self.traj, 0, -1)
-        labels = [r'$x_{}$'.format(i+1) for i in np.arange(self.n)]
 
-        for i in np.arange(self.n):
-            fig = plt.figure(
-                FigureClass=MyFigure,
-                dir_path=self.dir_path,
-                file_name='trajectory_x{:d}'.format(i+1),
-            )
-            fig.set_xlabel = 't'
-            fig.set_ylabel = r'$x_{:d}$'.format(i+1)
-            fig.plot(x, self.traj[:, i])
+        # coordinates
+        y = np.moveaxis(self.traj, 0, -1)
+
+        # averaged
+        n_iter_avg = 50
+        x_avg = x[n_iter_avg - 1:]
+        y_avg = np.empty((self.n, traj_fhs - n_iter_avg + 1))
+        for i in range(self.n):
+            y_avg[i] = np.convolve(y[i], np.ones(n_iter_avg) / n_iter_avg, mode='valid')
+
+        labels = [r'$x_{}$'.format(i+1) for i in np.arange(self.n)]
 
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
             file_name='trajectory',
         )
-        fig.set_xlabel = 't'
+        fig.set_xlabel(r'$t$')
+        fig.set_ylim(-1.5, 1.5)
         fig.plot(x, y, labels=labels)
+
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='trajectory-avg',
+        )
+        fig.set_xlabel(r'$t$')
+        fig.set_ylim(-1.5, 1.5)
+        fig.plot(x_avg, y_avg, labels=labels)

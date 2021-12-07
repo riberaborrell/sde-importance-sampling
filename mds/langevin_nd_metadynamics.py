@@ -620,17 +620,18 @@ class Metadynamics:
         frees[-1, :] = sol_hjb.value_f
         controlled_potentials[-1, :] = sol_hjb.controlled_potential
         controls[-1, :] = sol_hjb.u_opt[:, 0]
-        labels.append('num sol HJB PDE')
-        colors[-1] = 'tab:cyan'
+        labels.append('HJB solution')
+        #colors[-1] = 'tab:cyan'
+        colors[-1] = None
 
         # file extension
         ext = '_i_{}'.format(i)
 
-        # plot free energy
+        # plot value function
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
-            file_name='free-energy' + ext,
+            file_name='value-function' + ext,
         )
         fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
@@ -643,6 +644,7 @@ class Metadynamics:
             file_name='controlled-potential' + ext,
         )
         controlled_potentials[-1, :] = sol_hjb.controlled_potential
+        fig.set_title(r'$V(x) + V_b^{meta}(x)$')
         fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
         fig.set_ylim(0, 20)
@@ -655,6 +657,7 @@ class Metadynamics:
             file_name='control' + ext,
         )
         controls[-1, :] = sol_hjb.u_opt[:, 0]
+        fig.set_title(r'$u(x ; \theta)$')
         fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
         fig.plot(x, controls, labels=labels, colors=colors)
@@ -777,15 +780,8 @@ class Metadynamics:
             self.set_ansatz_trajectory(i, update)
 
         # plot averaged bias potential
-        elif self.meta_type == 'ind':
-            self.set_ansatz_averaged()
-
-            # set plot dir path and file extension
-            plot_dir_path = self.dir_path
-            ext = ''
-
-        elif self.meta_type == 'cum':
-            self.set_ansatz_cumulative()
+        else:
+            self.set_ansatz()
 
             # set plot dir path and file extension
             plot_dir_path = self.dir_path
