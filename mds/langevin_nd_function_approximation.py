@@ -119,7 +119,7 @@ class FunctionApproximation():
 
         # set sgd parameters
 
-        self.n_iterations_lim = 10**1
+        self.n_iterations_lim = 10**3
         self.losses_train = np.empty(self.n_iterations_lim)
         self.losses_test = np.empty(self.n_iterations_lim)
 
@@ -134,7 +134,7 @@ class FunctionApproximation():
 
         # create ansatz functions from meta
         n = meta.sample.n
-        meta.sample.ansatz = GaussianAnsatz(n=n, normalized=False, beta=meta.sample.beta)
+        meta.sample.ansatz = GaussianAnsatz(n=n, beta=meta.sample.beta, normalized=False)
         meta.set_ansatz()
 
         # get data point from uniform grid 
@@ -176,7 +176,7 @@ class FunctionApproximation():
             # compute loss
             output_train = loss(inputs_train, target_train_tensor)
             output_test = loss(inputs_test, target_test_tensor).detach().numpy()
-            if i % 1 == 0:
+            if i % 100 == 0:
                 print('it.: {:d}, loss (train): {:2.3e}, loss (test): {:2.3e}' \
                       ''.format(i, output_train, output_test))
 
