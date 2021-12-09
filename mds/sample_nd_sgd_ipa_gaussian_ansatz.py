@@ -58,7 +58,8 @@ def main():
     elif args.theta == 'meta':
         sde.h = args.h
         meta = sde.get_metadynamics_sampling(args.meta_type, args.weights_type,
-                                             args.omega_0_meta, args.k_meta, args.N_meta)
+                                             args.omega_0_meta, args.k_meta, args.N_meta,
+                                             args.seed)
 
         sample.ansatz.set_theta_metadynamics(meta, args.h)
     elif args.theta == 'hjb':

@@ -157,9 +157,16 @@ def get_flat_bias_dir_path(settings_dir_path, dt, k_lim, N):
     return dir_path
 
 def get_gaussian_ansatz_dir_path(settings_dir_path, distributed, theta, m_i=None,
-                                 sigma_i=None, sigma_i_meta=None, k=None, N_meta=None, h=None):
+                                 sigma_i=None, sigma_i_meta=None, k=None, N_meta=None,
+                                 seed_meta=None, h=None):
     ''' Get gaussian ansatz dir path and create its directories
     '''
+    # set seed string
+    if seed_meta is not None:
+        seed_str = 'seed_{:d}'.format(seed_meta)
+    else:
+        seed_str = ''
+
     # get dir path
     dir_path = os.path.join(
         settings_dir_path,
@@ -191,6 +198,7 @@ def get_gaussian_ansatz_dir_path(settings_dir_path, distributed, theta, m_i=None
             'sigma_i_meta_{}'.format(float(sigma_i_meta)),
             'k_{}'.format(k),
             'N_meta_{}'.format(N_meta),
+            seed_str,
         )
     elif distributed == 'meta' and theta == 'meta':
         dir_path = os.path.join(dir_path, 'theta_' + theta)

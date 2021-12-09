@@ -1639,6 +1639,9 @@ class Sampling(LangevinSDE):
             dir_path=self.dir_path,
             file_name='trajectory-avg',
         )
+        fig.set_title(r'trajectory')
         fig.set_xlabel(r'$t$')
+        fig.set_ylabel(r'$x_i$')
         fig.set_ylim(-1.5, 1.5)
+        plt.subplots_adjust(left=0.14, right=0.96, bottom=0.12)
         fig.plot(x_avg, y_avg, labels=labels)

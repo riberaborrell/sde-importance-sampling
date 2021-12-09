@@ -36,6 +36,7 @@ class GaussianAnsatz():
         self.sigma_i_meta = None
         self.k = None
         self.N_meta = None
+        self.seed_meta = None
 
         self.theta_type = None
 
@@ -58,6 +59,7 @@ class GaussianAnsatz():
             self.sigma_i_meta,
             self.k,
             self.N_meta,
+            self.seed_meta,
         )
 
         # create dir path if not exists
@@ -191,6 +193,7 @@ class GaussianAnsatz():
         self.sigma_i_meta = meta.sigma_i
         self.k = meta.k
         self.N_meta = meta.N
+        self.seed_meta = meta.seed
 
 
     def mv_normal_pdf(self, x, mean=None, cov=None):
