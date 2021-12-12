@@ -196,72 +196,6 @@ class GaussianAnsatz():
         self.N_meta = meta.N
         self.seed_meta = meta.seed
 
-
-#    def mv_normal_pdf(self, x, mean=None, cov=None):
-#        ''' Multivariate normal probability density function (nd Gaussian)
-#        v(x; mean, cov) evaluated at x
-#            x ((N, n)-array) : posicion
-#            mean ((n,)-array) : center of the gaussian
-#            cov ((n, n)-array) : covariance matrix
-#        '''
-#        assert x.ndim == 2, ''
-#        assert x.shape[1] == self.n, ''
-#        if mean is None:
-#            mean = np.zeros(self.n)
-#        if cov is None:
-#            cov = np.eye(self.n)
-#        assert mean.shape == (self.n,), ''
-#        assert cov.shape == (self.n, self.n), ''
-#
-#        N = x.shape[0]
-#        mvn_pdf = np.empty(N)
-#
-#        rv = stats.multivariate_normal(mean, cov, allow_singular=False)
-#        if self.normalized:
-#            mvn_pdf[:] = rv.pdf(x)
-#        else:
-#            norm_factor = np.sqrt(((2 * np.pi) ** self.n) * np.linalg.det(cov))
-#            mvn_pdf[:] = norm_factor * rv.pdf(x)
-#
-#        return mvn_pdf
-#
-#    def grad_mv_normal_pdf(self, x, mean=None, cov=None):
-#        ''' Gradient of the Multivariate normal probability density function (nd Gaussian)
-#        \nabla v(x; mean, cov) evaluated at x
-#            x ((N, n)-array) : posicion
-#            mean ((n,)-array) : center of the gaussian
-#            cov ((n, n)-array) : covariance matrix
-#        '''
-#        assert x.ndim == 2, ''
-#        assert x.shape[1] == self.n, ''
-#        if mean is None:
-#            mean = np.zeros(self.n)
-#        if cov is None:
-#            cov = np.eye(self.n)
-#        assert mean.shape == (self.n,), ''
-#        assert cov.shape == (self.n, self.n), ''
-#
-#        N = x.shape[0]
-#        mvn_pdf = np.empty(N)
-#
-#        rv = stats.multivariate_normal(mean, cov, allow_singular=False)
-#        if self.normalized:
-#            mvn_pdf[:] = rv.pdf(x)
-#        else:
-#            norm_factor = np.sqrt(((2 * np.pi) ** self.n) * np.linalg.det(cov))
-#            mvn_pdf[:] = norm_factor * rv.pdf(x)
-#
-#        grad_exp_term = np.zeros((N, self.n))
-#        inv_cov = np.linalg.inv(cov)
-#        for i in range(self.n):
-#            for j in range(self.n):
-#                grad_exp_term[:, i] += (x[:, i] - mean[i]) * (inv_cov[i, j] + inv_cov[j, i])
-#        grad_exp_term *= - 0.5
-#
-#        grad_mvn_pdf = grad_exp_term * mvn_pdf[:, np.newaxis]
-#
-#        return grad_mvn_pdf
-
     def mvn_pdf_basis(self, x, means=None, cov=None):
         ''' Multivariate normal pdf (nd Gaussian) basis V(x; means, cov) with different m means
             but same covariance matrix evaluated at x
@@ -302,7 +236,11 @@ class GaussianAnsatz():
 
         # compute normalization factor if needed
         if self.normalized:
+
+            # compute norm factor
             norm_factor = np.sqrt(((2 * np.pi) ** self.n) * np.linalg.det(cov))
+
+            # normalize
             mvn_pdf_basis = np.exp(exp_term) / norm_factor
         else:
             mvn_pdf_basis = np.exp(exp_term)
@@ -310,7 +248,7 @@ class GaussianAnsatz():
         return mvn_pdf_basis
 
     def mvn_pdf_gradient_basis(self, x, means=None, cov=None):
-        ''' Multivariate normal pdf gradients (nd Gaussian gradients) basis \nabla V(x; means, cov)
+        ''' Multivariate normal pdf gradient (nd Gaussian gradients) basis \nabla V(x; means, cov)
         with different means but same covaianc matrix evaluated at x
             x ((N, n)-array) : posicion
             means ((m, n)-array) : center of the gaussian
@@ -333,7 +271,6 @@ class GaussianAnsatz():
         m = means.shape[0]
         assert cov.ndim == 2, ''
         assert cov.shape == (self.n, self.n), ''
-
 
         # get nd gaussian basis
         mvn_pdf_basis = self.mvn_pdf_basis(x, means, cov)

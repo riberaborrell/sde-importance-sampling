@@ -1,4 +1,4 @@
-from mds.neural_networks import GaussianAnsatz
+from mds.neural_networks import GaussianAnsatzNN
 
 import numpy as np
 import pytest
@@ -14,12 +14,12 @@ class TestGaussianAnsatzNN:
     @pytest.fixture
     def random_distr_gaussian_ansatz(self, n, m):
         '''initializes GaussianAnsatz'''
-        return GaussianAnsatz(n, m, means=None, cov=None)
+        return GaussianAnsatzNN(n, m, means=None, cov=None)
 
     def test_vec_mvn_pdf(self, random_distr_gaussian_ansatz, random_inputs):
         '''evaluates vectorized mvn pdf'''
         ansatz = random_distr_gaussian_ansatz
-        v = ansatz.vec_mvn_pdf(random_inputs)
+        v = ansatz.mvn_pdf_basis(random_inputs)
 
         N = random_inputs.size(0)
         assert v.size() == (N, ansatz.m)
@@ -32,7 +32,7 @@ class TestGaussianAnsatzNN:
         N = random_inputs.size(0)
         assert output.size() == (N, 1)
 
-    def test_grad_vec_mvn_pdf(self, random_distr_gaussian_ansatz, random_inputs):
+    def test_mvn_pdf_gradient_basis(self, random_distr_gaussian_ansatz, random_inputs):
 
         # evaluates gaussian ansatz
         ansatz = random_distr_gaussian_ansatz
