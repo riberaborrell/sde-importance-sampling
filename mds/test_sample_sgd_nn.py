@@ -2,11 +2,24 @@ from mds.utils import make_dir_path
 from mds.plots import Plot
 
 import numpy as np
+import torch
+
 import os
 
 def double_well_1d_gradient(x):
     alpha = 1
     return 4 * alpha * x * (x**2 - 1)
+
+def double_well_nd_gradient(x):
+    N = x.shape[0]
+    n = x.shape[1]
+    alpha = torch.ones(n)
+
+    gradient = torch.empty((N, n))
+    for i in range(n):
+        gradient[:, i] = alpha[i] * 4 * x[:, i] * (torch.pow(x[:, i], 2) - 1)
+
+    return gradient
 
 def get_idx_new_in_ts(x, been_in_target_set):
     is_in_target_set = x > 1

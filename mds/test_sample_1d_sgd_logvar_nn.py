@@ -48,9 +48,9 @@ def main():
 
     # initialize nn model 
     if not args.dense:
-        model = FeedForwardNN(d_layers, args.activation_type)
+        model = FeedForwardNN(d_layers, args.activation_type, args.seed)
     else:
-        model = DenseNN(d_layers, args.activation_type)
+        model = DenseNN(d_layers, args.activation_type, args.seed)
 
     # define optimizer
     optimizer = optim.Adam(
@@ -110,13 +110,8 @@ def sample_loss(model, dt, N):
     # start timer
     ct_initial = time.time()
 
-    # flags
-    adaptive_forward_process = True
-    detach_forward = True
-
     # time increments as tensors
     dt = torch.tensor([dt])
-    sq_dt = torch.sqrt(dt)
 
     # initialize trajectories of processes X and Y 
     xt = - torch.ones(N).reshape(N, 1)
@@ -139,6 +134,7 @@ def sample_loss(model, dt, N):
 
         # stop trajetories if all trajectories are in the target set
         idx = xt[:, 0] < 1
+        breakpoint()
         N_not_in_ts = torch.sum(idx)
         if N_not_in_ts == 0:
             break
@@ -147,18 +143,19 @@ def sample_loss(model, dt, N):
         xi = torch.randn(N_not_in_ts).reshape(N_not_in_ts, 1)
 
         # Brownian increment
-        dB = np.sqrt(dt) * xi
+        dB = torch.sqrt(dt) * xi
 
         # Z process
         zt = - model.forward(xt[idx, :])
 
         # control
         ut = torch.zeros(N_not_in_ts).reshape(N_not_in_ts, 1)
-        if adaptive_forward_process is True:
-            ut = - zt
 
-        if detach_forward is True:
-            ut = ut.detach()
+        # adaptive forward process
+        ut = - zt
+
+        # detach
+        ut = ut.detach()
 
         # step dynamics process X forward
         drift = (- double_well_1d_gradient(xt[idx, :]) + np.sqrt(2) * ut) * dt
@@ -169,10 +166,11 @@ def sample_loss(model, dt, N):
         h = (-1 + 0.5 * zt ** 2).reshape(N_not_in_ts,)
         yt[idx] = yt[idx] \
                 + (h + torch.sum(zt * ut, dim=1)) * dt \
-                + torch.sum(zt * xi, dim=1) * sq_dt
+                + torch.sum(zt * dB, dim=1)
 
         # update zt_sum
         zt_sum[idx] += (1 + 0.5 * np.sum(zt.detach().numpy() ** 2, axis=1)) * dt.detach().numpy()
+
         # numpy array indices
         idx = idx.detach().numpy()
 
@@ -187,8 +185,9 @@ def sample_loss(model, dt, N):
         ).squeeze()
 
 
-    #loss = (Z_sum).mean()
-    loss = torch.var(yt)
+    # compute loss
+    log_var_loss = torch.var(yt)
+    loss = np.mean(zt_sum)
 
     # compute mean and re of I_u
     I_u = np.exp(- fht - np.sqrt(beta) * stoch_int_fht - (beta / 2) * det_int_fht)
@@ -199,7 +198,7 @@ def sample_loss(model, dt, N):
     # end timer
     ct_final = time.time()
 
-    return loss, np.mean(zt_sum), mean_I_u, re_I_u, k, ct_final - ct_initial
+    return log_var_loss, loss, mean_I_u, re_I_u, k, ct_final - ct_initial
 
 
 if __name__ == "__main__":

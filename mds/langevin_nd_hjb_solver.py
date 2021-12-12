@@ -197,7 +197,7 @@ class SolverHJB(LangevinSDE):
         self.solved = True
 
     def compute_value_function(self):
-        ''' this methos computes the free energy
+        ''' this methos computes the value function
                 value_f = - log (psi)
         '''
         assert hasattr(self, 'psi'), ''

@@ -573,7 +573,7 @@ class Metadynamics:
             n_sliced_updates = sliced_updates.shape[0]
 
         # preallocate arrays
-        frees = np.zeros((n_sliced_updates + 2, x.shape[0]))
+        value_fs = np.zeros((n_sliced_updates + 2, x.shape[0]))
         controls = np.zeros((n_sliced_updates + 2, x.shape[0]))
         controlled_potentials = np.zeros((n_sliced_updates + 2, x.shape[0]))
 
@@ -596,7 +596,7 @@ class Metadynamics:
         self.sample.get_grid_value_function()
         self.sample.get_grid_control()
         controlled_potentials[0, :] = self.sample.grid_controlled_potential
-        frees[0, :] = self.sample.grid_value_function
+        value_fs[0, :] = self.sample.grid_value_function
         controls[0, :] = self.sample.grid_control[:, 0]
 
         self.sample.is_controlled = True
@@ -610,14 +610,14 @@ class Metadynamics:
 
             # update functions
             controlled_potentials[index+1, :] = self.sample.grid_controlled_potential
-            frees[index+1, :] = self.sample.grid_value_function
+            value_fs[index+1, :] = self.sample.grid_value_function
             controls[index+1, :] = self.sample.grid_control[:, 0]
 
         # get hjb solution
         sol_hjb = self.sample.get_hjb_solver(h=0.001)
         sol_hjb.discretize_domain()
         sol_hjb.get_controlled_potential_and_drift()
-        frees[-1, :] = sol_hjb.value_f
+        value_fs[-1, :] = sol_hjb.value_f
         controlled_potentials[-1, :] = sol_hjb.controlled_potential
         controls[-1, :] = sol_hjb.u_opt[:, 0]
         labels.append('HJB solution')
@@ -635,7 +635,7 @@ class Metadynamics:
         )
         fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
-        fig.plot(x, frees, labels=labels, colors=colors)
+        fig.plot(x, value_fs, labels=labels, colors=colors)
 
         # plot controlled potential
         fig = plt.figure(
@@ -713,11 +713,11 @@ class Metadynamics:
         # domain
         x = self.sample.domain_h[:, 0]
 
-        # plot free energy
+        # plot value function
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=plot_dir_path,
-            file_name='free-energy' + ext,
+            file_name='value-function' + ext,
         )
         y = np.vstack((
             self.sample.grid_value_function,
@@ -796,17 +796,17 @@ class Metadynamics:
         X = self.sample.domain_h[:, :, 0]
         Y = self.sample.domain_h[:, :, 1]
 
-        # plot free energy
+        # plot value function
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=plot_dir_path,
-            file_name='free-energy' + ext,
+            file_name='value-function' + ext,
         )
         fig.set_xlabel(r'$x_1$')
         fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-2, 2)
         fig.set_ylim(-2, 2)
-        fig.set_contour_levels_scale('log')
+        #fig.set_contour_levels_scale('log')
         fig.contour(X, Y, self.sample.grid_value_function)
 
         # plot controlled potential

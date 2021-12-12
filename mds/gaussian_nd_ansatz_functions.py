@@ -147,7 +147,7 @@ class GaussianAnsatz():
         # get hjb solver
         hjb_sol = sde.get_hjb_solver(h)
 
-        # flatten domain and free energy
+        # flatten domain and value function
         Nh = hjb_sol.Nh
         x = hjb_sol.domain_h.reshape(Nh, self.n)
         value_f = hjb_sol.value_f.reshape(Nh,)

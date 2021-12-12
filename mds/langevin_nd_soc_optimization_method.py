@@ -538,8 +538,8 @@ class StochasticOptimizationMethod:
             self.linestyles = ['-', 'dashed', 'dashdot', 'dashdot']
             self.labels = [
                 'SOC',
-                'Not contronlled Sampling',
-                'HJB Sampling',
+                'not contronlled sampling',
+                'HJB sampling',
                 r'HJB solution (h={:.0e})'.format(self.h_hjb),
             ]
 
@@ -929,7 +929,7 @@ class StochasticOptimizationMethod:
         sol_hjb.get_controlled_potential_and_drift()
 
         # colors and labels
-        labels = [r'SOC (iteration: {})'.format(i), 'num sol HJB PDE']
+        labels = [r'SOC (iteration: {})'.format(i), 'HJB solution']
         colors = ['tab:blue', 'tab:cyan']
 
         # domain
@@ -937,7 +937,7 @@ class StochasticOptimizationMethod:
 
         if self.sample.grid_value_function is not None:
 
-            # plot free energy
+            # plot value function
             fig = plt.figure(
                 FigureClass=MyFigure,
                 dir_path=self.iterations_dir_path,
@@ -994,7 +994,7 @@ class StochasticOptimizationMethod:
 
         # preallocate arrays
         controlled_potentials = np.zeros((n_sliced_iterations + 1, x.shape[0]))
-        frees = np.zeros((n_sliced_iterations + 1, x.shape[0]))
+        value_fs = np.zeros((n_sliced_iterations + 1, x.shape[0]))
         controls = np.zeros((n_sliced_iterations + 1, x.shape[0]))
 
         # preallocate labels and colors
@@ -1017,27 +1017,27 @@ class StochasticOptimizationMethod:
             # update functions
             if self.sample.grid_value_function is not None:
                 controlled_potentials[idx, :] = self.sample.grid_controlled_potential
-                frees[idx, :] = self.sample.grid_value_function
+                value_fs[idx, :] = self.sample.grid_value_function
             controls[idx, :] = self.sample.grid_control[:, 0]
 
         # get hjb solution
         sol_hjb = self.sample.get_hjb_solver(h=0.001)
         sol_hjb.get_controlled_potential_and_drift()
-        labels.append('num sol HJB PDE')
+        labels.append('HJB solution')
         colors.append('tab:cyan')
 
         if self.sample.grid_value_function is not None:
 
-            # plot free energy
+            # plot value function
             fig = plt.figure(
                 FigureClass=MyFigure,
                 dir_path=self.dir_path,
                 file_name='value-function',
             )
-            frees[-1, :] = sol_hjb.value_f
+            value_fs[-1, :] = sol_hjb.value_f
             fig.set_xlabel = 'x'
             fig.set_xlim(-2, 2)
-            fig.plot(x, frees, labels=labels, colors=colors)
+            fig.plot(x, value_fs, labels=labels, colors=colors)
 
             # plot controlled potential
             fig = plt.figure(
@@ -1095,7 +1095,7 @@ class StochasticOptimizationMethod:
 
         if self.sample.grid_value_function is not None:
 
-            # plot free energy
+            # plot value function
             fig = plt.figure(
                 FigureClass=MyFigure,
                 dir_path=self.iterations_dir_path,
