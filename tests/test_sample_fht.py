@@ -12,6 +12,7 @@ class TestSamplingFht:
 
         # initialize sampling object
         sample = Sampling(
+            problem_name='langevin_stop-t',
             potential_name='nd_2well',
             n=n,
             alpha=np.full(n, alpha_i),

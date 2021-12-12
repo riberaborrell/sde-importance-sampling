@@ -2,13 +2,15 @@ import functools
 import numpy as np
 import torch
 
-def constant(x, a, tensor=False):
+FLOAT_TYPES = [float, np.float32, np.float64]
+
+def constant(x, a):
     ''' constant function
     '''
     assert type(a) == float, ''
 
     # 1-dimensional function
-    if type(x) == float:
+    if type(x) in FLOAT_TYPES:
         return a
 
     # n-dimensional scalar function
@@ -17,10 +19,13 @@ def constant(x, a, tensor=False):
 
     # n-dimensional vector funcion
     elif x.ndim == 2:
+
+        # set n points
         N = x.shape[0]
-        if not tensor:
+
+        if type(x) == np.array:
             return a * np.ones(N)
-        else:
+        elif type(x) == torch.Tensor:
             return a * torch.ones(N)
 
 
@@ -29,9 +34,9 @@ def quadratic_one_well(x, nu, tensor=False):
     '''
 
     # 1-dimensional function
-    if type(x) == float and type(nu) == float:
+    if type(x) in FLOAT_TYPES and type(nu) in FLOAT_TYPES:
         return nu * (x - 1) ** 2
-    elif type(x) == float and type(nu) == np.ndarray:
+    elif type(x) in FLOAT_TYPES and type(nu) == np.ndarray:
         assert nu.ndim == 1 and nu.shape[0] == 1, ''
         return nu[0] * (x - 1) ** 2
 
@@ -62,12 +67,12 @@ def quadratic_one_well(x, nu, tensor=False):
 
 
 def double_well(x, alpha, tensor=False):
-    '''
+    ''' double well with minimus at +- 1 and maximum at 0.
     '''
     # 1-dimensional function
-    if type(x) == np.float64 and type(alpha) == np.float64:
+    if type(x) in FLOAT_TYPES and type(alpha) in FLOAT_TYPES:
         return alpha * (x**2 - 1) ** 2
-    elif type(x) == np.float64 and type(alpha) == np.ndarray:
+    elif type(x) in FLOAT_TYPES and type(alpha) == np.ndarray:
         assert alpha.ndim == 1 and alpha.shape[0] == 1, ''
         return alpha[0] * (x**2 - 1) ** 2
 
@@ -105,7 +110,7 @@ def double_well_gradient(x, alpha, tensor=False):
     '''
     '''
     # 1-dimensional function
-    if type(x) == float and type(alpha) == float:
+    if type(x) in FLOAT_TYPES and type(alpha) in FLOAT_TYPES:
         return 4 * alpha * x * (x**2 - 1)
     elif type(x) == float and type(alpha) == np.ndarray:
         assert alpha.ndim == 1 and alpha.shape[0] == 1, ''

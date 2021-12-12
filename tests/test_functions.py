@@ -5,6 +5,20 @@ import numpy as np
 import torch
 import pytest
 
+class TestConstant:
+
+    @pytest.fixture
+    def f(self):
+        ''' set function
+        '''
+        a = 2.
+        return functools.partial(constant, a=a)
+
+    def test_constant(self, f):
+        a = f.keywords['a']
+        x = np.random.rand()
+        assert f(x) == a
+
 class TestQuadraticOneWell:
 
     def test_1d_quadratic_one_well(self):

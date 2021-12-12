@@ -1,4 +1,4 @@
-from mds.potentials_and_gradients_nd import POTENTIAL_NAMES
+from mds.langevin_nd_sde import POTENTIAL_NAMES
 
 import pytest
 
@@ -17,6 +17,13 @@ def pytest_addoption(parser):
         type=int,
         default=1,
         help='Set the dimension n. Default: 1',
+    )
+    parser.addoption(
+        '--problem-name',
+        dest='problem_name',
+        choices=['langevin_det-t', 'langevin_stop-t'],
+        default='langevin_stop-t',
+        help='Set type of problem. Default: overdamped langevin with stopping times',
     )
     parser.addoption(
         '--potential-name',
@@ -83,16 +90,20 @@ def pytest_addoption(parser):
     )
 
 @pytest.fixture(scope='session')
+def problem_name(request):
+    return request.config.getoption('problem_name')
+
+@pytest.fixture(scope='session')
+def potential_name(request):
+    return request.config.getoption('potential_name')
+
+@pytest.fixture(scope='session')
 def seed(request):
     return request.config.getoption('seed')
 
 @pytest.fixture(scope='session')
 def n(request):
     return request.config.getoption('n')
-
-@pytest.fixture(scope='session')
-def potential_name(request):
-    return request.config.getoption('potential_name')
 
 @pytest.fixture(scope='session')
 def alpha_i(request):
