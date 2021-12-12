@@ -5,7 +5,7 @@ data/
 pipelines/
 
 # notebooks
-notebooks
+notebooks/
 
 # pyenv version file
 .python-version
@@ -24,6 +24,9 @@ venv/
 
 # pycharm idea
 .idea/
+
+# desktop service store
+.DS_Store
 
 # mathlab files
 *.m
