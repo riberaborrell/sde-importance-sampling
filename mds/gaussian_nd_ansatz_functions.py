@@ -1,4 +1,5 @@
 from mds.langevin_nd_sde import LangevinSDE
+from mds.functions import mvn_pdf, mvn_pdf_gradient
 from mds.utils_path import make_dir_path, get_gaussian_ansatz_dir_path
 
 import numpy as np
@@ -196,144 +197,166 @@ class GaussianAnsatz():
         self.seed_meta = meta.seed
 
 
-    def mv_normal_pdf(self, x, mean=None, cov=None):
-        ''' Multivariate normal probability density function (nd Gaussian)
-        v(x; mean, cov) evaluated at x
-            x ((N, n)-array) : posicion
-            mean ((n,)-array) : center of the gaussian
-            cov ((n, n)-array) : covariance matrix
-        '''
-        assert x.ndim == 2, ''
-        assert x.shape[1] == self.n, ''
-        if mean is None:
-            mean = np.zeros(self.n)
-        if cov is None:
-            cov = np.eye(self.n)
-        assert mean.shape == (self.n,), ''
-        assert cov.shape == (self.n, self.n), ''
+#    def mv_normal_pdf(self, x, mean=None, cov=None):
+#        ''' Multivariate normal probability density function (nd Gaussian)
+#        v(x; mean, cov) evaluated at x
+#            x ((N, n)-array) : posicion
+#            mean ((n,)-array) : center of the gaussian
+#            cov ((n, n)-array) : covariance matrix
+#        '''
+#        assert x.ndim == 2, ''
+#        assert x.shape[1] == self.n, ''
+#        if mean is None:
+#            mean = np.zeros(self.n)
+#        if cov is None:
+#            cov = np.eye(self.n)
+#        assert mean.shape == (self.n,), ''
+#        assert cov.shape == (self.n, self.n), ''
+#
+#        N = x.shape[0]
+#        mvn_pdf = np.empty(N)
+#
+#        rv = stats.multivariate_normal(mean, cov, allow_singular=False)
+#        if self.normalized:
+#            mvn_pdf[:] = rv.pdf(x)
+#        else:
+#            norm_factor = np.sqrt(((2 * np.pi) ** self.n) * np.linalg.det(cov))
+#            mvn_pdf[:] = norm_factor * rv.pdf(x)
+#
+#        return mvn_pdf
+#
+#    def grad_mv_normal_pdf(self, x, mean=None, cov=None):
+#        ''' Gradient of the Multivariate normal probability density function (nd Gaussian)
+#        \nabla v(x; mean, cov) evaluated at x
+#            x ((N, n)-array) : posicion
+#            mean ((n,)-array) : center of the gaussian
+#            cov ((n, n)-array) : covariance matrix
+#        '''
+#        assert x.ndim == 2, ''
+#        assert x.shape[1] == self.n, ''
+#        if mean is None:
+#            mean = np.zeros(self.n)
+#        if cov is None:
+#            cov = np.eye(self.n)
+#        assert mean.shape == (self.n,), ''
+#        assert cov.shape == (self.n, self.n), ''
+#
+#        N = x.shape[0]
+#        mvn_pdf = np.empty(N)
+#
+#        rv = stats.multivariate_normal(mean, cov, allow_singular=False)
+#        if self.normalized:
+#            mvn_pdf[:] = rv.pdf(x)
+#        else:
+#            norm_factor = np.sqrt(((2 * np.pi) ** self.n) * np.linalg.det(cov))
+#            mvn_pdf[:] = norm_factor * rv.pdf(x)
+#
+#        grad_exp_term = np.zeros((N, self.n))
+#        inv_cov = np.linalg.inv(cov)
+#        for i in range(self.n):
+#            for j in range(self.n):
+#                grad_exp_term[:, i] += (x[:, i] - mean[i]) * (inv_cov[i, j] + inv_cov[j, i])
+#        grad_exp_term *= - 0.5
+#
+#        grad_mvn_pdf = grad_exp_term * mvn_pdf[:, np.newaxis]
+#
+#        return grad_mvn_pdf
 
-        N = x.shape[0]
-        mvn_pdf = np.empty(N)
-
-        rv = stats.multivariate_normal(mean, cov, allow_singular=False)
-        if self.normalized:
-            mvn_pdf[:] = rv.pdf(x)
-        else:
-            norm_factor = np.sqrt(((2 * np.pi) ** self.n) * np.linalg.det(cov))
-            mvn_pdf[:] = norm_factor * rv.pdf(x)
-
-        return mvn_pdf
-
-    def grad_mv_normal_pdf(self, x, mean=None, cov=None):
-        ''' Gradient of the Multivariate normal probability density function (nd Gaussian)
-        \nabla v(x; mean, cov) evaluated at x
-            x ((N, n)-array) : posicion
-            mean ((n,)-array) : center of the gaussian
-            cov ((n, n)-array) : covariance matrix
-        '''
-        assert x.ndim == 2, ''
-        assert x.shape[1] == self.n, ''
-        if mean is None:
-            mean = np.zeros(self.n)
-        if cov is None:
-            cov = np.eye(self.n)
-        assert mean.shape == (self.n,), ''
-        assert cov.shape == (self.n, self.n), ''
-
-        N = x.shape[0]
-        mvn_pdf = np.empty(N)
-
-        rv = stats.multivariate_normal(mean, cov, allow_singular=False)
-        if self.normalized:
-            mvn_pdf[:] = rv.pdf(x)
-        else:
-            norm_factor = np.sqrt(((2 * np.pi) ** self.n) * np.linalg.det(cov))
-            mvn_pdf[:] = norm_factor * rv.pdf(x)
-
-        grad_exp_term = np.zeros((N, self.n))
-        inv_cov = np.linalg.inv(cov)
-        for i in range(self.n):
-            for j in range(self.n):
-                grad_exp_term[:, i] += (x[:, i] - mean[i]) * (inv_cov[i, j] + inv_cov[j, i])
-        grad_exp_term *= - 0.5
-
-        grad_mvn_pdf = grad_exp_term * mvn_pdf[:, np.newaxis]
-
-        return grad_mvn_pdf
-
-    def vec_mv_normal_pdf(self, x, means=None, cov=None):
-        ''' Multivariate normal pdf (nd Gaussian) v(x; means, cov) with means evaluated at x
+    def mvn_pdf_basis(self, x, means=None, cov=None):
+        ''' Multivariate normal pdf (nd Gaussian) basis V(x; means, cov) with different m means
+            but same covariance matrix evaluated at x
             x ((N, n)-array) : position
             means ((m, n)-array) : center of the gaussian
             cov ((n, n)-array) : covariance matrix
+
+            returns (N, m)-array
         '''
+        # assume shape of x array to be (N, n)
         assert x.ndim == 2, ''
         assert x.shape[1] == self.n, ''
+        N = x.shape[0]
+
+        # check center and covariance matrix
         if means is None:
             means = np.zeros(self.n)[np.newaxis, :]
         if cov is None:
             cov = np.eye(self.n)
         assert means.ndim == 2, ''
         assert means.shape[1] == self.n, ''
+        m = means.shape[0]
         assert cov.ndim == 2, ''
         assert cov.shape == (self.n, self.n), ''
 
-        N = x.shape[0]
-        m = means.shape[0]
-
+        # covariance matrix inverse
         inv_cov = np.linalg.inv(cov)
+
+        # prepare position and means for broadcasting
         x = x[:, np.newaxis, :]
         means = means[np.newaxis, :, :]
 
+        # compute exponential term
         x_centered = (x - means).reshape(N*m, self.n)
         exp_term = np.matmul(x_centered, inv_cov)
         exp_term = np.sum(exp_term * x_centered, axis=1).reshape(N, m)
         exp_term *= - 0.5
 
+        # compute normalization factor if needed
         if self.normalized:
             norm_factor = np.sqrt(((2 * np.pi) ** self.n) * np.linalg.det(cov))
-            mvn_pdf = np.exp(exp_term) / norm_factor
+            mvn_pdf_basis = np.exp(exp_term) / norm_factor
         else:
-            mvn_pdf = np.exp(exp_term)
+            mvn_pdf_basis = np.exp(exp_term)
 
-        return mvn_pdf
+        return mvn_pdf_basis
 
-    def vec_grad_mv_normal_pdf(self, x, means=None, cov=None):
-        ''' Gradient of the multivariate normal pdf (nd Gaussian) \nabla v(x; means, cov)
-        with means evaluated at x
+    def mvn_pdf_gradient_basis(self, x, means=None, cov=None):
+        ''' Multivariate normal pdf gradients (nd Gaussian gradients) basis \nabla V(x; means, cov)
+        with different means but same covaianc matrix evaluated at x
             x ((N, n)-array) : posicion
             means ((m, n)-array) : center of the gaussian
             cov ((n, n)-array) : covariance matrix
+
+            returns (N, m, n)-array
         '''
+        # assume shape of x array to be (N, n)
         assert x.ndim == 2, ''
         assert x.shape[1] == self.n, ''
+        N = x.shape[0]
+
+        # check center and covariance matrix
         if means is None:
             means = np.zeros(self.n)[np.newaxis, :]
         if cov is None:
             cov = np.eye(self.n)
         assert means.ndim == 2, ''
         assert means.shape[1] == self.n, ''
+        m = means.shape[0]
         assert cov.ndim == 2, ''
         assert cov.shape == (self.n, self.n), ''
 
-        N = x.shape[0]
-        m = means.shape[0]
 
-        mvn_pdf = self.vec_mv_normal_pdf(x, means, cov)
-        x = x[:, np.newaxis, :]
-        means = means[np.newaxis, :, :]
+        # get nd gaussian basis
+        mvn_pdf_basis = self.mvn_pdf_basis(x, means, cov)
+
+        # covariance matrix inverse
         inv_cov = np.linalg.inv(cov)
 
-        grad_mvn_pdf = np.empty((N, m, self.n))
-        grad_exp_term = np.zeros((N, m, self.n))
+        # prepare position and means for broadcasting
+        x = x[:, np.newaxis, :]
+        means = means[np.newaxis, :, :]
+
+        # compute gradient of the exponential term
+        mvn_pdf_gradient_basis = np.empty((N, m, self.n))
+        exp_term_gradient = np.zeros((N, m, self.n))
         for i in range(self.n):
             for j in range(self.n):
-                grad_exp_term[:, :, i] += (x[:, :, i] - means[:, :, i]) * (inv_cov[i, j] + inv_cov[j, i])
-        grad_exp_term *= - 0.5
+                exp_term_gradient[:, :, i] += (x[:, :, i] - means[:, :, i]) * (inv_cov[i, j] + inv_cov[j, i])
+        exp_term_gradient *= - 0.5
 
-        grad_mvn_pdf = grad_exp_term * mvn_pdf[:, :, np.newaxis]
+        # compute gaussian gradients basis
+        mvn_pdf_gradient_basis = exp_term_gradient * mvn_pdf_basis[:, :, np.newaxis]
 
-        return grad_mvn_pdf
+        return mvn_pdf_gradient_basis
 
     def basis_value_f(self, x):
         '''This method computes the ansatz functions for the value function evaluated at x
@@ -344,7 +367,7 @@ class GaussianAnsatz():
         assert x.ndim == 2, ''
         assert x.shape[1] == self.n, ''
 
-        basis_value_f = self.vec_mv_normal_pdf(x, self.means, self.cov)
+        basis_value_f = self.mvn_pdf_basis(x, self.means, self.cov)
         return basis_value_f
 
     def basis_control(self, x):
@@ -357,7 +380,7 @@ class GaussianAnsatz():
         assert x.shape[1] == self.n, ''
 
         basis_control = - (np.sqrt(2) / self.beta) \
-                      * self.vec_grad_mv_normal_pdf(x, self.means, self.cov)
+                      * self.mvn_pdf_gradient_basis(x, self.means, self.cov)
         return basis_control
 
     def set_value_function_constant_target_set(self):
@@ -451,10 +474,10 @@ class GaussianAnsatz():
         x = pos[:, 0]
         Nx = x.shape[0]
 
-        mvn_pdf_j = self.mv_normal_pdf(pos, self.means[j], self.cov)
-        grad_mvn_pdf_j = self.grad_mv_normal_pdf(pos, self.means[j], self.cov)
-        mvn_pdf = self.vec_mv_normal_pdf(pos, self.means, self.cov)
-        grad_mvn_pdf = - np.sqrt(2) * self.vec_grad_mv_normal_pdf(pos, self.means, self.cov)
+        #mvn_pdf_j = mvn_pdf(pos, self.means[j], self.cov)
+        #grad_mvn_pdf_j = mvn_pdf_gradient(pos, self.means[j], self.cov)
+        mvn_pdf = self.mvn_pdf_basis(pos, self.means, self.cov)
+        grad_mvn_pdf = - np.sqrt(2) * self.mvn_pdf_gradient_basis(pos, self.means, self.cov)
 
         fig = plt.figure(
             FigureClass=MyFigure,
@@ -466,7 +489,7 @@ class GaussianAnsatz():
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
-            file_name='gra-gaussian' + '_j{:d}'.format(j),
+            file_name='gaussian-grad' + '_j{:d}'.format(j),
         )
         fig.plot(x, grad_mvn_pdf[:, j, 0])
 
@@ -485,10 +508,10 @@ class GaussianAnsatz():
         Ny = Y.shape[1]
         pos = np.mgrid[grid_input]
         pos = np.moveaxis(pos, 0, -1).reshape(Nx * Ny, 2)
-        mvn_pdf_j = self.mv_normal_pdf(pos, self.means[j], self.cov).reshape(Nx, Ny)
-        grad_mvn_pdf_j = self.grad_mv_normal_pdf(pos, self.means[j], self.cov).reshape(Nx, Ny, 2)
-        mvn_pdf = self.vec_mv_normal_pdf(pos, self.means, self.cov).reshape(Nx, Ny, self.m)
-        grad_mvn_pdf = - np.sqrt(2) * self.vec_grad_mv_normal_pdf(pos, self.means, self.cov).reshape(Nx, Ny, self.m, 2)
+        #mvn_pdf_j = mvn_pdf(pos, self.means[j], self.cov).reshape(Nx, Ny)
+        #grad_mvn_pdf_j = mvn_pdf_gradient(pos, self.means[j], self.cov).reshape(Nx, Ny, 2)
+        mvn_pdf = self.mvn_pdf_basis(pos, self.means, self.cov).reshape(Nx, Ny, self.m)
+        grad_mvn_pdf = - np.sqrt(2) * self.mvn_pdf_gradient_basis(pos, self.means, self.cov).reshape(Nx, Ny, self.m, 2)
 
         fig = plt.figure(
             FigureClass=MyFigure,

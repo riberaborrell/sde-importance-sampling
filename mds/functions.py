@@ -140,3 +140,79 @@ def double_well_gradient(x, alpha, tensor=False):
         else:
             alpha_tensor = torch.tensor(alpha, requires_grad=False, dtype=torch.float32)
             return 4 * alpha_tensor * x * ((torch.pow(x, 2) - 1))
+
+
+def mvn_pdf(self, x, mean=None, cov=None, normalized=True):
+    ''' Multivariate normal probability density function (nd Gaussian)
+    v(x; mean, cov) evaluated at x
+        x ((N, n)-array) : posicion
+        mean ((n,)-array) : center of the gaussian
+        cov ((n, n)-array) : covariance matrix
+    '''
+    # assume shape of x array to be (N, n)
+    assert x.ndim == 2, ''
+    N, n = x.shape
+
+    # check center and covariance matrix
+    if mean is None:
+        mean = np.zeros(n)
+    if cov is None:
+        cov = np.eye(n)
+    assert mean.shape == (n,), ''
+    assert cov.shape == (n, n), ''
+
+    # preallocate
+    mvn_pdf = np.empty(N)
+
+    # random variable with multivariate distribution
+    rv = stats.multivariate_normal(mean, cov, allow_singular=False)
+
+    # get corresponding probability density function
+    if normalized:
+        mvn_pdf[:] = rv.pdf(x)
+    else:
+        norm_factor = np.sqrt(((2 * np.pi) ** n) * np.linalg.det(cov))
+        mvn_pdf[:] = norm_factor * rv.pdf(x)
+
+    return mvn_pdf
+
+
+def mvn_pdf_gradient(self, x, mean=None, cov=None, normalized=True):
+    ''' Gradient of the Multivariate normal probability density function (nd Gaussian)
+    \nabla v(x; mean, cov) evaluated at x
+        x ((N, n)-array) : posicion
+        mean ((n,)-array) : center of the gaussian
+        cov ((n, n)-array) : covariance matrix
+    '''
+    # assume shape of x array to be (N, n)
+    assert x.ndim == 2, ''
+    N, n = x.shape
+
+    # check center and covariance matrix
+    if mean is None:
+        mean = np.zeros(n)
+    if cov is None:
+        cov = np.eye(n)
+    assert mean.shape == (n,), ''
+    assert cov.shape == (n, n), ''
+
+    # preallocate
+    mvn_pdf = np.empty(N)
+
+    # random variable with multivariate distribution
+    rv = stats.multivariate_normal(mean, cov, allow_singular=False)
+    if normalized:
+        mvn_pdf[:] = rv.pdf(x)
+    else:
+        norm_factor = np.sqrt(((2 * np.pi) ** n) * np.linalg.det(cov))
+        mvn_pdf[:] = norm_factor * rv.pdf(x)
+
+    # gradient of the exponential term of the pdf
+    grad_exp_term = np.zeros((N, n))
+    inv_cov = np.linalg.inv(cov)
+    for i in range(n):
+        for j in range(n):
+            grad_exp_term[:, i] += (x[:, i] - mean[i]) * (inv_cov[i, j] + inv_cov[j, i])
+    grad_exp_term *= - 0.5
+    grad_mvn_pdf = grad_exp_term * mvn_pdf[:, np.newaxis]
+    return grad_mvn_pdf
