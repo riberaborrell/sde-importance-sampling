@@ -1,4 +1,4 @@
-from sde_importance_sampling.langevin_nd_sde import LangevinSDE
+from sde_importance_sampling.langevin_sde import LangevinSDE
 from sde_importance_sampling.functions import mvn_pdf, mvn_pdf_gradient
 from sde_importance_sampling.utils_path import make_dir_path, get_gaussian_ansatz_dir_path
 

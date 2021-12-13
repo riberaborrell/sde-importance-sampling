@@ -1,5 +1,5 @@
-from sde_importance_sampling.langevin_nd_sde import LangevinSDE
-from sde_importance_sampling.gaussian_nd_ansatz_functions import GaussianAnsatz
+from sde_importance_sampling.langevin_sde import LangevinSDE
+from sde_importance_sampling.gaussian_ansatz_functions import GaussianAnsatz
 
 import numpy as np
 import pytest

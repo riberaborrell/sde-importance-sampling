@@ -383,7 +383,7 @@ class LangevinSDE(object):
         return np.where(is_in_target_set == True)[0]
 
     def get_hjb_solver(self, h=None) -> None:
-        from mds.langevin_nd_hjb_solver import SolverHJB
+        from sde_importance_sampling.hjb_solver import SolverHJB
 
         if h is None and self.n == 1:
             h = 0.001
@@ -409,7 +409,7 @@ class LangevinSDE(object):
             return sol_hjb
 
     def get_hjb_solver_det(self, h=0.01, dt=0.005) -> None:
-        from mds.langevin_det_hjb_solver import SolverHJBDet
+        from sde_importance_sampling.hjb_solver_det import SolverHJBDet
 
         # initialize hjb solver
         sol_hjb = SolverHJBDet(
@@ -429,7 +429,7 @@ class LangevinSDE(object):
             return sol_hjb
 
     def get_not_controlled_sampling(self, dt, N, seed=None) -> None:
-        from mds.langevin_nd_importance_sampling import Sampling
+        from sde_importance_sampling.importance_sampling import Sampling
 
         # initialize not controlled sampling object
         sample = Sampling.new_from(self)
@@ -448,7 +448,7 @@ class LangevinSDE(object):
             return sample
 
     def get_hjb_sampling(self, sol_hjb_dir_path, dt, N, seed=None) -> None:
-        from mds.langevin_nd_importance_sampling import Sampling
+        from sde_importance_sampling.importance_sampling import Sampling
 
         # initialize not controlled sampling object
         sample = Sampling.new_from(self)
@@ -467,8 +467,8 @@ class LangevinSDE(object):
             return sample
 
     def get_metadynamics_sampling(self, meta_type, weights_type, omega_0, k, N, seed=None):
-        from mds.langevin_nd_importance_sampling import Sampling
-        from mds.langevin_nd_metadynamics import Metadynamics
+        from sde_importance_sampling.importance_sampling import Sampling
+        from sde_importance_sampling.metadynamics import Metadynamics
 
         # initialize controlled sampling object
         sample = Sampling.new_from(self)

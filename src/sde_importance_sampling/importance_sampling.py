@@ -1,7 +1,7 @@
-from sde_importance_sampling.langevin_nd_sde import LangevinSDE
+from sde_importance_sampling.langevin_sde import LangevinSDE
 from sde_importance_sampling.utils_path import get_not_controlled_dir_path, \
-                                                   get_controlled_dir_path, \
-                                                   get_time_in_hms
+                                               get_controlled_dir_path, \
+                                               get_time_in_hms
 
 import matplotlib.pyplot as plt
 import numpy as np

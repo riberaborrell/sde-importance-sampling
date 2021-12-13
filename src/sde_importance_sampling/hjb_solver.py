@@ -1,4 +1,4 @@
-from sde_importance_sampling.langevin_nd_sde import LangevinSDE
+from sde_importance_sampling.langevin_sde import LangevinSDE
 from sde_importance_sampling.utils_path import get_hjb_solution_dir_path, get_time_in_hms
 from sde_importance_sampling.utils_numeric import arange_generator
 

@@ -1,4 +1,4 @@
-from sde_importance_sampling.langevin_nd_sde import POTENTIAL_NAMES
+from sde_importance_sampling.langevin_sde import POTENTIAL_NAMES
 
 import pytest
 

@@ -1,4 +1,4 @@
-from sde_importance_sampling.gaussian_nd_ansatz_functions import GaussianAnsatz
+from sde_importance_sampling.gaussian_ansatz_functions import GaussianAnsatz
 from sde_importance_sampling.utils_path import get_metadynamics_dir_path, \
                                                make_dir_path, \
                                                empty_dir, \

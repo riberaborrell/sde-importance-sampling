@@ -1,4 +1,4 @@
-from sde_importance_sampling.langevin_nd_importance_sampling import Sampling
+from sde_importance_sampling.importance_sampling import Sampling
 
 import pytest
 from copy import copy, deepcopy
