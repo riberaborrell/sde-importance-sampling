@@ -1,5 +1,14 @@
-# Importance Sampling strategies for metastable diffussion processes
+# sde-importance-sampling
 
+This Python repository contains the implementation of importance sampling strategies for metastable diffusion processes. We build a framework to estimate path functionals of stochastic process following an overdamped Langevin equation.
+
+## Contains
+
+- Monte Carlo Sampling
+- Metadynamics algorithm
+- Finite differences Solver of the associated HJB equation
+- Importance sampling given a control (null, random, meta, hjb)
+- Reduced associated SOC problem with different control representations (ansatz type and neural networks) and different initializations (null, random, meta, hjb)
 
 ## Install
 
