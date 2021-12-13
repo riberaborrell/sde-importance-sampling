@@ -1,11 +1,11 @@
-# Overdamped Langevin Importance Sampling
+# Importance Sampling strategies for metastable diffussion processes
 
 
 ## Install
 
 1) clone the repo 
 ```
-git clone git@github.com:eborrell/mds.git
+git clone git@github.com:eborrell/sde_importance_sampling.git
 ```
 
 2) set python version
