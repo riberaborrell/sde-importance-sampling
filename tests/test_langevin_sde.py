@@ -1,4 +1,4 @@
-from mds.langevin_nd_sde import LangevinSDE
+from sde_importance_sampling.langevin_nd_sde import LangevinSDE
 
 import pytest
 

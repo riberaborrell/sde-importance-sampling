@@ -1,7 +1,7 @@
-from mds.base_parser_nd import get_base_parser
-from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
-from mds.langevin_nd_importance_sampling import Sampling
-from mds.langevin_nd_metadynamics import Metadynamics
+from sde_importance_sampling.base_parser_nd import get_base_parser
+from sde_importance_sampling.gaussian_nd_ansatz_functions import GaussianAnsatz
+from sde_importance_sampling.langevin_nd_importance_sampling import Sampling
+from sde_importance_sampling.langevin_nd_metadynamics import Metadynamics
 
 import numpy as np
 import os

@@ -1,4 +1,7 @@
-from mds.neural_networks import TwoLayerNN, FeedForwardNN, DenseNN, SequentialNN
+from sde_importance_sampling.neural_networks import TwoLayerNN, \
+                                                    FeedForwardNN, \
+                                                    DenseNN, \
+                                                    SequentialNN
 
 import numpy as np
 import pytest

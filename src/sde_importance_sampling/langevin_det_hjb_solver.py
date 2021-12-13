@@ -1,7 +1,9 @@
-from mds.functions import quadratic_one_well, double_well, double_well_gradient
-from mds.langevin_nd_sde import LangevinSDE
-from mds.utils_path import get_hjb_solution_dir_path, get_time_in_hms
-from mds.utils_numeric import arange_generator
+from sde_importance_sampling.functions import quadratic_one_well, \
+                                              double_well, \
+                                              double_well_gradient
+from sde_importance_sampling.langevin_nd_sde import LangevinSDE
+from sde_importance_sampling.utils_path import get_hjb_solution_dir_path, get_time_in_hms
+from sde_importance_sampling.utils_numeric import arange_generator
 
 import functools
 import matplotlib.pyplot as plt

@@ -1,6 +1,6 @@
-from mds.base_parser_nd import get_base_parser
-from mds.langevin_nd_importance_sampling import Sampling
-from mds.langevin_nd_flat_bias_potential import GetFlatBiasPotential
+from sde_importance_sampling.base_parser_nd import get_base_parser
+from sde_importance_sampling.langevin_nd_importance_sampling import Sampling
+from sde_importance_sampling.langevin_nd_flat_bias_potential import GetFlatBiasPotential
 
 import numpy as np
 

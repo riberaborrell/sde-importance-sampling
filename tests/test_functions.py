@@ -1,4 +1,7 @@
-from mds.functions import constant, quadratic_one_well, double_well, double_well_gradient
+from sde_importance_sampling.functions import constant, \
+                                              quadratic_one_well, \
+                                              double_well, \
+                                              double_well_gradient
 
 import functools
 import numpy as np

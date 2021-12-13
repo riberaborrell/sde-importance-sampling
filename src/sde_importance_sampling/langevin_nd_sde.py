@@ -1,5 +1,8 @@
-from mds.functions import constant, quadratic_one_well, double_well, double_well_gradient
-from mds.utils_path import get_data_dir
+from sde_importance_sampling.functions import constant, \
+                                              quadratic_one_well, \
+                                              double_well, \
+                                              double_well_gradient
+from sde_importance_sampling.utils_path import get_data_dir
 
 import numpy as np
 import torch

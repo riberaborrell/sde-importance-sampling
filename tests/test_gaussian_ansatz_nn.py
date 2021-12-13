@@ -1,4 +1,4 @@
-from mds.neural_networks import GaussianAnsatzNN
+from sde_importance_sampling.neural_networks import GaussianAnsatzNN
 
 import numpy as np
 import pytest

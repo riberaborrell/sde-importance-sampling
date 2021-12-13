@@ -1,5 +1,5 @@
-from mds.utils_path import make_dir_path, get_som_dir_path, get_time_in_hms
-from mds.utils_numeric import slice_1d_array
+from sde_importance_sampling.utils_path import make_dir_path, get_som_dir_path, get_time_in_hms
+from sde_importance_sampling.utils_numeric import slice_1d_array
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -483,7 +483,7 @@ class StochasticOptimizationMethod:
     def load_hjb_solution_and_sampling(self, h_hjb=0.1, dt_hjb=0.01, N_hjb=10**3, seed=None):
         '''
         '''
-        from mds.langevin_nd_importance_sampling import Sampling
+        from sde_importance_sampling.langevin_nd_importance_sampling import Sampling
 
         # save parameters
         self.h_hjb = h_hjb

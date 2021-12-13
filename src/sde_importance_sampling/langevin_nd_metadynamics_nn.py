@@ -1,6 +1,9 @@
-from mds.gaussian_nd_ansatz_functions import GaussianAnsatz
-from mds.utils import get_metadynamics_nn_dir_path, make_dir_path, empty_dir, get_time_in_hms
-from mds.numeric_utils import slice_1d_array
+from sde_importance_sampling.gaussian_nd_ansatz_functions import GaussianAnsatz
+from sde_importance_sampling.utils import get_metadynamics_nn_dir_path, \
+                                          make_dir_path, \
+                                          empty_dir, \
+                                          get_time_in_hms
+from sde_importance_sampling.numeric_utils import slice_1d_array
 
 import numpy as np
 

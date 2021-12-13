@@ -1,5 +1,5 @@
-from mds.base_parser_nd import get_base_parser
-from mds.langevin_det_hjb_solver import SolverHJBDet
+from sde_importance_sampling.base_parser_nd import get_base_parser
+from sde_importance_sampling.langevin_det_hjb_solver import SolverHJBDet
 
 import numpy as np
 

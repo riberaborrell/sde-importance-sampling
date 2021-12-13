@@ -1,9 +1,9 @@
-from mds.base_parser_nd import get_base_parser
-from mds.langevin_nd_importance_sampling import Sampling
-from mds.langevin_nd_sde import LangevinSDE
-from mds.langevin_nd_soc_optimization_method import StochasticOptimizationMethod
-from mds.langevin_nd_function_approximation import FunctionApproximation
-from mds.neural_networks import GaussianAnsatzNN
+from sde_importance_sampling.base_parser_nd import get_base_parser
+from sde_importance_sampling.langevin_nd_importance_sampling import Sampling
+from sde_importance_sampling.langevin_nd_sde import LangevinSDE
+from sde_importance_sampling.langevin_nd_soc_optimization_method import StochasticOptimizationMethod
+from sde_importance_sampling.langevin_nd_function_approximation import FunctionApproximation
+from sde_importance_sampling.neural_networks import GaussianAnsatzNN
 
 import numpy as np
 

@@ -1,4 +1,4 @@
-from mds.utils import get_flat_bias_dir_path
+from sde_importance_sampling.utils import get_flat_bias_dir_path
 
 import numpy as np
 import time
