@@ -105,8 +105,6 @@ class StochasticOptimizationMethod:
         if self.sample.ansatz is not None:
             self.grad_losses = np.empty((self.n_iterations_lim, self.m))
 
-        elif self.sample.nn_func_appr is not None and self.loss_type == 'logvar':
-            self.logvar_losses = np.empty(self.n_iterations_lim)
 
     def update_arrays(self, i):
 
@@ -134,8 +132,6 @@ class StochasticOptimizationMethod:
 
         if self.sample.ansatz is not None:
             self.grad_losses[i, :] = self.sample.grad_loss
-        elif self.sample.nn_func_appr is not None and self.loss_type == 'logvar':
-            self.logvar_losses[i] = self.sample.logvar_loss
 
         # add I_u statistics
         self.means_I_u[i] = self.sample.mean_I_u
@@ -175,8 +171,6 @@ class StochasticOptimizationMethod:
             self.ipa_losses = self.ipa_losses[:self.n_iterations, :]
         elif self.sample.nn_func_appr is not None and self.loss_type == 're':
             self.re_losses = self.re_losses[:self.n_iterations, :]
-        elif self.sample.nn_func_appr is not None and self.loss_type == 'logvar':
-            self.logvar_losses = self.logvar_losses[:self.n_iterations, :]
 
     def get_iteration_statistics(self, i):
         msg = 'it.: {:d}, loss: {:2.3f}, mean I^u: {:2.3e}, re I^u: {:2.3f}' \
@@ -260,10 +254,6 @@ class StochasticOptimizationMethod:
             elif self.loss_type == 're':
                 succ = self.sample.sample_loss_re_nn(device)
 
-            # compute logvar loss
-            elif self.loss_type == 'logvar':
-                succ = self.sample.sample_loss_logvar_nn(device)
-
             # check if sample succeeded
             if not succ:
                 break
@@ -280,8 +270,6 @@ class StochasticOptimizationMethod:
                 self.sample.ipa_loss.backward()
             elif self.loss_type == 're':
                 self.sample.re_loss.backward()
-            elif self.loss_type == 'logvar':
-                self.sample.logvar_loss.backward()
 
             # update parameters
             optimizer.step()
