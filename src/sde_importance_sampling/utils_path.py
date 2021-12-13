@@ -9,7 +9,7 @@ import os
 def get_project_dir():
     ''' returns the absolute path of the repository's directory
     '''
-    return Path(__file__).parent.parent
+    return Path(__file__).parent.parent.parent
 
 def get_data_dir():
     ''' returns the absolute path of the repository's data directory
