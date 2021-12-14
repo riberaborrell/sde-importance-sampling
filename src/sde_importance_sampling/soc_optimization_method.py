@@ -471,7 +471,7 @@ class StochasticOptimizationMethod:
     def load_hjb_solution_and_sampling(self, h_hjb=0.1, dt_hjb=0.01, N_hjb=10**3, seed=None):
         '''
         '''
-        from sde_importance_sampling.langevin_nd_importance_sampling import Sampling
+        from sde_importance_sampling.importance_sampling import Sampling
 
         # save parameters
         self.h_hjb = h_hjb
