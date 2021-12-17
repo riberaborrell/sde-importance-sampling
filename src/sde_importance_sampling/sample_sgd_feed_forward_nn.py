@@ -53,7 +53,7 @@ def main():
     )
 
     # get dir path for nn
-    if args.theta in ['random', 'null', 'not-controlled']
+    if args.theta in ['random', 'null', 'not-controlled']:
         dir_path = sample.settings_dir_path
 
     elif args.theta == 'meta':
