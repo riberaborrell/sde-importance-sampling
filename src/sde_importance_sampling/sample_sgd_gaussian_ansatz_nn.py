@@ -62,38 +62,50 @@ def main():
     func = FunctionApproximation(
         target_function='control',
         model=model,
+        initialization=args.theta,
     )
 
-    # set initial choice of parametrization
-    if args.theta == 'random':
-        pass
-    elif args.theta == 'null':
-        func.zero_parameters()
+    # get dir path for nn
+    if args.theta in ['random', 'null', 'not-controlled']
+        dir_path = sample.settings_dir_path
+
     elif args.theta == 'meta':
-        if not args.load:
-            sde = LangevinSDE.new_from(sample)
-            func.fit_parameters_from_metadynamics(sde, dt_meta=args.dt_meta,
-                                                  sigma_i_meta=args.sigma_i_meta,
-                                                  k=args.k, N_meta=args.N_meta)
-        else:
-            func.initialization = 'meta'
-    elif args.theta == 'flat':
-        if not args.load:
-            sde = LangevinSDE.new_from(sample)
-            func.fit_parameters_flat_controlled_potential(sde, N=1000)
-        else:
-            func.initialization = 'flat'
-    elif args.theta == 'semi-flat':
-        if not args.load:
-            sde = LangevinSDE.new_from(sample)
-            func.fit_parameters_semiflat_controlled_potential(sde)
-        else:
-            func.initialization = 'semi-flat'
-    else:
-        return
+
+        # get metadynamics
+        sde = LangevinSDE.new_from(sample)
+        meta = sde.get_metadynamics_sampling(args.meta_type, args.weights_type,
+                                             args.omega_0_meta, args.k_meta,
+                                             args.N_meta, args.seed)
+        dir_path = meta.dir_path
 
     # set dir path for nn
-    func.set_dir_path(sample.settings_dir_path)
+    func.set_dir_path(dir_path)
+
+    # set initial parameters
+    if args.theta == 'random':
+
+        # the nn parameters are randomly initialized 
+        pass
+
+    elif args.theta == 'null':
+
+        # set nn parameters to be zero
+        func.zero_parameters()
+
+    elif args.theta == 'not-controlled':
+
+        # train nn parameters such that control is zero
+        sde = LangevinSDE.new_from(sample)
+        func.train_parameters_classic(sde=sde)
+        #func.train_parameters_alternative(sde=sde)
+
+    elif args.theta == 'meta':
+
+        # train parameters if not trained yet
+        func.train_parameters_classic(meta=meta)
+        #func.train_parameters_alternative(meta=meta)
+    else:
+        return
 
     # add nn function approximation
     sample.nn_func_appr = func
@@ -104,7 +116,7 @@ def main():
         xzero=np.full(args.n, args.xzero_i),
         N=args.N,
         dt=args.dt,
-        k_lim=100000,
+        k_lim=args.k_lim,
     )
 
     # set u l2 error flag
@@ -115,7 +127,7 @@ def main():
     sgd = StochasticOptimizationMethod(
         sample=sample,
         loss_type=args.loss_type,
-        optimizer='adam',
+        optimizer=args.optimizer,
         lr=args.lr,
         n_iterations_lim=args.n_iterations_lim,
     )

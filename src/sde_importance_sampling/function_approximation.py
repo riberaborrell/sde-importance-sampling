@@ -13,7 +13,7 @@ class FunctionApproximation():
 
     def __init__(self, target_function, model, initialization='random'):
         assert target_function in ['value-f', 'control'], ''
-        assert initialization in ['random', 'null', 'meta', 'hjb'], ''
+        assert initialization in ['random', 'null', 'not-controlled', 'meta', 'hjb'], ''
 
         self.target_function = target_function
         self.model = model
@@ -49,81 +49,23 @@ class FunctionApproximation():
                     layer._parameters[key], requires_grad=True
                 )
 
-    def set_sgd_parameters(self, n):
-        self.n_iterations_lim = 10**3
-        self.N_train = 5 * 10**2
-        self.losses = np.empty(self.n_iterations_lim)
+    def train_parameters_classic(self, sde=None, sol_hjb=None, meta=None):
 
-    def train_parameters_with_not_controlled_potential(self, sde):
-        # load trained parameters if already computed
-        succ = self.load_trained_parameters(self.dir_path)
-        if succ:
-            print('\nnn already trained with not controlled potential.\n')
-            return
-
-        # define optimizer
-        optimizer = optim.Adam(
-            self.model.parameters(),
-            lr=0.01,
-        )
-
-        # define loss
-        loss = nn.MSELoss()
-
-        # set sgd parameters
-        self.set_sgd_parameters(sde.n)
-
-        # target function
-        target_tensor = torch.zeros(self.N_train, sde.n)
-
-        for i in np.arange(self.n_iterations_lim):
-
-            # sample training data
-            x = sde.sample_domain_uniformly(self.N_train)
-            x_tensor = torch.tensor(x, requires_grad=False, dtype=torch.float32)
-
-            # compute loss
-            inputs = self.model.forward(x_tensor)
-            output = loss(inputs, target_tensor)
-            if i % 1000 == 0:
-                print('{:d}, {:2.3e}'.format(i, output))
-
-            # compute gradients
-            output.backward()
-
-            # update parameters
-            optimizer.step()
-
-            # reset gradients
-            optimizer.zero_grad()
-
-        print('nn trained with not controlled potential!')
-        print('it.: {:d}, loss: {:2.3e}\n'.format(i, output))
-
-        # number of iterations used
-        self.n_iterations = i
-
-        # save parameters
-        self.theta = self.model.get_parameters()
-
-        # save nn training
-        self.save_trained_parameters(self.dir_path)
-
-    def train_parameters_with_metadynamics(self, meta):
+        # assume type of initialization
+        assert self.initialization in ['not-controlled', 'meta', 'hjb'], ''
 
         # load trained parameters if already computed
         succ = self.load_trained_parameters(self.dir_path)
         if succ:
-            print('\nnn already trained with metadynamics.\n')
+            print('\nnn already trained with {}.\n'.format(self.initialization))
             return
 
         # set sgd parameters
-
         self.n_iterations_lim = 10**3
         self.losses_train = np.empty(self.n_iterations_lim)
         self.losses_test = np.empty(self.n_iterations_lim)
 
-        # define loss
+        # define mean square error loss
         loss = nn.MSELoss()
 
         # define optimizer
@@ -132,22 +74,42 @@ class FunctionApproximation():
             lr=0.01,
         )
 
-        # create ansatz functions from meta
-        n = meta.sample.n
-        meta.sample.ansatz = GaussianAnsatz(n=n, beta=meta.sample.beta, normalized=False)
-        meta.set_ansatz()
+        # get dimension of the problem
+        if self.initialization == 'not-controlled':
+            assert sde is not None, ''
+            n = sde.n
+        elif self.initialization == 'meta':
+            assert meta is not None, ''
+            n = meta.sample.n
+        elif self.initialization == 'hjb':
+            assert sol_hjb is not None, ''
+            n = sol_hjb.n
 
-        # get data point from uniform grid 
-        if meta.sample.n == 1:
+        # choose discretization size depending on n 
+        if n == 1:
             h = 0.001
-        elif meta.sample.n == 2:
+        elif n == 2:
             h = 0.005
-        elif meta.sample.n == 3:
+        elif n == 3:
             h = 0.1
-        elif meta.sample.n == 4:
+        elif n == 4:
             h = 0.5
-        meta.sample.discretize_domain(h)
-        data = meta.sample.get_flat_domain_h()
+        else:
+            msg = '\n this approximation method is not implemented for n = {:d}.\n' \
+                  ''.format(n)
+            print(msg)
+            return
+
+        # get data points
+        if self.initialization == 'not-controlled':
+            sde.discretize_domain(h)
+            data = sde.get_flat_domain_h()
+        elif self.initialization == 'meta':
+            meta.sample.discretize_domain(h)
+            data = meta.sample.get_flat_domain_h()
+        elif self.initialization == 'hjb':
+            sol_hjb.discretize_domain(h)
+            data = sol_hjb.get_flat_domain_h()
         self.N_data = data.shape[0]
 
         # split into training and test data
@@ -161,11 +123,38 @@ class FunctionApproximation():
         x_train_tensor = torch.tensor(x_train, requires_grad=False, dtype=torch.float32)
         x_test_tensor = torch.tensor(x_test, requires_grad=False, dtype=torch.float32)
 
-        # evaluate meta control at the training data
-        target_train = meta.sample.ansatz.control(x_train)
-        target_test = meta.sample.ansatz.control(x_test)
-        target_train_tensor = torch.tensor(target_train, requires_grad=False, dtype=torch.float32)
-        target_test_tensor = torch.tensor(target_test, requires_grad=False, dtype=torch.float32)
+        # evaluate target function at the training data
+        if self.initialization == 'not-controlled':
+
+            # zero control
+            target_train = np.zeros((self.N_train, n))
+            target_test = np.zeros((self.N_test, n))
+
+        elif self.initialization == 'meta':
+
+            # create ansatz functions with meta parameters
+            meta.sample.ansatz = GaussianAnsatz(n=n, beta=meta.sample.beta, normalized=False)
+            meta.set_ansatz()
+
+            # evaluation
+            target_train = meta.sample.ansatz.control(x_train)
+            target_test = meta.sample.ansatz.control(x_test)
+
+        elif self.initialization == 'hjb':
+            #TODO: write method in the hjb solver which given an input returns the control
+            pass
+
+        # tensorize target function evaluation
+        target_train_tensor = torch.tensor(
+            target_train,
+            requires_grad=False,
+            dtype=torch.float32,
+        )
+        target_test_tensor = torch.tensor(
+            target_test,
+            requires_grad=False,
+            dtype=torch.float32,
+        )
 
         for i in np.arange(self.n_iterations_lim):
 
@@ -177,8 +166,9 @@ class FunctionApproximation():
             output_train = loss(inputs_train, target_train_tensor)
             output_test = loss(inputs_test, target_test_tensor).detach().numpy()
             if i % 100 == 0:
-                print('it.: {:d}, loss (train): {:2.3e}, loss (test): {:2.3e}' \
-                      ''.format(i, output_train, output_test))
+                msg = 'it.: {:d}, loss (train): {:2.3e}, loss (test): {:2.3e}' \
+                      ''.format(i, output_train, output_test)
+                print(msg)
 
             # save loss
             self.losses_train[i] = output_train.detach().numpy()
@@ -193,8 +183,8 @@ class FunctionApproximation():
             # reset gradients
             optimizer.zero_grad()
 
-        print('nn trained from metadynamics!')
-        print('it.: {:d}, loss (train): {:2.3e}, loss (test): {:2.3e}' \
+        print('\nnn trained with {}!'.format(self.initialization))
+        print('it.: {:d}, loss (train): {:2.3e}, loss (test): {:2.3e} \n' \
               ''.format(i, output_train, output_test))
 
         # number of iterations used
@@ -206,7 +196,10 @@ class FunctionApproximation():
         # save nn training
         self.save_trained_parameters(self.dir_path)
 
-    def train_parameters_with_metadynamics_2(self, meta):
+    def train_parameters_alternative(self, sde=None, sol_hjb=None, meta=None):
+
+        # assume type of initialization
+        assert self.initialization in ['not-controlled', 'meta', 'hjb'], ''
 
         # load trained parameters if already computed
         succ = self.load_trained_parameters(self.dir_path)
@@ -214,16 +207,24 @@ class FunctionApproximation():
             print('\nnn already trained with metadynamics.\n')
             return
 
-        # create ansatz functions from meta
-        n = meta.sample.n
-        meta.sample.ansatz = GaussianAnsatz(n=n, normalized=False, beta=meta.sample.beta)
-        meta.set_ansatz_cumulative()
+        # get dimension of the problem
+        if self.initialization == 'not-controlled':
+            assert sde is not None, ''
+            n = sde.n
+        elif self.initialization == 'meta':
+            assert meta is not None, ''
+            n = meta.sample.n
+        elif self.initialization == 'hjb':
+            assert sol_hjb is not None, ''
+            n = sol_hjb.n
 
         # define loss
         loss = nn.MSELoss()
 
         # set sgd parameters
-        self.set_sgd_parameters(meta.sample.n)
+        self.n_iterations_lim = 10**3
+        self.N_train = 5 * 10**2
+        self.losses_train = np.empty(self.n_iterations_lim)
 
         # define optimizer
         optimizer = optim.Adam(
@@ -231,29 +232,50 @@ class FunctionApproximation():
             lr=0.01,
         )
 
+        if self.initialization == 'meta':
+
+            # create ansatz functions from meta
+            meta.sample.ansatz = GaussianAnsatz(n=n, normalized=False, beta=meta.sample.beta)
+            meta.set_ansatz()
+
+        # compute target function if target function is zero
+        if self.initialization == 'not-controlled':
+            target = np.zeros((self.N_train, n))
+
         for i in np.arange(self.n_iterations_lim):
 
             # sample training data
-            x = meta.sample.sample_domain_uniformly(N=self.N_train)
+            if self.initialization == 'not-controlled':
+                x = sde.sample_domain_uniformly(N=self.N_train)
+            elif self.initialization == 'meta':
+                x = meta.sample.sample_domain_uniformly(N=self.N_train)
+            elif self.initialization == 'hjb':
+                x = sol_hjb.sample_domain_uniformly(N=self.N_train)
+
+            # tensorize
             x_tensor = torch.tensor(x, requires_grad=False, dtype=torch.float32)
 
-            # ansatz functions evaluated at the grid
-            if self.target_function == 'value-f':
+            # evaluate target function at the training data
+            if self.initialization == 'not-controlled':
                 pass
-                #target = meta_ansatz.value_function(x)
-            elif self.target_function == 'control':
+
+            elif self.initialization == 'meta':
                 target = meta.sample.ansatz.control(x)
+
+            elif self.initialization == 'hjb':
+                pass
+
+            # tensorize target function evaluation
             target_tensor = torch.tensor(target, requires_grad=False, dtype=torch.float32)
 
-            inputs = self.model.forward(x_tensor)
-
             # compute loss
+            inputs = self.model.forward(x_tensor)
             output = loss(inputs, target_tensor)
             if i % 1000 == 0:
                 print('it.: {:d}, loss: {:2.3e}'.format(i, output))
 
             # save loss
-            self.losses[i] = output.detach().numpy()
+            self.losses_train[i] = output.detach().numpy()
 
             # compute gradients
             output.backward()
@@ -264,8 +286,8 @@ class FunctionApproximation():
             # reset gradients
             optimizer.zero_grad()
 
-        print('nn trained from metadynamics!')
-        print('it.: {:d}, loss: {:2.3e}\n'.format(i, self.losses[i]))
+        print('\nnn trained with {}!'.format(self.initialization))
+        print('it.: {:d}, loss: {:2.3e}\n'.format(i, output))
 
         # number of iterations used
         self.n_iterations = i
@@ -281,19 +303,20 @@ class FunctionApproximation():
         if not os.path.isdir(dir_path):
             os.makedirs(dir_path)
 
+        #TODO: adapt method to save parameters of the alternative approach
         # save npz file
         file_path = os.path.join(dir_path, 'nn.npz')
         np.savez(
             file_path,
             n_iterations_lim=self.n_iterations_lim,
             #n_iterations=self.n_iterations,
-            N_data=self.N_data,
-            N_train=self.N_train,
-            N_test=self.N_test,
+            #N_data=self.N_data,
+            #N_train=self.N_train,
+            #N_test=self.N_test,
             #epsilon=self.epsilon,
             theta=self.theta,
             losses_train=self.losses_train,
-            losses_test=self.losses_test,
+            #losses_test=self.losses_test,
         )
 
     def load_trained_parameters(self, dir_path):
@@ -315,114 +338,9 @@ class FunctionApproximation():
             return False
 
 
-    def fit_parameters_flat_controlled_potential(self, sde, n_iterations_lim=10000, N=1000, epsilon=0.01):
-        '''
-        '''
-        # parameters
-        self.initialization = 'flat'
-
-        # define optimizer
-        optimizer = optim.Adam(
-            self.model.parameters(),
-            lr=0.01,
-        )
-
-        for i in np.arange(n_iterations_lim):
-
-            # sample training data
-            x = sde.sample_domain_uniformly(N=N)
-            x_tensor = torch.tensor(x, requires_grad=False, dtype=torch.float32)
-
-            # ansatz functions evaluated at the grid
-            if self.target_function == 'value-f':
-                pass
-            elif self.target_function == 'control':
-                target = sde.gradient(x) / np.sqrt(2)
-            target_tensor = torch.tensor(target, requires_grad=False, dtype=torch.float32)
-
-            # define loss
-            inputs = self.model.forward(x_tensor)
-            loss = nn.MSELoss()
-            output = loss(inputs, target_tensor)
-
-            print('{:d}, {:2.3f}'.format(i, output))
-
-            # stop if we have reached enough accuracy
-            if output <= epsilon:
-                break
-
-            # compute gradients
-            output.backward()
-
-            # update parameters
-            optimizer.step()
-
-            # reset gradients
-            optimizer.zero_grad()
-
-        print('nn fitted from flat potential!')
-        print('{:d}, {:2.3f}'.format(i, output))
-
-    def fit_parameters_semiflat_controlled_potential(self, sde, n_iterations_lim=10000, epsilon=0.01):
-        '''
-        '''
-        # load flat bias potential
-        flatbias = sde.get_flat_bias_sampling(dt=0.01, k_lim=100, N=1000)
-        N_flat = flatbias.x.shape[0]
-
-        # add boundary condition to training data
-        x_boundary = sde.sample_domain_boundary_uniformly_vec(N_flat // 10)
-        x = np.vstack((flatbias.x, x_boundary))
-
-        if self.target_function == 'value-f':
-            pass
-        elif self.target_function == 'control':
-            u_boundary = np.zeros((N_flat // 10, sde.n))
-            target = np.vstack((flatbias.u, u_boundary))
-
-        # tensorize variables
-        x_tensor = torch.tensor(x, requires_grad=False, dtype=torch.float32)
-        target_tensor = torch.tensor(target, requires_grad=False, dtype=torch.float32)
-
-        # parameters
-        self.initialization = 'semi-flat'
-
-        # define optimizer
-        optimizer = optim.Adam(
-            self.model.parameters(),
-            lr=0.01,
-        )
-
-        for i in np.arange(n_iterations_lim):
-
-            # define loss
-            inputs = self.model.forward(x_tensor)
-            loss = nn.MSELoss()
-            output = loss(inputs, target_tensor)
-
-            print('{:d}, {:2.3f}'.format(i, output))
-
-            # stop if we have reached enough accuracy
-            if output <= epsilon:
-                break
-
-            # compute gradients
-            output.backward()
-
-            # update parameters
-            optimizer.step()
-
-            # reset gradients
-            optimizer.zero_grad()
-
-        print('nn fitted from flat potential!')
-        print('{:d}, {:2.3f}'.format(i, output))
-
-
     def write_parameters(self, f):
         f.write('\nFunction approximation via nn\n')
         f.write('target function: {}\n'.format(self.target_function))
         f.write('model architecture: {}\n'.format(self.model.name))
         self.model.write_parameters(f)
         f.write('initialization: {}\n'.format(self.initialization))
-
