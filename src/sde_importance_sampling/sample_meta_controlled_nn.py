@@ -88,8 +88,7 @@ def main():
     func.set_dir_path(meta.dir_path)
 
     # train nn network
-    if not args.load:
-        func.train_parameters_with_metadynamics(meta)
+    func.train_parameters_classic(meta=meta)
 
     # add nn function approximation
     sample.nn_func_appr = func
