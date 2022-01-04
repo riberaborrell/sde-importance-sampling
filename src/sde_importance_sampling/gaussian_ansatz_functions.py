@@ -3,7 +3,6 @@ from sde_importance_sampling.functions import mvn_pdf, mvn_pdf_gradient
 from sde_importance_sampling.utils_path import make_dir_path, get_gaussian_ansatz_dir_path
 
 import numpy as np
-import scipy.stats as stats
 
 import os
 

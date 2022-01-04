@@ -1,5 +1,6 @@
 import functools
 import numpy as np
+import scipy.stats as stats
 import torch
 
 FLOAT_TYPES = [float, np.float32, np.float64]
@@ -142,7 +143,7 @@ def double_well_gradient(x, alpha, tensor=False):
             return 4 * alpha_tensor * x * ((torch.pow(x, 2) - 1))
 
 
-def mvn_pdf(self, x, mean=None, cov=None, normalized=True):
+def mvn_pdf(x, mean=None, cov=None, normalized=True):
     ''' Multivariate normal probability density function (nd Gaussian)
     v(x; mean, cov) evaluated at x
         x ((N, n)-array) : posicion
@@ -177,7 +178,7 @@ def mvn_pdf(self, x, mean=None, cov=None, normalized=True):
     return mvn_pdf
 
 
-def mvn_pdf_gradient(self, x, mean=None, cov=None, normalized=True):
+def mvn_pdf_gradient(x, mean=None, cov=None, normalized=True):
     ''' Gradient of the Multivariate normal probability density function (nd Gaussian)
     \nabla v(x; mean, cov) evaluated at x
         x ((N, n)-array) : posicion
@@ -207,12 +208,11 @@ def mvn_pdf_gradient(self, x, mean=None, cov=None, normalized=True):
         norm_factor = np.sqrt(((2 * np.pi) ** n) * np.linalg.det(cov))
         mvn_pdf[:] = norm_factor * rv.pdf(x)
 
-    # gradient of the exponential term of the pdf
-    grad_exp_term = np.zeros((N, n))
+    # covariance matrix inverse
     inv_cov = np.linalg.inv(cov)
-    for i in range(n):
-        for j in range(n):
-            grad_exp_term[:, i] += (x[:, i] - mean[i]) * (inv_cov[i, j] + inv_cov[j, i])
-    grad_exp_term *= - 0.5
+
+    # gradient of the exponential term of the pdf
+    grad_exp_term = - 0.5 * np.matmul(x - mean, inv_cov + inv_cov.T)
+
     grad_mvn_pdf = grad_exp_term * mvn_pdf[:, np.newaxis]
     return grad_mvn_pdf
