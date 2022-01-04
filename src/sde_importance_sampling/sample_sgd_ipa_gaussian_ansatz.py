@@ -26,6 +26,14 @@ def main():
         alpha[0] = args.alpha_i
         alpha[1:] = args.alpha_j
 
+    # set target set array
+    if args.potential_name == 'nd_2well':
+        target_set = np.full((args.n, 2), [1, 3])
+    elif args.potential_name == 'nd_2well_asym':
+        target_set = np.empty((args.n, 2))
+        target_set[0] = [1, 3]
+        target_set[1:] = [-3, 3]
+
     # initialize sampling object
     sample = Sampling(
         problem_name=args.problem_name,
@@ -33,6 +41,7 @@ def main():
         n=args.n,
         alpha=alpha,
         beta=args.beta,
+        target_set=target_set,
         is_controlled=True,
     )
 
