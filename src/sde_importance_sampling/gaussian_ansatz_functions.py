@@ -282,12 +282,7 @@ class GaussianAnsatz():
         means = means[np.newaxis, :, :]
 
         # compute gradient of the exponential term
-        mvn_pdf_gradient_basis = np.empty((N, m, self.n))
-        exp_term_gradient = np.zeros((N, m, self.n))
-        for i in range(self.n):
-            for j in range(self.n):
-                exp_term_gradient[:, :, i] += (x[:, :, i] - means[:, :, i]) * (inv_cov[i, j] + inv_cov[j, i])
-        exp_term_gradient *= - 0.5
+        exp_term_gradient = - 0.5 * np.matmul(x - means, inv_cov + inv_cov.T)
 
         # compute gaussian gradients basis
         mvn_pdf_gradient_basis = exp_term_gradient * mvn_pdf_basis[:, :, np.newaxis]
