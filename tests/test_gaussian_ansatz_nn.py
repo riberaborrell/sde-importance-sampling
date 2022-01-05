@@ -12,38 +12,69 @@ class TestGaussianAnsatzNN:
         return torch.rand(N, n)
 
     @pytest.fixture
-    def random_distr_gaussian_ansatz(self, n, m):
+    def random_distr_gaussian_ansatz_nn(self, n, m):
         '''initializes GaussianAnsatz'''
-        return GaussianAnsatzNN(n, m, means=None, cov=None)
+        return GaussianAnsatzNN(n, m)
 
-    def test_vec_mvn_pdf(self, random_distr_gaussian_ansatz, random_inputs):
+    def test_mvn_pdf_basis_size(self, random_distr_gaussian_ansatz_nn, random_inputs):
         '''evaluates vectorized mvn pdf'''
-        ansatz = random_distr_gaussian_ansatz
-        v = ansatz.mvn_pdf_basis(random_inputs)
+        model = random_distr_gaussian_ansatz_nn
+        basis = model.mvn_pdf_basis(random_inputs)
 
         N = random_inputs.size(0)
-        assert v.size() == (N, ansatz.m)
+        assert basis.size() == (N, model.m)
 
-    def test_gaussian_ansatz(self, random_distr_gaussian_ansatz, random_inputs):
+    def test_model_size(self, random_distr_gaussian_ansatz_nn, random_inputs):
         '''evaluates gaussian ansatz nn'''
-        ansatz = random_distr_gaussian_ansatz
-        output = ansatz.forward(random_inputs)
+        model = random_distr_gaussian_ansatz_nn
+        output = model.forward(random_inputs)
 
         N = random_inputs.size(0)
         assert output.size() == (N, 1)
 
-    def test_mvn_pdf_gradient_basis(self, random_distr_gaussian_ansatz, random_inputs):
+    def mvn_pdf_gradient_basis(self, model, x):
+        ''' Gradient of the multivariate normal pdf (nd Gaussian) \nabla v(x; means, cov)
+        with means evaluated at x
+            x ((N, n)-array) : posicion
+        '''
+        # this method is not used
 
-        # evaluates gaussian ansatz
-        ansatz = random_distr_gaussian_ansatz
-        output = ansatz.forward(random_inputs)
+        # assume shape of x array to be (N, n)
+        assert x.ndim == 2, ''
+        assert x.size(1) == model.n, ''
+        N = x.size(0)
+
+        # get nd gaussian basis
+        mvn_pdf_basis = model.mvn_pdf_basis(x)
+
+        # covariance matrix inverse
+        inv_cov = np.linalg.inv(model.cov)
+
+        # prepare position and means for broadcasting
+        x = x[:, np.newaxis, :]
+        means = model.means[np.newaxis, :, :]
+
+        # compute gradient of the exponential term
+        exp_term_gradient = - 0.5 * np.matmul(x - means, inv_cov + inv_cov.T)
+
+        # compute gaussian gradients basis
+        mvn_pdf_gradient_basis = exp_term_gradient * mvn_pdf_basis[:, :, np.newaxis]
+
+        return mvn_pdf_gradient_basis
+
+    @pytest.mark.skip()
+    def test_mvn_pdf_gradient_basis(self, random_distr_gaussian_ansatz_nn, random_inputs):
+
+        # evaluates gaussian ansatz nn model
+        model = random_distr_gaussian_ansatz_nn
+        output = model.forward(random_inputs)
 
         # preallocate Jacobian matrix
         N = random_inputs.size(0)
-        Jac = torch.empty(N, ansatz.m)
+        Jac = torch.empty(N, model.m)
 
         # get nn parameters
-        A = ansatz._modules['linear']._parameters['weight']
+        A = model._modules['linear']._parameters['weight']
 
         for i in range(N):
 
@@ -56,3 +87,4 @@ class TestGaussianAnsatzNN:
 
             # reset gradients
             A.grad.zero_()
+

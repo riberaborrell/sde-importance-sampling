@@ -11,8 +11,15 @@ ACTIVATION_FUNCTION_TYPES = [
 ]
 
 class GaussianAnsatzNN(nn.Module):
-    def __init__(self, n, m, means, cov, normalized=True, seed=None):
+    def __init__(self, n, m, means=None, cov=None, normalized=True, seed=None):
         super(GaussianAnsatzNN, self).__init__()
+
+        ''' Gaussian ansatz NN model
+            n : dimension
+            m : number of gaussian functions
+            means ((m, n)-tensor) : centers of the gaussian functions
+            cov ((n, n)-tensor) : covariance matrix
+        '''
 
         # set seed
         if seed is not None:
@@ -29,23 +36,7 @@ class GaussianAnsatzNN(nn.Module):
         # dimension of flattened parameters
         self.d_flat = m
 
-        # means and covariance
-        self.means = means
-        self.cov = cov
-
-    def mvn_pdf_basis(self, x, means=None, cov=None):
-        ''' Multivariate normal pdf (nd Gaussian) basis v(x; means, cov) with different means
-            but same covariance matrix evaluated at x
-            x ((N, n)-tensor) : position
-            means ((m, n)-tensor) : center of the gaussian
-            cov ((n, n)-tensor) : covariance matrix
-        '''
-        # assume shape of x array to be (N, n)
-        assert x.ndim == 2, ''
-        assert x.size(1) == self.n, ''
-        N = x.size(0)
-
-        # check center and covariance matrix
+        # centers and covariance matrix
         if means is None:
             means = torch.rand(self.m, self.n)
         if cov is None:
@@ -54,13 +45,25 @@ class GaussianAnsatzNN(nn.Module):
         assert means.size(1) == self.n, ''
         assert cov.ndim == 2, ''
         assert cov.shape == (self.n, self.n), ''
+        self.means = means
+        self.cov = cov
+
+    def mvn_pdf_basis(self, x):
+        ''' Multivariate normal pdf (nd Gaussian) basis v(x; means, cov) with different means
+            but same covariance matrix evaluated at x
+            x ((N, n)-tensor) : position
+        '''
+        # assume shape of x array to be (N, n)
+        assert x.ndim == 2, ''
+        assert x.size(1) == self.n, ''
+        N = x.size(0)
 
         # covariance matrix inverse
-        inv_cov = torch.linalg.inv(cov)
+        inv_cov = torch.linalg.inv(self.cov)
 
         # prepare position and means for broadcasting
         x = torch.unsqueeze(x, 1)
-        means = torch.unsqueeze(means, 0)
+        means = torch.unsqueeze(self.means, 0)
 
         # compute exponential term
         x_centered = (x - means).reshape(N * self.m, self.n)
@@ -72,7 +75,7 @@ class GaussianAnsatzNN(nn.Module):
         if self.normalized:
 
             # compute norm factor
-            norm_factor = np.sqrt(((2 * np.pi) ** self.n) * torch.linalg.det(cov))
+            norm_factor = np.sqrt(((2 * np.pi) ** self.n) * torch.linalg.det(self.cov))
 
             # normalize
             mvn_pdf_basis = np.exp(exp_term) / norm_factor
@@ -83,56 +86,9 @@ class GaussianAnsatzNN(nn.Module):
 
         return mvn_pdf_basis
 
-    def mvn_pdf_gradient_basis(self, x, means=None, cov=None):
-        ''' Gradient of the multivariate normal pdf (nd Gaussian) \nabla v(x; means, cov)
-        with means evaluated at x
-            x ((N, n)-array) : posicion
-            means ((m, n)-array) : center of the gaussian
-            cov ((n, n)-array) : covariance matrix
-        '''
-        # assume shape of x array to be (N, n)
-        assert x.ndim == 2, ''
-        assert x.shape[1] == self.n, ''
-        N = x.shape[0]
-
-        # check center and covariance matrix
-        if means is None:
-            means = np.zeros(self.n)[np.newaxis, :]
-        if cov is None:
-            cov = np.eye(self.n)
-        assert means.ndim == 2, ''
-        assert means.shape[1] == self.n, ''
-        m = means.shape[0]
-        assert cov.ndim == 2, ''
-        assert cov.shape == (self.n, self.n), ''
-
-
-        # get nd gaussian basis
-        mvn_pdf_basis = self.mvn_pdf_basis(x, means, cov)
-
-        # covariance matrix inverse
-        inv_cov = np.linalg.inv(cov)
-
-        # prepare position and means for broadcasting
-        x = x[:, np.newaxis, :]
-        means = means[np.newaxis, :, :]
-
-        grad_mvn_pdf = np.empty((N, m, self.n))
-
-        # compute gradient of the exponential term
-        exp_term_gradient = np.zeros((N, m, self.n))
-        for i in range(self.n):
-            for j in range(self.n):
-                exp_term_gradient[:, :, i] += (x[:, :, i] - means[:, :, i]) * (inv_cov[i, j] + inv_cov[j, i])
-        exp_term_gradient *= - 0.5
-
-        # compute gaussian gradients basis
-        mvn_pdf_gradient_basis = exp_term_gradient * mvn_pdf_basis[:, :, np.newaxis]
-
-        return mvn_pdf_gradient_basis
 
     def forward(self, x):
-        x = self.mvn_pdf_basis(x, self.means, self.cov)
+        x = self.mvn_pdf_basis(x)
         x = self.linear(x)
         return x
 
