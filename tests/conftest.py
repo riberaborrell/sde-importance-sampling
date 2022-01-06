@@ -75,6 +75,13 @@ def pytest_addoption(parser):
         help='Set number of ansatz functions. Default: 30',
     )
     parser.addoption(
+        '--sigma-i',
+        dest='sigma_i',
+        type=float,
+        default=0.5,
+        help='Set the diagonal of the covariance matrix of the ansatz functions. Default: 0.5',
+    )
+    parser.addoption(
         '--N',
         dest='N',
         type=int,
@@ -128,6 +135,10 @@ def k_lim(request):
 @pytest.fixture(scope='session')
 def m(request):
     return request.config.getoption('m')
+
+@pytest.fixture(scope='session')
+def sigma_i(request):
+    return request.config.getoption('sigma_i')
 
 @pytest.fixture(scope='session')
 def N(request):

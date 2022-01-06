@@ -44,28 +44,9 @@ def main():
         is_controlled=True,
     )
 
-    # define uniformed distributed means
-    m = args.m_i ** args.n
-
-    mgrid_input = []
-    for i in range(args.n):
-        slice_i = slice(sample.domain[i, 0], sample.domain[i, 1], complex(0, args.m_i))
-        mgrid_input.append(slice_i)
-    means = np.mgrid[mgrid_input]
-    means = np.moveaxis(means, 0, -1).reshape(m, args.n)
-    means = torch.tensor(means, dtype=torch.float32)
-
-    # define cov matrix
-    cov = torch.eye(args.n)
-    cov *= args.sigma_i
-
     # initialize gaussian ansatz nn 
-    model = GaussianAnsatzNN(
-        n=args.n,
-        m=m,
-        means=means,
-        cov=cov,
-    )
+    m = args.m_i ** args.n
+    model = GaussianAnsatzNN(sample.n, sample.beta, sample.domain, m, args.sigma_i)
 
     # initialize function approximation
     func = FunctionApproximation(

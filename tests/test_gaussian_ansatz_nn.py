@@ -1,3 +1,4 @@
+from sde_importance_sampling.langevin_sde import LangevinSDE
 from sde_importance_sampling.neural_networks import GaussianAnsatzNN
 
 import numpy as np
@@ -7,63 +8,83 @@ import torch
 class TestGaussianAnsatzNN:
 
     @pytest.fixture
+    def sde(self, problem_name, potential_name, n, alpha_i, beta):
+        ''' creates Langevin SDE object with the given setting.
+        '''
+        sde = LangevinSDE(
+            problem_name=problem_name,
+            potential_name=potential_name,
+            n=n,
+            alpha=np.full(n, alpha_i),
+            beta=beta,
+        )
+        return sde
+
+    @pytest.fixture
     def random_inputs(self, N, n):
         '''generates random input data'''
         return torch.rand(N, n)
 
     @pytest.fixture
-    def random_distr_gaussian_ansatz_nn(self, n, m):
-        '''initializes GaussianAnsatz'''
-        return GaussianAnsatzNN(n, m)
+    def gaussian_ansatz(self, sde, m, sigma_i):
+        '''initializes GaussianAnsatzNN model and distributes uniformly the means'''
+        return GaussianAnsatzNN(sde.n, sde.beta, sde.domain, m, sigma_i)
 
-    def test_mvn_pdf_basis_size(self, random_distr_gaussian_ansatz_nn, random_inputs):
-        '''evaluates vectorized mvn pdf'''
-        model = random_distr_gaussian_ansatz_nn
+    def test_mvn_pdf_basis_size(self, gaussian_ansatz, random_inputs):
+        '''
+        '''
+        model = gaussian_ansatz
         basis = model.mvn_pdf_basis(random_inputs)
 
         N = random_inputs.size(0)
         assert basis.size() == (N, model.m)
 
-    def test_model_size(self, random_distr_gaussian_ansatz_nn, random_inputs):
-        '''evaluates gaussian ansatz nn'''
-        model = random_distr_gaussian_ansatz_nn
+    def test_mvn_pdf_gradient_basis_size(self, gaussian_ansatz, random_inputs):
+        '''
+        '''
+        model = gaussian_ansatz
+        basis = model.mvn_pdf_gradient_basis(random_inputs)
+
+        N = random_inputs.size(0)
+        assert basis.size() == (N, model.m, model.n)
+
+    def test_model_size(self, gaussian_ansatz, random_inputs):
+        '''
+        '''
+        model = gaussian_ansatz
         output = model.forward(random_inputs)
 
         N = random_inputs.size(0)
-        assert output.size() == (N, 1)
+        assert output.size() == (N, model.n)
 
-    def mvn_pdf_gradient_basis(self, model, x):
-        ''' Gradient of the multivariate normal pdf (nd Gaussian) \nabla v(x; means, cov)
-        with means evaluated at x
-            x ((N, n)-array) : posicion
+    def test_model_get_parameters(self, gaussian_ansatz, random_inputs):
         '''
-        # this method is not used
+        '''
+        model = gaussian_ansatz
+        theta = model.get_parameters()
 
-        # assume shape of x array to be (N, n)
-        assert x.ndim == 2, ''
-        assert x.size(1) == model.n, ''
-        N = x.size(0)
+        assert theta.ndim == 1
+        assert theta.shape[0] == model.m
 
-        # get nd gaussian basis
-        mvn_pdf_basis = model.mvn_pdf_basis(x)
+    def test_model_load_parameters(self, gaussian_ansatz, random_inputs):
+        '''
+        '''
+        model = gaussian_ansatz
+        theta_old = model.get_parameters()
 
-        # covariance matrix inverse
-        inv_cov = np.linalg.inv(model.cov)
+        theta_new = np.random.rand(model.m)
+        model.load_parameters(theta_new)
 
-        # prepare position and means for broadcasting
-        x = x[:, np.newaxis, :]
-        means = model.means[np.newaxis, :, :]
+        theta = model.get_parameters()
+        assert np.isclose(theta_new, theta).all()
+        assert not np.isclose(theta_old, theta).all()
 
-        # compute gradient of the exponential term
-        exp_term_gradient = - 0.5 * np.matmul(x - means, inv_cov + inv_cov.T)
-
-        # compute gaussian gradients basis
-        mvn_pdf_gradient_basis = exp_term_gradient * mvn_pdf_basis[:, :, np.newaxis]
-
-        return mvn_pdf_gradient_basis
 
     @pytest.mark.skip()
     def test_mvn_pdf_gradient_basis(self, random_distr_gaussian_ansatz_nn, random_inputs):
+        '''
+        '''
+        #TODO:revise!
 
         # evaluates gaussian ansatz nn model
         model = random_distr_gaussian_ansatz_nn
