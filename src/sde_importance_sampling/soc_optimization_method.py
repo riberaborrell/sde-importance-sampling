@@ -149,28 +149,39 @@ class StochasticOptimizationMethod:
             self.time_steps[i] = self.sample.k_lim
         self.cts[i] = self.sample.ct
 
-    def cut_arrays(self):
+    def cut_arrays(self, n_iter=None):
+        '''
+        '''
+        if n_iter is not None:
+            self.n_iterations = n_iter
         assert self.n_iterations < self.n_iterations_lim, ''
 
-        self.thetas = self.thetas[:self.n_iterations, :]
+        # parameters
+        self.thetas = self.thetas[:self.n_iterations]
+
+        # losses
         self.losses = self.losses[:self.n_iterations]
+        if self.sample.ansatz is not None:
+            self.grad_losses = self.grad_losses[:self.n_iterations, :]
+
+        if self.ipa_losses is not None:
+            self.ipa_losses = self.ipa_losses[:self.n_iterations]
+
+        elif self.re_losses is not None:
+            self.re_losses = self.re_losses[:self.n_iterations]
+
+        # quantity of interest and time steps
         self.means_I_u = self.means_I_u[:self.n_iterations]
         self.vars_I_u = self.vars_I_u[:self.n_iterations]
         self.res_I_u = self.res_I_u[:self.n_iterations]
 
-        if self.sample.do_u_l2_error:
+        # u l2 error
+        if self.u_l2_errors is not None:
             self.u_l2_errors = self.u_l2_errors[:self.n_iterations]
 
+        # computational time
         self.time_steps = self.time_steps[:self.n_iterations]
         self.cts = self.cts[:self.n_iterations]
-
-        if self.sample.ansatz is not None:
-            self.grad_losses = self.grad_losses[:self.n_iterations, :]
-
-        if self.sample.nn_func_appr is not None and self.loss_type == 'ipa':
-            self.ipa_losses = self.ipa_losses[:self.n_iterations, :]
-        elif self.sample.nn_func_appr is not None and self.loss_type == 're':
-            self.re_losses = self.re_losses[:self.n_iterations, :]
 
     def get_iteration_statistics(self, i):
         msg = 'it.: {:d}, loss: {:2.3f}, mean I^u: {:2.3e}, re I^u: {:2.3f}' \
@@ -279,31 +290,63 @@ class StochasticOptimizationMethod:
 
 
     def save(self):
+
+        # set file path
+        file_path = os.path.join(self.dir_path, 'som.npz')
+
         # create directories of the given path if it does not exist
         if not os.path.isdir(self.dir_path):
             os.makedirs(self.dir_path)
 
+        # create dictionary
+        files_dict = {}
+
+        # add sampling attributes
+        files_dict['seed'] = self.sample.seed
+        files_dict['N'] = self.sample.N
+
+        # Euler-Marujama
+        files_dict['dt'] = self.sample.dt
+
+        # sgd
+        # iterations
+        files_dict['n_iterations'] = self.n_iterations
+
+        # parameters
+        if self.thetas is not None:
+            files_dict['thetas'] = self.thetas
+        if self.last_thetas is not None:
+            files_dict['last_thetas'] = self.last_thetas
+
+        # losses
+        files_dict['losses'] = self.losses
+
+        if self.ipa_losses is not None:
+            files_dict['ipa_losses'] = self.ipa_losses
+
+        if self.re_losses is not None:
+            files_dict['re_losses'] = self.re_losses
+
+        # gradient of the loss
+        if self.grad_losses is not None:
+            files_dict['grad_losses'] = self.grad_losses
+
+        # quantity of interest and time steps
+        files_dict['means_I_u'] = self.means_I_u
+        files_dict['vars_I_u'] = self.vars_I_u
+        files_dict['res_I_u'] = self.res_I_u
+        files_dict['time_steps'] = self.time_steps
+
+        # u l2 error
+        if self.u_l2_errors is not None:
+            files_dict['u_l2_errors'] = self.u_l2_errors
+
+        # computational time
+        files_dict['cts'] = self.cts
+        files_dict['ct'] = self.ct
+
         # save npz file
-        np.savez(
-            os.path.join(self.dir_path, 'som.npz'),
-            seed=self.sample.seed,
-            dt=self.sample.dt,
-            N=self.sample.N,
-            n_iterations=self.n_iterations,
-            thetas=self.thetas,
-            last_thetas=self.last_thetas,
-            losses=self.losses,
-            ipa_losses=self.ipa_losses,
-            re_losses=self.re_losses,
-            grad_losses=self.grad_losses,
-            means_I_u=self.means_I_u,
-            vars_I_u=self.vars_I_u,
-            res_I_u=self.res_I_u,
-            u_l2_errors=self.u_l2_errors,
-            time_steps=self.time_steps,
-            cts=self.cts,
-            ct=self.ct,
-        )
+        np.savez(file_path, **files_dict)
 
     def load(self):
         try:
@@ -318,19 +361,6 @@ class StochasticOptimizationMethod:
         except:
             print('no som found')
             return False
-
-    def reduce_iterations(self, n_iter):
-        assert n_iter < self.n_iterations, ''
-
-        self.n_iterations = n_iter
-        self.thetas = self.thetas[:n_iter]
-        self.losses = self.losses[:n_iter]
-        self.means_I_u = self.means_I_u[:n_iter]
-        self.vars_I_u = self.vars_I_u[:n_iter]
-        self.res_I_u = self.res_I_u[:n_iter]
-        self.time_steps = self.time_steps[:n_iter]
-        self.cts = self.cts[:n_iter]
-        #self.u_l2_errors = self.u_l2_errors[:n_iter]
 
     def compute_running_averages(self, n_iter_avg=10):
         '''
@@ -369,7 +399,7 @@ class StochasticOptimizationMethod:
         )
 
         # u l2 error
-        if self.u_l2_errors is not None and self.u_l2_errors.ndim != 0:
+        if self.u_l2_errors is not None:
             self.run_avg_u_l2_errors = np.convolve(
                 self.u_l2_errors, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
             )
@@ -382,10 +412,6 @@ class StochasticOptimizationMethod:
 
         # write in file
         f = open(file_path, 'w')
-
-        #sample.write_setting(f)
-        #sample.write_euler_maruyama_parameters(f)
-        #sample.write_sampling_parameters(f)
 
         if self.sample.ansatz is not None:
             pass
@@ -406,7 +432,7 @@ class StochasticOptimizationMethod:
         f.write('E[I_u]: {:2.3e}\n'.format(self.means_I_u[-1]))
         f.write('Var[I_u]: {:2.3e}\n'.format(self.vars_I_u[-1]))
         f.write('RE[I_u]: {:2.3f}\n'.format(self.res_I_u[-1]))
-        f.write('F: {:2.3f}\n'.format(- np.log(self.means_I_u[-1])))
+        f.write('value function: {:2.3f}\n'.format(- np.log(self.means_I_u[-1])))
         f.write('loss function: {:2.3f}\n'.format(self.losses[-1]))
         if self.u_l2_errors is not None:
            f.write('u l2 error: {:2.3f}\n'.format(self.u_l2_errors[-1]))
@@ -416,9 +442,9 @@ class StochasticOptimizationMethod:
         f.write('E[I_u]: {:2.3e}\n'.format(self.run_avg_means_I_u[-1]))
         f.write('Var[I_u]: {:2.3e}\n'.format(self.run_avg_vars_I_u[-1]))
         f.write('RE[I_u]: {:2.3f}\n'.format(self.run_avg_res_I_u[-1]))
-        f.write('F: {:2.3f}\n'.format(- np.log(self.run_avg_means_I_u[-1])))
+        f.write('value function: {:2.3f}\n'.format(- np.log(self.run_avg_means_I_u[-1])))
         f.write('loss function: {:2.3f}\n\n'.format(self.run_avg_losses[-1]))
-        if self.run_avg_u_l2_errors is not None:
+        if self.u_l2_errors is not None:
             f.write('u l2 error: {:2.3f}\n'.format(self.run_avg_u_l2_errors[-1]))
 
         h, m, s = get_time_in_hms(self.ct)
@@ -456,10 +482,10 @@ class StochasticOptimizationMethod:
         if sample_mc is not None:
             self.value_f_mc = np.full(self.n_iterations, - np.log(sample_mc.mean_I))
             self.mean_I_mc = np.full(self.n_iterations, sample_mc.mean_I)
-            self.var_I_mc = np.full(self.n_iterations_lim, sample_mc.var_I)
-            self.re_I_mc = np.full(self.n_iterations_lim, sample_mc.re_I)
-            self.time_steps_mc = np.full(self.n_iterations_lim, sample_mc.k)
-            self.ct_mc = np.full(self.n_iterations_lim, sample_mc.ct)
+            self.var_I_mc = np.full(self.n_iterations, sample_mc.var_I)
+            self.re_I_mc = np.full(self.n_iterations, sample_mc.re_I)
+            self.time_steps_mc = np.full(self.n_iterations, sample_mc.k)
+            self.ct_mc = np.full(self.n_iterations, sample_mc.ct)
         else:
             self.value_f_mc = np.full(self.n_iterations, np.nan)
             self.mean_I_mc = np.full(self.n_iterations, np.nan)
@@ -491,12 +517,12 @@ class StochasticOptimizationMethod:
         if self.sample.problem_name == 'langevin_stop-t':
             hjb_psi_at_x = self.sol_hjb.get_psi_at_x(self.sample.xzero)
             hjb_value_f_at_x = self.sol_hjb.get_value_function_at_x(self.sample.xzero)
-            self.psi_hjb = np.full(self.n_iterations_lim, hjb_psi_at_x)
+            self.psi_hjb = np.full(self.n_iterations, hjb_psi_at_x)
             self.value_f_hjb = np.full(self.n_iterations, hjb_value_f_at_x)
         elif self.sample.problem_name == 'langevin_det-t':
             hjb_psi_at_x = self.sol_hjb.get_psi_t_x(0., self.sample.xzero)
             hjb_value_f_at_x = self.sol_hjb.get_value_funtion_t_x(0., self.sample.xzero)
-            self.psi_hjb = np.full(self.n_iterations_lim, hjb_psi_at_x)
+            self.psi_hjb = np.full(self.n_iterations, hjb_psi_at_x)
             self.value_f_hjb = np.full(self.n_iterations, hjb_value_f_at_x)
 
         # load hjb sampling
@@ -506,11 +532,11 @@ class StochasticOptimizationMethod:
         if sample_hjb is None:
             return
 
-        self.value_f_is_hjb = np.full(self.n_iterations_lim, -np.log(sample_hjb.mean_I_u))
-        self.mean_I_u_hjb = np.full(self.n_iterations_lim, sample_hjb.mean_I_u)
-        self.re_I_u_hjb = np.full(self.n_iterations_lim, sample_hjb.re_I_u)
-        self.time_steps_is_hjb = np.full(self.n_iterations_lim, sample_hjb.k)
-        self.ct_is_hjb = np.full(self.n_iterations_lim, sample_hjb.ct)
+        self.value_f_is_hjb = np.full(self.n_iterations, -np.log(sample_hjb.mean_I_u))
+        self.mean_I_u_hjb = np.full(self.n_iterations, sample_hjb.mean_I_u)
+        self.re_I_u_hjb = np.full(self.n_iterations, sample_hjb.re_I_u)
+        self.time_steps_is_hjb = np.full(self.n_iterations, sample_hjb.k)
+        self.ct_is_hjb = np.full(self.n_iterations, sample_hjb.ct)
 
     def load_plot_labels_colors_and_linestyles(self):
         '''
@@ -889,10 +915,29 @@ class StochasticOptimizationMethod:
         fig.plot(x, y)
 
 
+    def get_control(self, i=None, h=0.1):
+
+        # last iteration if i is not given
+        if i is None:
+            i = self.n_iterations - 1
+        assert i < self.n_iterations, ''
+
+        # set theta
+        if self.sample.ansatz is not None:
+            self.sample.ansatz.theta = self.thetas[i]
+        elif self.sample.nn_func_appr is not None:
+            self.sample.nn_func_appr.model.load_parameters(self.thetas[i])
+
+        # discretize domain and evaluate in grid
+        self.sample.discretize_domain(h=h)
+        self.sample.get_grid_control()
+
+        return np.copy(self.sample.grid_control)
+
     def plot_1d_iteration(self, i=None):
         from figures.myfigure import MyFigure
 
-        # last iteration is i is not given
+        # last iteration if i is not given
         if i is None:
             i = self.n_iterations - 1
 
