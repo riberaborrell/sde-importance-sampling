@@ -493,6 +493,7 @@ class Metadynamics:
         self.sample.ansatz.set_value_function_constant_corner()
 
     def write_means(self, f):
+        #TODO! solve bug
         f.write('Center of the Gaussians\n')
         f.write('i: trajectory index, j: gaussian index\n')
         idx = 0
@@ -549,7 +550,7 @@ class Metadynamics:
         h, m, s = get_time_in_hms(self.ct)
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
 
-        self.write_means(f)
+        #self.write_means(f)
         f.close()
 
         # print file

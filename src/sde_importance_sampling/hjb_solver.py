@@ -480,13 +480,14 @@ class SolverHJB(LangevinSDE):
             dir_path=self.dir_path,
             file_name='psi',
         )
+        fig.ax.set_title(r'$\Psi_h$')
         fig.set_xlabel(r'$x_1$')
         fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-2, 2)
         fig.set_ylim(-2, 2)
         #fig.set_contour_levels_scale('log')
+        plt.subplots_adjust(left=0.12, right=0.96, bottom=0.12)
         fig.contour(X, Y, self.psi)
-
         # surface plot
 
 
@@ -501,11 +502,13 @@ class SolverHJB(LangevinSDE):
             dir_path=self.dir_path,
             file_name='value-function',
         )
+        fig.ax.set_title(r'$\Phi_h$')
         fig.set_xlabel(r'$x_1$')
         fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-2, 2)
         fig.set_ylim(-2, 2)
         fig.set_contour_levels_scale('log')
+        plt.subplots_adjust(left=0.12, right=0.96, bottom=0.12)
         fig.contour(X, Y, self.value_f)
 
         # surface plot
@@ -522,11 +525,13 @@ class SolverHJB(LangevinSDE):
             dir_path=self.dir_path,
             file_name='controlled-potential',
         )
+        fig.ax.set_title(r'$\widetilde{V}_h$')
         fig.set_xlabel(r'$x_1$')
         fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-2, 2)
         fig.set_ylim(-2, 2)
         fig.set_contour_levels_scale('log')
+        plt.subplots_adjust(left=0.12, right=0.96, bottom=0.12)
         fig.contour(X, Y, self.controlled_potential)
 
         # surface plot
@@ -544,10 +549,12 @@ class SolverHJB(LangevinSDE):
             dir_path=self.dir_path,
             file_name='control',
         )
+        fig.ax.set_title(r'$u_h^*$')
         fig.set_xlabel(r'$x_1$')
         fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-1.5, 1.5)
         fig.set_ylim(-1.5, 1.5)
+        plt.subplots_adjust(left=0.12, right=0.96, bottom=0.12)
         fig.vector_field(X, Y, U, V, scale=scale, width=width)
 
 
@@ -563,8 +570,10 @@ class SolverHJB(LangevinSDE):
             dir_path=self.dir_path,
             file_name='controlled-drift',
         )
+        fig.ax.set_title(r'$\nabla \widetilde{V}_h$')
         fig.set_xlabel(r'$x_1$')
         fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-1.5, 1.5)
         fig.set_ylim(-1.5, 1.5)
+        plt.subplots_adjust(left=0.12, right=0.96, bottom=0.12)
         fig.vector_field(X, Y, U, V, scale=scale, width=width)
