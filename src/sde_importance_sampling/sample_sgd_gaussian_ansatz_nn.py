@@ -101,7 +101,7 @@ def main():
     elif args.theta == 'meta':
 
         # train parameters if not trained yet
-        func.train_parameters(sde=sde)
+        func.train_parameters(meta=meta)
     else:
         return
 
