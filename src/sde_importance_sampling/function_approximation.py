@@ -112,9 +112,9 @@ class FunctionApproximation():
         elif n == 2:
             h = 0.005
         elif n == 3:
-            h = 0.1
+            h = 0.05
         elif n == 4:
-            h = 0.5
+            h = 0.1
         else:
             msg = '\n this approximation method is not implemented for n = {:d}.\n' \
                   ''.format(n)
