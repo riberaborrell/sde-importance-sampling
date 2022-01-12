@@ -215,6 +215,13 @@ def get_base_parser():
         help='Target function to approximate. Default: value-f',
     )
     parser.add_argument(
+        '--train-alg',
+        dest='train_alg',
+        choices=['classic', 'alternative'],
+        default='classic',
+        help='Set type of approximation problem training algorithm. Default: "classic"',
+    )
+    parser.add_argument(
         '--loss-type',
         dest='loss_type',
         choices=['ipa', 're'],

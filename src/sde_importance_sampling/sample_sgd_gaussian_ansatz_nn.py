@@ -56,10 +56,20 @@ def main():
     )
 
     # get dir path for nn
-    if args.theta in ['random', 'null', 'not-controlled']:
+    if args.theta in ['random', 'null']:
+        dir_path = sample.settings_dir_path
+
+    if args.theta == 'not-controlled':
+
+        # set training algorithm
+        func.training_algorithm = args.train_alg
+
         dir_path = sample.settings_dir_path
 
     elif args.theta == 'meta':
+
+        # set training algorithm
+        func.training_algorithm = args.train_alg
 
         # get metadynamics
         sde = LangevinSDE.new_from(sample)
@@ -86,14 +96,12 @@ def main():
 
         # train nn parameters such that control is zero
         sde = LangevinSDE.new_from(sample)
-        func.train_parameters_classic(sde=sde)
-        #func.train_parameters_alternative(sde=sde)
+        func.train_parameters(sde=sde)
 
     elif args.theta == 'meta':
 
         # train parameters if not trained yet
-        func.train_parameters_classic(meta=meta)
-        #func.train_parameters_alternative(meta=meta)
+        func.train_parameters(sde=sde)
     else:
         return
 
@@ -135,7 +143,7 @@ def main():
 
     # load already run gd
     else:
-        if not sgd.load_som():
+        if not sgd.load():
             return
 
     # report adam
@@ -145,18 +153,28 @@ def main():
     # do plots 
     if args.do_plots:
 
-        # plot loss function, relative error and time steps
-        sgd.plot_losses(args.h_hjb)
-        sgd.plot_I_u()
+        # load mc sampling and hjb solution and prepare labels
+        sgd.load_mc_sampling(dt_mc=0.01, N_mc=10**3, seed=args.seed)
+        sgd.load_hjb_solution_and_sampling(h_hjb=0.001, dt_hjb=0.01, N_hjb=10**3, seed=args.seed)
+        sgd.load_plot_labels_colors_and_linestyles()
+
+        # loss
+        sgd.plot_loss()
+
+        # mean and relative error of the reweighted quantity of interest
+        sgd.plot_mean_I_u()
+        sgd.plot_re_I_u()
+
+        # time steps and computational time
         sgd.plot_time_steps()
         sgd.plot_cts()
 
         if args.n == 1:
-            #adam.plot_1d_iteration()
-            adam.plot_1d_iterations()
+            #sgd.plot_1d_iteration()
+            sgd.plot_1d_iterations()
 
         elif args.n == 2:
-            adam.plot_2d_iteration()
+            sgd.plot_2d_iteration()
 
 
 if __name__ == "__main__":

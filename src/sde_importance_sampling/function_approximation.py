@@ -11,28 +11,41 @@ import os
 
 class FunctionApproximation():
 
-    def __init__(self, target_function, model, initialization='random'):
+    def __init__(self, target_function, model, initialization='random', training_algorithm=None):
         assert target_function in ['value-f', 'control'], ''
         assert initialization in ['random', 'null', 'not-controlled', 'meta', 'hjb'], ''
 
         self.target_function = target_function
         self.model = model
         self.initialization = initialization
+        self.training_algorithm = training_algorithm
 
         self.dir_path = None
 
     def set_dir_path(self, root_dir_path):
 
+        # initialization
         if self.initialization == 'meta':
             initialization_str = ''
         else:
             initialization_str = 'theta_{}'.format(self.initialization)
+
+        # training algorithm
+        #if self.training_algorithm is None:
+        #    training_alg_str = ''
+        #elif self.training_algorithm == 'classic':
+        #    training_alg_str = 'train_classic'
+        #elif self.training_algorithm == 'train_alternative':
+        #    training_alg_str = ''
+        #else:
+        #    return
 
         self.dir_path = os.path.join(
             root_dir_path,
             'appr_{}'.format(self.target_function),
             self.model.get_rel_path(),
             initialization_str,
+            #training_alg_str,
         )
 
     def reset_parameters(self):
@@ -48,6 +61,14 @@ class FunctionApproximation():
                 layer._parameters[key] = torch.zeros_like(
                     layer._parameters[key], requires_grad=True
                 )
+
+    def train_parameters(self, sde=None, sol_hjb=None, meta=None):
+        if self.training_algorithm == 'classic':
+            self.train_parameters_classic(sde, sol_hjb, meta)
+        elif self.training_algorithm == 'alternative':
+            self.train_parameters_alternative(sde, sol_hjb, meta)
+        else:
+            return
 
     def train_parameters_classic(self, sde=None, sol_hjb=None, meta=None):
 
@@ -124,12 +145,13 @@ class FunctionApproximation():
         x_test_tensor = torch.tensor(x_test, requires_grad=False, dtype=torch.float32)
 
         # evaluate target function at the training data
-        if self.initialization == 'not-controlled':
 
-            # zero control
+        # zero control
+        if self.initialization == 'not-controlled':
             target_train = np.zeros((self.N_train, n))
             target_test = np.zeros((self.N_test, n))
 
+        # metadynamics
         elif self.initialization == 'meta':
 
             # create ansatz functions with meta parameters
@@ -140,9 +162,11 @@ class FunctionApproximation():
             target_train = meta.sample.ansatz.control(x_train)
             target_test = meta.sample.ansatz.control(x_test)
 
+        # hjb control
         elif self.initialization == 'hjb':
             #TODO: write method in the hjb solver which given an input returns the control
             pass
+
 
         # tensorize target function evaluation
         target_train_tensor = torch.tensor(
@@ -222,7 +246,12 @@ class FunctionApproximation():
         loss = nn.MSELoss()
 
         # set sgd parameters
-        self.n_iterations_lim = 10**3
+
+        if self.initialization == 'not-controlled':
+            self.n_iterations_lim = 10**3
+        elif self.initialization in ['meta', 'hjb']:
+            self.n_iterations_lim = 10**5
+
         self.N_train = 5 * 10**2
         self.losses_train = np.empty(self.n_iterations_lim)
 
@@ -299,25 +328,39 @@ class FunctionApproximation():
         self.save_trained_parameters(self.dir_path)
 
     def save_trained_parameters(self, dir_path):
+        '''
+        '''
+        # set file path
+        file_path = os.path.join(dir_path, 'nn.npz')
+
         # create directory if dir_path does not exist
         if not os.path.isdir(dir_path):
             os.makedirs(dir_path)
 
-        #TODO: adapt method to save parameters of the alternative approach
+        # create dictionary
+        files_dict = {}
+
+        files_dict['training_algorithm'] = self.training_algorithm
+
+        if self.training_algorithm == 'classic':
+            files_dict['n_iterations_lim'] = self.n_iterations_lim
+            files_dict['N_data'] = self.N_data
+            files_dict['theta'] = self.theta
+            files_dict['losses_train'] = self.losses_train
+            files_dict['losses_test'] = self.losses_test
+
+        else: # self.training_algorithm == 'alternative':
+            files_dict['n_iterations_lim'] = self.n_iterations_lim
+            files_dict['N_train'] = self.N_train
+            files_dict['theta'] = self.theta
+            files_dict['losses_train'] = self.losses_train
+
+        # accouracy is fixed
+        # files_dict['n_iterations' ] = self.n_iterations
+        # files_dict['epsilon'] = self.epsilon
+
         # save npz file
-        file_path = os.path.join(dir_path, 'nn.npz')
-        np.savez(
-            file_path,
-            n_iterations_lim=self.n_iterations_lim,
-            #n_iterations=self.n_iterations,
-            #N_data=self.N_data,
-            #N_train=self.N_train,
-            #N_test=self.N_test,
-            #epsilon=self.epsilon,
-            theta=self.theta,
-            losses_train=self.losses_train,
-            #losses_test=self.losses_test,
-        )
+        np.savez(file_path, **files_dict)
 
     def load_trained_parameters(self, dir_path):
         try:
@@ -326,8 +369,11 @@ class FunctionApproximation():
                   os.path.join(dir_path, 'nn.npz'),
                   allow_pickle=True,
             )
-            for file_name in data.files:
-                setattr(self, file_name, data[file_name])
+            for npz_file_name in data.files:
+                if data[npz_file_name].ndim == 0:
+                    setattr(self, npz_file_name, data[npz_file_name][()])
+                else:
+                    setattr(self, npz_file_name, data[npz_file_name])
 
             # load parameters in the model
             self.model.load_parameters(self.theta)
@@ -344,3 +390,6 @@ class FunctionApproximation():
         f.write('model architecture: {}\n'.format(self.model.name))
         self.model.write_parameters(f)
         f.write('initialization: {}\n'.format(self.initialization))
+
+        if self.training_algorithm is not None:
+            f.write('training-algorithm: {}\n'.format(self.training_algorithm))

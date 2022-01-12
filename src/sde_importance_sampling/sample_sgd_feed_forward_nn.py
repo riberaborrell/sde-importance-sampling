@@ -48,7 +48,7 @@ def main():
     else:
         d_layers = [args.n, args.n]
 
-    # initialize nn
+    # initialize feed-forward or dense nn
     if not args.dense:
         model = FeedForwardNN(d_layers, args.activation_type)
     else:
@@ -62,10 +62,20 @@ def main():
     )
 
     # get dir path for nn
-    if args.theta in ['random', 'null', 'not-controlled']:
+    if args.theta in ['random', 'null']:
+        dir_path = sample.settings_dir_path
+
+    if args.theta == 'not-controlled':
+
+        # set training algorithm
+        func.training_algorithm = args.train_alg
+
         dir_path = sample.settings_dir_path
 
     elif args.theta == 'meta':
+
+        # set training algorithm
+        func.training_algorithm = args.train_alg
 
         # get metadynamics
         sde = LangevinSDE.new_from(sample)
@@ -92,14 +102,12 @@ def main():
 
         # train nn parameters such that control is zero
         sde = LangevinSDE.new_from(sample)
-        func.train_parameters_classic(sde=sde)
-        #func.train_parameters_alternative(sde=sde)
+        func.train_parameters(sde=sde)
 
     elif args.theta == 'meta':
 
         # train parameters if not trained yet
-        func.train_parameters_classic(meta=meta)
-        #func.train_parameters_alternative(meta=meta)
+        func.train_parameters(meta=meta)
     else:
         return
 
@@ -153,8 +161,8 @@ def main():
     if args.do_plots:
 
         # load mc sampling and hjb solution and prepare labels
-        sgd.load_mc_sampling(dt_mc=0.01, N_mc=10**3)
-        sgd.load_hjb_solution_and_sampling(h_hjb=0.001, dt_hjb=0.01, N_hjb=10**3)
+        sgd.load_mc_sampling(dt_mc=0.01, N_mc=10**3, seed=1)
+        sgd.load_hjb_solution_and_sampling(h_hjb=0.001, dt_hjb=0.01, N_hjb=10**3, seed=1)
         sgd.load_plot_labels_colors_and_linestyles()
 
         # loss
@@ -169,9 +177,9 @@ def main():
         sgd.plot_cts()
 
         # u l2 error and its change
-        #if sgd.u_l2_errors is not None:
-        #    sgd.plot_u_l2_error()
-        #    sgd.plot_u_l2_error_change()
+        if sgd.u_l2_errors is not None:
+            sgd.plot_u_l2_error()
+            sgd.plot_u_l2_error_change()
 
         if args.n == 1:
             #sgd.plot_1d_iteration()
