@@ -362,7 +362,7 @@ class StochasticOptimizationMethod:
             print('no som found')
             return False
 
-    def compute_running_averages(self, n_iter_avg=10):
+    def compute_running_averages(self, n_iter_avg=1):
         '''
         '''
         # number of iterations of the running window
@@ -437,7 +437,7 @@ class StochasticOptimizationMethod:
         if self.u_l2_errors is not None:
            f.write('u l2 error: {:2.3f}\n'.format(self.u_l2_errors[-1]))
 
-        self.compute_running_averages()
+        self.compute_running_averages(n_iter_avg=10)
         f.write('\nRunning averages of last {:d} iterations\n'.format(self.n_iter_avg))
         f.write('E[I_u]: {:2.3e}\n'.format(self.run_avg_means_I_u[-1]))
         f.write('Var[I_u]: {:2.3e}\n'.format(self.run_avg_vars_I_u[-1]))
@@ -534,6 +534,7 @@ class StochasticOptimizationMethod:
 
         self.value_f_is_hjb = np.full(self.n_iterations, -np.log(sample_hjb.mean_I_u))
         self.mean_I_u_hjb = np.full(self.n_iterations, sample_hjb.mean_I_u)
+        self.var_I_u_hjb = np.full(self.n_iterations, sample_hjb.var_I_u)
         self.re_I_u_hjb = np.full(self.n_iterations, sample_hjb.re_I_u)
         self.time_steps_is_hjb = np.full(self.n_iterations, sample_hjb.k)
         self.ct_is_hjb = np.full(self.n_iterations, sample_hjb.ct)
