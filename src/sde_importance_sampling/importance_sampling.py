@@ -93,6 +93,7 @@ class Sampling(LangevinSDE):
 
         # loss and its gradient
         self.loss = None
+        self.var_loss = None
         self.grad_loss = None
         self.ipa_loss = None
 
@@ -688,6 +689,7 @@ class Sampling(LangevinSDE):
 
         # compute averages
         self.loss = np.mean(loss_traj)
+        self.var_loss = np.var(loss_traj)
         self.grad_loss = np.mean(grad_loss_traj, axis=0)
 
         # compute statistics
@@ -804,6 +806,7 @@ class Sampling(LangevinSDE):
         # compute loss
         a = torch.mean(phi_fht)
         self.loss = a.detach().numpy()
+        self.var_loss = torch.var(phi_fht)
 
         # compute ipa loss
         b = - torch.mean(phi_fht.detach() * S_fht)

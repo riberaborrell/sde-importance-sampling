@@ -37,6 +37,7 @@ class StochasticOptimizationMethod:
         self.last_thetas = None
         self.save_thetas_all_it = save_thetas_all_it
         self.losses = None
+        self.vars_loss = None
         self.ipa_losses = None
         self.re_losses = None
         self.grad_losses = None
@@ -89,16 +90,24 @@ class StochasticOptimizationMethod:
 
     def preallocate_arrays(self):
 
+        # parameters
         if self.save_thetas_all_it:
             self.thetas = np.empty((self.n_iterations_lim, self.m))
+
+        # objective function and variance of objective function
         self.losses = np.empty(self.n_iterations_lim)
+        self.vars_loss = np.empty(self.n_iterations_lim)
+
+        # reweighted quantity of interest
         self.means_I_u = np.empty(self.n_iterations_lim)
         self.vars_I_u = np.empty(self.n_iterations_lim)
         self.res_I_u = np.empty(self.n_iterations_lim)
 
+        # u l2 error
         if self.sample.do_u_l2_error:
             self.u_l2_errors = np.empty(self.n_iterations_lim)
 
+        # time steps and computational time
         self.time_steps = np.empty(self.n_iterations_lim, dtype=int)
         self.cts = np.empty(self.n_iterations_lim)
 
@@ -127,8 +136,9 @@ class StochasticOptimizationMethod:
                 model = self.sample.nn_func_appr.model
                 self.last_thetas = model.get_parameters()
 
-        # add loss and gradient
+        # add loss, variance of the loss and gradient
         self.losses[i] = self.sample.loss
+        self.vars_loss[i] = self.sample.var_loss
 
         if self.sample.ansatz is not None:
             self.grad_losses[i, :] = self.sample.grad_loss
@@ -161,6 +171,7 @@ class StochasticOptimizationMethod:
 
         # losses
         self.losses = self.losses[:self.n_iterations]
+        self.vars_loss = self.vars_loss[:self.n_iterations]
         if self.sample.ansatz is not None:
             self.grad_losses = self.grad_losses[:self.n_iterations, :]
 
@@ -287,7 +298,6 @@ class StochasticOptimizationMethod:
 
         self.stop_timer()
         self.save()
-
 
     def save(self):
 
