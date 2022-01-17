@@ -328,8 +328,9 @@ class StochasticOptimizationMethod:
         if self.last_thetas is not None:
             files_dict['last_thetas'] = self.last_thetas
 
-        # losses
+        # loss and its variance
         files_dict['losses'] = self.losses
+        files_dict['vars_loss'] = self.vars_loss
 
         if self.ipa_losses is not None:
             files_dict['ipa_losses'] = self.ipa_losses
@@ -381,6 +382,11 @@ class StochasticOptimizationMethod:
         # loss
         self.run_avg_losses = np.convolve(
             self.losses, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
+        )
+
+        # variance of loss
+        self.run_avg_vars_loss = np.convolve(
+            self.vars_loss, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
         )
 
         # mean I^u
@@ -574,36 +580,14 @@ class StochasticOptimizationMethod:
         '''
         from figures.myfigure import MyFigure
 
-        # iterations
-        x = np.arange(self.n_iterations)
-
-        # plot losses
-        if self.sol_hjb is None:
-            y = np.vstack((
-                self.losses,
-                self.value_f_mc,
-            ))
-        else:
-            y = np.vstack((
-                self.losses,
-                self.value_f_mc,
-                self.value_f_is_hjb,
-                self.value_f_hjb,
-            ))
-
-        fig = plt.figure(
-            FigureClass=MyFigure,
-            dir_path=self.dir_path,
-            file_name='loss',
-        )
-        fig.set_xlabel('SGD iterations')
-        fig.set_plot_scale('semilogy')
-        fig.plot(x, y, self.labels, self.colors, self.linestyles)
-
-        # plot running averages losses
+        # check if running averages are computed
         if not hasattr(self, 'run_avg_losses'):
-            return
+            self.compute_running_averages(n_iter_avg=1)
 
+        # iterations
+        x = np.arange(self.n_iterations)[self.n_iter_avg - 1:]
+
+        # loss, mc sampling, hjb sampling and hjb solution
         if self.sol_hjb is None:
             y = np.vstack((
                 self.run_avg_losses,
@@ -617,14 +601,40 @@ class StochasticOptimizationMethod:
                 self.value_f_hjb[self.n_iter_avg - 1:],
             ))
 
+        # loss figure
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
-            file_name='loss-avg',
+            file_name='loss',
         )
+        fig.set_title(r'$\tilde{J}(\theta; x_0)$')
         fig.set_xlabel('SGD iterations')
         fig.set_plot_scale('semilogy')
-        fig.plot(x[self.n_iter_avg - 1:], y, self.labels, self.colors, self.linestyles)
+        fig.plot(x, y, self.labels, self.colors, self.linestyles)
+
+    def plot_var_loss(self):
+        '''
+        '''
+        from figures.myfigure import MyFigure
+
+        # check if running averages are computed
+        if not hasattr(self, 'run_avg_vars_loss'):
+            self.compute_running_averages(n_iter_avg=1)
+
+        # iterations
+        x = np.arange(self.n_iterations)[self.n_iter_avg - 1:]
+
+        # var loss
+        y = self.run_avg_vars_loss
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='var-loss',
+        )
+        fig.set_title(r'${var}_N(\tilde{J}(\theta; x_0))$')
+        fig.set_xlabel('SGD iterations')
+        fig.set_plot_scale('semilogy')
+        fig.plot(x, y, self.labels[0], self.colors[0], self.linestyles[0])
 
 
     def plot_mean_I_u(self):
@@ -632,35 +642,14 @@ class StochasticOptimizationMethod:
         '''
         from figures.myfigure import MyFigure
 
-        # iterations
-        x = np.arange(self.n_iterations)
-
-        # plot mean I^u
-        if self.sol_hjb is None:
-            y = np.vstack((
-                self.means_I_u,
-                self.mean_I_mc,
-            ))
-        else:
-            y = np.vstack((
-                self.means_I_u,
-                self.mean_I_mc,
-                self.mean_I_u_hjb,
-                self.psi_hjb,
-            ))
-        fig = plt.figure(
-            FigureClass=MyFigure,
-            dir_path=self.dir_path,
-            file_name='mean',
-        )
-        fig.set_xlabel('SGD iterations')
-        fig.set_plot_scale('semilogy')
-        fig.plot(x, y, self.labels, self.colors, self.linestyles)
-
-        # plot running averages mean I^u
+        # check if running averages are computed
         if not hasattr(self, 'run_avg_means_I_u'):
-            return
+            self.compute_running_averages(n_iter_avg=1)
 
+        # iterations
+        x = np.arange(self.n_iterations)[self.n_iter_avg - 1:]
+
+        # mean I^u, mc sampling, hjb sampling and hjb solution
         if self.sol_hjb is None:
             y = np.vstack((
                 self.run_avg_means_I_u,
@@ -673,52 +662,71 @@ class StochasticOptimizationMethod:
                 self.mean_I_u_hjb[self.n_iter_avg - 1:],
                 self.psi_hjb[self.n_iter_avg - 1:],
             ))
+
+        # mean I^u figure
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
-            file_name='mean-avg',
+            file_name='mean',
         )
+        fig.set_title(r'$m_N(I^u)$')
         fig.set_xlabel('SGD iterations')
         fig.set_plot_scale('semilogy')
-        fig.plot(x[self.n_iter_avg - 1:], y, self.labels, self.colors, self.linestyles)
+        fig.plot(x, y, self.labels, self.colors, self.linestyles)
+
+    def plot_var_I_u(self):
+        '''
+        '''
+        from figures.myfigure import MyFigure
+
+        # check if running averages are computed
+        if not hasattr(self, 'run_avg_vars_I_u'):
+            self.compute_running_averages(n_iter_avg=1)
+
+        # iterations
+        x = np.arange(self.n_iterations)[self.n_iter_avg - 1:]
+
+        # re I^u, mc sampling, hjb sampling and hjb solution
+        if self.sol_hjb is None:
+            y = np.vstack((
+                self.run_avg_vars_I_u,
+                self.var_I_mc[self.n_iter_avg - 1:],
+            ))
+        else:
+            y = np.vstack((
+                self.run_avg_vars_I_u,
+                self.var_I_mc[self.n_iter_avg - 1:],
+                self.var_I_u_hjb[self.n_iter_avg - 1:],
+            ))
+
+        # relative error figure
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='var',
+        )
+        fig.set_title(r'${var}_N(I^u)$')
+        fig.set_xlabel('SGD iterations')
+        fig.set_plot_scale('semilogy')
+        if self.sol_hjb is None:
+            fig.plot(x, y, self.labels, self.colors, self.linestyles)
+        else:
+            fig.plot(x, y, self.labels[:3], self.colors[:3], self.linestyles[:3])
+
 
     def plot_re_I_u(self):
         '''
         '''
         from figures.myfigure import MyFigure
 
-        # iterations
-        x = np.arange(self.n_iterations)
-
-        # plot relative error I^u
-        if self.sol_hjb is None:
-            y = np.vstack((
-                self.res_I_u,
-                self.re_I_mc,
-            ))
-        else:
-            y = np.vstack((
-                self.res_I_u,
-                self.re_I_mc,
-                self.re_I_u_hjb,
-            ))
-        fig = plt.figure(
-            FigureClass=MyFigure,
-            dir_path=self.dir_path,
-            file_name='re',
-        )
-        fig.set_xlabel('SGD iterations')
-        fig.set_plot_scale('semilogy')
-
-        if self.sol_hjb is None:
-            fig.plot(x, y, self.labels, self.colors, self.linestyles)
-        else:
-            fig.plot(x, y, self.labels[:3], self.colors[:3], self.linestyles[:3])
-
-        # plot relative error I^u
+        # check if running averages are computed
         if not hasattr(self, 'run_avg_res_I_u'):
-            return
+            self.compute_running_averages(n_iter_avg=1)
 
+        # iterations
+        x = np.arange(self.n_iterations)[self.n_iter_avg - 1:]
+
+        # re I^u, mc sampling, hjb sampling and hjb solution
         if self.sol_hjb is None:
             y = np.vstack((
                 self.run_avg_res_I_u,
@@ -730,17 +738,20 @@ class StochasticOptimizationMethod:
                 self.re_I_mc[self.n_iter_avg - 1:],
                 self.re_I_u_hjb[self.n_iter_avg - 1:],
             ))
+
+        # relative error figure
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
-            file_name='re-avg',
+            file_name='re',
         )
+        fig.set_title(r'${re}_N(I^u)$')
         fig.set_xlabel('SGD iterations')
         fig.set_plot_scale('semilogy')
         if self.sol_hjb is None:
-            fig.plot(x[self.n_iter_avg - 1:], y, self.labels, self.colors, self.linestyles)
+            fig.plot(x, y, self.labels, self.colors, self.linestyles)
         else:
-            fig.plot(x[self.n_iter_avg - 1:], y, self.labels[:3], self.colors[:3], self.linestyles[:3])
+            fig.plot(x, y, self.labels[:3], self.colors[:3], self.linestyles[:3])
 
     def plot_error_bar_I_u(self):
         '''
@@ -767,39 +778,14 @@ class StochasticOptimizationMethod:
         '''
         from figures.myfigure import MyFigure
 
+        # check if running averages are computed
+        if not hasattr(self, 'run_avg_time_steps'):
+            self.compute_running_averages(n_iter_avg=1)
+
         # iterations
-        x = np.arange(self.n_iterations)
+        x = np.arange(self.n_iterations)[self.n_iter_avg - 1:]
 
-        # plot time steps
-        if self.sol_hjb is None:
-            y = np.vstack((
-                self.time_steps,
-                self.time_steps_mc,
-            ))
-        else:
-            y = np.vstack((
-                self.time_steps,
-                self.time_steps_mc,
-                self.time_steps_is_hjb,
-            ))
-        fig = plt.figure(
-            FigureClass=MyFigure,
-            dir_path=self.dir_path,
-            file_name='time-steps',
-        )
-        fig.set_xlabel('SGD iterations')
-        fig.set_plot_scale('semilogy')
-
-        if self.sol_hjb is None:
-            fig.plot(x, y, self.labels, self.colors, self.linestyles)
-        else:
-            fig.plot(x, y, self.labels[:3], self.colors[:3], self.linestyles[:3])
-        return
-
-        # plot running averages time steps
-        if not hasattr(self, 'run_avg_losses'):
-            return
-
+        # time steps, mc sampling, hjb sampling and hjb solution
         if self.sol_hjb is None:
             y = np.vstack((
                 self.run_avg_time_steps,
@@ -811,34 +797,46 @@ class StochasticOptimizationMethod:
                 self.time_steps_mc[self.n_iter_avg - 1:],
                 self.time_steps_is_hjb[self.n_iter_avg - 1:],
             ))
+
+        # time steps figure
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
-            file_name='time-steps-avg',
+            file_name='time-steps',
         )
+        fig.set_title(r'TS')
         fig.set_xlabel('SGD iterations')
         fig.set_plot_scale('semilogy')
         if self.sol_hjb is None:
-            fig.plot(x[self.n_iter_avg - 1:], y, self.labels, self.colors, self.linestyles)
+            fig.plot(x, y, self.labels, self.colors, self.linestyles)
         else:
-            fig.plot(x[self.n_iter_avg - 1:], y, self.labels[:3], self.colors[:3], self.linestyles[:3])
+            fig.plot(x, y, self.labels[:3], self.colors[:3], self.linestyles[:3])
 
     def plot_cts(self):
         '''
         '''
         from figures.myfigure import MyFigure
 
-        x = np.arange(self.n_iterations)
+        # check if running averages are computed
+        if not hasattr(self, 'run_avg_cts'):
+            self.compute_running_averages(n_iter_avg=1)
+
+        # iterations
+        x = np.arange(self.n_iterations)[self.n_iter_avg - 1:]
+
+
+        # computational time, mc sampling, hjb sampling and hjb solution
         y = np.vstack((
-            self.cts,
-            self.ct_mc,
-            self.ct_is_hjb,
+            self.run_avg_cts,
+            self.ct_mc[self.n_iter_avg - 1:],
+            self.ct_is_hjb[self.n_iter_avg - 1:],
         ))
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
             file_name='cts',
         )
+        fig.set_title(r'CT (s)')
         fig.set_xlabel('SGD iterations')
         fig.set_plot_scale('semilogy')
         fig.plot(x, y, self.labels[:3], self.colors[:3], self.linestyles[:3])
@@ -848,11 +846,21 @@ class StochasticOptimizationMethod:
         '''
         from figures.myfigure import MyFigure
 
-        # iterations
-        x = np.arange(self.n_iterations)
+        # check if u L^2 error is computed
+        if not hasattr(self, 'u_l2_errors'):
+            return
 
-        # plot u l2 error
-        y = self.u_l2_errors
+        # check if running averages are computed
+        if not hasattr(self, 'run_avg_u_l2_errors'):
+            self.compute_running_averages(n_iter_avg=1)
+
+        # iterations
+        x = np.arange(self.n_iterations)[self.n_iter_avg - 1:]
+
+        # u l2 error
+        y = self.run_avg_u_l2_errors
+
+        # u l2 error figure
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
@@ -861,20 +869,6 @@ class StochasticOptimizationMethod:
         fig.set_xlabel('SGD iterations')
         fig.set_plot_scale('semilogy')
         fig.plot(x, y, self.labels[0], self.colors[0], self.linestyles[0])
-
-        # plot running averages u l2 errors
-        if not hasattr(self, 'run_avg_u_l2_errors'):
-            return
-
-        y = self.run_avg_u_l2_errors
-        fig = plt.figure(
-            FigureClass=MyFigure,
-            dir_path=self.dir_path,
-            file_name='u-l2-error-avg',
-        )
-        fig.set_xlabel('SGD iterations')
-        fig.set_plot_scale('semilogy')
-        fig.plot(x[self.n_iter_avg - 1:], y, self.labels[0], self.colors[0], self.linestyles[0])
 
     def plot_u_l2_error_change(self):
         '''
