@@ -121,6 +121,8 @@ def main():
         # 2d plots
         elif sample.n == 2:
             meta.plot_2d_update()
+            meta.plot_nd_ith_coordinate_update(i=0)
+            meta.plot_nd_ith_coordinate_update(i=1)
             meta.plot_2d_means()
 
         # 3d plots
@@ -129,8 +131,10 @@ def main():
 
         # nd plots
         else:
+            pass
             meta.plot_nd_means()
-
+            meta.plot_nd_ith_coordinate_update(i=0)
+            meta.plot_nd_ith_coordinate_update(i=1)
 
 if __name__ == "__main__":
     main()

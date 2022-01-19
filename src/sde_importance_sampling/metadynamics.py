@@ -510,7 +510,7 @@ class Metadynamics:
                     if x_i == 0:
                         mean_str += '{:2.2f}'.format(mean[x_i])
                     else:
-                        mean_str += ', {:2.2[}'.format(mean[x_i])
+                        mean_str += ', {:2.2f}'.format(mean[x_i])
                 mean_str += ')'
 
                 f.write('i={:d}, j={:d}, mu_j={}\n'.format(i, j, mean_str))
@@ -550,7 +550,7 @@ class Metadynamics:
         h, m, s = get_time_in_hms(self.ct)
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
 
-        #self.write_means(f)
+        self.write_means(f)
         f.close()
 
         # print file
@@ -691,10 +691,7 @@ class Metadynamics:
 
         # plot bias potential
         else:
-            if self.meta_type == 'ind':
-                self.set_ansatz_averaged()
-            elif self.meta_type == 'cum':
-                self.set_ansatz_cumulative()
+            self.set_ansatz()
 
             # set plot dir path and file extension
             plot_dir_path = self.dir_path
@@ -810,7 +807,7 @@ class Metadynamics:
         fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-2, 2)
         fig.set_ylim(-2, 2)
-        #fig.set_contour_levels_scale('log')
+        fig.set_contour_levels_scale('linear')
         fig.contour(X, Y, self.sample.grid_value_function)
 
         # plot controlled potential
@@ -823,7 +820,7 @@ class Metadynamics:
         fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-2, 2)
         fig.set_ylim(-2, 2)
-        fig.set_contour_levels_scale('log')
+        fig.set_contour_levels_scale('linear')
         fig.contour(X, Y, self.sample.grid_controlled_potential)
 
         # plot control
@@ -839,6 +836,89 @@ class Metadynamics:
         fig.set_xlim(-1.5, 1.5)
         fig.set_ylim(-1.5, 1.5)
         fig.vector_field(X, Y, U, V, scale=30)
+
+    def plot_nd_ith_coordinate_update(self, j=None, update=None, i=0, x_j=0.):
+        from figures.myfigure import MyFigure
+
+        # plot given update for the chosen trajectory
+        if j is not None:
+            # number of updates of i meta trajectory
+            n_updates = self.ms[j]
+            updates = np.arange(n_updates)
+
+            # if update not given choose last update
+            if update is None:
+                update = updates[-1]
+
+            assert update in updates, ''
+
+            # set plot dir path and file extension
+            self.set_updates_dir_path()
+            plot_dir_path = self.updates_dir_path
+            ext = '_update{}'.format(update)
+
+            # set ansatz
+            self.set_ansatz_trajectory(j, update)
+
+        # plot bias potential
+        else:
+            self.set_ansatz()
+
+            # set plot dir path and file extension
+            plot_dir_path = self.dir_path
+            ext = ''
+
+        # discretize domain and evaluate in grid
+        self.sample.discretize_domain_ith_coordinate(h=0.01)
+        self.sample.get_grid_value_function_i(i=i, x_j=x_j)
+        self.sample.get_grid_control_i(i=i, x_j=x_j)
+
+        # colors and labels
+        if j is not None and update is not None:
+            labels = [r'meta (trajectory: {}, update: {})'.format(j, update)]
+        elif j is None and update is not None:
+            labels = [r'meta (update: {})'.format(update)]
+        elif j is not None and update is None:
+            labels = [r'meta (trajectory: {})'.format(j)]
+        elif j is None and update is None:
+            labels = [r'meta']
+
+        # domain
+        x = self.sample.domain_i_h
+
+        # plot value function
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=plot_dir_path,
+            file_name='value-function-x{:d}'.format(i+1) + ext,
+        )
+        y = self.sample.grid_value_function_i
+        fig.set_xlabel(r'$x_{:d}$'.format(i+1))
+        fig.set_xlim(-2, 2)
+        fig.plot(x, y, labels)
+
+        # plot controlled potential
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=plot_dir_path,
+            file_name='controlled-potential-x{:d}'.format(i+1) + ext,
+        )
+        y = self.sample.grid_controlled_potential_i
+        fig.set_xlabel(r'$x_{:d}$'.format(i+1))
+        fig.set_xlim(-2, 2)
+        fig.plot(x, y, labels)
+
+        # plot control
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=plot_dir_path,
+            file_name='control-x{:d}'.format(i+1) + ext,
+        )
+        y = self.sample.grid_control_i
+        fig.set_xlabel(r'$x_{:d}$'.format(i+1))
+        fig.set_xlim(-2, 2)
+        fig.plot(x, y, labels)
+
 
     def plot_n_gaussians(self, dir_path=None, n_iter_avg=10):
         ''' plot number of gaussians added at each trajectory
@@ -968,7 +1048,8 @@ class Metadynamics:
         plt.scatter(x, y)
         plt.xlim(-2, 2)
         plt.ylim(-2, 2)
-        plt.show()
+        fig.set_xlabel(r'$x_{:d}$'.format(i+1))
+        fig.set_ylabel(r'$x_{:d}$'.format(j+1))
         plt.savefig(fig.file_path)
         plt.close()
 

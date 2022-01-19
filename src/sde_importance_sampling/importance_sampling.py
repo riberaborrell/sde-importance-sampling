@@ -1425,8 +1425,12 @@ class Sampling(LangevinSDE):
 
         # gaussian ansatz
         elif self.is_controlled and self.ansatz is not None:
-            # set value f constant
-            self.ansatz.set_value_function_constant_corner()
+
+            # set value function constant
+            if self.potential_name == 'nd_well':
+                self.ansatz.set_value_function_constant_corner()
+            elif self.potential_name == 'nd_well_asym':
+                self.ansatz.set_value_function_target_set()
 
             # bias potential and value function
             self.grid_bias_potential = self.bias_potential(x).reshape(self.Nx)
@@ -1436,6 +1440,36 @@ class Sampling(LangevinSDE):
         if self.grid_bias_potential is not None:
             # controlled potential
             self.grid_controlled_potential = self.grid_potential + self.grid_bias_potential
+
+    def get_grid_value_function_i(self, i=0, x_j=0.):
+        ''' computes the value of the value function and the bias potential along the i-th
+            coordinate evaluated at x_j for all j != i.
+        '''
+
+        # inputs
+        x = x_j * np.ones((self.Nh, self.n))
+        x[:, i] = self.domain_i_h
+
+        # potential
+        self.grid_potential_i = self.potential(x)
+
+        # bias potential
+        if not self.is_controlled:
+            # bias potential and value function
+            self.grid_bias_potential_i = np.zeros(self.Nh)
+            self.grid_value_function_i = np.zeros(self.Nh)
+
+        # gaussian ansatz
+        elif self.is_controlled and self.ansatz is not None:
+
+            # bias potential and value function
+            self.grid_bias_potential_i = self.bias_potential(x)
+            self.grid_value_function_i = self.ansatz.value_function(x)
+
+        # controlled potential
+        if self.grid_bias_potential_i is not None:
+            # controlled potential
+            self.grid_controlled_potential_i = self.grid_potential_i + self.grid_bias_potential_i
 
     def get_grid_control(self):
         # flattened domain_h
@@ -1462,7 +1496,7 @@ class Sampling(LangevinSDE):
         self.grid_controlled_drift = - self.grid_gradient + np.sqrt(2) * self.grid_control
 
     def get_grid_control_i(self, i=0, x_j=0., k=None):
-        ''' returns the value of the control along the i-th coordinate evaluated at x_j
+        ''' computes the value of the control along the i-th coordinate evaluated at x_j
             for all j != i. In case of working with the deterministic time horizont framework
             the control is evaluated at time k
         '''
