@@ -1,11 +1,18 @@
 from sde_importance_sampling.functions import mvn_pdf, mvn_pdf_gradient
 from sde_importance_sampling.gaussian_ansatz_functions import GaussianAnsatz
+from sde_importance_sampling.utils_path import get_tests_plots_dir
 
 import numpy as np
 import scipy.stats as stats
 import pytest
 
 class TestGaussianAnsatzFunctions:
+
+    @pytest.fixture
+    def dir_path(self):
+        ''' returns dir path for the test plots
+        '''
+        return get_tests_plots_dir()
 
     @pytest.fixture
     def random_inputs(self, N, n):
@@ -221,4 +228,71 @@ class TestGaussianAnsatzFunctions:
 
         assert mvn_pdf_gradient_basis.shape == mvn_pdf_gradient_basis_test.shape
         assert np.isclose(mvn_pdf_gradient_basis, mvn_pdf_gradient_basis_test).all()
+
+    def test_mvn_pdf_1d_plot(self, dir_path, beta):
+
+        # set dimension
+        n = 1
+
+        # set 1 center
+        means = np.zeros((1, n))
+
+        # covariance matrix
+        cov = 0.5 * np.eye(n)
+
+        # initialize gaussian ansatz
+        ansatz = GaussianAnsatz(n, beta, normalized=False)
+
+        # set gaussians
+        ansatz.set_given_ansatz_functions(means, cov)
+
+        # plot
+        ansatz.dir_path = dir_path
+        ansatz.plot_1d_multivariate_normal_pdf(domain=np.array([[-3, 3]]))
+
+    def test_mvn_pdf_2d_plot(self, dir_path, beta):
+
+        # set dimension
+        n = 2
+
+        # set 1 center
+        means = np.zeros((1, n))
+
+        # covariance matrix
+        cov = 0.5 * np.eye(n)
+
+        # initialize gaussian ansatz
+        ansatz = GaussianAnsatz(n, beta, normalized=False)
+
+        # set gaussians
+        ansatz.set_given_ansatz_functions(means, cov)
+
+        # plot
+        ansatz.dir_path = dir_path
+        ansatz.plot_2d_multivariate_normal_pdf(domain=np.array([[-3, 3], [-3, 3]]))
+
+    def test_mvn_pdf_nd_plot(self, dir_path, beta):
+
+        # set dimension
+        n = 10
+
+        # set 1 center
+
+        # set 1 center
+        means = np.zeros((1, n))
+
+        # covariance matrix
+        cov = 0.5 * np.eye(n)
+
+        # initialize gaussian ansatz
+        ansatz = GaussianAnsatz(n, beta, normalized=False)
+
+        # set gaussians
+        ansatz.set_given_ansatz_functions(means, cov)
+
+        # plot
+        ansatz.dir_path = dir_path
+        ansatz.plot_nd_multivariate_normal_pdf(i=0)
+        ansatz.plot_nd_multivariate_normal_pdf(i=1)
+
 

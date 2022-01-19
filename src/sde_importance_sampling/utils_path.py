@@ -17,6 +17,11 @@ def get_data_dir():
     project_path = get_project_dir()
     return os.path.join(project_path, 'data')
 
+def get_tests_plots_dir():
+    ''' returns the absolute path of the directory for the tests plots
+    '''
+    return os.path.join(get_data_dir(), 'tests')
+
 def make_dir_path(dir_path):
     ''' create directories of the given path if they do not already exist
     '''

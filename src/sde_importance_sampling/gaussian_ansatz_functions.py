@@ -394,44 +394,48 @@ class GaussianAnsatz():
 
         f.write('m: {:d}\n\n'.format(self.m))
 
-    def plot_1d_multivariate_normal_pdf(self, j):
+    def plot_1d_multivariate_normal_pdf(self, domain):
         from figures.myfigure import MyFigure
+        import matplotlib.pyplot as plt
 
         assert self.n == 1, ''
+        assert self.m == 1, ''
+
         h = 0.01
-        grid_input = [slice(self.domain[0, 0], self.domain[0, 1] + h, h)]
+        grid_input = [slice(domain[0, 0], domain[0, 1] + h, h)]
         pos = np.mgrid[grid_input]
         pos = np.moveaxis(pos, 0, -1)
         x = pos[:, 0]
         Nx = x.shape[0]
 
-        #mvn_pdf_j = mvn_pdf(pos, self.means[j], self.cov)
-        #grad_mvn_pdf_j = mvn_pdf_gradient(pos, self.means[j], self.cov)
         mvn_pdf = self.mvn_pdf_basis(pos, self.means, self.cov)
         grad_mvn_pdf = - np.sqrt(2) * self.mvn_pdf_gradient_basis(pos, self.means, self.cov)
 
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
-            file_name='gaussian' + '_j{:d}'.format(j),
+            file_name='gaussian-1d',
         )
-        fig.plot(x, mvn_pdf[:, j])
+        fig.plot(x, mvn_pdf[:, 0])
 
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
-            file_name='gaussian-grad' + '_j{:d}'.format(j),
+            file_name='gaussian-grad-1d',
         )
-        fig.plot(x, grad_mvn_pdf[:, j, 0])
+        fig.plot(x, grad_mvn_pdf[:, 0, 0])
 
-    def plot_2d_multivariate_normal_pdf(self, j):
+    def plot_2d_multivariate_normal_pdf(self, domain):
         from figures.myfigure import MyFigure
+        import matplotlib.pyplot as plt
 
         assert self.n == 2, ''
+        assert self.m == 1, ''
+
         h = 0.1
         grid_input = [
-            slice(self.domain[0, 0], self.domain[0, 1] + h, h),
-            slice(self.domain[1, 0], self.domain[1, 1] + h, h),
+            slice(domain[0, 0], domain[0, 1] + h, h),
+            slice(domain[1, 0], domain[1, 1] + h, h),
         ]
         xx, yy = np.ogrid[grid_input]
         X, Y = np.mgrid[grid_input]
@@ -439,21 +443,50 @@ class GaussianAnsatz():
         Ny = Y.shape[1]
         pos = np.mgrid[grid_input]
         pos = np.moveaxis(pos, 0, -1).reshape(Nx * Ny, 2)
-        #mvn_pdf_j = mvn_pdf(pos, self.means[j], self.cov).reshape(Nx, Ny)
-        #grad_mvn_pdf_j = mvn_pdf_gradient(pos, self.means[j], self.cov).reshape(Nx, Ny, 2)
+
         mvn_pdf = self.mvn_pdf_basis(pos, self.means, self.cov).reshape(Nx, Ny, self.m)
         grad_mvn_pdf = - np.sqrt(2) * self.mvn_pdf_gradient_basis(pos, self.means, self.cov).reshape(Nx, Ny, self.m, 2)
 
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
-            file_name='gaussian' + '_j{:d}'.format(j),
+            file_name='gaussian-2d',
         )
-        fig.contour(X, Y, mvn_pdf[:, :, j])
+        fig.contour(X, Y, mvn_pdf[:, :, 0])
 
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
-            file_name='grad-gaussian' + '_j{:d}'.format(j)
+            file_name='gaussian-grad-2d',
         )
-        fig.vector_field(X, Y, grad_mvn_pdf[:, :, j, 0], grad_mvn_pdf[:, :, j, 1], scale=1)
+        fig.vector_field(X, Y, grad_mvn_pdf[:, :, 0, 0], grad_mvn_pdf[:, :, 0, 1], scale=1)
+
+    def plot_nd_multivariate_normal_pdf(self, i=0, domain_i=[-3, 3], x_j=0.):
+        from figures.myfigure import MyFigure
+        import matplotlib.pyplot as plt
+
+        assert self.m == 1, ''
+
+        h = 0.1
+        domain_i_h = np.arange(domain_i[0], domain_i[1] + h, h)
+        Nh = domain_i_h.shape[0]
+
+        x = x_j * np.ones((Nh, self.n))
+        x[:, i] = domain_i_h
+
+        mvn_pdf_i = self.mvn_pdf_basis(x, self.means, self.cov)[:, 0]
+        grad_mvn_pdf_i = - np.sqrt(2) * self.mvn_pdf_gradient_basis(x, self.means, self.cov)[:, 0, i]
+
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='gaussian-nd-x{:d}'.format(i+1),
+        )
+        fig.plot(domain_i_h, mvn_pdf_i)
+
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='gaussian-grad-nd-x{:d}'.format(i+1),
+        )
+        fig.plot(domain_i_h, grad_mvn_pdf_i)
