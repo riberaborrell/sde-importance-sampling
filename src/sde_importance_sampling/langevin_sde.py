@@ -195,7 +195,7 @@ class LangevinSDE(object):
 
 
     def set_domain(self, domain):
-        ''' set domain. check if it is an hypercube
+        ''' set domain. Check if it is an hypercube.
         '''
         # set default domain
         if domain is None:
@@ -256,17 +256,16 @@ class LangevinSDE(object):
             N *= self.Nx[i]
         self.Nh = N
 
-    def discretize_domain_1d(self, h=None):
-        ''' this method discretizes the i-th domain coordinate
+    def discretize_domain_ith_coordinate(self, i=0, h=None):
+        ''' this method discretizes the i-th domain coordinate with discretization step h
         '''
-        assert self.is_domain_hypercube, ''
+        assert i in range(self.n), ''
 
         if h is not None:
             self.h = h
         assert self.h is not None, ''
 
-        self.domain_i_h = np.arange(self.domain[0, 0], self.domain[0, 1] + h, h)
-        #self.domain_i_h = np.expand_dims(self.domain_i_h, 1)
+        self.domain_i_h = np.arange(self.domain[i, 0], self.domain[i, 1] + h, h)
         self.Nh = self.domain_i_h.shape[0]
 
     def sample_domain_uniformly(self, N):

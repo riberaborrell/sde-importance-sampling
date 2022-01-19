@@ -171,7 +171,8 @@ class StochasticOptimizationMethod:
 
         # losses
         self.losses = self.losses[:self.n_iterations]
-        self.vars_loss = self.vars_loss[:self.n_iterations]
+        if self.vars_loss is not None:
+            self.vars_loss = self.vars_loss[:self.n_iterations]
         if self.sample.ansatz is not None:
             self.grad_losses = self.grad_losses[:self.n_iterations, :]
 
@@ -330,7 +331,8 @@ class StochasticOptimizationMethod:
 
         # loss and its variance
         files_dict['losses'] = self.losses
-        files_dict['vars_loss'] = self.vars_loss
+        if self.vars_loss is not None:
+            files_dict['vars_loss'] = self.vars_loss
 
         if self.ipa_losses is not None:
             files_dict['ipa_losses'] = self.ipa_losses
@@ -385,9 +387,10 @@ class StochasticOptimizationMethod:
         )
 
         # variance of loss
-        self.run_avg_vars_loss = np.convolve(
-            self.vars_loss, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
-        )
+        if self.vars_loss is not None:
+            self.run_avg_vars_loss = np.convolve(
+                self.vars_loss, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
+            )
 
         # mean I^u
         self.run_avg_means_I_u = np.convolve(
@@ -885,21 +888,79 @@ class StochasticOptimizationMethod:
         fig.set_xlabel('SGD iterations')
         fig.plot(x, y, self.labels[0], self.colors[0], self.linestyles[0])
 
-    def plot_control_i_t(self, i, t):
+    def compute_cts_sum(self):
+        self.cts_sum = np.array([np.sum(self.cts[:i]) for i in range(self.n_iterations+1)])
+
+    def plot_re_I_u_cts(self):
         '''
         '''
         from figures.myfigure import MyFigure
 
-        # load last iteration
-        #self.sample.nn_func_appr.model.load_parameters(self.thetas[-1])
-        self.sample.nn_func_appr.model.load_parameters(self.last_thetas)
+        # check if running averages are computed
+        #if not hasattr(self, 'run_avg_res_I_u'):
+        #    self.compute_running_averages(n_iter_avg=1)
+
+        # computational time used
+        x = self.cts_sum[:-1]
+
+        # re I^u, mc sampling, hjb sampling and hjb solution
+        y = self.res_I_u
+
+        # relative error figure
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='ct-re',
+        )
+        fig.set_title(r'${re}_N(I^u)$')
+        fig.set_xlabel('CT (s)')
+        fig.set_plot_scale('semilogy')
+        fig.plot(x, y)
+
+    def plot_control_i(self, it=-1, i=0, x_j=0.):
+        '''
+        '''
+        from figures.myfigure import MyFigure
+
+        # load given iteration
+        self.sample.nn_func_appr.model.load_parameters(self.thetas[it])
+
+        # get control
+        self.sample.discretize_domain_ith_coordinate(h=0.01)
+        self.sample.get_grid_control_i(i=i, x_j=x_j)
+
+        x = self.sample.domain_i_h
+        y = self.sample.grid_control_i
+
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='control-{:d}'.format(i+1),
+        )
+        fig.set_xlabel(r'$x_{:d}$'.format(i+1))
+        fig.plot(x, y)
+
+
+    def plot_control_i_det(self, it=-1, i=0, t=None):
+        '''
+        '''
+        from figures.myfigure import MyFigure
+
+        assert t is not None, ''
+
+
+
+        #TODO! adapat for det-t. check for thetas of last_thetas
+        # load given iteration
+        self.sample.nn_func_appr.model.load_parameters(self.thetas[it])
+        #self.sample.nn_func_appr.model.load_parameters(self.last_thetas)
 
         # get time index
         k = self.sample.get_time_index(t)
 
         # get control
-        self.sample.discretize_domain_1d(h=0.01)
-        self.sample.get_grid_control_i(k=k)
+        self.sample.discretize_domain_ith_coordinate(h=0.01)
+        self.sample.get_grid_control_i(i=i, k=k)
 
         # get hjb solution
         sol_hjb = self.sample.get_hjb_solver_det(h=0.01, dt=0.005)
@@ -1172,7 +1233,7 @@ class StochasticOptimizationMethod:
         fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-1.5, 1.5)
         fig.set_ylim(-1.5, 1.5)
-        fig.vector_field(X, Y, U, V, scale=30)
+        fig.vector_field(X, Y, U, V, scale=10)
 
         # plot controlled drift
         U = self.sample.grid_controlled_drift[:, :, 0]

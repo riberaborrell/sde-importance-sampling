@@ -1461,17 +1461,39 @@ class Sampling(LangevinSDE):
         # controlled drift
         self.grid_controlled_drift = - self.grid_gradient + np.sqrt(2) * self.grid_control
 
-    def get_grid_control_i(self, i=0, k=0):
+    def get_grid_control_i(self, i=0, x_j=0., k=None):
+        ''' returns the value of the control along the i-th coordinate evaluated at x_j
+            for all j != i. In case of working with the deterministic time horizont framework
+            the control is evaluated at time k
+        '''
+        # check if time step k is given for the deterministic time horizont problem
+        if self.problem_name == 'langevin_det-t':
+            assert k is not None, ''
 
         # inputs
-        x = np.zeros((self.Nh, self.n))
+        x = x_j * np.ones((self.Nh, self.n))
         x[:, i] = self.domain_i_h
+
+        # gaussian ansatz control
+        if self.ansatz is not None:
+
+            # evaluate control
+            control = self.ansatz.control(x)
 
         # nn control
         if self.nn_func_appr is not None:
+
+            # tensorize inputs
             inputs = torch.tensor(x, dtype=torch.float)
-            control = self.nn_func_appr.model(k, inputs).detach().numpy()
-            self.grid_control_i = control[:, i]
+
+            # evaluate control
+            if self.problem_name == 'langevin_det-t':
+                control = self.nn_func_appr.model(k, inputs).detach().numpy()
+            elif self.problem_name == 'langevin_stop-t':
+                control = self.nn_func_appr.model(inputs).detach().numpy()
+
+        # get i-th coordinate
+        self.grid_control_i = control[:, i]
 
     def plot_trajectory(self):
         from figures.myfigure import MyFigure
