@@ -437,7 +437,8 @@ class Metadynamics:
             cov=self.cov,
         )
         self.sample.ansatz.theta = self.omegas[idx] * self.sample.beta / 2
-        self.sample.ansatz.set_value_function_constant_corner()
+        self.sample.ansatz.set_value_function_constant_to_zero()
+        #self.sample.ansatz.set_value_function_constant_corner()
 
     def set_ansatz(self):
         '''
@@ -637,6 +638,7 @@ class Metadynamics:
             dir_path=self.dir_path,
             file_name='value-function' + ext,
         )
+        fig.set_title(r'$\Phi^{meta}(x)$')
         fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
         fig.plot(x, value_fs, labels=labels, colors=colors)
@@ -661,7 +663,7 @@ class Metadynamics:
             file_name='control' + ext,
         )
         controls[-1, :] = sol_hjb.u_opt[:, 0]
-        fig.set_title(r'$u(x ; \theta)$')
+        fig.set_title(r'$u^{meta}(x)$')
         fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
         fig.plot(x, controls, labels=labels, colors=colors)
@@ -803,10 +805,12 @@ class Metadynamics:
             dir_path=plot_dir_path,
             file_name='value-function' + ext,
         )
+        fig.set_title(r'$\Phi^{meta}(x)$')
         fig.set_xlabel(r'$x_1$')
         fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-2, 2)
         fig.set_ylim(-2, 2)
+        fig.set_colormap('Blues_r', start=0.10, stop=1.)
         fig.set_contour_levels_scale('linear')
         fig.contour(X, Y, self.sample.grid_value_function)
 
@@ -816,10 +820,12 @@ class Metadynamics:
             dir_path=plot_dir_path,
             file_name='controlled-potential' + ext,
         )
+        fig.set_title(r'$V(x) + V_b^{meta}(x)$')
         fig.set_xlabel(r'$x_1$')
         fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-2, 2)
         fig.set_ylim(-2, 2)
+        fig.set_colormap('Blues_r', start=0.10, stop=1.)
         fig.set_contour_levels_scale('linear')
         fig.contour(X, Y, self.sample.grid_controlled_potential)
 
@@ -831,6 +837,7 @@ class Metadynamics:
             dir_path=plot_dir_path,
             file_name='control' + ext,
         )
+        fig.set_title(r'$u^{meta}(x)$')
         fig.set_xlabel(r'$x_1$')
         fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-1.5, 1.5)
@@ -886,13 +893,14 @@ class Metadynamics:
         # domain
         x = self.sample.domain_i_h
 
-        # plot value function
+        # plot bias potential 
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=plot_dir_path,
-            file_name='value-function-x{:d}'.format(i+1) + ext,
+            file_name='bias-potential-x{:d}'.format(i+1) + ext,
         )
-        y = self.sample.grid_value_function_i
+        y = self.sample.grid_bias_potential_i
+        fig.set_title(r'$V_b^{meta}(x)$')
         fig.set_xlabel(r'$x_{:d}$'.format(i+1))
         fig.set_xlim(-2, 2)
         fig.plot(x, y, labels)
@@ -904,6 +912,19 @@ class Metadynamics:
             file_name='controlled-potential-x{:d}'.format(i+1) + ext,
         )
         y = self.sample.grid_controlled_potential_i
+        fig.set_title(r'$V(x) + V_b^{meta}(x)$')
+        fig.set_xlabel(r'$x_{:d}$'.format(i+1))
+        fig.set_xlim(-2, 2)
+        fig.plot(x, y, labels)
+
+        # plot value function
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=plot_dir_path,
+            file_name='value-function-x{:d}'.format(i+1) + ext,
+        )
+        y = self.sample.grid_value_function_i
+        fig.set_title(r'$\Phi^{meta}(x)$')
         fig.set_xlabel(r'$x_{:d}$'.format(i+1))
         fig.set_xlim(-2, 2)
         fig.plot(x, y, labels)
@@ -915,6 +936,7 @@ class Metadynamics:
             file_name='control-x{:d}'.format(i+1) + ext,
         )
         y = self.sample.grid_control_i
+        fig.set_title(r'$u^{meta}(x)$')
         fig.set_xlabel(r'$x_{:d}$'.format(i+1))
         fig.set_xlim(-2, 2)
         fig.plot(x, y, labels)

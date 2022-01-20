@@ -314,6 +314,9 @@ class GaussianAnsatz():
                       * self.mvn_pdf_gradient_basis(x, self.means, self.cov)
         return basis_control
 
+    def set_value_function_constant_to_zero(self):
+        self.K_value_f = 0
+
     def set_value_function_constant_target_set(self):
 
         # discretize domain
