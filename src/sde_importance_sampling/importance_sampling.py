@@ -1529,43 +1529,36 @@ class Sampling(LangevinSDE):
         # get i-th coordinate
         self.grid_control_i = control[:, i]
 
-    def plot_trajectory(self):
+    def plot_trajectory(self, n_iter_avg=1, dir_path=None, file_name='trajectory'):
         from figures.myfigure import MyFigure
+
+        # set dir path
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        # initialize figure
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=dir_path,
+            file_name=file_name,
+        )
 
         # discretized time array
         traj_fhs = self.traj.shape[0]
         traj_fht = traj_fhs * self.dt
-        x = np.linspace(0, traj_fht, traj_fhs)
+        x = np.linspace(0, traj_fht, traj_fhs)[n_iter_avg - 1:]
 
         # coordinates
-        y = np.moveaxis(self.traj, 0, -1)
+        traj = np.moveaxis(self.traj, 0, -1)
 
-        # averaged
-        n_iter_avg = 50
-        x_avg = x[n_iter_avg - 1:]
-        y_avg = np.empty((self.n, traj_fhs - n_iter_avg + 1))
+        y = np.empty((self.n, traj_fhs - n_iter_avg + 1))
         for i in range(self.n):
-            y_avg[i] = np.convolve(y[i], np.ones(n_iter_avg) / n_iter_avg, mode='valid')
+            y[i] = np.convolve(traj[i], np.ones(n_iter_avg) / n_iter_avg, mode='valid')
 
-        labels = [r'$x_{}$'.format(i+1) for i in np.arange(self.n)]
+        labels = [r'$x_{:d}$'.format(i+1) for i in np.arange(self.n)]
 
-        fig = plt.figure(
-            FigureClass=MyFigure,
-            dir_path=self.dir_path,
-            file_name='trajectory',
-        )
-        fig.set_xlabel(r'$t$')
-        fig.set_ylim(-1.5, 1.5)
-        fig.plot(x, y, labels=labels)
-
-        fig = plt.figure(
-            FigureClass=MyFigure,
-            dir_path=self.dir_path,
-            file_name='trajectory-avg',
-        )
         fig.set_title(r'trajectory')
         fig.set_xlabel(r'$t$')
-        fig.set_ylabel(r'$x_i$')
         fig.set_ylim(-1.5, 1.5)
         plt.subplots_adjust(left=0.14, right=0.96, bottom=0.12)
-        fig.plot(x_avg, y_avg, labels=labels)
+        fig.plot(x, y, labels=labels)
