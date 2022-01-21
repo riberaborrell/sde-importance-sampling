@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
+import time
 import os
 
 
@@ -20,9 +21,9 @@ class FunctionApproximation():
         self.initialization = initialization
         self.training_algorithm = training_algorithm
 
-        self.dir_path = None
-
     def set_dir_path(self, root_dir_path):
+        '''
+        '''
 
         # initialization
         if self.initialization == 'meta':
@@ -30,31 +31,25 @@ class FunctionApproximation():
         else:
             initialization_str = 'theta_{}'.format(self.initialization)
 
-        # training algorithm
-        #if self.training_algorithm is None:
-        #    training_alg_str = ''
-        #elif self.training_algorithm == 'classic':
-        #    training_alg_str = 'train_classic'
-        #elif self.training_algorithm == 'train_alternative':
-        #    training_alg_str = ''
-        #else:
-        #    return
-
         self.dir_path = os.path.join(
             root_dir_path,
             'appr_{}'.format(self.target_function),
             self.model.get_rel_path(),
             initialization_str,
-            #training_alg_str,
         )
 
     def reset_parameters(self):
+        ''' reset parameters of the chosen model. The weights are chosen "random". See
+            pytorch documentation for details.
+        '''
         self.initialization = 'random'
         for layer in self.model.children():
            if hasattr(layer, 'reset_parameters'):
                layer.reset_parameters()
 
     def zero_parameters(self):
+        ''' set parameters of the chosen model to zero.
+        '''
         self.initialization = 'null'
         for layer in self.model.children():
             for key in layer._parameters:
@@ -62,16 +57,17 @@ class FunctionApproximation():
                     layer._parameters[key], requires_grad=True
                 )
 
+    def start_timer(self):
+        self.ct_initial = time.perf_counter()
+
+    def stop_timer(self):
+        self.ct_final = time.perf_counter()
+        self.ct = self.ct_final - self.ct_initial
+
+
     def train_parameters(self, sde=None, sol_hjb=None, meta=None):
-        if self.training_algorithm == 'classic':
-            self.train_parameters_classic(sde, sol_hjb, meta)
-        elif self.training_algorithm == 'alternative':
-            self.train_parameters_alternative(sde, sol_hjb, meta)
-        else:
-            return
-
-    def train_parameters_classic(self, sde=None, sol_hjb=None, meta=None):
-
+        ''' train parameters such that our model approximates the chosen target function.
+        '''
         # assume type of initialization
         assert self.initialization in ['not-controlled', 'meta', 'hjb'], ''
 
@@ -80,6 +76,38 @@ class FunctionApproximation():
         if succ:
             print('\nnn already trained with {}.\n'.format(self.initialization))
             return
+
+        # start timer
+        self.start_timer()
+
+        # get dimension of the problem
+        if self.initialization == 'not-controlled':
+            assert sde is not None, ''
+            self.n = sde.n
+        elif self.initialization == 'meta':
+            assert meta is not None, ''
+            self.n = meta.sample.n
+        elif self.initialization == 'hjb':
+            assert sol_hjb is not None, ''
+            self.n = sol_hjb.n
+
+        # choose training algorithm
+        if self.training_algorithm == 'classic':
+            self.train_parameters_classic(sde, sol_hjb, meta)
+        elif self.training_algorithm == 'alternative':
+            self.train_parameters_alternative(sde, sol_hjb, meta)
+        else:
+            return
+
+        # stop timer
+        self.stop_timer()
+
+        # save nn training parameters and statistics
+        self.save_trained_parameters(self.dir_path)
+
+    def train_parameters_classic(self, sde=None, sol_hjb=None, meta=None):
+        '''
+        '''
 
         # set sgd parameters
         self.n_iterations_lim = 10**3
@@ -94,26 +122,14 @@ class FunctionApproximation():
             self.model.parameters(),
             lr=0.01,
         )
-
-        # get dimension of the problem
-        if self.initialization == 'not-controlled':
-            assert sde is not None, ''
-            n = sde.n
-        elif self.initialization == 'meta':
-            assert meta is not None, ''
-            n = meta.sample.n
-        elif self.initialization == 'hjb':
-            assert sol_hjb is not None, ''
-            n = sol_hjb.n
-
         # choose discretization size depending on n 
-        if n == 1:
+        if self.n == 1:
             h = 0.001
-        elif n == 2:
+        elif self.n == 2:
             h = 0.005
-        elif n == 3:
+        elif self.n == 3:
             h = 0.05
-        elif n == 4:
+        elif self.n == 4:
             h = 0.1
         else:
             msg = '\n this approximation method is not implemented for n = {:d}.\n' \
@@ -148,14 +164,15 @@ class FunctionApproximation():
 
         # zero control
         if self.initialization == 'not-controlled':
-            target_train = np.zeros((self.N_train, n))
-            target_test = np.zeros((self.N_test, n))
+            target_train = np.zeros((self.N_train, self.n))
+            target_test = np.zeros((self.N_test, self.n))
 
         # metadynamics
         elif self.initialization == 'meta':
 
             # create ansatz functions with meta parameters
-            meta.sample.ansatz = GaussianAnsatz(n=n, beta=meta.sample.beta, normalized=False)
+            meta.sample.ansatz = GaussianAnsatz(n=self.n, beta=meta.sample.beta,
+                                                normalized=False)
             meta.set_ansatz()
 
             # evaluation
@@ -214,36 +231,9 @@ class FunctionApproximation():
         # number of iterations used
         self.n_iterations = i
 
-        # save parameters
-        self.theta = self.model.get_parameters()
-
-        # save nn training
-        self.save_trained_parameters(self.dir_path)
-
     def train_parameters_alternative(self, sde=None, sol_hjb=None, meta=None):
-
-        # assume type of initialization
-        assert self.initialization in ['not-controlled', 'meta', 'hjb'], ''
-
-        # load trained parameters if already computed
-        succ = self.load_trained_parameters(self.dir_path)
-        if succ:
-            print('\nnn already trained with metadynamics.\n')
-            return
-
-        # get dimension of the problem
-        if self.initialization == 'not-controlled':
-            assert sde is not None, ''
-            n = sde.n
-        elif self.initialization == 'meta':
-            assert meta is not None, ''
-            n = meta.sample.n
-        elif self.initialization == 'hjb':
-            assert sol_hjb is not None, ''
-            n = sol_hjb.n
-
-        # define loss
-        loss = nn.MSELoss()
+        '''
+        '''
 
         # set sgd parameters
 
@@ -255,6 +245,9 @@ class FunctionApproximation():
         self.N_train = 5 * 10**2
         self.losses_train = np.empty(self.n_iterations_lim)
 
+        # define mean square error loss
+        loss = nn.MSELoss()
+
         # define optimizer
         optimizer = optim.Adam(
             self.model.parameters(),
@@ -264,12 +257,12 @@ class FunctionApproximation():
         if self.initialization == 'meta':
 
             # create ansatz functions from meta
-            meta.sample.ansatz = GaussianAnsatz(n=n, normalized=False, beta=meta.sample.beta)
+            meta.sample.ansatz = GaussianAnsatz(n=self.n, normalized=False, beta=meta.sample.beta)
             meta.set_ansatz()
 
         # compute target function if target function is zero
         if self.initialization == 'not-controlled':
-            target = np.zeros((self.N_train, n))
+            target = np.zeros((self.N_train, self.n))
 
         for i in np.arange(self.n_iterations_lim):
 
@@ -321,11 +314,6 @@ class FunctionApproximation():
         # number of iterations used
         self.n_iterations = i
 
-        # save parameters
-        self.theta = self.model.get_parameters()
-
-        # save nn training
-        self.save_trained_parameters(self.dir_path)
 
     def save_trained_parameters(self, dir_path):
         '''
@@ -337,23 +325,29 @@ class FunctionApproximation():
         if not os.path.isdir(dir_path):
             os.makedirs(dir_path)
 
+        # model parameters after training
+        self.theta = self.model.get_parameters()
+
         # create dictionary
         files_dict = {}
 
         files_dict['training_algorithm'] = self.training_algorithm
+        files_dict['theta'] = self.theta
+        files_dict['n_iterations_lim'] = self.n_iterations_lim
 
         if self.training_algorithm == 'classic':
-            files_dict['n_iterations_lim'] = self.n_iterations_lim
             files_dict['N_data'] = self.N_data
-            files_dict['theta'] = self.theta
+            files_dict['N_train'] = self.N_train
+            files_dict['N_test'] = self.N_test
             files_dict['losses_train'] = self.losses_train
             files_dict['losses_test'] = self.losses_test
 
         else: # self.training_algorithm == 'alternative':
-            files_dict['n_iterations_lim'] = self.n_iterations_lim
             files_dict['N_train'] = self.N_train
-            files_dict['theta'] = self.theta
             files_dict['losses_train'] = self.losses_train
+
+        # computational time
+        files_dict['ct'] = self.ct
 
         # accouracy is fixed
         # files_dict['n_iterations' ] = self.n_iterations
@@ -393,3 +387,36 @@ class FunctionApproximation():
 
         if self.training_algorithm is not None:
             f.write('training-algorithm: {}\n'.format(self.training_algorithm))
+
+    def plot_mse_loss(self, dir_path=None, file_name='mse-loss'):
+        ''' for the classic training approach plots the training and the test loss. For
+            the alternative training approach plots just the training loss.
+        '''
+        import matplotlib.pyplot as plt
+        from figures.myfigure import MyFigure
+
+        # set dir path
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        # initialize figure
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=dir_path,
+            file_name=file_name,
+        )
+
+        # set number of iterations
+        x = np.arange(self.n_iterations_lim)
+
+        if self.training_algorithm == 'classic':
+            fig.ax.semilogy(x, self.losses_train, alpha=0.5, label='training')
+            fig.ax.semilogy(x, self.losses_test, alpha=0.5, label='test')
+        elif self.training_algorithm == 'alternative':
+            fig.ax.semilogy(x, self.losses_train, alpha=0.5, label='training')
+
+        fig.set_title('MSE loss')
+        fig.set_xlabel('SGD iterations')
+        #fig.set_legend_location('upper right')
+        fig.ax.legend()
+        plt.show()
