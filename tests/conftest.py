@@ -82,6 +82,13 @@ def pytest_addoption(parser):
         help='Set the diagonal of the covariance matrix of the ansatz functions. Default: 0.5',
     )
     parser.addoption(
+        '--lr',
+        dest='lr',
+        type=float,
+        default=0.01,
+        help='Set the learning rate. Default: 0.01',
+    )
+    parser.addoption(
         '--N',
         dest='N',
         type=int,
@@ -180,3 +187,7 @@ def d1(request):
 @pytest.fixture(scope='session')
 def h(request):
     return request.config.getoption('h')
+
+@pytest.fixture(scope='session')
+def lr(request):
+    return request.config.getoption('lr')

@@ -193,6 +193,23 @@ class LangevinSDE(object):
 
         return eucl_dist
 
+    def is_hypercube(self, subset):
+        ''' checks if the given subset (hyperrectangle) an hypercube is.
+        '''
+        # get subset dimension
+        n = subset.shape[0]
+
+        # 1d case
+        if n == 1:
+            return True
+
+        # nd case
+        lb = subset[0, 0]
+        rb = subset[0, 1]
+        for i in range(1, n):
+            if lb != subset[i, 0] or rb != subset[i, 1]:
+                return False
+        return True
 
     def set_domain(self, domain):
         ''' set domain. Check if it is an hypercube.
@@ -209,21 +226,8 @@ class LangevinSDE(object):
         assert domain.shape == (self.n, 2), ''
         self.domain = domain
 
-        # check if domain is a rectangle
-        # assume it is
-        self.is_domain_hypercube = True
-
-        # 1d case
-        if self.n == 1:
-            return
-
-        # nd case
-        lb = domain[0, 0]
-        rb = domain[0, 1]
-        for i in range(1, self.n):
-            if lb != domain[i, 0] or rb != domain[i, 1]:
-                self.is_domain_hypercube = False
-                return
+        # check if domain is an hypercube
+        self.is_domain_hypercube = self.is_hypercube(self.domain)
 
     def discretize_domain(self, h=None):
         ''' this method discretizes the hyper-rectangular domain uniformly with step-size h
@@ -268,13 +272,22 @@ class LangevinSDE(object):
         self.domain_i_h = np.arange(self.domain[i, 0], self.domain[i, 1] + h, h)
         self.Nh = self.domain_i_h.shape[0]
 
-    def sample_domain_uniformly(self, N):
+    def sample_domain_uniformly(self, N, subset=None):
+        ''' samples points from a subset of the domain uniformly
+        '''
+
+        # check if domain subset is given
+        if subset is None:
+            subset = self.domain
+
+        # multivariate uniform sampling
         x = np.random.uniform(
-            self.domain[:, 0],
-            self.domain[:, 1],
+            subset[:, 0],
+            subset[:, 1],
             (N, self.n),
         )
         return x
+
 
     def sample_multivariate_normal(self, mean, cov, N):
         mean_tensor = torch.tensor(mean, requires_grad=False)
