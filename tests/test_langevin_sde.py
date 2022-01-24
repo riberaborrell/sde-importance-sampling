@@ -19,6 +19,19 @@ class TestLangevinSDE:
         )
         return sde
 
+    def test_discretize_domain_h(self, sde, h):
+        ''' test domain discretization.
+        '''
+
+        # discretize domain
+        sde.discretize_domain(h)
+
+        # compute size of domain
+        domain_h_size = sde.domain_h.nbytes
+        domain_h_size = np.around(domain_h_size / 1024 / 1024, 2)
+
+        assert sde.Nh <=10**6
+
     def test_get_flat_domain_h(self, sde):
         sde.discretize_domain(h=0.1)
         flat_domain_h = sde.get_flat_domain_h()

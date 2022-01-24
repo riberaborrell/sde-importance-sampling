@@ -89,11 +89,32 @@ def pytest_addoption(parser):
         help='Set number of batch size. Default: 100',
     )
     parser.addoption(
+        '--N-train',
+        dest='N_train',
+        type=int,
+        default=1000,
+        help='Set number of points used for the training algorithms in the approximation' \
+             ' problem. Default: 1000',
+    )
+    parser.addoption(
+        '--dense',
+        dest='dense',
+        action='store_true',
+        help='Chooses a dense feed forward NN. Default: False',
+    )
+    parser.addoption(
         '--d1',
         dest='d1',
         type=int,
         default=10,
         help='Set dimmension of the first layer of the nn. Default: 10',
+    )
+    parser.addoption(
+        '--h',
+        dest='h',
+        type=float,
+        default=0.1,
+        help='Set discretization step',
     )
 
 @pytest.fixture(scope='session')
@@ -145,5 +166,17 @@ def N(request):
     return request.config.getoption('N')
 
 @pytest.fixture(scope='session')
+def N_train(request):
+    return request.config.getoption('N_train')
+
+@pytest.fixture(scope='session')
+def dense(request):
+    return request.config.getoption('dense')
+
+@pytest.fixture(scope='session')
 def d1(request):
     return request.config.getoption('d1')
+
+@pytest.fixture(scope='session')
+def h(request):
+    return request.config.getoption('h')

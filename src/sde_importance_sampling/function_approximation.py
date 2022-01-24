@@ -257,7 +257,7 @@ class FunctionApproximation():
         if self.initialization == 'meta':
 
             # create ansatz functions from meta
-            meta.sample.ansatz = GaussianAnsatz(n=self.n, normalized=False, beta=meta.sample.beta)
+            meta.sample.ansatz = GaussianAnsatz(n=self.n, beta=meta.sample.beta, normalized=False)
             meta.set_ansatz()
 
         # compute target function if target function is zero
