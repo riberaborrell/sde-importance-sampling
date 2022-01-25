@@ -264,6 +264,13 @@ def get_base_parser():
         help='Set number of trajectories to sample in the sgd. Default: 1000',
     )
     parser.add_argument(
+        '--N-train',
+        dest='N_train',
+        type=int,
+        default=1000,
+        help='Set number of points used in the approximation problem. Default: 1000',
+    )
+    parser.add_argument(
         '--do-u-l2-error',
         dest='do_u_l2_error',
         action='store_true',
