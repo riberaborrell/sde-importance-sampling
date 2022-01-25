@@ -11,14 +11,16 @@ import torch.nn as nn
 import torch.optim as optim
 import torch
 
+import time
 import os
 
 def get_parser():
     parser = get_base_parser()
     return parser
 
-def get_file_name(n_iterations_lim, N_train, lr):
+def get_file_name(n, n_iterations_lim, N_train, lr):
     file_name = ''
+    file_name += 'n-{:d}_'.format(n)
     file_name += 'n-iter-{:.0e}_'.format(n_iterations_lim)
     file_name += 'N-train-{:.0e}_'.format(N_train)
     file_name += 'lr-{:.0e}'.format(lr)
@@ -45,8 +47,16 @@ def load(file_name):
 def main():
     args = get_parser().parse_args()
 
+    # dimension
+    n = args.n
+
+    # sgd
+    n_iterations_lim = args.n_iterations_lim
+    N_train = args.N_train
+    lr = args.lr
+
     if args.load:
-        file_name = get_file_name(args.n_iterations_lim, args.N_train, args.lr)
+        file_name = get_file_name(n, n_iterations_lim, N_train, lr)
         data = load(file_name)
         x = data['x']
         target_function = data['target_at_x']
@@ -54,19 +64,20 @@ def main():
         breakpoint()
         return
 
+    # start timer
+    ct_initial = time.perf_counter()
+
     # initialize langevin sde object
-    n = 10
-    beta = 1
     sde = LangevinSDE(
         problem_name='langevin_stop-t',
         potential_name='nd_2well',
         n=n,
         alpha=np.full(n, 1.),
-        beta=beta,
+        beta=args.beta,
     )
 
     # init gaussian ansatz
-    ansatz = GaussianAnsatz(n, beta, normalized=False)
+    ansatz = GaussianAnsatz(n, args.beta, normalized=False)
 
     # set gaussian
     means = 0. * np.ones((1, n))
@@ -75,11 +86,6 @@ def main():
 
     # set weights
     ansatz.theta = 1. * np.ones(1)
-
-    # set sgd parameters
-    n_iterations_lim = args.n_iterations_lim
-    N_train = args.N_train
-    lr = args.lr
 
     # preallocate losses
     losses_train = np.empty(n_iterations_lim)
@@ -159,6 +165,9 @@ def main():
     target_at_x = ansatz.control(x)
     model_at_x = model.forward(x_tensor).detach().numpy()
 
+    # end timer
+    ct = time.perf_counter() - ct_initial
+
     # npz files dictionary
     files_dict = {
         'n_iterations_lim': n_iterations_lim,
@@ -169,12 +178,11 @@ def main():
         'x': x,
         'target_at_x': target_at_x,
         'model_at_x': model_at_x,
-        #'ct': ct,
+        'ct': ct,
     }
 
-    file_name = get_file_name(n_iterations_lim, N_train, lr)
+    file_name = get_file_name(n, n_iterations_lim, N_train, lr)
     save(file_name, files_dict)
-
 
 if __name__ == "__main__":
         main()
