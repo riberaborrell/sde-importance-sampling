@@ -977,46 +977,35 @@ class Metadynamics:
         plt.show()
         plt.savefig(fig.file_path)
 
-    def plot_fht(self, n_iter_avg=10):
-        ''' plot fht for each meta trajectory
+    def plot_time_steps(self, n_iter_avg=1):
+        ''' plot time steps used for each meta trajectory
         '''
         from figures.myfigure import MyFigure
 
         # trajectories
-        x = np.arange(self.N)
+        x = np.arange(self.N)[n_iter_avg-1:]
 
-        fig = plt.figure(
-            FigureClass=MyFigure,
-            dir_path=self.dir_path,
-            file_name='fht',
-        )
-        y = np.vstack((
-            self.time_steps,
-            np.full(self.N, self.k),
-        ))
-        labels = ['cumulative metadynamics', 'k']
-        fig.set_xlabel('trajectories')
-        fig.plot(x, y, labels=labels)
-        plt.savefig(fig.file_path)
-
-        # 
-        fig = plt.figure(
-            FigureClass=MyFigure,
-            dir_path=self.dir_path,
-            file_name='fht-avg',
-        )
-
-        time_steps_avg = np.convolve(
+        # compute running averages
+        run_avg_time_steps = np.convolve(
             self.time_steps, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
         )
+
         y = np.vstack((
-                time_steps_avg,
-                np.full(self.N, self.k)[n_iter_avg-1:],
+            run_avg_time_steps,
+            np.full(self.N, self.k)[n_iter_avg-1:],
         ))
+
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='time-steps',
+        )
         labels = ['cumulative metadynamics', 'k']
+        fig.set_title(r'TS')
         fig.set_xlabel('trajectories')
-        fig.plot(x[n_iter_avg-1:], y, labels=labels)
-        plt.savefig(fig.file_path)
+        fig.plot(x, y, labels=labels)
+        #plt.savefig(fig.file_path)
+
 
     def plot_2d_means(self):
         from figures.myfigure import MyFigure
