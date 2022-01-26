@@ -277,18 +277,25 @@ def get_base_parser():
         help='compute u l2 error. Default: False',
     )
     parser.add_argument(
-        '--d1',
-        dest='d1',
-        type=int,
-        default=20,
-        help='Set dimension of the hidden layer. Default: 20',
-    )
-    parser.add_argument(
         '--d-layers',
         nargs='+',
         dest='d_layers',
         type=int,
         help='Set dimensions of the NN inner layers',
+    )
+    parser.add_argument(
+        '--n-layers',
+        dest='n_layers',
+        type=int,
+        default=2,
+        help='Set number of hidden layers. Default: 2',
+    )
+    parser.add_argument(
+        '--d-layer',
+        dest='d_layer',
+        type=int,
+        default=30,
+        help='Set dimension of the hidden layers. Default: 30',
     )
     parser.add_argument(
         '--dense',
