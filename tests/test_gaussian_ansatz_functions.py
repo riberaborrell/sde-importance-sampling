@@ -14,11 +14,13 @@ class TestGaussianAnsatzFunctions:
         '''
         return get_tests_plots_dir()
 
+
     @pytest.fixture
     def random_inputs(self, N, n):
         '''generates random input data
         '''
         return np.random.rand(N, n)
+
 
     @pytest.fixture
     def gaussian_ansatz(self, n, beta):
@@ -26,12 +28,15 @@ class TestGaussianAnsatzFunctions:
         '''
         return GaussianAnsatz(n, beta)
 
+
     def normal_pdf(self, x, mu, sigma):
         norm_factor = np.sqrt(2 * np.pi) * sigma
         return np.exp(-0.5 * ((x - mu) / sigma) **2 ) / norm_factor
 
+
     def normal_pdf_derivative(self, x, mu, sigma):
         return stats.norm.pdf(x, mu, sigma) * (mu - x) / sigma**2
+
 
     def test_1d_mvn_pdf(self, N):
 
@@ -51,6 +56,7 @@ class TestGaussianAnsatzFunctions:
         assert nu.shape == nu_test.shape
         assert np.isclose(nu, nu_test).all()
 
+
     def test_1d_mvn_pdf_gradient(self, N):
 
         # get N 1-dimensional points 
@@ -68,6 +74,7 @@ class TestGaussianAnsatzFunctions:
 
         assert kappa.shape == kappa_test.shape
         assert np.isclose(kappa, kappa_test).all()
+
 
     def test_mvn_pdf_gradient_broadcasting(self, N, n):
 
@@ -103,6 +110,7 @@ class TestGaussianAnsatzFunctions:
         assert kappa.shape == grad_mvn_pdf.shape
         assert np.isclose(kappa, grad_mvn_pdf).all()
 
+
     #@pytest.mark.skip()
     def test_mvn_pdf_basis_1d_1m(self, N, beta):
         '''
@@ -135,6 +143,7 @@ class TestGaussianAnsatzFunctions:
 
         assert gaussian.shape == gaussian_test.shape
         assert np.isclose(gaussian, gaussian_test).all()
+
 
     def test_mvn_pdf_basis_broadcasting(self, N, n, m, beta):
 
@@ -229,6 +238,60 @@ class TestGaussianAnsatzFunctions:
         assert mvn_pdf_gradient_basis.shape == mvn_pdf_gradient_basis_test.shape
         assert np.isclose(mvn_pdf_gradient_basis, mvn_pdf_gradient_basis_test).all()
 
+
+    def test_ansatz_value_function_ct(self, N, n, m, beta):
+
+        # get N n-dimensional points 
+        x = np.random.rand(N, n)
+
+        # get m diferent centers of the gaussians
+        means = np.random.rand(m, n)
+
+        # fix same covariance matrix
+        cov = 2 * np.eye(n)
+
+        # initialize gaussian ansatz
+        ansatz = GaussianAnsatz(n, beta)
+
+        # set gaussians
+        ansatz.set_given_ansatz_functions(means, cov)
+
+        # set weights
+        ansatz.theta = np.random.rand(m)
+
+        # get control
+        ansatz.set_value_function_constant_to_zero()
+        value_function = ansatz.value_function(x)
+
+        assert value_function.shape == (N,)
+
+
+    def test_ansatz_control_ct(self, N, n, m, beta):
+
+        # get N n-dimensional points 
+        x = np.random.rand(N, n)
+
+        # get m diferent centers of the gaussians
+        means = np.random.rand(m, n)
+
+        # fix same covariance matrix
+        cov = 2 * np.eye(n)
+
+        # initialize gaussian ansatz
+        ansatz = GaussianAnsatz(n, beta)
+
+        # set gaussians
+        ansatz.set_given_ansatz_functions(means, cov)
+
+        # set weights
+        ansatz.theta = np.random.rand(m)
+
+        # get control
+        control = ansatz.control(x)
+
+        assert control.shape == (N, n)
+
+
     def test_mvn_pdf_1d_plot(self, dir_path, beta):
 
         # set dimension
@@ -250,6 +313,7 @@ class TestGaussianAnsatzFunctions:
         ansatz.dir_path = dir_path
         ansatz.plot_1d_multivariate_normal_pdf(domain=np.array([[-3, 3]]))
 
+
     def test_mvn_pdf_2d_plot(self, dir_path, beta):
 
         # set dimension
@@ -270,6 +334,7 @@ class TestGaussianAnsatzFunctions:
         # plot
         ansatz.dir_path = dir_path
         ansatz.plot_2d_multivariate_normal_pdf(domain=np.array([[-3, 3], [-3, 3]]))
+
 
     def test_mvn_pdf_nd_plot(self, dir_path, beta):
 
@@ -294,5 +359,3 @@ class TestGaussianAnsatzFunctions:
         ansatz.dir_path = dir_path
         ansatz.plot_nd_multivariate_normal_pdf(i=0)
         ansatz.plot_nd_multivariate_normal_pdf(i=1)
-
-
