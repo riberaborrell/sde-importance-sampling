@@ -133,7 +133,7 @@ class TestGaussianAnsatzFunctions:
         ansatz.set_given_ansatz_functions(means, cov)
 
         # get basis of gaussian functions evaluated at x
-        mvn_pdf_basis = ansatz.mvn_pdf_basis(x, means, cov)
+        mvn_pdf_basis = ansatz.mvn_pdf_basis(x)
 
         # since our basis just have one gaussian
         gaussian = mvn_pdf_basis[:, 0]
@@ -163,7 +163,7 @@ class TestGaussianAnsatzFunctions:
         ansatz.set_given_ansatz_functions(means, cov)
 
         # get basis of gaussian functions evaluated at x (using broadcasting)
-        mvn_pdf_basis = ansatz.mvn_pdf_basis(x, means, cov)
+        mvn_pdf_basis = ansatz.mvn_pdf_basis(x)
 
         # get basis of gaussian functions evaluated at x (without broadcasting)
 
@@ -210,12 +210,12 @@ class TestGaussianAnsatzFunctions:
         ansatz.set_given_ansatz_functions(means, cov)
 
         # get basis of gradient of gaussian functions evaluated at x (using broadcasting)
-        mvn_pdf_gradient_basis = ansatz.mvn_pdf_gradient_basis(x, means, cov)
+        mvn_pdf_gradient_basis = ansatz.mvn_pdf_gradient_basis(x)
 
         # get basis of gradient of gaussian functions evaluated at x (without broadcasting)
 
         # get nd gaussian basis
-        mvn_pdf_basis = ansatz.mvn_pdf_basis(x, means, cov)
+        mvn_pdf_basis = ansatz.mvn_pdf_basis(x)
 
         # covariance matrix inverse
         inv_cov = np.linalg.inv(cov)
@@ -277,8 +277,11 @@ class TestGaussianAnsatzFunctions:
         # fix same covariance matrix
         cov = 2 * np.eye(n)
 
+        # compute inverse
+        inv_cov = np.linalg.inv(cov)
+
         # initialize gaussian ansatz
-        ansatz = GaussianAnsatz(n, beta)
+        ansatz = GaussianAnsatz(n, beta, normalized=False)
 
         # set gaussians
         ansatz.set_given_ansatz_functions(means, cov)

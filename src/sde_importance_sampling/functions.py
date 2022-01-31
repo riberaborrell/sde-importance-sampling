@@ -155,12 +155,14 @@ def mvn_pdf(x, mean=None, cov=None, normalized=True):
     N, n = x.shape
 
     # check center and covariance matrix
-    if mean is None:
+    if mean is not None:
+        assert mean.shape == (n,), ''
+    else:
         mean = np.zeros(n)
-    if cov is None:
+    if cov is not None:
+        assert cov.shape == (n, n), ''
+    else:
         cov = np.eye(n)
-    assert mean.shape == (n,), ''
-    assert cov.shape == (n, n), ''
 
     # preallocate
     mvn_pdf = np.empty(N)
@@ -190,12 +192,14 @@ def mvn_pdf_gradient(x, mean=None, cov=None, normalized=True):
     N, n = x.shape
 
     # check center and covariance matrix
-    if mean is None:
+    if mean is not None:
+        assert mean.shape == (n,), ''
+    else:
         mean = np.zeros(n)
-    if cov is None:
+    if cov is not None:
+        assert cov.shape == (n, n), ''
+    else:
         cov = np.eye(n)
-    assert mean.shape == (n,), ''
-    assert cov.shape == (n, n), ''
 
     # preallocate
     mvn_pdf = np.empty(N)
