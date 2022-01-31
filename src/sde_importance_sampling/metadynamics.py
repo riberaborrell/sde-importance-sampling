@@ -23,7 +23,7 @@ META_TYPES = [
 
 WEIGHTS_TYPES = [
     'const', # constant
-    'geom', # geometric succession
+    'geometric', # geometric succession
 ]
 
 class Metadynamics:
@@ -31,7 +31,7 @@ class Metadynamics:
     '''
 
     def __init__(self, sample, k, N, seed=None, meta_type='cum',
-                 weights_type='geom', omega_0=1., do_updates_plots=False):
+                 weights_type='const', omega_0=1., do_updates_plots=False):
 
         # sampling object
         self.sample = sample
@@ -94,6 +94,8 @@ class Metadynamics:
         )
 
     def set_updates_dir_path(self):
+        '''
+        '''
         self.updates_dir_path = os.path.join(self.dir_path, 'updates')
         make_dir_path(self.updates_dir_path)
         empty_dir(self.updates_dir_path)
@@ -942,80 +944,93 @@ class Metadynamics:
         fig.plot(x, y, labels)
 
 
-    def plot_n_gaussians(self, dir_path=None, n_iter_avg=10):
+    def plot_n_gaussians(self, n_iter_avg=1, dir_path=None, file_name='n-gaussian'):
         ''' plot number of gaussians added at each trajectory
         '''
         from figures.myfigure import MyFigure
 
-        # number of trajectories
-        x = np.arange(self.N)
+        # set dir path
+        if dir_path is None:
+            dir_path = self.dir_path
 
+        # initialize figure
         fig = plt.figure(
             FigureClass=MyFigure,
-            dir_path=self.dir_path,
-            file_name='n-gaussians',
+            dir_path=dir_path,
+            file_name=file_name,
         )
-        x = np.arange(self.N)
-        fig.set_xlabel('trajectories')
-        #fig.set_plot_scale('semilogx')
-        fig.plot(x, self.ms)
-        plt.show()
-        plt.savefig(fig.file_path)
-
-        # n gaussians averaged along a running window
-        fig = plt.figure(
-            FigureClass=MyFigure,
-            dir_path=self.dir_path,
-            file_name='n-gaussians-avg',
-        )
-        y = np.convolve(
-            self.ms, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
-        )
-        fig.set_xlabel('trajectories')
-        #fig.set_plot_scale('semilogx')
-        fig.plot(x[n_iter_avg-1:], y)
-        plt.show()
-        plt.savefig(fig.file_path)
-
-    def plot_time_steps(self, n_iter_avg=1):
-        ''' plot time steps used for each meta trajectory
-        '''
-        from figures.myfigure import MyFigure
 
         # trajectories
         x = np.arange(self.N)[n_iter_avg-1:]
 
-        # compute running averages
+        # number of gaussians
+        y = np.convolve(
+            self.ms, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
+        )
+
+        fig.set_xlabel('trajectories')
+        #fig.set_plot_scale('semilogx')
+        fig.plot(x, y)
+        plt.savefig(fig.file_path)
+
+    def plot_time_steps(self, n_iter_avg=1, dir_path=None, file_name='time-steps'):
+        ''' plot time steps used for each meta trajectory
+        '''
+        from figures.myfigure import MyFigure
+
+        # set dir path
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        # initialize figure
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=dir_path,
+            file_name=file_name,
+        )
+
+        # trajectories
+        x = np.arange(self.N)[n_iter_avg-1:]
+
+        # running averages of the time steps
         run_avg_time_steps = np.convolve(
             self.time_steps, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
         )
 
+        # time steps + k
         y = np.vstack((
             run_avg_time_steps,
             np.full(self.N, self.k)[n_iter_avg-1:],
         ))
 
-        fig = plt.figure(
-            FigureClass=MyFigure,
-            dir_path=self.dir_path,
-            file_name='time-steps',
-        )
         labels = ['cumulative metadynamics', 'k']
         fig.set_title(r'TS')
         fig.set_xlabel('trajectories')
         fig.plot(x, y, labels=labels)
-        #plt.savefig(fig.file_path)
+        plt.savefig(fig.file_path)
 
 
-    def plot_2d_means(self):
+    def plot_2d_means(self, dir_path=None, file_name='means'):
+        ''' plot 2d means
+        '''
         from figures.myfigure import MyFigure
         assert self.means.shape[1] == 2, ''
-        x, y = np.moveaxis(self.means, -1, 0)
+
+        # set dir path
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        # initialize figure
         fig = plt.figure(
             FigureClass=MyFigure,
-            dir_path=self.dir_path,
-            file_name='means',
+            dir_path=dir_path,
+            file_name=file_name,
         )
+
+        # get x_1 and x_2 coordinates
+        x, y = np.moveaxis(self.means, -1, 0)
+
+        fig.set_title(r'centers')
         fig.set_xlabel(r'$x_1$')
         fig.set_ylabel(r'$x_2$')
         plt.xlim(-2, 2)
@@ -1023,23 +1038,30 @@ class Metadynamics:
         plt.scatter(x, y)
         plt.savefig(fig.file_path)
 
-    def plot_3d_means(self):
+    def plot_3d_means(self, dir_path=None, file_name='means'):
+        ''' plot 3d means
+        '''
         from figures.myfigure import MyFigure
-
         assert self.means.shape[1] == 3, ''
-        x, y, z = np.moveaxis(self.means, -1, 0)
 
+        # set dir path
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        # initialize figure
         fig = plt.figure(
             FigureClass=MyFigure,
-            dir_path=self.dir_path,
-            file_name='means',
+            dir_path=dir_path,
+            file_name=file_name,
         )
+
+        # get x_1, x_2, x_3 coordinates
+        x, y, z = np.moveaxis(self.means, -1, 0)
+
         plt.scatter(x, y, z)
         plt.xlim(-2, 2)
         plt.ylim(-2, 2)
-        plt.show()
         plt.savefig(fig.file_path)
-        plt.close()
 
     def plot_projected_means(self, i, j):
         from figures.myfigure import MyFigure
@@ -1106,3 +1128,61 @@ class Metadynamics:
         fig.set_title('distance between means and nearest min')
         fig.set_xlabel('means')
         fig.plot(x, y)
+
+    def compute_means_position_histogram(self):
+        '''
+        '''
+
+        # dimension
+        n = self.sample.n
+
+        # boolean array telling us if x_i < 0
+        true_array = np.ones(self.means.shape, dtype=np.int8)
+        false_array = np.zeros(self.means.shape, dtype=np.int8)
+        means_smaller_0 = np.where(self.means < 0, true_array, false_array)
+
+        # create bins and counter
+        bins = np.arange(2**n)
+        counter = np.zeros(2**n)
+
+        # fill bins
+        n_means = self.means.shape[0]
+        for i in range(n_means):
+            idx = means_smaller_0[i].dot(2**np.arange(n)[::-1])
+            counter[idx] += 1
+
+    def compute_probability_sampling_in_support(self):
+        ''' this methods computes the probability that uniformly sample points from a subset
+            of the domain belong to support of the control provided by metadynamics
+        '''
+        # dimension
+        n = self.sample.n
+
+        # number of points and subset
+        N = 10**5
+        #subset = np.full((n, 2), [-1.5, 1.5])
+        subset = np.empty((n, 2))
+        subset[0] = [-2, 0]
+        subset[1:] = [-2, 2]
+
+        # points sampled from the subset uniformly
+        x = self.sample.sample_domain_uniformly(N, subset=subset)
+
+        # support thereshold
+        a = 0.01
+
+        # set ansatz functions
+        self.set_ansatz()
+
+        # compute value function
+        self.sample.ansatz.set_value_function_constant_to_zero()
+        value_f_at_x = self.sample.ansatz.value_function(x)
+
+        #control_at_x = self.sample.ansatz.control(x)
+
+        # probability
+        p = np.count_nonzero((value_f_at_x > a)) / N
+        #p = np.count_nonzero((control_at_x > a).any(axis=1)) / N
+        breakpoint()
+
+        return p

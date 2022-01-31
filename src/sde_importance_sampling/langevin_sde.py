@@ -290,13 +290,22 @@ class LangevinSDE(object):
 
 
     def sample_multivariate_normal(self, mean, cov, N):
+        ''' samples N points from a multivariate normal probability distribution function.
+
+        Args:
+            mean ((n,)-array): center of the Gaussian function
+            cov ((n, n)-array): covariance matrix of the Gaussian function
+            N (int): number of points
+        '''
+        # tensorize mean and covariance matrix
         mean_tensor = torch.tensor(mean, requires_grad=False)
         cov_tensor = torch.tensor(cov, requires_grad=False)
-        x = np.empty((N, self.n))
+
+        # define multivariate normal
         m = MultivariateNormal(mean_tensor, cov_tensor)
-        for i in np.arange(N):
-            x[i, :] = m.sample().numpy()
-        return x
+
+        # sample vectorized
+        return m.sample((N,)).numpy()
 
     def sample_domain_boundary_uniformly(self):
         x = np.empty(self.n)
