@@ -30,3 +30,6 @@ venv/
 
 # mathlab files
 *.m
+
+# output files from slurm
+*.out
