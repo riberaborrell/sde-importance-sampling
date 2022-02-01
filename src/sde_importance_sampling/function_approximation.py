@@ -237,15 +237,22 @@ class FunctionApproximation():
 
         # set sgd parameters
 
+        # not controlled
         if self.initialization == 'not-controlled':
             self.n_iterations_lim = 10**3
             self.N_train = 5 * 10**2
+
+        # meta
         elif self.initialization == 'meta':
             self.n_iterations_lim = 10**5
+            self.N_train = 10**3
+
+            N_centers = int(0.95 * self.N_train)
             m = meta.ms.sum()
-            N_gauss = 10
-            N_uniform = int(N_gauss * m / 4)
-            self.N_train = N_gauss * m + N_uniform
+            N_gauss = N_centers // m
+            N_uniform = self.N_train - N_centers + N_centers % m
+
+        # hjb
         elif self.initialization == 'hjb':
             self.n_iterations_lim = 10**5
             self.N_train = 10**3
@@ -287,12 +294,15 @@ class FunctionApproximation():
                 for l in range(m):
                     x[N_gauss*l:N_gauss*(l+1), :] = meta.sample.sample_multivariate_normal(
                         mean=meta.means[l],
-                        cov=meta.cov,
+                        cov=0.1 * np.eye(self.n),
                         N=N_gauss,
                     )
 
                 # sample uniform distributed in the whole domain
-                x[(l+1)*N_gauss:, :] = meta.sample.sample_domain_uniformly(N_uniform)
+                x[(l+1)*N_gauss:, :] = meta.sample.sample_domain_uniformly(
+                    N=N_uniform,
+                    subset=np.full((self.n, 2), [-2, 2]),
+                )
 
             elif self.initialization == 'hjb':
                 x = sol_hjb.sample_domain_uniformly(N=self.N_train)
@@ -316,7 +326,7 @@ class FunctionApproximation():
             # compute loss
             inputs = self.model.forward(x_tensor)
             output = loss(inputs, target_tensor)
-            if i % 1000 == 0:
+            if i % 1 == 0:
                 print('it.: {:d}, loss: {:2.3e}'.format(i, output))
 
             # save loss
