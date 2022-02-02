@@ -243,7 +243,7 @@ class GaussianAnsatz():
         value_f_meta = meta.sample.ansatz.value_function(x)
 
         # ansatz functions evaluated at the grid
-        v = self.mvn_pdf_vasis(x)
+        v = self.mvn_pdf_basis(x)
 
         # solve theta v \theta = value_f_meta
         self.theta, _, _, _ = np.linalg.lstsq(v, value_f_meta, rcond=None)
