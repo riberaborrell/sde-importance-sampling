@@ -4,7 +4,10 @@ from sde_importance_sampling.utils_path import get_tests_plots_dir
 
 import numpy as np
 import scipy.stats as stats
+import torch
 import pytest
+
+import time
 
 class TestGaussianAnsatzFunctions:
 
@@ -21,12 +24,34 @@ class TestGaussianAnsatzFunctions:
         '''
         return np.random.rand(N, n)
 
+    @pytest.fixture
+    def random_means(self, m, n):
+        '''generates centers for the Gaussian ansatz
+        '''
+        return np.random.rand(m, n)
 
     @pytest.fixture
-    def gaussian_ansatz(self, n, beta):
-        '''initializes GaussianAnsatz
+    def ansatz(self, n, beta, random_means):
+        '''initializes GaussianAnsatz with the given centers
         '''
-        return GaussianAnsatz(n, beta)
+
+        # initialize gaussian ansatz
+        ansatz = GaussianAnsatz(n, beta)
+
+        # scalar covariance matrix
+        sigma_i = 1.
+
+        # covariance matrix
+        cov = 1 * np.eye(n)
+
+        # set gaussians
+        #ansatz.set_given_ansatz_functions(means=random_means, cov=cov)
+        ansatz.set_given_ansatz_functions(means=random_means, sigma_i=sigma_i)
+
+        # set weights
+        ansatz.theta = np.random.rand(ansatz.m)
+
+        return ansatz
 
 
     def normal_pdf(self, x, mu, sigma):
@@ -130,7 +155,7 @@ class TestGaussianAnsatzFunctions:
         ansatz = GaussianAnsatz(n, beta)
 
         # set gaussians
-        ansatz.set_given_ansatz_functions(means, cov)
+        ansatz.set_given_ansatz_functions(means=means, cov=cov)
 
         # get basis of gaussian functions evaluated at x
         mvn_pdf_basis = ansatz.mvn_pdf_basis(x)
@@ -145,27 +170,23 @@ class TestGaussianAnsatzFunctions:
         assert np.isclose(gaussian, gaussian_test).all()
 
 
-    def test_mvn_pdf_basis_broadcasting(self, N, n, m, beta):
+    def test_mvn_pdf_basis_broadcasting(self, random_inputs, ansatz):
 
-        # get N n-dimensional points 
-        x = np.random.rand(N, n)
-
-        # get m diferent centers of the gaussians
-        means = np.random.rand(m, n)
-
-        # fix same covariance matrix
-        cov = 2 * np.eye(n)
-
-        # initialize gaussian ansatz
-        ansatz = GaussianAnsatz(n, beta)
-
-        # set gaussians
-        ansatz.set_given_ansatz_functions(means, cov)
+        #  N n-dimensional points 
+        x = random_inputs
+        N, n = random_inputs.shape
 
         # get basis of gaussian functions evaluated at x (using broadcasting)
         mvn_pdf_basis = ansatz.mvn_pdf_basis(x)
 
         # get basis of gaussian functions evaluated at x (without broadcasting)
+
+        # m centers of the gaussians
+        means = ansatz.means
+        m = means.shape[0]
+
+        # covariance matrix
+        cov = ansatz.cov
 
         # covariance matrix inverse
         inv_cov = np.linalg.inv(cov)
@@ -192,27 +213,23 @@ class TestGaussianAnsatzFunctions:
         assert np.isclose(mvn_pdf_basis, mvn_pdf_basis_test).all()
 
 
-    def test_mvn_pdf_gradient_basis_broadcasting(self, N, n, m, beta):
+    def test_mvn_pdf_gradient_basis_broadcasting(self, random_inputs, ansatz):
 
-        # get N n-dimensional points 
-        x = np.random.rand(N, n)
-
-        # get m diferent centers of the gaussians
-        means = np.random.rand(m, n)
-
-        # fix same covariance matrix
-        cov = 2 * np.eye(n)
-
-        # initialize gaussian ansatz
-        ansatz = GaussianAnsatz(n, beta)
-
-        # set gaussians
-        ansatz.set_given_ansatz_functions(means, cov)
+        #  N n-dimensional points 
+        x = random_inputs
+        N, n = random_inputs.shape
 
         # get basis of gradient of gaussian functions evaluated at x (using broadcasting)
         mvn_pdf_gradient_basis = ansatz.mvn_pdf_gradient_basis(x)
 
         # get basis of gradient of gaussian functions evaluated at x (without broadcasting)
+
+        # get m diferent centers of the gaussians
+        means = ansatz.means
+        m = means.shape[0]
+
+        # covariance matrix
+        cov = ansatz.cov
 
         # get nd gaussian basis
         mvn_pdf_basis = ansatz.mvn_pdf_basis(x)
@@ -238,61 +255,100 @@ class TestGaussianAnsatzFunctions:
         assert mvn_pdf_gradient_basis.shape == mvn_pdf_gradient_basis_test.shape
         assert np.isclose(mvn_pdf_gradient_basis, mvn_pdf_gradient_basis_test).all()
 
+    def test_mvn_pdf_basis_ct(self, random_inputs, ansatz):
 
-    def test_ansatz_value_function_ct(self, N, n, m, beta):
+        # start timer
+        ct_initial = time.perf_counter()
 
-        # get N n-dimensional points 
-        x = np.random.rand(N, n)
+        # compute mvn basis
+        basis = ansatz.mvn_pdf_basis(random_inputs)
 
-        # get m diferent centers of the gaussians
-        means = np.random.rand(m, n)
+        # stop timer
+        ct_final = time.perf_counter()
 
-        # fix same covariance matrix
-        cov = 2 * np.eye(n)
+        print('ct: {:.3f}'.format(ct_final - ct_initial))
 
-        # initialize gaussian ansatz
-        ansatz = GaussianAnsatz(n, beta)
+    def test_mvn_pdf_basis_torch_ct(self, n, N, m):
 
-        # set gaussians
-        ansatz.set_given_ansatz_functions(means, cov)
+        # start timer
+        ct_initial = time.perf_counter()
 
-        # set weights
-        ansatz.theta = np.random.rand(m)
+        x = torch.randn([N, n])
+        means = torch.randn([m, n])
+        sigma_i = 1.0
 
-        # get control
+        log_p = - 0.5 * torch.sum((means.view(1, m, n) - x.view(N, 1, n))**2, 2) / sigma_i - torch.log(2 * torch.tensor(np.pi) * sigma_i) * n / 2
+        p_evaluated = torch.sum(torch.exp(log_p), 1)
+
+        # stop timer
+        ct_final = time.perf_counter()
+
+        print('ct: {:.3f}'.format(ct_final - ct_initial))
+
+    def test_mvn_pdf_basis_numpy_ct(self, n, N, m):
+
+        # start timer
+        ct_initial = time.perf_counter()
+
+        x = np.random.randn(N, n)
+        means = np.random.randn(m, n)
+        sigma_i = 1.0
+
+        # prepare position and means for broadcasting
+        #x = x[:, np.newaxis, :]
+        #means = means[np.newaxis, :, :]
+
+        # log p
+        exp_term = - 0.5 * np.sum((x[:, np.newaxis, :] - means[np.newaxis, :, :])**2, axis=2) / sigma_i
+
+        # normalize
+        norm_factor = np.sqrt(((2 * np.pi * sigma_i) ** n))
+        mvn_pdf_basis = np.exp(exp_term) / norm_factor
+
+        # stop timer
+        ct_final = time.perf_counter()
+
+        print('ct: {:.3f}'.format(ct_final - ct_initial))
+
+    def test_ansatz_value_function_ct(self, random_inputs, ansatz):
+
+        # start timer
+        ct_initial = time.perf_counter()
+
+        # compute value function
         ansatz.set_value_function_constant_to_zero()
-        value_function = ansatz.value_function(x)
+        value_function = ansatz.value_function(random_inputs)
 
-        assert value_function.shape == (N,)
+        # stop timer
+        ct_final = time.perf_counter()
 
+        print('ct: {:.3f}'.format(ct_final - ct_initial))
 
-    def test_ansatz_control_ct(self, N, n, m, beta):
+    def test_mvn_pdf_gradient_basis_ct(self, random_inputs, ansatz):
 
-        # get N n-dimensional points 
-        x = np.random.rand(N, n)
+        # start timer
+        ct_initial = time.perf_counter()
 
-        # get m diferent centers of the gaussians
-        means = np.random.rand(m, n)
+        # compute mvn basis
+        basis = ansatz.mvn_pdf_gradient_basis(random_inputs)
 
-        # fix same covariance matrix
-        cov = 2 * np.eye(n)
+        # stop timer
+        ct_final = time.perf_counter()
 
-        # compute inverse
-        inv_cov = np.linalg.inv(cov)
+        print('ct: {:.3f}'.format(ct_final - ct_initial))
 
-        # initialize gaussian ansatz
-        ansatz = GaussianAnsatz(n, beta, normalized=False)
+    def test_ansatz_control_ct(self, random_inputs, ansatz):
 
-        # set gaussians
-        ansatz.set_given_ansatz_functions(means, cov)
+        # start timer
+        ct_initial = time.perf_counter()
 
-        # set weights
-        ansatz.theta = np.random.rand(m)
+        # compute control
+        control = ansatz.control(random_inputs)
 
-        # get control
-        control = ansatz.control(x)
+        # stop timer
+        ct_final = time.perf_counter()
 
-        assert control.shape == (N, n)
+        print('ct: {:.3f}'.format(ct_final - ct_initial))
 
 
     def test_mvn_pdf_1d_plot(self, dir_path, beta):
@@ -310,7 +366,7 @@ class TestGaussianAnsatzFunctions:
         ansatz = GaussianAnsatz(n, beta, normalized=False)
 
         # set gaussians
-        ansatz.set_given_ansatz_functions(means, cov)
+        ansatz.set_given_ansatz_functions(means=means, cov=cov)
 
         # plot
         ansatz.dir_path = dir_path
@@ -332,7 +388,7 @@ class TestGaussianAnsatzFunctions:
         ansatz = GaussianAnsatz(n, beta, normalized=False)
 
         # set gaussians
-        ansatz.set_given_ansatz_functions(means, cov)
+        ansatz.set_given_ansatz_functions(means=means, cov=cov)
 
         # plot
         ansatz.dir_path = dir_path
@@ -356,7 +412,7 @@ class TestGaussianAnsatzFunctions:
         ansatz = GaussianAnsatz(n, beta, normalized=False)
 
         # set gaussians
-        ansatz.set_given_ansatz_functions(means, cov)
+        ansatz.set_given_ansatz_functions(means=means, cov=cov)
 
         # plot
         ansatz.dir_path = dir_path

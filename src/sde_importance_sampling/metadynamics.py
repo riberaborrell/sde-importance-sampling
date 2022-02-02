@@ -179,7 +179,7 @@ class Metadynamics:
             else:
                 sample.is_controlled = True
                 idx = slice(np.sum(self.ms[:i]), np.sum(self.ms[:i]) + j)
-                sample.ansatz.set_given_ansatz_functions(self.means[idx], self.cov)
+                sample.ansatz.set_given_ansatz_functions(means=self.means[idx], cov=self.cov)
                 sample.ansatz.theta = self.weights[:j] * sample.beta / 2
 
             # sample with the given weights
@@ -222,7 +222,7 @@ class Metadynamics:
                 sample.is_controlled = False
             else:
                 sample.is_controlled = True
-                sample.ansatz.set_given_ansatz_functions(self.means, self.cov)
+                sample.ansatz.set_given_ansatz_functions(means=self.means, cov=self.cov)
                 sample.ansatz.theta = self.omegas * sample.beta / 2
 
             # sample with the given weights
@@ -1152,21 +1152,40 @@ class Metadynamics:
             counter[idx] += 1
 
     def compute_probability_sampling_in_support(self):
-        ''' this methods computes the probability that uniformly sample points from a subset
-            of the domain belong to support of the control provided by metadynamics
+        ''' computes the probability that sample points belong to support
+            of the value function provided by metadynamics
         '''
         # dimension
         n = self.sample.n
 
-        # number of points and subset
-        N = 10**5
-        #subset = np.full((n, 2), [-1.5, 1.5])
-        subset = np.empty((n, 2))
-        subset[0] = [-2, 0]
-        subset[1:] = [-2, 2]
+        # number of centers
+        m = self.ms.sum()
 
-        # points sampled from the subset uniformly
-        x = self.sample.sample_domain_uniformly(N, subset=subset)
+        # number of points
+        N = 1000
+
+        # number of points sampled following a normal distributions
+        N_centers = int(0.95 * N)
+
+        # number of points sampled following a given normal distribution 
+        N_gauss = N_centers // m
+
+        # number of points sampled following a uniform distribution
+        N_uniform = N - N_centers + N_centers % m
+
+        # preallocate points
+        x = np.empty((N, n))
+
+        # normal sampling
+        for i in range(m):
+            x[N_gauss*i:N_gauss*(i+1), :] = self.sample.sample_multivariate_normal(
+                mean=self.means[i],
+                cov=0.1 * np.eye(n),
+                N=N_gauss,
+            )
+        # uniform sampling
+        subset = np.full((n, 2), [-2, 2])
+        x[(i+1)*N_gauss:, :] = self.sample.sample_domain_uniformly(N_uniform, subset)
 
         # support thereshold
         a = 0.01

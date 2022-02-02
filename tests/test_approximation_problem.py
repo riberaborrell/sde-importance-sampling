@@ -37,8 +37,8 @@ class TestApproximationProblem:
 
         # set gaussian
         means = - 1. * np.ones((1, n))
-        cov = 1 * np.eye(n)
-        ansatz.set_given_ansatz_functions(means, cov)
+        sigma_i = 1.
+        ansatz.set_given_ansatz_functions(means=means, sigma_i=sigma_i)
 
         # set weights
         ansatz.theta = 1. * np.ones(1)
@@ -76,7 +76,6 @@ class TestApproximationProblem:
     def test_alternative_training_algorithm(self, sde, gaussian_ansatz, function_appr, N_train, lr):
         '''
         '''
-
 
         # set sgd parameters
         n_iterations_lim = 10**3

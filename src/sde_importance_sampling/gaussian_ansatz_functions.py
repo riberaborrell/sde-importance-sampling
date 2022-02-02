@@ -26,6 +26,7 @@ class GaussianAnsatz():
         self.sigma_i = None
         self.theta = None
         self.normalized = normalized
+        self.is_cov_scalar_matrix = True
 
         # distributed
         self.distributed = None
@@ -67,43 +68,90 @@ class GaussianAnsatz():
         make_dir_path(dir_path)
         self.dir_path = dir_path
 
-    def set_given_ansatz_functions(self, means, cov):
+    def set_cov_matrix(self, sigma_i=None, cov=None):
+        ''' sets the covariance matrix of the gaussian functions
+
+        Args:
+            sigma_i (float): value in the diagonal entries of the covariance matrix.
+            cov ((n, n)-array): covariance matrix
         '''
+
+        # scalar covariance matrix case
+        if sigma_i is not None:
+
+            # covariance matrix
+            self.sigma_i = sigma_i
+            self.cov = sigma_i * np.eye(self.n)
+            self.is_cov_scalar_matrix = True
+
+            # compute inverse
+            self.inv_cov = np.eye(self.n) / sigma_i
+
+            # compute determinant
+            self.det_cov = sigma_i**self.n
+
+        # general case
+        if cov is not None:
+
+            # check covariance matrix
+            assert cov.shape == (self.n, self.n), ''
+
+            # set covariance matrix
+            self.cov = cov
+            self.is_cov_scalar_matrix = False
+
+            # compute inverse
+            self.inv_cov = np.linalg.inv(cov)
+
+            # compute determinant
+            self.det_cov = np.linalg.det(cov)
+
+    def set_given_ansatz_functions(self, means, sigma_i=None, cov=None):
+        ''' sets means and covariance matrix for gaussian ansatz
+
+        Args:
+            means ((m, n)-array): centers of the gaussian functions
+            sigma_i (float): value in the diagonal entries of the covariance matrix
+            cov ((n, n)-array): covariance matrix
         '''
         # check means
         assert means.ndim == 2, ''
         assert means.shape[1] == self.n, ''
+
+        # set means
         self.m = means.shape[0]
         self.means = means
 
-        # check covariance matrix
-        assert cov.shape == (self.n, self.n), ''
-        self.cov = cov
+        # set covariance matrix
+        self.set_cov_matrix(sigma_i, cov)
 
-        # compute inverse
-        self.inv_cov = np.linalg.inv(cov)
-
-        # compute determinant
-        self.det_cov = np.linalg.det(cov)
 
     def set_unif_dist_ansatz_functions(self, sde, m_i, sigma_i):
+        ''' sets gaussian ansatz uniformly distributed in the domain with scalar covariance
+            matrix.
+
+        Args:
+            sde (obj): langevin sde environment object
+            m_i (float): number of gaussian ansatz along each direction
+            sigma_i (float): value in the diagonal entries of the covariance matrix
         '''
-        '''
+
+        # set number of gaussians
         self.m_i = m_i
         self.m = m_i ** self.n
 
+        # distribute means uniformly
         mgrid_input = []
         for i in range(self.n):
             slice_i = slice(sde.domain[i, 0], sde.domain[i, 1], complex(0, m_i))
             mgrid_input.append(slice_i)
         self.means = np.mgrid[mgrid_input]
         self.means = np.moveaxis(self.means, 0, -1).reshape(self.m, self.n)
-
-        self.sigma_i = sigma_i
-        self.cov = np.eye(self.n)
-        self.cov *= sigma_i
-
         self.distributed = 'uniform'
+
+        # set covariance matrix
+        self.set_cov_matrix(sigma_i=sigma_i)
+
 
     def set_meta_dist_ansatz_functions(self, sde, dt_meta, sigma_i_meta, is_cumulative, k, N_meta):
         '''
@@ -112,7 +160,7 @@ class GaussianAnsatz():
         meta = sde.get_metadynamics_sampling(dt_meta, sigma_i_meta, is_cumulative, k, N_meta)
         assert N_meta == meta.ms.shape[0], ''
 
-        self.set_given_ansatz_functions(meta.means, meta.cov)
+        self.set_given_ansatz_functions(means=meta.means, sigma_i=meta.sigma_i)
         self.sigma_i_meta = sigma_i_meta
         self.k = k
         self.N_meta = N_meta
@@ -135,7 +183,7 @@ class GaussianAnsatz():
             theta[flatten_idx:flatten_idx+meta.ms[i]] = meta.thetas[i, :meta.ms[i]]
             flatten_idx += meta.ms[i]
 
-        self.set_given_ansatz_functions(means, meta.cov)
+        self.set_given_ansatz_functions(means=means, sigma_i=meta.sigma_i)
         self.sigma_i_meta = sigma_i_meta
         self.k = k
         self.N_meta = N_meta
@@ -213,6 +261,7 @@ class GaussianAnsatz():
 
             returns (N, m)-array
         '''
+        import torch
         # assume shape of x array to be (N, n)
         assert x.ndim == 2, ''
         assert x.shape[1] == self.n, ''
@@ -223,10 +272,13 @@ class GaussianAnsatz():
         means = self.means[np.newaxis, :, :]
 
         # compute exponential term
-        x_centered = (x - means).reshape(N*self.m, self.n)
-        exp_term = np.matmul(x_centered, self.inv_cov)
-        exp_term = np.sum(exp_term * x_centered, axis=1).reshape(N, self.m)
-        exp_term *= - 0.5
+        if self.is_cov_scalar_matrix:
+            exp_term = - 0.5 * np.sum((x - means)**2, axis=2) / self.sigma_i
+        else:
+            x_centered = (x - means).reshape(N*self.m, self.n)
+            exp_term = np.matmul(x_centered, self.inv_cov)
+            exp_term = np.sum(exp_term * x_centered, axis=1).reshape(N, self.m)
+            exp_term *= - 0.5
 
         # compute normalization factor if needed
         if self.normalized:
@@ -261,7 +313,10 @@ class GaussianAnsatz():
         means = self.means[np.newaxis, :, :]
 
         # compute gradient of the exponential term
-        exp_term_gradient = - 0.5 * np.matmul(x - means, self.inv_cov + self.inv_cov.T)
+        if self.is_cov_scalar_matrix:
+            exp_term_gradient = - (x - means) / self.sigma_i
+        else:
+            exp_term_gradient = - 0.5 * np.matmul(x - means, self.inv_cov + self.inv_cov.T)
 
         # compute gaussian gradients basis
         mvn_pdf_gradient_basis = exp_term_gradient * mvn_pdf_basis[:, :, np.newaxis]
