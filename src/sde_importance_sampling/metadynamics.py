@@ -487,7 +487,7 @@ class Metadynamics:
             value_f_meta = meta_ansatz_i.value_function(x, meta_thetas_i)
 
             # ansatz functions evaluated at the grid
-            v = self.sample.ansatz.basis_value_f(x)
+            v = self.sample.ansatz.mvn_pdf_basis(x)
 
             # solve theta V = \Phi
             thetas[i], _, _, _ = np.linalg.lstsq(v, value_f_meta, rcond=None)

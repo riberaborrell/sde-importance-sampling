@@ -36,7 +36,8 @@ class TestGaussianAnsatzFunctions:
         '''
 
         # initialize gaussian ansatz
-        ansatz = GaussianAnsatz(n, beta)
+        #ansatz = GaussianAnsatz(n, beta, normalized=True)
+        ansatz = GaussianAnsatz(n, beta, normalized=False)
 
         # scalar covariance matrix
         sigma_i = 1.
@@ -148,14 +149,14 @@ class TestGaussianAnsatzFunctions:
         m = 1
         means = np.random.rand(m, n)
 
-        # fix covariance matrix
-        cov = 0.5 * np.eye(n)
+        # scalar covariance matrix
+        sigma_i = 0.5
 
         # initialize gaussian ansatz
         ansatz = GaussianAnsatz(n, beta)
 
         # set gaussians
-        ansatz.set_given_ansatz_functions(means=means, cov=cov)
+        ansatz.set_given_ansatz_functions(means=means, sigma_i=sigma_i)
 
         # get basis of gaussian functions evaluated at x
         mvn_pdf_basis = ansatz.mvn_pdf_basis(x)
@@ -164,7 +165,7 @@ class TestGaussianAnsatzFunctions:
         gaussian = mvn_pdf_basis[:, 0]
 
         # evaluate 1d gaussian at x
-        gaussian_test = self.normal_pdf(x, mu=means[0, 0], sigma=np.sqrt(cov[0, 0]))[:, 0]
+        gaussian_test = self.normal_pdf(x, mu=means[0, 0], sigma=np.sqrt(sigma_i))[:, 0]
 
         assert gaussian.shape == gaussian_test.shape
         assert np.isclose(gaussian, gaussian_test).all()
@@ -204,10 +205,14 @@ class TestGaussianAnsatzFunctions:
 
 
         # compute norm factor
-        norm_factor = np.sqrt(((2 * np.pi) ** n) * np.linalg.det(cov))
+        if ansatz.normalized:
+            norm_factor = np.sqrt(((2 * np.pi) ** n) * np.linalg.det(cov))
 
-        # normalize
-        mvn_pdf_basis_test = np.exp(exp_term) / norm_factor
+            # normalize
+            mvn_pdf_basis_test = np.exp(exp_term) / norm_factor
+
+        else:
+            mvn_pdf_basis_test = np.exp(exp_term)
 
         assert mvn_pdf_basis.shape == mvn_pdf_basis_test.shape
         assert np.isclose(mvn_pdf_basis, mvn_pdf_basis_test).all()
@@ -351,6 +356,7 @@ class TestGaussianAnsatzFunctions:
         print('ct: {:.3f}'.format(ct_final - ct_initial))
 
 
+    @pytest.mark.skip()
     def test_mvn_pdf_1d_plot(self, dir_path, beta):
 
         # set dimension
@@ -373,6 +379,7 @@ class TestGaussianAnsatzFunctions:
         ansatz.plot_1d_multivariate_normal_pdf(domain=np.array([[-3, 3]]))
 
 
+    @pytest.mark.skip()
     def test_mvn_pdf_2d_plot(self, dir_path, beta):
 
         # set dimension
@@ -395,6 +402,7 @@ class TestGaussianAnsatzFunctions:
         ansatz.plot_2d_multivariate_normal_pdf(domain=np.array([[-3, 3], [-3, 3]]))
 
 
+    @pytest.mark.skip()
     def test_mvn_pdf_nd_plot(self, dir_path, beta):
 
         # set dimension

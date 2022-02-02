@@ -640,7 +640,7 @@ class Sampling(LangevinSDE):
 
             # the gradient of the control wrt the parameters are the basis
             # of the gaussian ansatz gradient
-            grad_ut = self.ansatz.basis_control(xt)
+            grad_ut = - (np.sqrt(2) / self.beta) * self.ansatz.mvn_pdf_gradient_basis(xt)
 
             # get Brownian increment
             dB = self.brownian_increment()

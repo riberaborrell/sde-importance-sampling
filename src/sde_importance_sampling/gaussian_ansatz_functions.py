@@ -2,6 +2,7 @@ from sde_importance_sampling.langevin_sde import LangevinSDE
 from sde_importance_sampling.utils_path import make_dir_path, get_gaussian_ansatz_dir_path
 
 import numpy as np
+import torch
 
 import os
 
@@ -20,6 +21,7 @@ class GaussianAnsatz():
         # number of ansatz, means and cov
         self.m = None
         self.means = None
+        self.means_tensor = None
         self.cov = None
         self.inv_cov = None
         self.det_cov = None
@@ -121,6 +123,7 @@ class GaussianAnsatz():
         # set means
         self.m = means.shape[0]
         self.means = means
+        self.means_tensor = torch.tensor(means)
 
         # set covariance matrix
         self.set_cov_matrix(sigma_i, cov)
@@ -147,6 +150,7 @@ class GaussianAnsatz():
             mgrid_input.append(slice_i)
         self.means = np.mgrid[mgrid_input]
         self.means = np.moveaxis(self.means, 0, -1).reshape(self.m, self.n)
+        self.means_tensor = torch.tensor(self.means)
         self.distributed = 'uniform'
 
         # set covariance matrix
@@ -212,7 +216,7 @@ class GaussianAnsatz():
         value_f = hjb_sol.value_f.reshape(Nh,)
 
         # compute the optimal theta given a basis of ansatz functions
-        v = self.basis_value_f(x)
+        v = self.mvn_pdf_basis(x)
         self.theta, _, _, _ = np.linalg.lstsq(v, value_f, rcond=None)
         self.h = h
         self.theta_type = 'optimal'
@@ -239,7 +243,7 @@ class GaussianAnsatz():
         value_f_meta = meta.sample.ansatz.value_function(x)
 
         # ansatz functions evaluated at the grid
-        v = self.basis_value_f(x)
+        v = self.mvn_pdf_vasis(x)
 
         # solve theta v \theta = value_f_meta
         self.theta, _, _, _ = np.linalg.lstsq(v, value_f_meta, rcond=None)
@@ -254,14 +258,13 @@ class GaussianAnsatz():
         self.N_meta = meta.N
         self.seed_meta = meta.seed
 
-    def mvn_pdf_basis(self, x):
+    def mvn_pdf_basis_numpy(self, x):
         ''' Multivariate normal pdf (nd Gaussian) basis V(x; means, cov) with different m means
-            but same covariance matrix evaluated at x
+            but same covariance matrix evaluated at x. Computations with numpy
             x ((N, n)-array) : position
 
             returns (N, m)-array
         '''
-        import torch
         # assume shape of x array to be (N, n)
         assert x.ndim == 2, ''
         assert x.shape[1] == self.n, ''
@@ -293,9 +296,84 @@ class GaussianAnsatz():
 
         return mvn_pdf_basis
 
+    def mvn_pdf_basis(self, x):
+        ''' Multivariate normal pdf (nd Gaussian) basis V(x; means, cov) with different m means
+            but same covariance matrix evaluated at x. Computations with pytorch
+            x ((N, n)-array) : position
+
+            returns (N, m)-array
+        '''
+        # assume shape of x array to be (N, n)
+        assert x.ndim == 2, ''
+        assert x.shape[1] == self.n, ''
+        N = x.shape[0]
+
+        # tensorize x
+        x_tensor = torch.tensor(x)
+
+        # compute log of the basis
+
+        # scalar covariance matrix
+        if self.is_cov_scalar_matrix:
+            log_mvn_pdf_basis = - 0.5 * torch.sum(
+                (x_tensor.view(N, 1, self.n) - self.means_tensor.view(1, self.m, self.n))**2,
+                axis=2,
+            ) / self.sigma_i
+
+            # add normalization factor
+            if self.normalized:
+                log_mvn_pdf_basis -= torch.log(2 * torch.tensor(np.pi) * self.sigma_i) * self.n / 2
+
+        # general covariance matrix
+        else:
+            #TODO! convert to pytorch
+
+            # prepare position and means for broadcasting
+            x = x[:, np.newaxis, :]
+            means = self.means[np.newaxis, :, :]
+
+            x_centered = (x - means).reshape(N*self.m, self.n)
+            log_mvn_pdf_basis = -0.5 * np.sum(
+                np.matmul(x_centered, self.inv_cov) * x_centered,
+                axis=1,
+            ).reshape(N, self.m)
+
+            # add normalization factor
+            if self.normalized:
+                log_mvn_pdf_basis -= torch.log((2 * torch.tensor(np.pi)) ** self.n * self.det_cov) / 2
+
+        return torch.exp(log_mvn_pdf_basis).numpy()
+
+    def mvn_pdf_gradient_basis_numpy(self, x):
+        ''' Multivariate normal pdf gradient (nd Gaussian gradients) basis \nabla V(x; means, cov)
+        with different means but same covaianc matrix evaluated at x. Computations with numpy
+            x ((N, n)-array) : posicion
+
+            returns (N, m, n)-array
+        '''
+        # assume shape of x array to be (N, n)
+        assert x.ndim == 2, ''
+        assert x.shape[1] == self.n, ''
+        N = x.shape[0]
+
+        # compute nd gaussian basis
+        mvn_pdf_basis = self.mvn_pdf_basis(x)
+
+        # compute gradient of the exponential term
+        if self.is_cov_scalar_matrix:
+            A = - (x[:, np.newaxis, :] - self.means[np.newaxis, :, :]) / self.sigma_i
+        else:
+            A = - 0.5 * np.matmul(
+                x[:, np.newaxis, :] - self.means[np.newaxis, :, :],
+                self.inv_cov + self.inv_cov.T,
+            )
+
+        # compute gaussian gradients basis
+        return A * mvn_pdf_basis[:, :, np.newaxis]
+
     def mvn_pdf_gradient_basis(self, x):
         ''' Multivariate normal pdf gradient (nd Gaussian gradients) basis \nabla V(x; means, cov)
-        with different means but same covaianc matrix evaluated at x
+        with different means but same covaianc matrix evaluated at x. Computations with torch
             x ((N, n)-array) : posicion
 
             returns (N, m, n)-array
@@ -308,44 +386,19 @@ class GaussianAnsatz():
         # get nd gaussian basis
         mvn_pdf_basis = self.mvn_pdf_basis(x)
 
-        # prepare position and means for broadcasting
-        x = x[:, np.newaxis, :]
-        means = self.means[np.newaxis, :, :]
+        # tensorize x
+        x_tensor = torch.tensor(x)
 
         # compute gradient of the exponential term
         if self.is_cov_scalar_matrix:
-            exp_term_gradient = - (x - means) / self.sigma_i
+            A = - (x_tensor.view(N, 1, self.n) - self.means_tensor.view(1, self.m, self.n)) \
+                / self.sigma_i
         else:
-            exp_term_gradient = - 0.5 * np.matmul(x - means, self.inv_cov + self.inv_cov.T)
+            #TODO! convert to pytorch
+            A = - 0.5 * np.matmul(x - means, self.inv_cov + self.inv_cov.T)
 
         # compute gaussian gradients basis
-        mvn_pdf_gradient_basis = exp_term_gradient * mvn_pdf_basis[:, :, np.newaxis]
-
-        return mvn_pdf_gradient_basis
-
-    def basis_value_f(self, x):
-        '''This method computes the ansatz functions for the value function evaluated at x
-
-        Args:
-            x ((N, n)-ndarray) : positions
-        '''
-        assert x.ndim == 2, ''
-        assert x.shape[1] == self.n, ''
-
-        basis_value_f = self.mvn_pdf_basis(x)
-        return basis_value_f
-
-    def basis_control(self, x):
-        '''This method computes the control basis functions evaluated at x
-
-        Args:
-            x ((N, n)-ndarray) : positions
-        '''
-        assert x.ndim == 2, ''
-        assert x.shape[1] == self.n, ''
-
-        basis_control = - (np.sqrt(2) / self.beta) * self.mvn_pdf_gradient_basis(x)
-        return basis_control
+        return (A * mvn_pdf_basis[:, :, np.newaxis]).numpy()
 
     def set_value_function_constant_to_zero(self):
         self.K_value_f = 0
@@ -373,7 +426,7 @@ class GaussianAnsatz():
         x = np.ones((1, self.n))
 
         # evaluate value function at x
-        basis_value_f_at_x = self.basis_value_f(x)
+        basis_value_f_at_x = self.mvn_pdf_basis(x)
         value_f_at_x = np.dot(basis_value_f_at_x, theta)
 
         self.K_value_f = - value_f_at_x
@@ -391,7 +444,7 @@ class GaussianAnsatz():
             theta = self.theta
 
         # value function without constant K
-        basis_value_f = self.basis_value_f(x)
+        basis_value_f = self.mvn_pdf_basis(x)
         value_f =  np.dot(basis_value_f, theta)
 
         return value_f + self.K_value_f
@@ -404,11 +457,12 @@ class GaussianAnsatz():
             x ((N, n)-array) : position
             theta ((m,)-array): parameters
         '''
-        N = x.shape[0]
+        assert x.ndim == 2, ''
+        assert x.shape[1] == self.n, ''
         if theta is None:
             theta = self.theta
 
-        basis_control = self.basis_control(x)
+        basis_control = - (np.sqrt(2) / self.beta) * self.mvn_pdf_gradient_basis(x)
         control = np.tensordot(basis_control, theta, axes=([1], [0]))
         return control
 
