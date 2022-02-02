@@ -179,7 +179,10 @@ class Metadynamics:
             else:
                 sample.is_controlled = True
                 idx = slice(np.sum(self.ms[:i]), np.sum(self.ms[:i]) + j)
-                sample.ansatz.set_given_ansatz_functions(means=self.means[idx], cov=self.cov)
+                sample.ansatz.set_given_ansatz_functions(
+                    means=self.means[idx],
+                    sigma_i=self.sigma_i,
+                )
                 sample.ansatz.theta = self.weights[:j] * sample.beta / 2
 
             # sample with the given weights
@@ -222,7 +225,10 @@ class Metadynamics:
                 sample.is_controlled = False
             else:
                 sample.is_controlled = True
-                sample.ansatz.set_given_ansatz_functions(means=self.means, cov=self.cov)
+                sample.ansatz.set_given_ansatz_functions(
+                    means=self.means,
+                    sigma_i=self.sigma_i,
+                )
                 sample.ansatz.theta = self.omegas * sample.beta / 2
 
             # sample with the given weights
@@ -436,7 +442,7 @@ class Metadynamics:
         # set ansatz and theta
         self.sample.ansatz.set_given_ansatz_functions(
             means=self.means[idx],
-            cov=self.cov,
+            sigma_i=self.sigma_i,
         )
         self.sample.ansatz.theta = self.omegas[idx] * self.sample.beta / 2
         self.sample.ansatz.set_value_function_constant_to_zero()
@@ -462,7 +468,7 @@ class Metadynamics:
         # set all means used for each trajectory
         self.sample.ansatz.set_given_ansatz_functions(
             means=self.means,
-            cov=self.cov,
+            sigma_i=self.sigma_i,
         )
 
         m = np.sum(self.ms)
@@ -478,7 +484,7 @@ class Metadynamics:
             meta_ansatz_i = GaussianAnsatz(n=self.sample.n, normalized=False)
             meta_ansatz_i.set_given_ansatz_functions(
                 means=meta_means_i,
-                cov=self.cov,
+                sigma_i=self.sigma_i,
             )
 
             # meta value function evaluated at the grid
