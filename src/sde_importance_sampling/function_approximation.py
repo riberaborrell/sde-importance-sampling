@@ -244,7 +244,7 @@ class FunctionApproximation():
 
         # meta
         elif self.initialization == 'meta':
-            self.n_iterations_lim = 10**5
+            self.n_iterations_lim = 10**4
             self.N_train = 10**3
 
             N_centers = int(0.95 * self.N_train)
