@@ -217,6 +217,8 @@ class LangevinSDE(object):
         # set default domain
         if domain is None:
             self.domain = np.full((self.n, 2), [-3, 3])
+            self.domain_lb = -3.
+            self.domain_ub = 3.
             self.is_domain_hypercube = True
             return
 
@@ -228,6 +230,12 @@ class LangevinSDE(object):
 
         # check if domain is an hypercube
         self.is_domain_hypercube = self.is_hypercube(self.domain)
+
+        # add lower bound and upper bound
+        if self.is_domain_hypercube:
+            self.domain_lb = float(domain[0, 0])
+            self.domain_ub = float(domain[0, 1])
+
 
     def discretize_domain(self, h=None):
         ''' this method discretizes the hyper-rectangular domain uniformly with step-size h
@@ -356,32 +364,67 @@ class LangevinSDE(object):
         return int(np.ceil(t / self.dt))
 
     def get_index(self, x):
-        ''' returns the index of the point of the grid closest to x
+        ''' returns the index of the point of the grid closest to x. Assumes the domain is
+            an hypercube.
         '''
         assert x.ndim == 1, ''
         assert x.shape[0] == self.n, ''
 
-        idx = [None for i in range(self.n)]
-        for i in range(self.n):
-            axis_i = np.linspace(self.domain[i, 0], self.domain[i, 1], self.Nx[i])
-            idx[i] = np.argmin(np.abs(axis_i - x[i]))
+        idx = np.floor((
+            np.clip(x, self.domain_lb, self.domain_ub - 2 * self.h) + self.domain_ub
+        ) / self.h).astype(int)
 
         return tuple(idx)
 
-    def get_index_vectorized(self, x):
-        ''' returns the index of the point of the grid closest to x
+    def get_index_using_argmin(self, x):
+        ''' returns the index of the point of the grid closest to x.
         '''
-        assert x.ndim == 2, ''
-        assert x.shape[1] == self.n, ''
+        assert x.ndim == 1, ''
+        assert x.shape[0] == self.n, ''
+
+        #TODO! try to use directly the discretized domain
 
         # get index of xzero
         idx = [None for i in range(self.n)]
         for i in range(self.n):
-            axis_i = np.linspace(self.domain[i, 0], self.domain[i, 1], self.Nx[i])
-            idx[i] = tuple(np.argmin(np.abs(axis_i - x[:, i].reshape(x.shape[0], 1)), axis=1))
+            #axis_i = np.linspace(self.domain[i, 0], self.domain[i, 1], self.Nx[i])
+            #idx[i] = np.argmin(np.abs(axis_i - x[i]))
+            idx[i] = np.argmin(np.abs(self.domain_i_h - x[i]))
 
-        idx = tuple(idx)
+        return tuple(idx)
+
+    def get_index_vectorized(self, x):
+        ''' returns the index of the point of the grid closest to x. Vectorized for more than
+            one point at a time. Assumes the domain is an hypercube.
+        '''
+        assert x.ndim == 2, ''
+        assert x.shape[1] == self.n, ''
+
+        idx = np.floor((
+            np.clip(x, self.domain_lb, self.domain_ub - 2 * self.h) + self.domain_ub
+        ) / self.h).astype(int)
+
+        idx = tuple([idx[:, i] for i in range(self.n)])
+
         return idx
+
+    def get_index_vectorized_using_argmin(self, x):
+        ''' returns the index of the point of the grid closest to x. Vectorized for more than
+            one point at a time. Assumes the domain is an hypercube.
+        '''
+        assert x.ndim == 2, ''
+        assert x.shape[1] == self.n, ''
+
+        #TODO! try to use directly the discretized domain
+
+        # compute absolute value between each coordinate and the discretized ith grid
+        dist = np.abs(self.domain_i_h[np.newaxis, np.newaxis] - x[:, :, np.newaxis])
+
+        # get indeces of the minimum values
+        idx = np.argmin(dist, axis=2)
+
+        return tuple(idx)
+
 
     def get_x(self, idx):
         ''' returns the coordinates of the point determined by the axis indices idx

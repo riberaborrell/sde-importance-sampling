@@ -395,7 +395,7 @@ class Sampling(LangevinSDE):
             # load hjb solution
             sol_hjb = self.get_hjb_solver()
             self.u_hjb = sol_hjb.u_opt
-            self.Nx = sol_hjb.Nx
+            self.h = sol_hjb.h
 
             # preallocate l2 error
             self.preallocate_l2_error()
@@ -505,7 +505,7 @@ class Sampling(LangevinSDE):
         # load hjb solver and get the "optimal" control
         sol_hjb = self.get_hjb_solver(h)
         u_opt = sol_hjb.u_opt
-        self.Nx = sol_hjb.Nx
+        self.h = sol_hjb.h
 
         # initialize xt
         xt = self.initial_position()
@@ -607,7 +607,7 @@ class Sampling(LangevinSDE):
             # load hjb solution
             sol_hjb = self.get_hjb_solver()
             self.u_hjb = sol_hjb.u_opt
-            self.Nx = sol_hjb.Nx
+            self.h = sol_hjb.h
 
             # preallocate l2 error
             self.preallocate_l2_error()
@@ -712,7 +712,6 @@ class Sampling(LangevinSDE):
             # load hjb solution
             sol_hjb = self.get_hjb_solver()
             self.u_hjb = sol_hjb.u_opt
-            self.Nx = sol_hjb.Nx
 
             # preallocate l2 error
             self.preallocate_l2_error()
@@ -924,7 +923,7 @@ class Sampling(LangevinSDE):
             # load hjb solution
             sol_hjb = self.get_hjb_solver()
             self.u_hjb = sol_hjb.u_opt
-            self.Nx = sol_hjb.Nx
+            self.h = sol_hjb.h
 
             # preallocate l2 error
             self.preallocate_l2_error()
