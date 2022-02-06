@@ -712,6 +712,7 @@ class Sampling(LangevinSDE):
             # load hjb solution
             sol_hjb = self.get_hjb_solver()
             self.u_hjb = sol_hjb.u_opt
+            self.h = sol_hjb.h
 
             # preallocate l2 error
             self.preallocate_l2_error()
