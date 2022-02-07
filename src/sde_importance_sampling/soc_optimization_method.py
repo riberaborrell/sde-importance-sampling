@@ -423,6 +423,65 @@ class StochasticOptimizationMethod:
                 self.u_l2_errors, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
             )
 
+    def cut_vars_I_u(self, epsilon=None):
+        ''' cut the array which keep the variance I^u up to the point where their running
+            average is smaller than epsilon
+        '''
+        assert epsilon is not None, ''
+        assert self.n_iter_avg is not None, ''
+
+        # get idx of the iterations which running average is smaller than epsilon
+        idx = np.where(self.run_avg_vars_I_u < epsilon)[0]
+
+        # get the smaller index
+        if idx.shape[0] != 0:
+            idx_iter = idx[0]
+        else:
+            idx_iter = self.n_iterations
+
+        # cut array up to this indx
+        self.vars_I_u_epsilon_cut = self.run_avg_vars_I_u[:idx_iter]
+
+    def cut_res_I_u(self, epsilon=None):
+        ''' cut the array which keep the relative error I^u up to the point where their running
+            average is smaller than epsilon
+        '''
+        assert epsilon is not None, ''
+        assert self.n_iter_avg is not None, ''
+
+        # get idx of the iterations which running average is smaller than epsilon
+        idx = np.where(self.run_avg_res_I_u < epsilon)[0]
+
+        # get the smaller index
+        if idx.shape[0] != 0:
+            idx_iter = idx[0]
+        else:
+            idx_iter = self.n_iterations
+
+        # cut array up to this indx
+        self.res_I_u_epsilon_cut = self.run_avg_res_I_u[:idx_iter]
+
+    def cut_losses(self, epsilon=None):
+        ''' cut the array which keep the losses up to the point where their running
+            average is smaller than epsilon
+        '''
+        assert epsilon is not None, ''
+        assert self.n_iter_avg is not None, ''
+
+        # get idx of the iterations which running average is smaller than epsilon
+        idx = np.where(self.run_avg_losses < epsilon)[0]
+
+        # get the smaller index
+        if idx.shape[0] != 0:
+            idx_iter = idx[0]
+        else:
+            idx_iter = self.n_iterations
+
+        # cut array up to this indx
+        self.losses_epsilon_cut = self.run_avg_losses[:idx_iter]
+
+
+
     def write_report(self):
         sample = self.sample
 
@@ -810,6 +869,7 @@ class StochasticOptimizationMethod:
         fig.set_title(r'TS')
         fig.set_xlabel('SGD iterations')
         fig.set_plot_scale('semilogy')
+
         if self.sol_hjb is None:
             fig.plot(x, y, self.labels, self.colors, self.linestyles)
         else:
@@ -827,13 +887,20 @@ class StochasticOptimizationMethod:
         # iterations
         x = np.arange(self.n_iterations)[self.n_iter_avg - 1:]
 
-
         # computational time, mc sampling, hjb sampling and hjb solution
-        y = np.vstack((
-            self.run_avg_cts,
-            self.ct_mc[self.n_iter_avg - 1:],
-            self.ct_is_hjb[self.n_iter_avg - 1:],
-        ))
+        if self.sol_hjb is None:
+            y = np.vstack((
+                self.run_avg_cts,
+                self.ct_mc[self.n_iter_avg - 1:],
+            ))
+        else:
+            y = np.vstack((
+                self.run_avg_cts,
+                self.ct_mc[self.n_iter_avg - 1:],
+                self.ct_is_hjb[self.n_iter_avg - 1:],
+            ))
+
+        # cts figure
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
@@ -842,7 +909,11 @@ class StochasticOptimizationMethod:
         fig.set_title(r'CT (s)')
         fig.set_xlabel('SGD iterations')
         fig.set_plot_scale('semilogy')
-        fig.plot(x, y, self.labels[:3], self.colors[:3], self.linestyles[:3])
+
+        if self.sol_hjb is None:
+            fig.plot(x, y, self.labels, self.colors, self.linestyles)
+        else:
+            fig.plot(x, y, self.labels[:3], self.colors[:3], self.linestyles[:3])
 
     def plot_u_l2_error(self):
         '''
@@ -937,8 +1008,69 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='control-{:d}'.format(i+1),
         )
+        fig.set_title(r'$u(x; \theta)$')
         fig.set_xlabel(r'$x_{:d}$'.format(i+1))
+        fig.set_xlim(-2, 2)
         fig.plot(x, y)
+
+    def plot_control_slices_ith_coordinate(self, it=-1, dir_path=None, file_name='control'):
+        from figures.myfigure import MyFigure
+
+        # set dir path
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        # initialize figure
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=dir_path,
+            file_name=file_name,
+        )
+
+        # load given iteration
+        self.sample.nn_func_appr.model.load_parameters(self.thetas[it])
+
+        # discretize ith coordinate
+        self.sample.discretize_domain_ith_coordinate(h=0.01)
+
+        # get control
+        self.sample.get_grid_control_i(i=0, x_j=-1)
+        control_1 = self.sample.grid_control_i
+        self.sample.get_grid_control_i(i=1, x_j=-1)
+        control_2 = self.sample.grid_control_i
+        self.sample.get_grid_control_i(i=0, x_j=0)
+        control_3 = self.sample.grid_control_i
+        self.sample.get_grid_control_i(i=1, x_j=0)
+        control_4 = self.sample.grid_control_i
+        self.sample.get_grid_control_i(i=0, x_j=1)
+        control_5 = self.sample.grid_control_i
+        self.sample.get_grid_control_i(i=1, x_j=1)
+        control_6 = self.sample.grid_control_i
+
+        labels = [
+                r'$x_i = x_1, \, x_j = {:.1f}$'.format(-1),
+                r'$x_i = x_2, \, x_j = {:.1f}$'.format(-1),
+                r'$x_i = x_1, \, x_j = {:.1f}$'.format(0),
+                r'$x_i = x_2, \, x_j = {:.1f}$'.format(0),
+                r'$x_i = x_1, \, x_j = {:.1f}$'.format(1),
+                r'$x_i = x_2, \, x_j = {:.1f}$'.format(1),
+        ]
+
+        x = self.sample.domain_i_h
+        y = np.vstack((
+                control_1,
+                control_2,
+                control_3,
+                control_4,
+                control_5,
+                control_6,
+        ))
+
+        #fig.set_title(r'$u_i(x; \theta_{3999})$, $\theta_0$ = meta')
+        fig.set_xlabel(r'$x_i$')
+        #fig.turn_legend_off()
+        plt.subplots_adjust(left=0.12, right=0.96, bottom=0.12)
+        fig.plot(x, y, labels)
 
 
     def plot_control_i_det(self, it=-1, i=0, t=None):

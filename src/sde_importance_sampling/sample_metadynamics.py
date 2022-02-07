@@ -107,7 +107,10 @@ def main():
     if args.do_plots:
 
         # n gaussians added for each trajectory
-        #meta.plot_n_gaussians()
+        meta.plot_n_gaussians()
+
+        # time steps used for each trajectory
+        meta.plot_time_steps()
 
         # 1d plots
         if sample.n == 1:
@@ -120,21 +123,25 @@ def main():
 
         # 2d plots
         elif sample.n == 2:
+            meta.plot_2d_means()
             meta.plot_2d_update()
             meta.plot_nd_ith_coordinate_update(i=0)
             meta.plot_nd_ith_coordinate_update(i=1)
-            meta.plot_2d_means()
 
         # 3d plots
         elif sample.n == 3:
             meta.plot_3d_means()
+            meta.plot_nd_ith_coordinate_update(i=0)
+            meta.plot_nd_ith_coordinate_update(i=1)
 
         # nd plots
         else:
-            pass
-            meta.plot_nd_means()
+            #meta.plot_nd_means()
             meta.plot_nd_ith_coordinate_update(i=0)
             meta.plot_nd_ith_coordinate_update(i=1)
+
+        #meta.compute_probability_sampling_in_support()
+
 
 if __name__ == "__main__":
     main()
