@@ -1,6 +1,6 @@
 from sde_importance_sampling.langevin_sde import LangevinSDE
 from sde_importance_sampling.utils_path import get_hjb_solution_dir_path, get_time_in_hms
-from sde_importance_sampling.utils_numeric import arange_generator
+from sde_importance_sampling.utils_numeric import arange_generator, from_1dndarray_to_string
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -351,28 +351,17 @@ class SolverHJB(LangevinSDE):
         f.write('h = {:2.4f}\n'.format(self.h))
         f.write('N_h = {:d}\n'.format(self.Nh))
 
-        # psi, value function and control
+        # psi, value function and control at x
         f.write('\n psi, value function and optimal control at x\n')
 
         psi = self.get_psi_at_x(x)
         value_f = self.get_value_function_at_x(x)
         u_opt = self.get_u_opt_at_x(x)
+        u_opt_max = self.u_opt[np.argmax(self.u_opt)]
 
-        x_str = 'x: ('
-        for i in range(self.n):
-            if i == 0:
-                x_str += '{:2.1f}'.format(x[i])
-            else:
-                x_str += ', {:2.1f}'.format(x[i])
-        x_str += ')\n'
-
-        u_opt_str = 'u_opt(x) = ('
-        for i in range(self.n):
-            if i == 0:
-                u_opt_str += '{:2.1f}'.format(u_opt[i])
-            else:
-                u_opt_str += ', {:2.1f}'.format(u_opt[i])
-        u_opt_str += ')\n'
+        x_str = 'x: ' + from_1dndarray_to_string(x)
+        u_opt_str = 'u_opt(x): ' + from_1dndarray_to_string(u_opt)
+        u_opt_max_str = 'max u_opt(x): = ' + from_1dndarray_to_string(u_opt_max)
 
         f.write(x_str)
         if psi is not None:
@@ -381,8 +370,8 @@ class SolverHJB(LangevinSDE):
         if value_f is not None:
             f.write('value_f(x) = {:2.3e}\n'.format(value_f))
 
-        # TODO! write general method in utils to write np.array into string
         f.write(u_opt_str)
+        f.write(u_opt_max_str)
 
         # computational time
         h, m, s = get_time_in_hms(self.ct)

@@ -66,16 +66,21 @@ def coarse_matrix(x, k=2, l=2):
                 x_coa[i, j] = np.mean(x[i*k:i*k+np.mod(n, k), j*l:j*l+np.mod(m, l)])
     return x_coa
 
-#    breakpoint()
-#    x_m_coa = np.empty((n, m_coa))
-#    for i in np.arange(n):
-#        x_m_coa[i, :] = coarse_vector(x[i, :])
-#    print(x_m_coa.shape, x_m_coa)
-#    x_coa = np.empty((n_coa, m_coa))
-#    for j in np.arange(m_coa):
-#        print(x_m_coa[:, j])
-#        print(coarse_vector(x_m_coa[:, j]))
-#        print(x_coa.shape)
-#        print(x_coa[:, j].shape)
-#        x_coa[:, j] = coarse_vector(x_m_coa[:, j])
-#    return x_coa
+def from_1dndarray_to_string(x):
+    '''
+    '''
+    assert x.ndim == 1, ''
+
+    # get vector dimension
+    n = x.shape[0]
+
+    # make string
+    x_str = '('
+    for i in range(n):
+        if i == 0:
+            x_str += '{:2.3f}'.format(x[i])
+        else:
+            x_str += ', {:2.3f}'.format(x[i])
+    x_str += ')\n'
+
+    return x_str
