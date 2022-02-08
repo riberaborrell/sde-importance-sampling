@@ -728,6 +728,7 @@ class Sampling(LangevinSDE):
 
         # initialize trajectory
         xt = self.initial_position()
+        xt_tensor = torch.tensor(xt, dtype=torch.float32)
 
         # initialize deterministic and stochastic integrals at time t
         self.initialize_running_integrals()
