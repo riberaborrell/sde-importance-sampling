@@ -350,26 +350,15 @@ class Sampling(LangevinSDE):
         # initialize xt
         xt = self.initial_position()
 
+        # preallocate array for the trajectory
         if self.save_trajectory:
-
-            # preallocate array for the trajectory and save initial position
             self.traj = np.empty((self.k_lim + 1, self.n))
-            self.traj[0] = xt[0, :]
 
-        for k in np.arange(0, self.k_lim):
+        # start trajectories
+        for k in np.arange(self.k_lim + 1):
 
-            # compute gradient
-            gradient = self.gradient(xt)
-
-            # get Brownian increment
-            dB = self.brownian_increment()
-
-            # sde update
-            xt = self.sde_update(xt, gradient, dB)
-
+            # save position of first trajectory at time k
             if self.save_trajectory:
-
-                # save trajectory at time k
                 self.traj[k] = xt[0, :]
 
             # get indices from the trajectories which are new in target
@@ -382,6 +371,15 @@ class Sampling(LangevinSDE):
             # break if all trajectories have arrived to the target set
             if self.been_in_target_set.all() == True:
                 break
+
+            # compute gradient
+            gradient = self.gradient(xt)
+
+            # get Brownian increment
+            dB = self.brownian_increment()
+
+            # sde update
+            xt = self.sde_update(xt, gradient, dB)
 
         self.stop_timer()
 
@@ -400,7 +398,6 @@ class Sampling(LangevinSDE):
             # preallocate l2 error
             self.preallocate_l2_error()
 
-
         # initialize xt
         xt = self.initial_position()
 
@@ -411,7 +408,8 @@ class Sampling(LangevinSDE):
         if self.do_u_l2_error:
             self.initialize_running_l2_error()
 
-        for k in np.arange(1, self.k_lim +1):
+        # start trajectories
+        for k in np.arange(self.k_lim + 1):
 
             # control at xt
             if self.ansatz is not None:
@@ -419,17 +417,10 @@ class Sampling(LangevinSDE):
             elif self.nn_func_appr is not None:
                 xt_tensor = torch.tensor(xt, dtype=torch.float)
                 ut_tensor = self.nn_func_appr.model.forward(xt_tensor)
-                ut_tensor_det = ut_tensor.detach()
-                ut = ut_tensor_det.numpy()
-
-            # compute gradient
-            gradient = self.tilted_gradient(xt, ut)
+                ut = ut_tensor.detach().numpy()
 
             # get Brownian increment
             dB = self.brownian_increment()
-
-            # sde update
-            xt = self.sde_update(xt, gradient, dB)
 
             # stochastic and deterministic integrals 
             self.update_integrals(ut, dB)
@@ -449,10 +440,16 @@ class Sampling(LangevinSDE):
                 if self.do_u_l2_error:
                     self.u_l2_error_fht[idx] = self.u_l2_error_t[idx]
 
-
             # break if all trajectories have arrived to the target set
             if self.been_in_target_set.all() == True:
                 break
+
+            # compute gradient
+            gradient = self.tilted_gradient(xt, ut)
+
+            # sde update
+            xt = self.sde_update(xt, gradient, dB)
+
 
         self.compute_fht_statistics()
         self.compute_I_u_statistics()
@@ -510,14 +507,15 @@ class Sampling(LangevinSDE):
         # initialize xt
         xt = self.initial_position()
 
-        # initialize control
-        idx_xt = self.get_index_vectorized(xt)
-        ut = u_opt[idx_xt]
-
         # initialize deterministic and stochastic integrals at time t
         self.initialize_running_integrals()
 
-        for k in np.arange(0, self.k_lim):
+        # start trajectories
+        for k in np.arange(self.k_lim + 1):
+
+            # control at xt
+            idx_xt = self.get_index_vectorized(xt)
+            ut = u_opt[idx_xt]
 
             # get Brownian increment
             dB = self.brownian_increment()
@@ -539,15 +537,12 @@ class Sampling(LangevinSDE):
             if self.been_in_target_set.all() == True:
                 break
 
-            # control at xt
-            idx_xt = self.get_index_vectorized(xt)
-            ut = u_opt[idx_xt]
-
             # compute gradient
-            gradient = self.tilted_gradient(xt, ut)
+            controlled_gradient = self.tilted_gradient(xt, ut)
 
             # sde update
-            xt = self.sde_update(xt, gradient, dB)
+            xt = self.sde_update(xt, controlled_gradient, dB)
+
 
         self.compute_fht_statistics()
         self.compute_I_u_statistics()
@@ -563,21 +558,29 @@ class Sampling(LangevinSDE):
         # initialize xt
         x[0] = self.initial_position()
 
-        for k in np.arange(1, self.k_lim + 1):
+        for k in np.arange(self.k_lim + 1):
 
+            # update been in target set
+            _ = self.get_idx_new_in_target_set(x[k])
+
+            # check if the half of the trajectories have arrived to the target set
+            if np.sum(self.been_in_target_set) >= self.N / 2:
+                return True, x[:k]
+
+            # compute gradient
             if not self.is_controlled:
-                # compute gradient
-                gradient = self.gradient(x[k - 1])
+                gradient = self.gradient(x[k])
 
+            # or compute controlled gradient
             else:
+
                 # control at xt
                 if self.ansatz is not None:
-                    ut = self.ansatz.control(x[k - 1])
+                    ut = self.ansatz.control(x[k])
                 elif self.nn_func_appr is not None:
-                    xt_tensor = torch.tensor(x[k - 1], dtype=torch.float)
+                    xt_tensor = torch.tensor(x[k], dtype=torch.float)
                     ut_tensor = self.nn_func_appr.model.forward(xt_tensor)
-                    ut_tensor_det = ut_tensor.detach()
-                    ut = ut_tensor_det.numpy()
+                    ut = ut_tensor.detach().numpy()
 
                 # compute gradient
                 gradient = self.tilted_gradient(x[k - 1], ut)
@@ -586,14 +589,7 @@ class Sampling(LangevinSDE):
             dB = self.brownian_increment()
 
             # sde update
-            x[k] = self.sde_update(x[k - 1], gradient, dB)
-
-            # update been in target set
-            _ = self.get_idx_new_in_target_set(x[k])
-
-            # check if the half of the trajectories have arrived to the target set
-            if np.sum(self.been_in_target_set) >= self.N / 2:
-                return True, x[:k]
+            x[k + 1] = self.sde_update(x[k], gradient, dB)
 
         return False, x
 
@@ -633,7 +629,8 @@ class Sampling(LangevinSDE):
         if self.do_u_l2_error:
             self.initialize_running_l2_error()
 
-        for k in np.arange(1, self.k_lim+1):
+        # start trajectories
+        for k in np.arange(self.k_lim + 1):
 
             # control
             ut = self.ansatz.control(xt)
@@ -648,12 +645,6 @@ class Sampling(LangevinSDE):
             # update running gradient of phi and running gradient of S
             grad_phi_t += self. beta * np.sum(ut[:, np.newaxis, :] * grad_ut, axis=2) * self.dt
             grad_S_t -= np.sqrt(self.beta) * np.sum(dB[:, np.newaxis, :] * grad_ut, axis=2)
-
-            # compute gradient
-            gradient = self.tilted_gradient(xt, ut)
-
-            # sde update
-            xt = self.sde_update(xt, gradient, dB)
 
             # stochastic and deterministic integrals 
             self.update_integrals(ut, dB)
@@ -686,6 +677,12 @@ class Sampling(LangevinSDE):
             # stop if all trajectories have arrived to the target set
             if self.been_in_target_set.all() == True:
                 break
+
+            # compute gradient
+            gradient = self.tilted_gradient(xt, ut)
+
+            # sde update
+            xt = self.sde_update(xt, gradient, dB)
 
         # compute averages
         self.loss = np.mean(loss_traj)
@@ -731,11 +728,6 @@ class Sampling(LangevinSDE):
 
         # initialize trajectory
         xt = self.initial_position()
-        xt_tensor = torch.tensor(xt, dtype=torch.float32)
-
-        # initialize control
-        ut_tensor = model.forward(xt_tensor)
-        ut = ut_tensor.detach().numpy()
 
         # initialize deterministic and stochastic integrals at time t
         self.initialize_running_integrals()
@@ -744,7 +736,12 @@ class Sampling(LangevinSDE):
         if self.do_u_l2_error:
             self.initialize_running_l2_error()
 
-        for k in np.arange(0, self.k_lim):
+        # start trajectories
+        for k in np.arange(self.k_lim + 1):
+
+            # control
+            ut_tensor = model.forward(xt_tensor)
+            ut = ut_tensor.detach().numpy()
 
             # get Brownian increment and tensorize it
             dB = self.brownian_increment()
@@ -793,15 +790,12 @@ class Sampling(LangevinSDE):
             if self.been_in_target_set.all() == True:
                break
 
-            # sde update
+            # compute gradient
             controlled_gradient = self.gradient(xt) - np.sqrt(2) * ut
+
+            # sde update
             xt = self.sde_update(xt, controlled_gradient, dB)
             xt_tensor = torch.tensor(xt, dtype=torch.float32)
-
-            # control
-            ut_tensor = model.forward(xt_tensor)
-            ut = ut_tensor.detach().numpy()
-
 
         # compute loss
         a = torch.mean(phi_fht)
