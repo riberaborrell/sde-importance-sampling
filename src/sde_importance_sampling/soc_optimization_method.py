@@ -231,6 +231,10 @@ class StochasticOptimizationMethod:
             msg = self.get_iteration_statistics(i)
             print(msg)
 
+            # back up save
+            if i % 100 == 0:
+                self.save()
+
             # update coefficients
             self.sample.ansatz.theta = self.thetas[i, :] - self.lr * self.grad_losses[i, :]
 
@@ -287,6 +291,10 @@ class StochasticOptimizationMethod:
             # print iteration info
             msg = self.get_iteration_statistics(i)
             print(msg)
+
+            # back up save
+            if i % 100 == 0:
+                self.save()
 
             # compute gradients
             if self.loss_type == 'ipa':
