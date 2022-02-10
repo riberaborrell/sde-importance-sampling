@@ -558,27 +558,21 @@ class Sampling(LangevinSDE):
         # initialize xt
         x[0] = self.initial_position()
 
-        for k in np.arange(self.k_lim + 1):
-
-            # update been in target set
-            _ = self.get_idx_new_in_target_set(x[k])
-
-            # check if the half of the trajectories have arrived to the target set
-            if np.sum(self.been_in_target_set) >= self.N / 2:
-                return True, x[:k]
+        # start trajectory
+        for k in np.arange(1, self.k_lim + 1):
 
             # compute gradient
             if not self.is_controlled:
-                gradient = self.gradient(x[k])
+                gradient = self.gradient(x[k - 1])
 
             # or compute controlled gradient
             else:
 
                 # control at xt
                 if self.ansatz is not None:
-                    ut = self.ansatz.control(x[k])
+                    ut = self.ansatz.control(x[k - 1])
                 elif self.nn_func_appr is not None:
-                    xt_tensor = torch.tensor(x[k], dtype=torch.float)
+                    xt_tensor = torch.tensor(x[k - 1], dtype=torch.float)
                     ut_tensor = self.nn_func_appr.model.forward(xt_tensor)
                     ut = ut_tensor.detach().numpy()
 
@@ -589,7 +583,14 @@ class Sampling(LangevinSDE):
             dB = self.brownian_increment()
 
             # sde update
-            x[k + 1] = self.sde_update(x[k], gradient, dB)
+            x[k] = self.sde_update(x[k - 1], gradient, dB)
+
+            # update been in target set
+            _ = self.get_idx_new_in_target_set(x[k])
+
+            # check if the half of the trajectories have arrived to the target set
+            if np.sum(self.been_in_target_set) >= self.N / 2:
+                return True, x[:k]
 
         return False, x
 
