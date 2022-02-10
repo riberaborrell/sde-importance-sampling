@@ -1,3 +1,6 @@
+# configuration file
+src/sde_importance_sampling/config.py
+
 # data files
 data/
 

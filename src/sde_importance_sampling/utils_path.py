@@ -1,3 +1,5 @@
+from config import project_root_dir, data_root_dir
+
 import numpy as np
 
 from datetime import datetime
@@ -9,13 +11,15 @@ import os
 def get_project_dir():
     ''' returns the absolute path of the repository's directory
     '''
-    return Path(__file__).parent.parent.parent
+    #return Path(__file__).parent.parent.parent
+    return project_root_dir
 
 def get_data_dir():
     ''' returns the absolute path of the repository's data directory
     '''
-    project_path = get_project_dir()
-    return os.path.join(project_path, 'data')
+    #project_path = get_project_dir()
+    #return os.path.join(project_path, 'data')
+    return data_root_dir
 
 def get_tests_plots_dir():
     ''' returns the absolute path of the directory for the tests plots
