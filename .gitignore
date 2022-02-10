@@ -4,8 +4,8 @@ src/sde_importance_sampling/config.py
 # data files
 data/
 
-# pipelines
-pipelines/
+# scripts
+scripts/
 
 # notebooks
 notebooks/
