@@ -1,4 +1,4 @@
-from config import project_root_dir, data_root_dir
+from sde_importance_sampling.config import project_root_dir, data_root_dir
 
 import numpy as np
 
