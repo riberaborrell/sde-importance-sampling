@@ -128,6 +128,7 @@ def main():
         optimizer=args.optimizer,
         lr=args.lr,
         n_iterations_lim=args.n_iterations_lim,
+        n_iterations_backup=args.n_iterations_backup,
     )
 
     # start sgd
@@ -137,7 +138,6 @@ def main():
 
         # save if job is manually interrupted
         except KeyboardInterrupt:
-            sgd.cut_arrays()
             sgd.stop_timer()
             sgd.save_som()
 

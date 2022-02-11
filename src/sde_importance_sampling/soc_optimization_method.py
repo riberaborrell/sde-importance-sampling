@@ -13,7 +13,7 @@ class StochasticOptimizationMethod:
     '''
     '''
     def __init__(self, sample, loss_type=None, optimizer=None, lr=None, n_iterations_lim=None,
-                 save_thetas_all_it=True):
+                 n_iterations_backup=None, save_thetas_all_it=True):
         '''
         '''
 
@@ -29,6 +29,10 @@ class StochasticOptimizationMethod:
         # (initial) learning rate and maximal number of iterations 
         self.lr = lr
         self.n_iterations_lim = n_iterations_lim
+        if n_iterations_backup is not None:
+            self.n_iterations_backup = n_iterations_backup
+        else:
+            self.n_iterations_backup = n_iterations_lim
 
         # per iteration
         self.m = None
@@ -232,7 +236,8 @@ class StochasticOptimizationMethod:
             print(msg)
 
             # back up save
-            if i % 100 == 0:
+            if (i + 1) % self.n_iterations_backup == 0:
+                self.stop_timer()
                 self.save()
 
             # update coefficients
@@ -293,7 +298,8 @@ class StochasticOptimizationMethod:
             print(msg)
 
             # back up save
-            if i % 100 == 0:
+            if (i + 1) % self.n_iterations_backup == 0:
+                self.stop_timer()
                 self.save()
 
             # compute gradients
@@ -333,37 +339,37 @@ class StochasticOptimizationMethod:
 
         # parameters
         if self.thetas is not None:
-            files_dict['thetas'] = self.thetas
+            files_dict['thetas'] = self.thetas[:self.n_iterations]
         if self.last_thetas is not None:
             files_dict['last_thetas'] = self.last_thetas
 
         # loss and its variance
-        files_dict['losses'] = self.losses
+        files_dict['losses'] = self.losses[:self.n_iterations]
         if self.vars_loss is not None:
-            files_dict['vars_loss'] = self.vars_loss
+            files_dict['vars_loss'] = self.vars_loss[:self.n_iterations]
 
         if self.ipa_losses is not None:
-            files_dict['ipa_losses'] = self.ipa_losses
+            files_dict['ipa_losses'] = self.ipa_losses[:self.n_iterations]
 
         if self.re_losses is not None:
-            files_dict['re_losses'] = self.re_losses
+            files_dict['re_losses'] = self.re_losses[:self.n_iterations]
 
         # gradient of the loss
         if self.grad_losses is not None:
-            files_dict['grad_losses'] = self.grad_losses
+            files_dict['grad_losses'] = self.grad_losses[:self.n_iterations, :]
 
         # quantity of interest and time steps
-        files_dict['means_I_u'] = self.means_I_u
-        files_dict['vars_I_u'] = self.vars_I_u
-        files_dict['res_I_u'] = self.res_I_u
-        files_dict['time_steps'] = self.time_steps
+        files_dict['means_I_u'] = self.means_I_u[:self.n_iterations]
+        files_dict['vars_I_u'] = self.vars_I_u[:self.n_iterations]
+        files_dict['res_I_u'] = self.res_I_u[:self.n_iterations]
+        files_dict['time_steps'] = self.time_steps[:self.n_iterations]
 
         # u l2 error
         if self.u_l2_errors is not None:
-            files_dict['u_l2_errors'] = self.u_l2_errors
+            files_dict['u_l2_errors'] = self.u_l2_errors[:self.n_iterations]
 
         # computational time
-        files_dict['cts'] = self.cts
+        files_dict['cts'] = self.cts[:self.n_iterations]
         files_dict['ct'] = self.ct
 
         # save npz file
@@ -1074,7 +1080,7 @@ class StochasticOptimizationMethod:
                 control_6,
         ))
 
-        #fig.set_title(r'$u_i(x; \theta_{3999})$, $\theta_0$ = meta')
+        #fig.set_title(r'$u_i(x; \theta_{2999})$, $\theta_0$ = meta')
         fig.set_xlabel(r'$x_i$')
         #fig.turn_legend_off()
         plt.subplots_adjust(left=0.12, right=0.96, bottom=0.12)

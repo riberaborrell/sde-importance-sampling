@@ -250,6 +250,12 @@ def get_base_parser():
         help='Set maximal number of sgd iterations. Default: 100',
     )
     parser.add_argument(
+        '--n-iterations-backup',
+        dest='n_iterations_backup',
+        type=int,
+        help='Set number of sgd iterations between saving the arrays. Default: None',
+    )
+    parser.add_argument(
         '--dt-sgd',
         dest='dt_sgd',
         type=float,
