@@ -143,7 +143,7 @@ class GaussianAnsatz():
         self.m_i = m_i
         self.m = m_i ** self.n
 
-        # distribute means uniformly
+        # distribute centers of Gaussians uniformly
         mgrid_input = []
         for i in range(self.n):
             slice_i = slice(sde.domain[i, 0], sde.domain[i, 1], complex(0, m_i))
@@ -297,11 +297,14 @@ class GaussianAnsatz():
         return mvn_pdf_basis
 
     def mvn_pdf_basis(self, x):
-        ''' Multivariate normal pdf (nd Gaussian) basis V(x; means, cov) with different m means
-            but same covariance matrix evaluated at x. Computations with pytorch
+        ''' Multivariate normal pdf (nd Gaussian) basis v(x; means, cov) with different means
+            but same covariance matrix evaluated at x. Computations with pytorch.
+
+        Args:
             x ((N, n)-array) : position
 
-            returns (N, m)-array
+        Returns:
+            (N, m)-array
         '''
         # assume shape of x array to be (N, n)
         assert x.ndim == 2, ''
@@ -322,7 +325,8 @@ class GaussianAnsatz():
 
             # add normalization factor
             if self.normalized:
-                log_mvn_pdf_basis -= torch.log(2 * torch.tensor(np.pi) * self.sigma_i) * self.n / 2
+                log_mvn_pdf_basis -= torch.log(2 * torch.tensor(np.pi) * self.sigma_i) \
+                                   * self.n / 2
 
         # general covariance matrix
         else:
@@ -374,9 +378,12 @@ class GaussianAnsatz():
     def mvn_pdf_gradient_basis(self, x):
         ''' Multivariate normal pdf gradient (nd Gaussian gradients) basis \nabla V(x; means, cov)
         with different means but same covaianc matrix evaluated at x. Computations with torch
+
+        Args:
             x ((N, n)-array) : posicion
 
-            returns (N, m, n)-array
+        Returns:
+            (N, m, n)-array
         '''
         # assume shape of x array to be (N, n)
         assert x.ndim == 2, ''
@@ -390,9 +397,13 @@ class GaussianAnsatz():
         x_tensor = torch.tensor(x)
 
         # compute gradient of the exponential term
+
+        # scalar covariance matrix
         if self.is_cov_scalar_matrix:
             A = - (x_tensor.view(N, 1, self.n) - self.means_tensor.view(1, self.m, self.n)) \
                 / self.sigma_i
+
+        # general covariance matrix
         else:
             #TODO! convert to pytorch
             A = - 0.5 * np.matmul(x - means, self.inv_cov + self.inv_cov.T)

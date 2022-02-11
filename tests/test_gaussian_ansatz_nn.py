@@ -5,6 +5,8 @@ import numpy as np
 import pytest
 import torch
 
+import time
+
 class TestGaussianAnsatzNN:
 
     @pytest.fixture
@@ -26,9 +28,9 @@ class TestGaussianAnsatzNN:
         return torch.rand(N, n)
 
     @pytest.fixture
-    def gaussian_ansatz(self, sde, m, sigma_i):
+    def gaussian_ansatz(self, sde, m_i, sigma_i):
         '''initializes GaussianAnsatzNN model and distributes uniformly the means'''
-        return GaussianAnsatzNN(sde.n, sde.beta, sde.domain, m, sigma_i)
+        return GaussianAnsatzNN(sde.n, sde.beta, sde.domain, m_i, sigma_i)
 
     def test_mvn_pdf_basis_size(self, gaussian_ansatz, random_inputs):
         '''
@@ -79,6 +81,31 @@ class TestGaussianAnsatzNN:
         assert np.isclose(theta_new, theta).all()
         assert not np.isclose(theta_old, theta).all()
 
+    def test_mvn_pdf_basis_ct(self, random_inputs, gaussian_ansatz):
+
+        # start timer
+        ct_initial = time.perf_counter()
+
+        # compute mvn basis
+        basis = gaussian_ansatz.mvn_pdf_basis(random_inputs)
+
+        # stop timer
+        ct_final = time.perf_counter()
+
+        print('ct: {:.3f}'.format(ct_final - ct_initial))
+
+    def test_mvn_pdf_gradient_basis_ct(self, random_inputs, gaussian_ansatz):
+
+        # start timer
+        ct_initial = time.perf_counter()
+
+        # compute mvn basis
+        basis = gaussian_ansatz.mvn_pdf_gradient_basis(random_inputs)
+
+        # stop timer
+        ct_final = time.perf_counter()
+
+        print('ct: {:.3f}'.format(ct_final - ct_initial))
 
     @pytest.mark.skip()
     def test_mvn_pdf_gradient_basis(self, random_distr_gaussian_ansatz_nn, random_inputs):

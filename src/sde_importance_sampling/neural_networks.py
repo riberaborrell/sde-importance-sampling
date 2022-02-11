@@ -11,16 +11,15 @@ ACTIVATION_FUNCTION_TYPES = [
 ]
 
 class GaussianAnsatzNN(nn.Module):
-    def __init__(self, n, beta, domain=None, m=None, sigma_i=None, means=None,
-                 cov=None, normalized=True, seed=None):
+    def __init__(self, n, beta, domain, m_i, sigma_i, normalized=True, seed=None):
         super(GaussianAnsatzNN, self).__init__()
 
         ''' Gaussian ansatz NN model
-            n : dimension
-            beta : inverse of the temperature
-            m : number of ansatz functions
-            sigma_i :
+            n (int): dimension
+            beta (float) : inverse of the temperature
+            m_i (int) : number of ansatz functions per axis
             means ((m, n)-tensor) : centers of the gaussian functions
+            sigma_i (float): value in the diagonal entries of the covariance matrix
             cov ((n, n)-tensor) : covariance matrix
         '''
 
@@ -35,49 +34,69 @@ class GaussianAnsatzNN(nn.Module):
         self.n = n
         self.beta = beta
 
-        # centers
-        if means is not None:
-            assert means.ndim == 2, ''
-            assert means.size(1) == self.n, ''
-            self.m = means.size(0)
-            self.means = means
-        elif means is None and m is not None and domain is not None:
-            self.set_unif_dist_ansatz_functions(domain, m)
-        else:
-            pass
-            #TODO: rise error
-
-        # covariance matrix
-        if cov is not None:
-            assert cov.ndim == 2, ''
-            assert cov.shape == (self.n, self.n), ''
-            self.cov = cov
-        elif cov is None and sigma_i is not None:
-            self.set_cov_matrix(sigma_i)
-        else:
-            pass
-            #TODO: rise error
-
+        # set gaussians uniformly in the domain
+        self.set_unif_dist_ansatz_functions(domain, m_i, sigma_i)
 
         # set parameters
-        self.theta = torch.nn.Parameter(torch.randn(m))
+        self.theta = torch.nn.Parameter(torch.randn(self.m))
 
         # dimension of flattened parameters
-        self.d_flat = m
+        self.d_flat = self.m
 
-    def set_unif_dist_ansatz_functions(self, domain, m):
-        ''' sets the centers of the ansatz functions uniformly distributed along the domain
-            domain : nd-array representing the boundaries of the domain
-            m : number of ansatz functions
+    def set_cov_matrix(self, sigma_i=None, cov=None):
+        ''' sets the covariance matrix of the gaussian functions
+
+        Args:
+            sigma_i (float): value in the diagonal entries of the covariance matrix.
+            cov ((n, n)-tensor): covariance matrix
         '''
 
-        # number of ansatz functions along the i-th direction
-        self.m = m
-        m_i = m ** (1 / self.n)
-        #assert (np.mod(m_i, 1) == 0), ''
-        m_i = np.rint(m_i)
+        # scalar covariance matrix case
+        if sigma_i is not None:
 
-        # m centers uniformly distributed in the domain
+            # covariance matrix
+            self.sigma_i = sigma_i
+            self.cov = sigma_i * torch.eye(self.n)
+            self.is_cov_scalar_matrix = True
+
+            # compute inverse
+            self.inv_cov = torch.eye(self.n) / sigma_i
+
+            # compute determinant
+            self.det_cov = sigma_i**self.n
+
+        # general case
+        if cov is not None:
+
+            # check covariance matrix
+            assert cov.ndim == 2, ''
+            assert cov.shape == (self.n, self.n), ''
+
+            # set covariance matrix
+            self.cov = cov
+            self.is_cov_scalar_matrix = False
+
+            # compute inverse
+            self.inv_cov = torch.linalg.inv(cov)
+
+            # compute determinant
+            self.det_cov = torch.linalg.det(cov)
+
+    def set_unif_dist_ansatz_functions(self, domain, m_i, sigma_i):
+        ''' sets the centers of the ansatz functions uniformly distributed along the domain
+            with scalar covariance matrix
+
+        Args:
+            domain ((n, 2)-array): represents the boundaries of the domain
+            m_i (float): number of gaussian ansatz along each direction
+            sigma_i (float): value in the diagonal entries of the covariance matrix
+        '''
+
+        # set number of gaussians
+        self.m_i = m_i
+        self.m = m_i ** self.n
+
+        # distribute centers of Gaussians uniformly
         mgrid_input = []
         for i in range(self.n):
             slice_i = slice(domain[i, 0], domain[i, 1], complex(0, m_i))
@@ -86,55 +105,69 @@ class GaussianAnsatzNN(nn.Module):
         means = np.moveaxis(means, 0, -1).reshape(self.m, self.n)
         self.means = torch.tensor(means, dtype=torch.float32)
 
-    def set_cov_matrix(self, sigma_i):
-        ''' sets the covariance matrix of the gaussian functions
-            sigma_i :
-        '''
-        self.cov = torch.eye(self.n)
-        self.cov *= sigma_i
+        # set covariance matrix
+        self.set_cov_matrix(sigma_i=sigma_i)
+
 
     def mvn_pdf_basis(self, x):
         ''' Multivariate normal pdf (nd Gaussian) basis v(x; means, cov) with different means
             but same covariance matrix evaluated at x
+
+        Args:
             x ((N, n)-tensor) : position
+
+        Returns:
+            (N, m)-tensor
         '''
         # assume shape of x array to be (N, n)
         assert x.ndim == 2, ''
         assert x.size(1) == self.n, ''
         N = x.size(0)
 
-        # covariance matrix inverse
-        inv_cov = torch.linalg.inv(self.cov)
+        # compute log of the basis
 
-        # prepare position and means for broadcasting
-        x = torch.unsqueeze(x, 1)
-        means = torch.unsqueeze(self.means, 0)
+        # scalar covariance matrix
+        if self.is_cov_scalar_matrix:
+            log_mvn_pdf_basis = - 0.5 * torch.sum(
+                (x.view(N, 1, self.n) - self.means.view(1, self.m, self.n))**2,
+                axis=2,
+            ) / self.sigma_i
 
-        # compute exponential term
-        x_centered = (x - means).reshape(N * self.m, self.n)
-        exp_term = torch.matmul(x_centered, inv_cov)
-        exp_term = torch.sum(exp_term * x_centered, axis=1).reshape(N, self.m)
-        exp_term *= - 0.5
+            # add normalization factor
+            if self.normalized:
+                log_mvn_pdf_basis -= torch.log(2 * torch.tensor(np.pi) * self.sigma_i) \
+                                   * self.n / 2
 
-        # normalized Gaussian functions basis
-        if self.normalized:
-
-            # compute norm factor
-            norm_factor = np.sqrt(((2 * np.pi) ** self.n) * torch.linalg.det(self.cov))
-
-            # normalize
-            mvn_pdf_basis = np.exp(exp_term) / norm_factor
-
-        # not normalized Gaussian functions basis
+        # general covariance matrix
         else:
-            mvn_pdf_basis = np.exp(exp_term)
+            #TODO! test
 
-        return mvn_pdf_basis
+            # prepare position and means for broadcasting
+            x = torch.unsqueeze(x, 1)
+            means = torch.unsqueeze(self.means, 0)
+
+            # compute exponential term
+            x_centered = (x - means).reshape(N * self.m, self.n)
+            exp_term = torch.matmul(x_centered, inv_cov)
+            exp_term = torch.sum(exp_term * x_centered, axis=1).reshape(N, self.m)
+            exp_term *= - 0.5
+
+            # add normalization factor
+            if self.normalized:
+
+                log_mvn_pdf_basis -= torch.log((2 * torch.tensor(np.pi)) ** self.n * self.det_cov) / 2
+
+        return torch.exp(log_mvn_pdf_basis)
 
     def mvn_pdf_gradient_basis(self, x):
         ''' Gradient of the multivariate normal pdf (nd Gaussian) \nabla v(x; means, cov)
         with means evaluated at x
-            x ((N, n)-array) : position
+
+        Args:
+            x ((N, n)-tensor) : position
+
+        Returns:
+            (N, m, n)-tensor
         '''
         # assume shape of x array to be (N, n)
         assert x.ndim == 2, ''
@@ -144,18 +177,21 @@ class GaussianAnsatzNN(nn.Module):
         # get nd gaussian basis
         mvn_pdf_basis = self.mvn_pdf_basis(x)
 
-        # covariance matrix inverse
-        inv_cov = np.linalg.inv(self.cov)
-
-        # prepare position and means for broadcasting
-        x = x[:, np.newaxis, :]
-        means = self.means[np.newaxis, :, :]
-
         # compute gradient of the exponential term
-        exp_term_gradient = - 0.5 * np.matmul(x - means, inv_cov + inv_cov.T)
+        if self.is_cov_scalar_matrix:
+            A = - (x.view(N, 1, self.n) - self.means.view(1, self.m, self.n)) \
+              / self.sigma_i
+
+        # general covariance matrix
+        else:
+            #TODO! test
+            A = - 0.5 * np.matmul(
+                x.view(N, 1, self.n) - self.means.view(1, self.m, self.n),
+                inv_cov + inv_cov.T,
+            )
 
         # compute gaussian gradients basis
-        mvn_pdf_gradient_basis = exp_term_gradient * mvn_pdf_basis[:, :, np.newaxis]
+        mvn_pdf_gradient_basis = A * mvn_pdf_basis[:, :, np.newaxis]
 
         # add prefactor such that approximation of the value function is also possible
         mvn_pdf_gradient_basis *= - np.sqrt(2) / self.beta

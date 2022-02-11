@@ -45,8 +45,7 @@ def main():
     )
 
     # initialize gaussian ansatz nn 
-    m = args.m_i ** args.n
-    model = GaussianAnsatzNN(sample.n, sample.beta, sample.domain, m, args.sigma_i)
+    model = GaussianAnsatzNN(sample.n, sample.beta, sample.domain, args.m_i, args.sigma_i)
 
     # initialize function approximation
     func = FunctionApproximation(

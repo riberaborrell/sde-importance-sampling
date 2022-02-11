@@ -75,6 +75,13 @@ def pytest_addoption(parser):
         help='Set number of ansatz functions. Default: 30',
     )
     parser.addoption(
+        '--m-i',
+        dest='m_i',
+        type=int,
+        default=30,
+        help='Set number of ansatz functions along each coordinate. Default: 30',
+    )
+    parser.addoption(
         '--sigma-i',
         dest='sigma_i',
         type=float,
@@ -163,6 +170,10 @@ def k_lim(request):
 @pytest.fixture(scope='session')
 def m(request):
     return request.config.getoption('m')
+
+@pytest.fixture(scope='session')
+def m_i(request):
+    return request.config.getoption('m_i')
 
 @pytest.fixture(scope='session')
 def sigma_i(request):
