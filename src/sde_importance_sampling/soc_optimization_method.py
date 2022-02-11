@@ -199,6 +199,32 @@ class StochasticOptimizationMethod:
         self.time_steps = self.time_steps[:self.n_iterations]
         self.cts = self.cts[:self.n_iterations]
 
+    def cut_array_given_threshold(self, attr_name='', epsilon=None):
+        ''' cut the array given by the attribute name up to the point where their running
+            average is smaller than epsilon
+        '''
+        assert attr_name in ['vars_I_u', 'res_I_u', 'losses', 'u_l2_errors'], ''
+        assert epsilon is not None, ''
+        assert self.n_iter_avg is not None, ''
+        attr_name_run_avg = 'run_avg_' + attr_name
+        attr_name_eps_cut = attr_name + '_eps_cut'
+
+        # get idx of the iterations which running average is smaller than epsilon
+        idx = np.where(getattr(self, attr_name_run_avg) < epsilon)[0]
+
+        # get the smaller index
+        if idx.shape[0] != 0:
+            idx_iter = idx[0]
+        else:
+            idx_iter = self.n_iterations - self.n_iter_avg + 1
+
+        # cut array up to this indx
+        attr_name_run_avg_cut = getattr(self, attr_name_run_avg)[:idx_iter]
+        setattr(self, attr_name_eps_cut, attr_name_run_avg_cut)
+
+        return idx_iter
+
+
     def get_iteration_statistics(self, i):
         msg = 'it.: {:d}, loss: {:2.3f}, mean I^u: {:2.3e}, re I^u: {:2.3f}' \
               ', time steps: {:2.1e}'.format(
@@ -436,65 +462,6 @@ class StochasticOptimizationMethod:
             self.run_avg_u_l2_errors = np.convolve(
                 self.u_l2_errors, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
             )
-
-    def cut_vars_I_u(self, epsilon=None):
-        ''' cut the array which keep the variance I^u up to the point where their running
-            average is smaller than epsilon
-        '''
-        assert epsilon is not None, ''
-        assert self.n_iter_avg is not None, ''
-
-        # get idx of the iterations which running average is smaller than epsilon
-        idx = np.where(self.run_avg_vars_I_u < epsilon)[0]
-
-        # get the smaller index
-        if idx.shape[0] != 0:
-            idx_iter = idx[0]
-        else:
-            idx_iter = self.n_iterations
-
-        # cut array up to this indx
-        self.vars_I_u_epsilon_cut = self.run_avg_vars_I_u[:idx_iter]
-
-    def cut_res_I_u(self, epsilon=None):
-        ''' cut the array which keep the relative error I^u up to the point where their running
-            average is smaller than epsilon
-        '''
-        assert epsilon is not None, ''
-        assert self.n_iter_avg is not None, ''
-
-        # get idx of the iterations which running average is smaller than epsilon
-        idx = np.where(self.run_avg_res_I_u < epsilon)[0]
-
-        # get the smaller index
-        if idx.shape[0] != 0:
-            idx_iter = idx[0]
-        else:
-            idx_iter = self.n_iterations
-
-        # cut array up to this indx
-        self.res_I_u_epsilon_cut = self.run_avg_res_I_u[:idx_iter]
-
-    def cut_losses(self, epsilon=None):
-        ''' cut the array which keep the losses up to the point where their running
-            average is smaller than epsilon
-        '''
-        assert epsilon is not None, ''
-        assert self.n_iter_avg is not None, ''
-
-        # get idx of the iterations which running average is smaller than epsilon
-        idx = np.where(self.run_avg_losses < epsilon)[0]
-
-        # get the smaller index
-        if idx.shape[0] != 0:
-            idx_iter = idx[0]
-        else:
-            idx_iter = self.n_iterations
-
-        # cut array up to this indx
-        self.losses_epsilon_cut = self.run_avg_losses[:idx_iter]
-
-
 
     def write_report(self):
         sample = self.sample
