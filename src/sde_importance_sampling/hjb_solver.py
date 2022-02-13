@@ -354,24 +354,34 @@ class SolverHJB(LangevinSDE):
         # psi, value function and control at x
         f.write('\n psi, value function and optimal control at x\n')
 
+        x_str = 'x: ' + from_1dndarray_to_string(x)
         psi = self.get_psi_at_x(x)
         value_f = self.get_value_function_at_x(x)
         u_opt = self.get_u_opt_at_x(x)
-        u_opt_max = self.u_opt[np.argmax(self.u_opt)]
-
-        x_str = 'x: ' + from_1dndarray_to_string(x)
         u_opt_str = 'u_opt(x): ' + from_1dndarray_to_string(u_opt)
-        u_opt_max_str = 'max u_opt(x): = ' + from_1dndarray_to_string(u_opt_max)
 
         f.write(x_str)
         if psi is not None:
-            f.write('psi(x) = {:2.3e}\n'.format(psi))
+            f.write('psi(x) = {:2.4e}\n'.format(psi))
 
         if value_f is not None:
-            f.write('value_f(x) = {:2.3e}\n'.format(value_f))
+            f.write('value_f(x) = {:2.4e}\n'.format(value_f))
 
         f.write(u_opt_str)
-        f.write(u_opt_max_str)
+
+        # maximum value of the control
+        if self.n == 1:
+
+            f.write('\n maximum value of the optimal control\n')
+
+            idx_u_max = np.argmax(self.u_opt)
+            x_u_max = self.get_x(idx_u_max)
+            u_opt_max = self.u_opt[idx_u_max]
+            x_u_max_str = 'x: ' + from_1dndarray_to_string(x_u_max)
+            u_opt_max_str = 'max u_opt(x): = ' + from_1dndarray_to_string(u_opt_max)
+
+            f.write(x_u_max_str)
+            f.write(u_opt_max_str)
 
         # computational time
         h, m, s = get_time_in_hms(self.ct)
