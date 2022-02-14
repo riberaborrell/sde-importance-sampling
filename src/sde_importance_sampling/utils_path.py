@@ -111,7 +111,7 @@ def get_controlled_dir_path(parent_dir_path, dt, N, seed):
     )
     return dir_path
 
-def get_metadynamics_dir_path(meta_type, weights_type, omega_0, k, N, seed):
+def get_metadynamics_dir_path(meta_type, weights_type, omega_0, sigma_i, dt, k, N, seed):
     ''' returns relative path of the metadynamics algorithm
     '''
     # set seed string
@@ -125,6 +125,8 @@ def get_metadynamics_dir_path(meta_type, weights_type, omega_0, k, N, seed):
         'metadynamics-{}'.format(meta_type),
         'weights-{}'.format(weights_type),
         'omega0_{}'.format(omega_0),
+        'sigma-i_{}'.format(sigma_i),
+        'dt_{}'.format(dt),
         'k_{}'.format(k),
         'N_{}'.format(N),
         seed_str,
@@ -132,6 +134,7 @@ def get_metadynamics_dir_path(meta_type, weights_type, omega_0, k, N, seed):
     return dir_path
 
 def get_metadynamics_nn_dir_path(settings_dir_path, dt, sigma_i, meta_type, k, N):
+    #TODO! debug metadynamics with nn
     ''' Get metadynamics dir path and create its directories
     '''
     # get dir path
@@ -139,7 +142,7 @@ def get_metadynamics_nn_dir_path(settings_dir_path, dt, sigma_i, meta_type, k, N
         settings_dir_path,
         'metadynamics-nn',
         'dt_{}'.format(dt),
-        'sigma_i_{}'.format(sigma_i),
+        'sigma-i_{}'.format(sigma_i),
         meta_type,
         'k_{}'.format(k),
         'N_{}'.format(N),
@@ -151,6 +154,7 @@ def get_metadynamics_nn_dir_path(settings_dir_path, dt, sigma_i, meta_type, k, N
     return dir_path
 
 def get_flat_bias_dir_path(settings_dir_path, dt, k_lim, N):
+    #TODO! debug flat bias potential
     # get dir path
     dir_path = os.path.join(
         settings_dir_path,
@@ -187,14 +191,14 @@ def get_gaussian_ansatz_dir_path(settings_dir_path, distributed, theta, m_i=None
         dir_path = os.path.join(
             dir_path,
             distributed,
-            'm_i_{}'.format(m_i),
-            'sigma_i_{}'.format(float(sigma_i)),
+            'm-i_{}'.format(m_i),
+            'sigma-i_{}'.format(float(sigma_i)),
         )
     elif distributed == 'meta':
         dir_path = os.path.join(
             dir_path,
             distributed,
-            'sigma_i_meta_{}'.format(float(sigma_i_meta)),
+            'sigma-i_meta_{}'.format(float(sigma_i_meta)),
             'k_{}'.format(k),
             'N_meta_{}'.format(N_meta),
         )
@@ -204,7 +208,7 @@ def get_gaussian_ansatz_dir_path(settings_dir_path, distributed, theta, m_i=None
         dir_path = os.path.join(
             dir_path,
             'theta_' + theta,
-            'sigma_i_meta_{}'.format(float(sigma_i_meta)),
+            'sigma-i_meta_{}'.format(float(sigma_i_meta)),
             'k_{}'.format(k),
             'N_meta_{}'.format(N_meta),
             seed_str,

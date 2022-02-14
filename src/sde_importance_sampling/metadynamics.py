@@ -31,7 +31,7 @@ class Metadynamics:
     '''
 
     def __init__(self, sample, k, N, seed=None, meta_type='cum',
-                 weights_type='const', omega_0=1., do_updates_plots=False):
+                 weights_type='const', omega_0=1., sigma_i=0.5, do_updates_plots=False):
 
         # sampling object
         self.sample = sample
@@ -61,7 +61,7 @@ class Metadynamics:
         self.omega_0 = omega_0
         self.omegas = None
         self.means = None
-        self.sigma_i = 0.5
+        self.sigma_i = sigma_i
         self.cov = self.sigma_i * np.eye(sample.n)
 
         # nn
@@ -84,6 +84,8 @@ class Metadynamics:
             self.meta_type,
             self.weights_type,
             self.omega_0,
+            self.sigma_i,
+            self.sample.dt,
             self.k,
             self.N,
             self.seed,

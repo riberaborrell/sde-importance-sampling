@@ -55,6 +55,7 @@ def main():
         meta_type=args.meta_type,
         weights_type=args.weights_type,
         omega_0=args.omega_0_meta,
+        sigma_i=args.sigma_i,
     )
 
     # set sampling parameters
