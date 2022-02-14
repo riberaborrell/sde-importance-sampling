@@ -73,8 +73,8 @@ def main():
         # get metadynamics
         sde = LangevinSDE.new_from(sample)
         meta = sde.get_metadynamics_sampling(args.meta_type, args.weights_type,
-                                             args.omega_0_meta, args.k_meta,
-                                             args.N_meta, args.seed)
+                                             args.omega_0_meta, args.sigma_i, args.dt_meta,
+                                             args.k_meta, args.N_meta, args.seed)
         dir_path = meta.dir_path
 
     # set dir path for nn
