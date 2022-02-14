@@ -57,6 +57,10 @@ def main():
     # sample trajectories with optimal control
     if not args.load:
 
+        # save trajectory flag
+        if args.save_trajectory:
+            sample.save_trajectory = True
+
         # sample and compute statistics
         sample.sample_optimal_controlled(h=args.h_hjb)
 

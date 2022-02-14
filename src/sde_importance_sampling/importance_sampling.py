@@ -510,8 +510,16 @@ class Sampling(LangevinSDE):
         # initialize deterministic and stochastic integrals at time t
         self.initialize_running_integrals()
 
+        # preallocate array for the trajectory
+        if self.save_trajectory:
+            self.traj = np.empty((self.k_lim + 1, self.n))
+
         # start trajectories
         for k in np.arange(self.k_lim + 1):
+
+            # save position of first trajectory at time k
+            if self.save_trajectory:
+                self.traj[k] = xt[0, :]
 
             # control at xt
             idx_xt = self.get_index_vectorized(xt)
@@ -542,7 +550,6 @@ class Sampling(LangevinSDE):
 
             # sde update
             xt = self.sde_update(xt, controlled_gradient, dB)
-
 
         self.compute_fht_statistics()
         self.compute_I_u_statistics()
