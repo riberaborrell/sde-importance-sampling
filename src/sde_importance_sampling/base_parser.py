@@ -270,6 +270,13 @@ def get_base_parser():
         help='Set number of trajectories to sample in the sgd. Default: 1000',
     )
     parser.add_argument(
+        '--N-grad',
+        dest='N_grad',
+        type=int,
+        default=50,
+        help='Set number of times the gradient is sampled. Default: 50',
+    )
+    parser.add_argument(
         '--N-train',
         dest='N_train',
         type=int,

@@ -340,6 +340,62 @@ class StochasticOptimizationMethod:
         self.stop_timer()
         self.save()
 
+    def som_nn_variance_gradient(self, N_grad):
+        assert self.loss_type == 'ipa', ''
+        assert self.sample.problem_name == 'langevin_stop-t', ''
+
+        self.start_timer()
+
+        # save number of times the gradient is sampled
+        self.N_grad = N_grad
+
+        # model and number of parameters
+        model = self.sample.nn_func_appr.model
+        self.m = model.d_flat
+
+        # define device
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+        # define optimizer
+        if self.optimizer == 'sgd':
+            optimizer = optim.SGD(
+                model.parameters(),
+                lr=self.lr,
+            )
+        elif self.optimizer == 'adam':
+            optimizer = optim.Adam(
+                model.parameters(),
+                lr=self.lr,
+            )
+
+        # preallocate parameters and losses
+        self.thetas_grad = np.empty((self.n_iterations_lim, self.N_grad, self.m))
+
+        for i in np.arange(self.n_iterations_lim):
+            for j in np.arange(self.N_grad):
+
+                # reset gradients
+                optimizer.zero_grad()
+
+                # compute ipa loss 
+                succ = self.sample.sample_loss_ipa_nn(device)
+
+                # check if sample succeeded
+                if not succ:
+                    break
+
+                # compute gradients
+                self.sample.ipa_loss.backward(retain_graph=True)
+
+                # compute the accomulated gradient on the model paramters
+                self.thetas_grad[i, j, :] = model.get_gradient_parameters()
+
+                # update parameters
+                optimizer.step()
+
+        self.stop_timer()
+        self.save_var_grad()
+
     def save(self):
 
         # set file path
@@ -400,6 +456,37 @@ class StochasticOptimizationMethod:
 
         # save npz file
         np.savez(file_path, **files_dict)
+
+    def save_var_grad(self):
+
+        # set file path
+        file_path = os.path.join(self.dir_path, 'som_var_grad.npz')
+
+        # create directories of the given path if it does not exist
+        if not os.path.isdir(self.dir_path):
+            os.makedirs(self.dir_path)
+
+        # create dictionary
+        files_dict = {}
+
+        # add sampling attributes
+        files_dict['seed'] = self.sample.seed
+        files_dict['N'] = self.sample.N
+
+        # Euler-Marujama
+        files_dict['dt'] = self.sample.dt
+
+        # iterations
+        files_dict['n_iterations'] = self.n_iterations
+
+        # gradient samples
+        files_dict['N_grad'] = self.N_grad
+
+        files_dict['thetas_grad'] = self.thetas_grad
+
+        # save npz file
+        np.savez(file_path, **files_dict)
+
 
     def load(self):
         try:
@@ -612,9 +699,10 @@ class StochasticOptimizationMethod:
             self.linestyles = ['-', 'dashed', 'dashdot', 'dashdot']
             self.labels = [
                 'SOC',
-                'not contronlled sampling',
+                'MC sampling',
                 'HJB sampling',
-                r'HJB solution (h={:.0e})'.format(self.h_hjb),
+                #r'HJB solution (h={:.0e})'.format(self.h_hjb),
+                r'HJB solution',
             ]
 
 

@@ -404,6 +404,28 @@ class FeedForwardNN(nn.Module):
 
         return x
 
+    def get_gradient_parameters(self):
+        '''
+        '''
+
+        # preallocate gradient of the parameters
+        flatten_theta_grad = np.empty(self.d_flat)
+
+        for i in range(self.n_layers):
+
+            # get linear layer
+            linear = getattr(self, 'linear{:d}'.format(i+1))
+
+            # get indices of its weights and bias parameters
+            idx_A = getattr(self, 'idx_A{:d}'.format(i+1))
+            idx_b = getattr(self, 'idx_b{:d}'.format(i+1))
+
+            # fill the flattened array
+            flatten_theta_grad[idx_A] = linear._parameters['weight'].grad.detach().numpy().flatten()
+            flatten_theta_grad[idx_b] = linear._parameters['bias'].grad.detach().numpy()
+
+        return flatten_theta_grad
+
     def get_parameters(self):
         ''' get flattened parameters of the model.
         '''
