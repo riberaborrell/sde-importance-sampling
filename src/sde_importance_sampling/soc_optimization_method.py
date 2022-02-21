@@ -166,9 +166,11 @@ class StochasticOptimizationMethod:
     def cut_arrays(self, n_iter=None):
         '''
         '''
+
+        # number of iterations to cut
         if n_iter is not None:
+            assert n_iter <= self.n_iterations_lim, ''
             self.n_iterations = n_iter
-        assert self.n_iterations < self.n_iterations_lim, ''
 
         # parameters
         self.thetas = self.thetas[:self.n_iterations]
@@ -492,6 +494,20 @@ class StochasticOptimizationMethod:
         try:
             data = np.load(
                   os.path.join(self.dir_path, 'som.npz'),
+                  allow_pickle=True,
+            )
+            for file_name in data.files:
+                setattr(self, file_name, data[file_name])
+            return True
+
+        except:
+            print('no som found')
+            return False
+
+    def load_var_grad(self):
+        try:
+            data = np.load(
+                  os.path.join(self.dir_path, 'som_var_grad.npz'),
                   allow_pickle=True,
             )
             for file_name in data.files:
@@ -1195,11 +1211,15 @@ class StochasticOptimizationMethod:
         elif self.sample.nn_func_appr is not None:
             self.sample.nn_func_appr.model.load_parameters(self.thetas[i])
 
-        # discretize domain and evaluate in grid
+        # discretize domain and evaluate control in grid
         self.sample.discretize_domain(h=h)
         self.sample.get_grid_control()
 
-        return np.copy(self.sample.grid_control)
+        # evaluate value function in grid
+        if self.sample.n == 1:
+            self.sample.integrate_grid_value_function_1d()
+
+        return np.copy(self.sample.grid_control), np.copy(self.sample.grid_controlled_potential)
 
     def plot_1d_iteration(self, i=None):
         from figures.myfigure import MyFigure

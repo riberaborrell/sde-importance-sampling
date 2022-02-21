@@ -1444,6 +1444,37 @@ class Sampling(LangevinSDE):
             # controlled potential
             self.grid_controlled_potential = self.grid_potential + self.grid_bias_potential
 
+    def integrate_grid_value_function_1d(self):
+        '''
+        '''
+        assert self.domain_h is not None, ''
+        assert self.grid_control is not None, ''
+
+        # grid
+        x = self.domain_h
+
+        # potential evaluated at the grid
+        self.grid_potential = self.potential(x).reshape(self.Nx)
+
+        # control evaluated at the grid
+        u = self.grid_control
+
+        # initialize value function
+        value_f = np.zeros(self.Nx)
+
+        # get indices where grid in the left / right of the target set
+        target_set_lb, target_set_ub = self.target_set[0]
+        idx_l = np.where(x < target_set_lb)[0]
+
+        # compute value function in the left of the target set
+        for k in np.flip(idx_l):
+            value_f[k - 1] = value_f[k] + (1 / np.sqrt(2.0)) * u[k] * self.h
+            value_f[-1] = 0
+
+        self.grid_value_function = value_f
+        self.grid_bias_potential = 2 * value_f / self.beta
+        self.grid_controlled_potential = self.grid_potential + self.grid_bias_potential
+
     def get_grid_value_function_i(self, i=0, x_j=0.):
         ''' computes the value of the value function and the bias potential along the i-th
             coordinate evaluated at x_j for all j != i.
@@ -1531,6 +1562,7 @@ class Sampling(LangevinSDE):
 
         # get i-th coordinate
         self.grid_control_i = control[:, i]
+
 
     def plot_trajectory(self, n_iter_avg=1, dir_path=None, file_name='trajectory'):
         from figures.myfigure import MyFigure
