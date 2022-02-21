@@ -271,6 +271,7 @@ class LangevinSDE(object):
     def discretize_domain_ith_coordinate(self, i=0, h=None):
         ''' this method discretizes the i-th domain coordinate with discretization step h
         '''
+        assert self.n > 1, ''
         assert i in range(self.n), ''
 
         if h is not None:
@@ -279,6 +280,41 @@ class LangevinSDE(object):
 
         self.domain_i_h = np.arange(self.domain[i, 0], self.domain[i, 1] + h, h)
         self.Nh = self.domain_i_h.shape[0]
+
+    def discretize_domain_i_and_j_th_coordinates(self, i=0, j=1, x_k=-1., h=None):
+        ''' this method discretizes the i-th and j-th domain coordinates with discretization step h
+        '''
+        assert self.n > 2, ''
+        assert i in range(self.n), ''
+        assert j in range(self.n), ''
+        assert i != j, ''
+
+        if h is not None:
+            self.h = h
+        assert self.h is not None, ''
+
+        # construct not sparse nd grid
+        try:
+            mgrid_input = [
+                slice(self.domain[i, 0], self.domain[i, 1] + self.h, self.h),
+                slice(self.domain[j, 0], self.domain[j, 1] + self.h, self.h),
+            ]
+            self.domain_ij_h = np.moveaxis(np.mgrid[mgrid_input], 0, -1)
+        except MemoryError as e:
+            print('MemoryError: {}'.format(e))
+            sys.exit()
+
+        # save number of indices per axis
+        self.Nx = self.domain_ij_h.shape[:-1]
+
+        # save number of flattened indices
+        self.Nh = self.Nx[0] * self.Nx[1]
+
+        # flat domain
+        self.domain_h_flat = x_k * np.ones((self.Nh, self.n))
+        self.domain_h_flat[:, i] = self.domain_ij_h.reshape(self.Nh, 2)[:, 0]
+        self.domain_h_flat[:, j] = self.domain_ij_h.reshape(self.Nh, 2)[:, 1]
+
 
     def sample_domain_uniformly(self, N, subset=None):
         ''' samples points from a subset of the domain uniformly
