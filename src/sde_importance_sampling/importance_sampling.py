@@ -1351,8 +1351,11 @@ class Sampling(LangevinSDE):
         self.write_euler_maruyama_parameters(f)
         self.write_sampling_parameters(f)
 
-        if self.is_controlled and not self.is_optimal:
+        # controll representation
+        if self.is_controlled and not self.is_optimal and self.ansatz is not None:
             self.ansatz.write_ansatz_parameters(f)
+        elif self.is_controlled and not self.is_optimal and self.nn_func_appr is not None:
+            self.nn_func_appr.write_parameters(f)
 
         if self.problem_name == 'langevin_stop-t':
             f.write('\nStatistics\n')
