@@ -523,46 +523,39 @@ class StochasticOptimizationMethod:
         # number of iterations of the running window
         self.n_iter_avg = n_iter_avg
 
-        # loss
-        self.run_avg_losses = np.convolve(
-            self.losses, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
-        )
+        # list of attributes where the running averages should be computed
+        attr_names = [
+            'losses',
+            'vars_loss',
+            'means_I_u',
+            'vars_I_u',
+            'res_I_u',
+            'time_steps',
+            'cts',
+            'u_l2_errors',
+        ]
 
-        # variance of loss
-        if self.vars_loss is not None:
-            self.run_avg_vars_loss = np.convolve(
-                self.vars_loss, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
-            )
+        for attr_name in attr_names:
 
-        # mean I^u
-        self.run_avg_means_I_u = np.convolve(
-            self.means_I_u, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
-        )
+            # skip l2 error if it is not computed
+            if attr_name == 'u_l2_errors' and self.u_l2_errors is None:
+                continue
 
-        # var I^u
-        self.run_avg_vars_I_u = np.convolve(
-            self.vars_I_u, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
-        )
+            # get array
+            array = getattr(self, attr_name)
 
-        # re I^u
-        self.run_avg_res_I_u = np.convolve(
-            self.res_I_u, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
-        )
+            # preallocate run average array
+            run_avg_array = np.empty(self.n_iterations)
+            setattr(self, 'run_avg_' + attr_name, run_avg_array)
 
-        # time steps
-        self.run_avg_time_steps = np.convolve(
-            self.time_steps, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
-        )
+            # set nan values
+            run_avg_array[:n_iter_avg-1] = np.nan
 
-        # computational time
-        self.run_avg_cts = np.convolve(
-            self.cts, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
-        )
-
-        # u l2 error
-        if self.u_l2_errors is not None:
-            self.run_avg_u_l2_errors = np.convolve(
-                self.u_l2_errors, np.ones(n_iter_avg) / n_iter_avg, mode='valid'
+            # compute running averages
+            run_avg_array[n_iter_avg-1:] = np.convolve(
+                array,
+                np.ones(n_iter_avg) / n_iter_avg,
+                mode='valid',
             )
 
     def write_report(self):
@@ -1069,31 +1062,41 @@ class StochasticOptimizationMethod:
             axis=0,
         )
 
-        # get arrays and compute running averages
-        self.ct_ct = self.ct_ct[n_avg-1:]
+        # list of attributes where the ct array should be computed
+        attr_names = [
+            'losses',
+            'vars_loss',
+            'means_I_u',
+            'vars_I_u',
+            'res_I_u',
+            'time_steps',
+            'u_l2_errors',
+        ]
 
-        self.ct_means_I_u = np.convolve(
-            self.means_I_u[self.ct_iter_index], np.ones(n_avg) / n_avg, mode='valid'
-        )
+        for attr_name in attr_names:
 
-        self.ct_vars_I_u = np.convolve(
-            self.vars_I_u[self.ct_iter_index], np.ones(n_avg) / n_avg, mode='valid'
-        )
+            # skip l2 error if it is not computed
+            if attr_name == 'u_l2_errors' and self.u_l2_errors is None:
+                continue
 
-        self.ct_res_I_u = np.convolve(
-            self.res_I_u[self.ct_iter_index], np.ones(n_avg) / n_avg, mode='valid'
-        )
+            # get array and compute ct array
+            array = getattr(self, attr_name)
+            ct_array = array[self.ct_iter_index]
+            setattr(self, 'ct_' + attr_name, ct_array)
 
-        self.ct_losses = np.convolve(
-            self.losses[self.ct_iter_index], np.ones(n_avg) / n_avg, mode='valid'
-        )
+            # preallocate rung avg ct array
+            run_avg_ct_array = np.empty(N)
+            setattr(self, 'run_avg_ct_' + attr_name, run_avg_ct_array)
 
-        if self.u_l2_errors is not None:
-            self.ct_u_l2_errors = np.convolve(
-                self.u_l2_errors[self.ct_iter_index], np.ones(n_avg) / n_avg, mode='valid'
+            # set nan values
+            run_avg_ct_array[:n_avg-1] = np.nan
+
+            # compute running averages
+            run_avg_ct_array[n_avg-1:] = np.convolve(
+                ct_array,
+                np.ones(n_avg) / n_avg,
+                mode='valid',
             )
-        else:
-            self.ct_u_l2_errors = None
 
     def plot_re_I_u_cts(self):
         '''
