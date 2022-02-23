@@ -81,7 +81,7 @@ def main():
         sde = LangevinSDE.new_from(sgd_sample)
         meta = sde.get_metadynamics_sampling(args.meta_type, args.weights_type,
                                              args.omega_0_meta, args.sigma_i, args.dt_meta,
-                                             args.k_meta, args.N_meta, args.seed)
+                                             args.k_meta, args.N_meta, args.seed_sgd)
         dir_path = meta.dir_path
 
     # set dir path for nn
@@ -91,7 +91,7 @@ def main():
     sgd_sample.nn_func_appr = func
 
     # set sampling and Euler-Marujama parameters
-    sgd_sample.seed = args.seed
+    sgd_sample.seed = args.seed_sgd
     sgd_sample.xzero = np.full(args.n, args.xzero_i)
     sgd_sample.N = args.N_sgd
     sgd_sample.dt = args.dt

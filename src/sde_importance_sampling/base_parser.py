@@ -270,6 +270,12 @@ def get_base_parser():
         help='Set number of trajectories to sample in the sgd. Default: 1000',
     )
     parser.add_argument(
+        '--seed-sgd',
+        dest='seed_sgd',
+        type=int,
+        help='Set the seed for RandomState',
+    )
+    parser.add_argument(
         '--N-grad',
         dest='N_grad',
         type=int,
