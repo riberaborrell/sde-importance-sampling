@@ -55,12 +55,13 @@ def main():
     # initialize meta nd object
     meta = Metadynamics(
         sample=sample,
-        k=args.k_meta,
-        N=args.N_meta,
-        seed=args.seed,
         meta_type=args.meta_type,
         weights_type=args.weights_type,
         omega_0=args.omega_0_meta,
+        sigma_i=args.sigma_i,
+        k=args.k_meta,
+        N=args.N_meta,
+        seed=args.seed,
     )
 
     # set path
