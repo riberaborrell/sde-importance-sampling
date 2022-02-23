@@ -226,7 +226,6 @@ class StochasticOptimizationMethod:
 
         return idx_iter
 
-
     def get_iteration_statistics(self, i):
         msg = 'it.: {:d}, loss: {:2.3f}, mean I^u: {:2.3e}, re I^u: {:2.3f}' \
               ', time steps: {:2.1e}'.format(
@@ -1045,7 +1044,56 @@ class StochasticOptimizationMethod:
         fig.plot(x, y, self.labels[0], self.colors[0], self.linestyles[0])
 
     def compute_cts_sum(self):
-        self.cts_sum = np.array([np.sum(self.cts[:i]) for i in range(self.n_iterations+1)])
+        ''' Computes the accomulated computational time at each iteration
+        '''
+        self.cts_sum = np.array([np.sum(self.cts[:i]) for i in range(self.n_iterations)])
+
+    def compute_ct_arrays(self, n_avg):
+        ''' Computes ct arrays. The ct array is a linear discretization. The arrays are
+            directly computed with running averages.
+        '''
+
+        # total ct
+        ct_total = np.sum(self.cts[:self.n_iterations])
+
+        # ct linear array
+        N = 1000
+        self.ct_ct = np.linspace(0, ct_total, N)
+
+        # ct accumulated at each iteration
+        self.compute_cts_sum()
+
+        # ct index
+        self.ct_iter_index = np.argmin(
+            np.abs(self.ct_ct.reshape(1, N) - self.cts_sum.reshape(self.n_iterations, 1)),
+            axis=0,
+        )
+
+        # get arrays and compute running averages
+        self.ct_ct = self.ct_ct[n_avg-1:]
+
+        self.ct_means_I_u = np.convolve(
+            self.means_I_u[self.ct_iter_index], np.ones(n_avg) / n_avg, mode='valid'
+        )
+
+        self.ct_vars_I_u = np.convolve(
+            self.vars_I_u[self.ct_iter_index], np.ones(n_avg) / n_avg, mode='valid'
+        )
+
+        self.ct_res_I_u = np.convolve(
+            self.res_I_u[self.ct_iter_index], np.ones(n_avg) / n_avg, mode='valid'
+        )
+
+        self.ct_losses = np.convolve(
+            self.losses[self.ct_iter_index], np.ones(n_avg) / n_avg, mode='valid'
+        )
+
+        if self.u_l2_errors is not None:
+            self.ct_u_l2_errors = np.convolve(
+                self.u_l2_errors[self.ct_iter_index], np.ones(n_avg) / n_avg, mode='valid'
+            )
+        else:
+            self.ct_u_l2_errors = None
 
     def plot_re_I_u_cts(self):
         '''
