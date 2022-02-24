@@ -1255,6 +1255,8 @@ class Sampling(LangevinSDE):
 
         # reweighted quantity of interest
         if self.is_controlled:
+            files_dict['stoch_int_fht'] = self.stoch_int_fht
+            files_dict['det_int_fht'] = self.det_int_fht
             files_dict['mean_I_u'] = self.mean_I_u
             files_dict['var_I_u'] = self.var_I_u
             files_dict['re_I_u'] = self.re_I_u
