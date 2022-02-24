@@ -239,8 +239,8 @@ class FunctionApproximation():
 
         # not controlled
         if self.initialization == 'not-controlled':
-            self.n_iterations_lim = 10**3
-            self.N_train = 5 * 10**2
+            self.n_iterations_lim = 10**4
+            self.N_train = 10**3
 
         # meta
         elif self.initialization == 'meta':
