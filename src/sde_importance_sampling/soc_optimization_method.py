@@ -163,49 +163,23 @@ class StochasticOptimizationMethod:
             self.time_steps[i] = self.sample.k_lim
         self.cts[i] = self.sample.ct
 
-    def cut_arrays(self, n_iter=None):
+
+    def compute_arrays_running_averages(self, n_iter_avg=1, n_iter=None):
+        ''' Computes the running averages of all the sgd iterations arrays if they exist.
+            Also cuts the running averaged array.
+
+            Args:
+                n_iter_avg (int): number of iterations considered in the averaged windows
+                n_iter (int): number of iterations of the cutted array
+
         '''
-        '''
+        # number of iterations of the running window
+        self.n_iter_avg = n_iter_avg
 
         # number of iterations to cut
         if n_iter is not None:
             assert n_iter <= self.n_iterations_lim, ''
             self.n_iterations = n_iter
-
-        # parameters
-        self.thetas = self.thetas[:self.n_iterations]
-
-        # losses
-        self.losses = self.losses[:self.n_iterations]
-        if self.vars_loss is not None:
-            self.vars_loss = self.vars_loss[:self.n_iterations]
-        if self.sample.ansatz is not None:
-            self.grad_losses = self.grad_losses[:self.n_iterations, :]
-
-        if self.ipa_losses is not None:
-            self.ipa_losses = self.ipa_losses[:self.n_iterations]
-
-        elif self.re_losses is not None:
-            self.re_losses = self.re_losses[:self.n_iterations]
-
-        # quantity of interest and time steps
-        self.means_I_u = self.means_I_u[:self.n_iterations]
-        self.vars_I_u = self.vars_I_u[:self.n_iterations]
-        self.res_I_u = self.res_I_u[:self.n_iterations]
-
-        # u l2 error
-        if self.u_l2_errors is not None:
-            self.u_l2_errors = self.u_l2_errors[:self.n_iterations]
-
-        # computational time
-        self.time_steps = self.time_steps[:self.n_iterations]
-        self.cts = self.cts[:self.n_iterations]
-
-    def compute_running_averages(self, n_iter_avg=1):
-        '''
-        '''
-        # number of iterations of the running window
-        self.n_iter_avg = n_iter_avg
 
         # list of attributes where the running averages should be computed
         attr_names = [
@@ -225,8 +199,8 @@ class StochasticOptimizationMethod:
             if attr_name == 'u_l2_errors' and self.u_l2_errors is None:
                 continue
 
-            # get array
-            array = getattr(self, attr_name)
+            # get cutted array
+            array = getattr(self, attr_name)[:self.n_iterations]
 
             # preallocate run average array
             run_avg_array = np.empty(self.n_iterations)
@@ -241,6 +215,36 @@ class StochasticOptimizationMethod:
                 np.ones(n_iter_avg) / n_iter_avg,
                 mode='valid',
             )
+
+    def cut_arrays(self, n_iter=None):
+        '''
+        '''
+        if n_iter is not None:
+            assert n_iter <= self.n_iterations_lim, ''
+            self.n_iterations = n_iter
+
+        # list of attributes which have to be cut
+        attr_names = [
+            'run_avg_losses',
+            'run_avg_vars_loss',
+            'run_avg_means_I_u',
+            'run_avg_vars_I_u',
+            'run_avg_res_I_u',
+            'run_avg_time_steps',
+            'run_avg_cts',
+            'run_avg_u_l2_errors',
+        ]
+
+        for attr_name in attr_names:
+
+            # get array
+            array = getattr(self, attr_name)
+
+            # check if array is not None
+            if array is not None:
+
+                # cut array
+                array = array[:self.n_iterations]
 
     def cut_array_given_threshold(self, attr_name='', epsilon=None):
         ''' cut the array given by the attribute name up to the point where their running
@@ -270,7 +274,7 @@ class StochasticOptimizationMethod:
     def compute_cts_sum(self):
         ''' Computes the accomulated computational time at each iteration
         '''
-        self.cts_sum = np.array([np.sum(self.cts[:i]) for i in range(self.n_iterations)])
+        self.cts_sum = np.array([np.sum(self.cts[:i]) for i in range(self.n_iterations_lim)])
 
     def compute_ct_arrays(self, Nx=1000, n_avg=10, ct_max=None):
         ''' Computes ct arrays. The ct array is a linear discretization. The arrays are
@@ -289,7 +293,7 @@ class StochasticOptimizationMethod:
 
         # ct index
         self.ct_iter_index = np.argmin(
-            np.abs(self.ct_ct.reshape(1, Nx) - self.cts_sum.reshape(self.n_iterations, 1)),
+            np.abs(self.ct_ct.reshape(1, Nx) - self.cts_sum.reshape(self.n_iterations_lim, 1)),
             axis=0,
         )
 
