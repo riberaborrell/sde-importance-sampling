@@ -201,6 +201,47 @@ class StochasticOptimizationMethod:
         self.time_steps = self.time_steps[:self.n_iterations]
         self.cts = self.cts[:self.n_iterations]
 
+    def compute_running_averages(self, n_iter_avg=1):
+        '''
+        '''
+        # number of iterations of the running window
+        self.n_iter_avg = n_iter_avg
+
+        # list of attributes where the running averages should be computed
+        attr_names = [
+            'losses',
+            'vars_loss',
+            'means_I_u',
+            'vars_I_u',
+            'res_I_u',
+            'time_steps',
+            'cts',
+            'u_l2_errors',
+        ]
+
+        for attr_name in attr_names:
+
+            # skip l2 error if it is not computed
+            if attr_name == 'u_l2_errors' and self.u_l2_errors is None:
+                continue
+
+            # get array
+            array = getattr(self, attr_name)
+
+            # preallocate run average array
+            run_avg_array = np.empty(self.n_iterations)
+            setattr(self, 'run_avg_' + attr_name, run_avg_array)
+
+            # set nan values
+            run_avg_array[:n_iter_avg-1] = np.nan
+
+            # compute running averages
+            run_avg_array[n_iter_avg-1:] = np.convolve(
+                array,
+                np.ones(n_iter_avg) / n_iter_avg,
+                mode='valid',
+            )
+
     def cut_array_given_threshold(self, attr_name='', epsilon=None):
         ''' cut the array given by the attribute name up to the point where their running
             average is smaller than epsilon
@@ -225,6 +266,68 @@ class StochasticOptimizationMethod:
         setattr(self, attr_name_eps_cut, attr_name_run_avg_cut)
 
         return idx_iter
+
+    def compute_cts_sum(self):
+        ''' Computes the accomulated computational time at each iteration
+        '''
+        self.cts_sum = np.array([np.sum(self.cts[:i]) for i in range(self.n_iterations)])
+
+    def compute_ct_arrays(self, Nx=1000, n_avg=10, ct_max=None):
+        ''' Computes ct arrays. The ct array is a linear discretization. The arrays are
+            directly computed with running averages.
+        '''
+
+        # total ct
+        if ct_max is None:
+            ct_max = np.sum(self.cts[:self.n_iterations])
+
+        # ct linear array
+        self.ct_ct = np.linspace(0, ct_max, Nx)
+
+        # ct accumulated at each iteration
+        self.compute_cts_sum()
+
+        # ct index
+        self.ct_iter_index = np.argmin(
+            np.abs(self.ct_ct.reshape(1, Nx) - self.cts_sum.reshape(self.n_iterations, 1)),
+            axis=0,
+        )
+
+        # list of attributes where the ct array should be computed
+        attr_names = [
+            'losses',
+            'vars_loss',
+            'means_I_u',
+            'vars_I_u',
+            'res_I_u',
+            'time_steps',
+            'u_l2_errors',
+        ]
+
+        for attr_name in attr_names:
+
+            # skip l2 error if it is not computed
+            if attr_name == 'u_l2_errors' and self.u_l2_errors is None:
+                continue
+
+            # get array and compute ct array
+            array = getattr(self, attr_name)
+            ct_array = array[self.ct_iter_index]
+            setattr(self, 'ct_' + attr_name, ct_array)
+
+            # preallocate rung avg ct array
+            run_avg_ct_array = np.empty(Nx)
+            setattr(self, 'run_avg_ct_' + attr_name, run_avg_ct_array)
+
+            # set nan values
+            run_avg_ct_array[:n_avg-1] = np.nan
+
+            # compute running averages
+            run_avg_ct_array[n_avg-1:] = np.convolve(
+                ct_array,
+                np.ones(n_avg) / n_avg,
+                mode='valid',
+            )
 
     def get_iteration_statistics(self, i):
         msg = 'it.: {:d}, loss: {:2.3f}, mean I^u: {:2.3e}, re I^u: {:2.3f}' \
@@ -517,46 +620,6 @@ class StochasticOptimizationMethod:
             print('no som found')
             return False
 
-    def compute_running_averages(self, n_iter_avg=1):
-        '''
-        '''
-        # number of iterations of the running window
-        self.n_iter_avg = n_iter_avg
-
-        # list of attributes where the running averages should be computed
-        attr_names = [
-            'losses',
-            'vars_loss',
-            'means_I_u',
-            'vars_I_u',
-            'res_I_u',
-            'time_steps',
-            'cts',
-            'u_l2_errors',
-        ]
-
-        for attr_name in attr_names:
-
-            # skip l2 error if it is not computed
-            if attr_name == 'u_l2_errors' and self.u_l2_errors is None:
-                continue
-
-            # get array
-            array = getattr(self, attr_name)
-
-            # preallocate run average array
-            run_avg_array = np.empty(self.n_iterations)
-            setattr(self, 'run_avg_' + attr_name, run_avg_array)
-
-            # set nan values
-            run_avg_array[:n_iter_avg-1] = np.nan
-
-            # compute running averages
-            run_avg_array[n_iter_avg-1:] = np.convolve(
-                array,
-                np.ones(n_iter_avg) / n_iter_avg,
-                mode='valid',
-            )
 
     def write_report(self):
         sample = self.sample
@@ -1036,67 +1099,6 @@ class StochasticOptimizationMethod:
         fig.set_xlabel('SGD iterations')
         fig.plot(x, y, self.labels[0], self.colors[0], self.linestyles[0])
 
-    def compute_cts_sum(self):
-        ''' Computes the accomulated computational time at each iteration
-        '''
-        self.cts_sum = np.array([np.sum(self.cts[:i]) for i in range(self.n_iterations)])
-
-    def compute_ct_arrays(self, n_avg):
-        ''' Computes ct arrays. The ct array is a linear discretization. The arrays are
-            directly computed with running averages.
-        '''
-
-        # total ct
-        ct_total = np.sum(self.cts[:self.n_iterations])
-
-        # ct linear array
-        N = 1000
-        self.ct_ct = np.linspace(0, ct_total, N)
-
-        # ct accumulated at each iteration
-        self.compute_cts_sum()
-
-        # ct index
-        self.ct_iter_index = np.argmin(
-            np.abs(self.ct_ct.reshape(1, N) - self.cts_sum.reshape(self.n_iterations, 1)),
-            axis=0,
-        )
-
-        # list of attributes where the ct array should be computed
-        attr_names = [
-            'losses',
-            'vars_loss',
-            'means_I_u',
-            'vars_I_u',
-            'res_I_u',
-            'time_steps',
-            'u_l2_errors',
-        ]
-
-        for attr_name in attr_names:
-
-            # skip l2 error if it is not computed
-            if attr_name == 'u_l2_errors' and self.u_l2_errors is None:
-                continue
-
-            # get array and compute ct array
-            array = getattr(self, attr_name)
-            ct_array = array[self.ct_iter_index]
-            setattr(self, 'ct_' + attr_name, ct_array)
-
-            # preallocate rung avg ct array
-            run_avg_ct_array = np.empty(N)
-            setattr(self, 'run_avg_ct_' + attr_name, run_avg_ct_array)
-
-            # set nan values
-            run_avg_ct_array[:n_avg-1] = np.nan
-
-            # compute running averages
-            run_avg_ct_array[n_avg-1:] = np.convolve(
-                ct_array,
-                np.ones(n_avg) / n_avg,
-                mode='valid',
-            )
 
     def plot_re_I_u_cts(self):
         '''
