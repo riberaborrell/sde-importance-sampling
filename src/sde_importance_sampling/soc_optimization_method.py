@@ -164,22 +164,26 @@ class StochasticOptimizationMethod:
         self.cts[i] = self.sample.ct
 
 
-    def compute_arrays_running_averages(self, n_iter_avg=1, n_iter=None):
+    def compute_arrays_running_averages(self, n_iter_run_avg=None, n_iter_run_window=1):
         ''' Computes the running averages of all the sgd iterations arrays if they exist.
             Also cuts the running averaged array.
 
             Args:
-                n_iter_avg (int): number of iterations considered in the averaged windows
-                n_iter (int): number of iterations of the cutted array
+                n_iter_run_avg (int): number of iterations of the running averaged array
+                n_iter_run_window (int): number of iterations used to averaged. Length of the
+                                         running average window.
 
         '''
-        # number of iterations of the running window
-        self.n_iter_avg = n_iter_avg
-
         # number of iterations to cut
-        if n_iter is not None:
-            assert n_iter <= self.n_iterations_lim, ''
-            self.n_iterations = n_iter
+        if n_iter_run_avg is not None:
+            assert n_iter_run_avg <= self.n_iterations, ''
+            self.n_iter_run_avg = n_iter_run_avg
+        else:
+            self.n_iter_run_avg = self.n_iterations
+
+        # number of iterations of the running window
+        assert n_iter_run_window <= self.n_iter_run_avg, ''
+        self.n_iter_run_window = n_iter_run_window
 
         # list of attributes where the running averages should be computed
         attr_names = [
@@ -200,51 +204,21 @@ class StochasticOptimizationMethod:
                 continue
 
             # get cutted array
-            array = getattr(self, attr_name)[:self.n_iterations]
+            array = getattr(self, attr_name)[:self.n_iter_run_avg]
 
             # preallocate run average array
-            run_avg_array = np.empty(self.n_iterations)
+            run_avg_array = np.empty(self.n_iter_run_avg)
             setattr(self, 'run_avg_' + attr_name, run_avg_array)
 
-            # set nan values
-            run_avg_array[:n_iter_avg-1] = np.nan
-
             # compute running averages
-            run_avg_array[n_iter_avg-1:] = np.convolve(
+            idx = self.n_iter_run_avg - n_iter_run_window + 1
+            run_avg_array[:idx] = np.convolve(
                 array,
-                np.ones(n_iter_avg) / n_iter_avg,
+                np.ones(n_iter_run_window) / n_iter_run_window,
                 mode='valid',
             )
+            run_avg_array[idx:] = np.nan
 
-    def cut_arrays(self, n_iter=None):
-        '''
-        '''
-        if n_iter is not None:
-            assert n_iter <= self.n_iterations_lim, ''
-            self.n_iterations = n_iter
-
-        # list of attributes which have to be cut
-        attr_names = [
-            'run_avg_losses',
-            'run_avg_vars_loss',
-            'run_avg_means_I_u',
-            'run_avg_vars_I_u',
-            'run_avg_res_I_u',
-            'run_avg_time_steps',
-            'run_avg_cts',
-            'run_avg_u_l2_errors',
-        ]
-
-        for attr_name in attr_names:
-
-            # get array
-            array = getattr(self, attr_name)
-
-            # check if array is not None
-            if array is not None:
-
-                # cut array
-                array = array[:self.n_iterations]
 
     def cut_array_given_threshold(self, attr_name='', epsilon=None):
         ''' cut the array given by the attribute name up to the point where their running
@@ -274,7 +248,7 @@ class StochasticOptimizationMethod:
     def compute_cts_sum(self):
         ''' Computes the accomulated computational time at each iteration
         '''
-        self.cts_sum = np.array([np.sum(self.cts[:i]) for i in range(self.n_iterations_lim)])
+        self.cts_sum = np.array([np.sum(self.cts[:i]) for i in range(self.n_iterations)])
 
     def compute_ct_arrays(self, Nx=1000, n_avg=10, ct_max=None):
         ''' Computes ct arrays. The ct array is a linear discretization. The arrays are
@@ -293,7 +267,7 @@ class StochasticOptimizationMethod:
 
         # ct index
         self.ct_iter_index = np.argmin(
-            np.abs(self.ct_ct.reshape(1, Nx) - self.cts_sum.reshape(self.n_iterations_lim, 1)),
+            np.abs(self.ct_ct.reshape(1, Nx) - self.cts_sum.reshape(self.n_iterations, 1)),
             axis=0,
         )
 
@@ -323,15 +297,15 @@ class StochasticOptimizationMethod:
             run_avg_ct_array = np.empty(Nx)
             setattr(self, 'run_avg_ct_' + attr_name, run_avg_ct_array)
 
-            # set nan values
-            run_avg_ct_array[:n_avg-1] = np.nan
-
             # compute running averages
-            run_avg_ct_array[n_avg-1:] = np.convolve(
+            idx = Nx - n_avg + 1
+            run_avg_ct_array[:idx] = np.convolve(
                 ct_array,
                 np.ones(n_avg) / n_avg,
                 mode='valid',
             )
+            run_avg_ct_array[idx:] = np.nan
+
 
     def get_iteration_statistics(self, i):
         msg = 'it.: {:d}, loss: {:2.3f}, mean I^u: {:2.3e}, re I^u: {:2.3f}' \
@@ -700,20 +674,23 @@ class StochasticOptimizationMethod:
         # load mc sampling
         sample_mc = self.sample.get_not_controlled_sampling(dt_mc, N_mc, seed)
 
+        # length of the arrrays
+        n_iter = self.n_iter_run_avg
+
         if sample_mc is not None:
-            self.value_f_mc = np.full(self.n_iterations, - np.log(sample_mc.mean_I))
-            self.mean_I_mc = np.full(self.n_iterations, sample_mc.mean_I)
-            self.var_I_mc = np.full(self.n_iterations, sample_mc.var_I)
-            self.re_I_mc = np.full(self.n_iterations, sample_mc.re_I)
-            self.time_steps_mc = np.full(self.n_iterations, sample_mc.k)
-            self.ct_mc = np.full(self.n_iterations, sample_mc.ct)
+            self.value_f_mc = np.full(n_iter, - np.log(sample_mc.mean_I))
+            self.mean_I_mc = np.full(n_iter, sample_mc.mean_I)
+            self.var_I_mc = np.full(n_iter, sample_mc.var_I)
+            self.re_I_mc = np.full(n_iter, sample_mc.re_I)
+            self.time_steps_mc = np.full(n_iter, sample_mc.k)
+            self.ct_mc = np.full(n_iter, sample_mc.ct)
         else:
-            self.value_f_mc = np.full(self.n_iterations, np.nan)
-            self.mean_I_mc = np.full(self.n_iterations, np.nan)
-            self.var_I_mc = np.full(self.n_iterations, np.nan)
-            self.re_I_mc = np.full(self.n_iterations, np.nan)
-            self.time_steps_mc = np.full(self.n_iterations, np.nan)
-            self.ct_mc = np.full(self.n_iterations, np.nan)
+            self.value_f_mc = np.full(n_iter, np.nan)
+            self.mean_I_mc = np.full(n_iter, np.nan)
+            self.var_I_mc = np.full(n_iter, np.nan)
+            self.re_I_mc = np.full(n_iter, np.nan)
+            self.time_steps_mc = np.full(n_iter, np.nan)
+            self.ct_mc = np.full(n_iter, np.nan)
 
     def load_hjb_solution_and_sampling(self, h_hjb=0.1, dt_hjb=0.01, N_hjb=10**3, seed=None):
         '''
@@ -735,16 +712,20 @@ class StochasticOptimizationMethod:
         if self.sol_hjb is None:
             return
 
+        # length of the arrrays
+        n_iter = self.n_iter_run_avg
+
         if self.sample.problem_name == 'langevin_stop-t':
             hjb_psi_at_x = self.sol_hjb.get_psi_at_x(self.sample.xzero)
             hjb_value_f_at_x = self.sol_hjb.get_value_function_at_x(self.sample.xzero)
-            self.psi_hjb = np.full(self.n_iterations, hjb_psi_at_x)
-            self.value_f_hjb = np.full(self.n_iterations, hjb_value_f_at_x)
+            self.psi_hjb = np.full(n_iter, hjb_psi_at_x)
+            self.value_f_hjb = np.full(n_iter, hjb_value_f_at_x)
+
         elif self.sample.problem_name == 'langevin_det-t':
             hjb_psi_at_x = self.sol_hjb.get_psi_t_x(0., self.sample.xzero)
             hjb_value_f_at_x = self.sol_hjb.get_value_funtion_t_x(0., self.sample.xzero)
-            self.psi_hjb = np.full(self.n_iterations, hjb_psi_at_x)
-            self.value_f_hjb = np.full(self.n_iterations, hjb_value_f_at_x)
+            self.psi_hjb = np.full(n_iter, hjb_psi_at_x)
+            self.value_f_hjb = np.full(n_iter, hjb_value_f_at_x)
 
         # load hjb sampling
         sample_hjb = self.sample.get_hjb_sampling(self.sol_hjb.dir_path, dt_hjb, N_hjb, seed)
@@ -753,12 +734,12 @@ class StochasticOptimizationMethod:
         if sample_hjb is None:
             return
 
-        self.value_f_is_hjb = np.full(self.n_iterations, -np.log(sample_hjb.mean_I_u))
-        self.mean_I_u_hjb = np.full(self.n_iterations, sample_hjb.mean_I_u)
-        self.var_I_u_hjb = np.full(self.n_iterations, sample_hjb.var_I_u)
-        self.re_I_u_hjb = np.full(self.n_iterations, sample_hjb.re_I_u)
-        self.time_steps_is_hjb = np.full(self.n_iterations, sample_hjb.k)
-        self.ct_is_hjb = np.full(self.n_iterations, sample_hjb.ct)
+        self.value_f_is_hjb = np.full(n_iter, -np.log(sample_hjb.mean_I_u))
+        self.mean_I_u_hjb = np.full(n_iter, sample_hjb.mean_I_u)
+        self.var_I_u_hjb = np.full(n_iter, sample_hjb.var_I_u)
+        self.re_I_u_hjb = np.full(n_iter, sample_hjb.re_I_u)
+        self.time_steps_is_hjb = np.full(n_iter, sample_hjb.k)
+        self.ct_is_hjb = np.full(n_iter, sample_hjb.ct)
 
     def load_plot_labels_colors_and_linestyles(self):
         '''
