@@ -3,7 +3,7 @@ from sde_importance_sampling.utils_path import get_metadynamics_dir_path, \
                                                make_dir_path, \
                                                empty_dir, \
                                                get_time_in_hms
-from sde_importance_sampling.utils_numeric import slice_1d_array
+from sde_importance_sampling.utils_numeric import slice_1d_array, from_1dndarray_to_string
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -415,7 +415,7 @@ class Metadynamics:
             print(msg)
             return False
 
-    def get_trajectory_indices(self, i, update=None):
+    def get_trajectory_indices(self, i=0, update=None):
         ''' returns the indices of the ansatz functions used for each trajectory up to the given update
         '''
         # trajectory
@@ -504,7 +504,6 @@ class Metadynamics:
         self.sample.ansatz.set_value_function_constant_corner()
 
     def write_means(self, f):
-        #TODO! solve bug
         f.write('Center of the Gaussians\n')
         f.write('i: trajectory index, j: gaussian index\n')
         idx = 0
@@ -516,15 +515,9 @@ class Metadynamics:
                 idx += 1
 
                 # get string
-                mean_str = '('
-                for x_i in range(self.sample.n):
-                    if x_i == 0:
-                        mean_str += '{:2.2f}'.format(mean[x_i])
-                    else:
-                        mean_str += ', {:2.2f}'.format(mean[x_i])
-                mean_str += ')'
-
+                mean_str = from_1dndarray_to_string(mean)
                 f.write('i={:d}, j={:d}, mu_j={}\n'.format(i, j, mean_str))
+
         f.write('\n')
 
     def write_report(self):
@@ -568,6 +561,17 @@ class Metadynamics:
         f = open(file_path, 'r')
         print(f.read())
         f.close()
+
+    def get_control_and_controlled_potential_1d(self, i=0, update=None):
+        '''
+        '''
+
+        self.set_ansatz_trajectory(i=i, update=update)
+        self.sample.get_grid_control()
+        self.sample.integrate_grid_value_function_1d()
+
+        return self.sample.grid_control[:, 0], self.sample.grid_controlled_potential
+
 
     def plot_1d_updates(self, i=0, n_sliced_updates=5):
         from figures.myfigure import MyFigure
