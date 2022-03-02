@@ -174,16 +174,17 @@ class StochasticOptimizationMethod:
                                          running average window.
 
         '''
-        # number of iterations to cut
+        # number of iterations of the running window
+        assert n_iter_run_window <= self.n_iterations, ''
+        self.n_iter_run_window = n_iter_run_window
+
+        # number of iterations to compute the running averages
         if n_iter_run_avg is not None:
-            assert n_iter_run_avg <= self.n_iterations, ''
+            assert n_iter_run_avg >= n_iter_run_window, ''
+            assert n_iter_run_avg <= self.n_iterations - n_iter_run_window + 1, ''
             self.n_iter_run_avg = n_iter_run_avg
         else:
-            self.n_iter_run_avg = self.n_iterations
-
-        # number of iterations of the running window
-        assert n_iter_run_window <= self.n_iter_run_avg, ''
-        self.n_iter_run_window = n_iter_run_window
+            self.n_iter_run_avg = self.n_iterations - n_iter_run_window + 1
 
         # list of attributes where the running averages should be computed
         attr_names = [
@@ -204,20 +205,17 @@ class StochasticOptimizationMethod:
                 continue
 
             # get cutted array
-            array = getattr(self, attr_name)[:self.n_iter_run_avg]
-
-            # preallocate run average array
-            run_avg_array = np.empty(self.n_iter_run_avg)
-            setattr(self, 'run_avg_' + attr_name, run_avg_array)
+            array = getattr(self, attr_name)[:self.n_iter_run_avg+n_iter_run_window-1]
 
             # compute running averages
-            idx = self.n_iter_run_avg - n_iter_run_window + 1
-            run_avg_array[:idx] = np.convolve(
+            run_avg_array = np.convolve(
                 array,
                 np.ones(n_iter_run_window) / n_iter_run_window,
                 mode='valid',
             )
-            run_avg_array[idx:] = np.nan
+
+            # save running average array
+            setattr(self, 'run_avg_' + attr_name, run_avg_array)
 
 
     def cut_array_given_threshold(self, attr_name='', epsilon=None):
@@ -611,7 +609,8 @@ class StochasticOptimizationMethod:
         if self.sample.ansatz is not None:
             pass
         elif self.sample.nn_func_appr is not None:
-            sample.nn_func_appr.write_parameters(f)
+            pass
+            #sample.nn_func_appr.write_parameters(f)
 
         f.write('\nStochastic optimization method parameters\n')
         f.write('loss type: {}\n'.format(self.loss_type))
@@ -632,8 +631,8 @@ class StochasticOptimizationMethod:
         if self.u_l2_errors is not None:
            f.write('u l2 error: {:2.3f}\n'.format(self.u_l2_errors[-1]))
 
-        self.compute_running_averages(n_iter_avg=10)
-        f.write('\nRunning averages of last {:d} iterations\n'.format(self.n_iter_avg))
+        self.compute_arrays_running_averages(n_iter_run_window=10)
+        f.write('\nRunning averages of last {:d} iterations\n'.format(self.n_iter_run_window))
         f.write('E[I_u]: {:2.3e}\n'.format(self.run_avg_means_I_u[-1]))
         f.write('Var[I_u]: {:2.3e}\n'.format(self.run_avg_vars_I_u[-1]))
         f.write('RE[I_u]: {:2.3f}\n'.format(self.run_avg_res_I_u[-1]))
@@ -675,7 +674,7 @@ class StochasticOptimizationMethod:
         sample_mc = self.sample.get_not_controlled_sampling(dt_mc, N_mc, seed)
 
         # length of the arrrays
-        n_iter = self.n_iter_run_avg
+        n_iter = self.n_iter_run_avg# - self.n_iter_run_window
 
         if sample_mc is not None:
             self.value_f_mc = np.full(n_iter, - np.log(sample_mc.mean_I))
@@ -769,23 +768,23 @@ class StochasticOptimizationMethod:
 
         # check if running averages are computed
         if not hasattr(self, 'run_avg_losses'):
-            self.compute_running_averages(n_iter_avg=1)
+            self.compute_arrays_running_averages(n_iter_run_window=1)
 
         # iterations
-        x = np.arange(self.n_iterations)[self.n_iter_avg - 1:]
+        x = np.arange(self.n_iter_run_avg)
 
         # loss, mc sampling, hjb sampling and hjb solution
         if self.sol_hjb is None:
             y = np.vstack((
                 self.run_avg_losses,
-                self.value_f_mc[self.n_iter_avg - 1:],
+                self.value_f_mc,
             ))
         else:
             y = np.vstack((
                 self.run_avg_losses,
-                self.value_f_mc[self.n_iter_avg - 1:],
-                self.value_f_is_hjb[self.n_iter_avg - 1:],
-                self.value_f_hjb[self.n_iter_avg - 1:],
+                self.value_f_mc,
+                self.value_f_is_hjb,
+                self.value_f_hjb,
             ))
 
         # loss figure
@@ -806,10 +805,10 @@ class StochasticOptimizationMethod:
 
         # check if running averages are computed
         if not hasattr(self, 'run_avg_vars_loss'):
-            self.compute_running_averages(n_iter_avg=1)
+            self.compute_arrays_running_averages(n_iter_run_window=1)
 
         # iterations
-        x = np.arange(self.n_iterations)[self.n_iter_avg - 1:]
+        x = np.arange(self.n_iter_run_avg)
 
         # var loss
         y = self.run_avg_vars_loss
@@ -831,23 +830,23 @@ class StochasticOptimizationMethod:
 
         # check if running averages are computed
         if not hasattr(self, 'run_avg_means_I_u'):
-            self.compute_running_averages(n_iter_avg=1)
+            self.compute_arrays_running_averages(n_iter_run_window=1)
 
         # iterations
-        x = np.arange(self.n_iterations)[self.n_iter_avg - 1:]
+        x = np.arange(self.n_iter_run_avg)
 
         # mean I^u, mc sampling, hjb sampling and hjb solution
         if self.sol_hjb is None:
             y = np.vstack((
                 self.run_avg_means_I_u,
-                self.mean_I_mc[self.n_iter_avg - 1:],
+                self.mean_I_mc,
             ))
         else:
             y = np.vstack((
                 self.run_avg_means_I_u,
-                self.mean_I_mc[self.n_iter_avg - 1:],
-                self.mean_I_u_hjb[self.n_iter_avg - 1:],
-                self.psi_hjb[self.n_iter_avg - 1:],
+                self.mean_I_mc,
+                self.mean_I_u_hjb,
+                self.psi_hjb,
             ))
 
         # mean I^u figure
@@ -868,22 +867,22 @@ class StochasticOptimizationMethod:
 
         # check if running averages are computed
         if not hasattr(self, 'run_avg_vars_I_u'):
-            self.compute_running_averages(n_iter_avg=1)
+            self.compute_arrays_running_averages(n_iter_run_window=1)
 
         # iterations
-        x = np.arange(self.n_iterations)[self.n_iter_avg - 1:]
+        x = np.arange(self.n_iter_run_avg)
 
         # re I^u, mc sampling, hjb sampling and hjb solution
         if self.sol_hjb is None:
             y = np.vstack((
                 self.run_avg_vars_I_u,
-                self.var_I_mc[self.n_iter_avg - 1:],
+                self.var_I_mc,
             ))
         else:
             y = np.vstack((
                 self.run_avg_vars_I_u,
-                self.var_I_mc[self.n_iter_avg - 1:],
-                self.var_I_u_hjb[self.n_iter_avg - 1:],
+                self.var_I_mc,
+                self.var_I_u_hjb,
             ))
 
         # relative error figure
@@ -908,22 +907,22 @@ class StochasticOptimizationMethod:
 
         # check if running averages are computed
         if not hasattr(self, 'run_avg_res_I_u'):
-            self.compute_running_averages(n_iter_avg=1)
+            self.compute_arrays_running_averages(n_iter_run_window=1)
 
         # iterations
-        x = np.arange(self.n_iterations)[self.n_iter_avg - 1:]
+        x = np.arange(self.n_iter_run_avg)
 
         # re I^u, mc sampling, hjb sampling and hjb solution
         if self.sol_hjb is None:
             y = np.vstack((
                 self.run_avg_res_I_u,
-                self.re_I_mc[self.n_iter_avg - 1:],
+                self.re_I_mc,
             ))
         else:
             y = np.vstack((
                 self.run_avg_res_I_u,
-                self.re_I_mc[self.n_iter_avg - 1:],
-                self.re_I_u_hjb[self.n_iter_avg - 1:],
+                self.re_I_mc,
+                self.re_I_u_hjb,
             ))
 
         # relative error figure
@@ -946,7 +945,7 @@ class StochasticOptimizationMethod:
         from figures.myfigure import MyFigure
 
         # iterations
-        x = np.arange(self.n_iterations)
+        x = np.arange(self.n_iter_run_avg)
 
         y = self.means_I_u
         y_err = np.sqrt(self.vars_I_u / self.sample.N)
@@ -967,22 +966,59 @@ class StochasticOptimizationMethod:
 
         # check if running averages are computed
         if not hasattr(self, 'run_avg_time_steps'):
-            self.compute_running_averages(n_iter_avg=1)
+            self.compute_arrays_running_averages(n_iter_run_window=1)
 
         # iterations
-        x = np.arange(self.n_iterations)[self.n_iter_avg - 1:]
+        x = np.arange(self.n_iter_run_avg)
+
+        # loss, mc sampling, hjb sampling and hjb solution
+        if self.sol_hjb is None:
+            y = np.vstack((
+                self.run_avg_losses,
+                self.value_f_mc,
+            ))
+        else:
+            y = np.vstack((
+                self.run_avg_losses,
+                self.value_f_mc,
+                self.value_f_is_hjb,
+                self.value_f_hjb,
+            ))
+
+        # loss figure
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='loss',
+        )
+        fig.set_title(r'$\tilde{J}(\theta; x_0)$')
+        fig.set_xlabel('SGD iterations')
+        fig.set_plot_scale('semilogy')
+        fig.plot(x, y, self.labels, self.colors, self.linestyles)
+
+    def plot_var_loss(self):
+        '''
+        '''
+        from figures.myfigure import MyFigure
+
+        # check if running averages are computed
+        if not hasattr(self, 'run_avg_vars_loss'):
+            self.compute_arrays_running_averages(n_iter_run_window=1)
+
+        # iterations
+        x = np.arange(self.n_iter_run_avg)
 
         # time steps, mc sampling, hjb sampling and hjb solution
         if self.sol_hjb is None:
             y = np.vstack((
                 self.run_avg_time_steps,
-                self.time_steps_mc[self.n_iter_avg - 1:],
+                self.time_steps_mc,
             ))
         else:
             y = np.vstack((
                 self.run_avg_time_steps,
-                self.time_steps_mc[self.n_iter_avg - 1:],
-                self.time_steps_is_hjb[self.n_iter_avg - 1:],
+                self.time_steps_mc,
+                self.time_steps_is_hjb,
             ))
 
         # time steps figure
@@ -1007,22 +1043,22 @@ class StochasticOptimizationMethod:
 
         # check if running averages are computed
         if not hasattr(self, 'run_avg_cts'):
-            self.compute_running_averages(n_iter_avg=1)
+            self.compute_arrays_running_averages(n_iter_run_window=1)
 
         # iterations
-        x = np.arange(self.n_iterations)[self.n_iter_avg - 1:]
+        x = np.arange(self.n_iter_run_avg)
 
         # computational time, mc sampling, hjb sampling and hjb solution
         if self.sol_hjb is None:
             y = np.vstack((
                 self.run_avg_cts,
-                self.ct_mc[self.n_iter_avg - 1:],
+                self.ct_mc,
             ))
         else:
             y = np.vstack((
                 self.run_avg_cts,
-                self.ct_mc[self.n_iter_avg - 1:],
-                self.ct_is_hjb[self.n_iter_avg - 1:],
+                self.ct_mc,
+                self.ct_is_hjb,
             ))
 
         # cts figure
@@ -1051,10 +1087,10 @@ class StochasticOptimizationMethod:
 
         # check if running averages are computed
         if not hasattr(self, 'run_avg_u_l2_errors'):
-            self.compute_running_averages(n_iter_avg=1)
+            self.compute_arrays_running_averages(n_iter_run_window=1)
 
         # iterations
-        x = np.arange(self.n_iterations)[self.n_iter_avg - 1:]
+        x = np.arange(self.n_iter_run_avg)
 
         # u l2 error
         y = self.run_avg_u_l2_errors
@@ -1190,7 +1226,10 @@ class StochasticOptimizationMethod:
         ))
 
         #fig.set_title(r'$u_i(x; \theta_{2999})$, $\theta_0$ = meta')
+        fig.set_title(r'Control $u_{i}(\theta)$ (initial)')
         fig.set_xlabel(r'$x_i$')
+        fig.set_xlim(-1.5, 1.5)
+        fig.set_ylim(-1.5, 1.5)
         #fig.turn_legend_off()
         plt.subplots_adjust(left=0.12, right=0.96, bottom=0.12)
         fig.plot(x, y, labels)
