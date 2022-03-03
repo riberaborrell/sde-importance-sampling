@@ -1,5 +1,6 @@
 from sde_importance_sampling.utils_path import make_dir_path, get_som_dir_path, get_time_in_hms
 from sde_importance_sampling.utils_numeric import slice_1d_array
+from sde_importance_sampling.utils_figures import COLORS_FIG, TITLES_FIG, LABELS_FIG
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -745,19 +746,26 @@ class StochasticOptimizationMethod:
         '''
 
         if self.sol_hjb is None:
-            self.colors = ['tab:blue', 'tab:orange']
-            self.linestyles = ['-', 'dashed']
-            self.labels = ['SOC', 'Not contronlled Sampling']
+            self.colors = [
+                COLORS_FIG['nn'],
+                COLORS_FIG['mc-sampling'],
+            ]
+            self.linestyles = ['-', '-']
+            self.labels = ['SOC', 'MC sampling']
 
         else :
-            self.colors = ['tab:blue', 'tab:orange', 'tab:grey', 'tab:cyan']
-            self.linestyles = ['-', 'dashed', 'dashdot', 'dashdot']
+            self.colors = [
+                COLORS_FIG['nn'],
+                COLORS_FIG['mc-sampling'],
+                COLORS_FIG['optimal-is'],
+                COLORS_FIG['hjb-solution'],
+            ]
+            self.linestyles = ['-', '-', '-', ':']
             self.labels = [
                 'SOC',
                 'MC sampling',
-                'HJB sampling',
-                #r'HJB solution (h={:.0e})'.format(self.h_hjb),
-                r'HJB solution',
+                'Optimal',
+                'Reference solution',
             ]
 
 
@@ -793,8 +801,8 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='loss',
         )
-        fig.set_title(r'$\tilde{J}(\theta; x_0)$')
-        fig.set_xlabel('SGD iterations')
+        fig.set_title(TITLES_FIG['loss'])
+        fig.set_xlabel(LABELS_FIG['grad-steps'])
         fig.set_plot_scale('semilogy')
         fig.plot(x, y, self.labels, self.colors, self.linestyles)
 
@@ -817,8 +825,8 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='var-loss',
         )
-        fig.set_title(r'${var}_N(\tilde{J}(\theta; x_0))$')
-        fig.set_xlabel('SGD iterations')
+        fig.set_title(TITLES_FIG['var-loss'])
+        fig.set_xlabel(LABELS_FIG['grad-steps'])
         fig.set_plot_scale('semilogy')
         fig.plot(x, y, self.labels[0], self.colors[0], self.linestyles[0])
 
@@ -855,8 +863,8 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='mean',
         )
-        fig.set_title(r'$m_N(I^u)$')
-        fig.set_xlabel('SGD iterations')
+        fig.set_title(TITLES_FIG['psi'])
+        fig.set_xlabel(LABELS_FIG['grad-steps'])
         fig.set_plot_scale('semilogy')
         fig.plot(x, y, self.labels, self.colors, self.linestyles)
 
@@ -891,8 +899,8 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='var',
         )
-        fig.set_title(r'${var}_N(I^u)$')
-        fig.set_xlabel('SGD iterations')
+        fig.set_title(TITLES_FIG['var-i-u'])
+        fig.set_xlabel(LABELS_FIG['grad-steps'])
         fig.set_plot_scale('semilogy')
         if self.sol_hjb is None:
             fig.plot(x, y, self.labels, self.colors, self.linestyles)
@@ -912,32 +920,37 @@ class StochasticOptimizationMethod:
         # iterations
         x = np.arange(self.n_iter_run_avg)
 
-        # re I^u, mc sampling, hjb sampling and hjb solution
+        # without reference solution
         if self.sol_hjb is None:
             y = np.vstack((
                 self.run_avg_res_I_u,
                 self.re_I_mc,
             ))
+            labels = self.labels[:2]
+            colors = self.colors[:2]
+            linestyles = self.linestyles[:2]
+
+        # with reference solution
         else:
             y = np.vstack((
                 self.run_avg_res_I_u,
                 self.re_I_mc,
                 self.re_I_u_hjb,
             ))
+            labels = self.labels
+            colors = self.colors
+            linestyles = self.linestyles
 
-        # relative error figure
+        # figure
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
             file_name='re',
         )
-        fig.set_title(r'${re}_N(I^u)$')
-        fig.set_xlabel('SGD iterations')
+        fig.set_title(TITLES_FIG['re-i-u'])
+        fig.set_xlabel(LABELS_FIG['grad-steps'])
         fig.set_plot_scale('semilogy')
-        if self.sol_hjb is None:
-            fig.plot(x, y, self.labels, self.colors, self.linestyles)
-        else:
-            fig.plot(x, y, self.labels[:3], self.colors[:3], self.linestyles[:3])
+        fig.plot(x, y, labels, colors, linestyles)
 
     def plot_error_bar_I_u(self):
         '''
@@ -974,43 +987,6 @@ class StochasticOptimizationMethod:
         # loss, mc sampling, hjb sampling and hjb solution
         if self.sol_hjb is None:
             y = np.vstack((
-                self.run_avg_losses,
-                self.value_f_mc,
-            ))
-        else:
-            y = np.vstack((
-                self.run_avg_losses,
-                self.value_f_mc,
-                self.value_f_is_hjb,
-                self.value_f_hjb,
-            ))
-
-        # loss figure
-        fig = plt.figure(
-            FigureClass=MyFigure,
-            dir_path=self.dir_path,
-            file_name='loss',
-        )
-        fig.set_title(r'$\tilde{J}(\theta; x_0)$')
-        fig.set_xlabel('SGD iterations')
-        fig.set_plot_scale('semilogy')
-        fig.plot(x, y, self.labels, self.colors, self.linestyles)
-
-    def plot_var_loss(self):
-        '''
-        '''
-        from figures.myfigure import MyFigure
-
-        # check if running averages are computed
-        if not hasattr(self, 'run_avg_vars_loss'):
-            self.compute_arrays_running_averages(n_iter_run_window=1)
-
-        # iterations
-        x = np.arange(self.n_iter_run_avg)
-
-        # time steps, mc sampling, hjb sampling and hjb solution
-        if self.sol_hjb is None:
-            y = np.vstack((
                 self.run_avg_time_steps,
                 self.time_steps_mc,
             ))
@@ -1021,20 +997,17 @@ class StochasticOptimizationMethod:
                 self.time_steps_is_hjb,
             ))
 
-        # time steps figure
+        # loss figure
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
             file_name='time-steps',
         )
-        fig.set_title(r'TS')
-        fig.set_xlabel('SGD iterations')
+        fig.set_title(TITLES_FIG['time-steps'])
+        fig.set_xlabel(LABELS_FIG['grad-steps'])
         fig.set_plot_scale('semilogy')
+        fig.plot(x, y, self.labels[:3], self.colors[:3], self.linestyles[:3])
 
-        if self.sol_hjb is None:
-            fig.plot(x, y, self.labels, self.colors, self.linestyles)
-        else:
-            fig.plot(x, y, self.labels[:3], self.colors[:3], self.linestyles[:3])
 
     def plot_cts(self):
         '''
@@ -1067,8 +1040,8 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='cts',
         )
-        fig.set_title(r'CT (s)')
-        fig.set_xlabel('SGD iterations')
+        fig.set_title(TITLES_FIG['ct'])
+        fig.set_xlabel(LABELS_FIG['grad-steps'])
         fig.set_plot_scale('semilogy')
 
         if self.sol_hjb is None:
@@ -1101,7 +1074,7 @@ class StochasticOptimizationMethod:
             dir_path=self.dir_path,
             file_name='u-l2-error',
         )
-        fig.set_xlabel('SGD iterations')
+        fig.set_xlabel(LABELS_FIG['grad-steps'])
         fig.set_plot_scale('semilogy')
         fig.plot(x, y, self.labels[0], self.colors[0], self.linestyles[0])
 
@@ -1127,23 +1100,41 @@ class StochasticOptimizationMethod:
         from figures.myfigure import MyFigure
 
         # check if running averages are computed
-        #if not hasattr(self, 'run_avg_res_I_u'):
-        #    self.compute_running_averages(n_iter_avg=1)
+        if not hasattr(self, 'run_avg_ct_res_I_u'):
+            self.compute_ct_arrays(n_avg=10)
 
-        # computational time used
-        x = self.cts_sum[:-1]
+        # computational time
+        x = self.ct_ct
 
-        # re I^u, mc sampling, hjb sampling and hjb solution
-        y = self.res_I_u
+        # without reference solution
+        if self.sol_hjb is None:
+            y = np.vstack((
+                self.run_avg_ct_res_I_u,
+                self.re_I_mc,
+            ))
+            labels = self.labels[:2]
+            colors = self.colors[:2]
+            linestyles = self.linestyles[:2]
 
-        # relative error figure
+        # with reference solution
+        else:
+            y = np.vstack((
+                self.run_avg_res_ct_I_u,
+                self.re_I_mc,
+                self.re_I_u_hjb,
+            ))
+            labels = self.labels
+            colors = self.colors
+            linestyles = self.linestyles
+
+        # figure
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
             file_name='ct-re',
         )
-        fig.set_title(r'${re}_N(I^u)$')
-        fig.set_xlabel('CT (s)')
+        fig.set_title(TITLES_FIG['re-i-u'])
+        fig.set_xlabel(LABELS_FIG['ct'])
         fig.set_plot_scale('semilogy')
         fig.plot(x, y)
 
