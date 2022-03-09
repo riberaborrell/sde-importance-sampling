@@ -1,6 +1,7 @@
 from sde_importance_sampling.langevin_sde import LangevinSDE
 from sde_importance_sampling.utils_path import get_hjb_solution_dir_path, get_time_in_hms
 from sde_importance_sampling.utils_numeric import arange_generator, from_1dndarray_to_string
+from sde_importance_sampling.utils_figures import TITLES_FIG
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -426,7 +427,7 @@ class SolverHJB(LangevinSDE):
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
-            file_name='controlled-potential',
+            file_name='perturbed-potential',
         )
         x = self.domain_h[:, 0]
         if self.controlled_potential is None:
@@ -483,7 +484,7 @@ class SolverHJB(LangevinSDE):
             dir_path=dir_path,
             file_name=file_name,
         )
-        fig.ax.set_title(r'$\Psi_h$')
+        fig.ax.set_title(TITLES_FIG['psi'])
         fig.set_xlabel(r'$x_1$')
         fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-2, 2)
@@ -509,8 +510,7 @@ class SolverHJB(LangevinSDE):
             dir_path=dir_path,
             file_name=file_name,
         )
-        fig.ax.set_title(r'$\Phi_h$')
-        fig.set_xlabel(r'$x_1$')
+        fig.ax.set_title(TITLES_FIG['value-function'])
         fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-2, 2)
         fig.set_ylim(-2, 2)
@@ -520,7 +520,7 @@ class SolverHJB(LangevinSDE):
         fig.contour(X, Y, self.value_f)
 
 
-    def plot_2d_controlled_potential(self, dir_path=None, file_name='controlled-potential'):
+    def plot_2d_controlled_potential(self, dir_path=None, file_name='perturbed-potential'):
         from figures.myfigure import MyFigure
 
         # set dir path
@@ -535,7 +535,7 @@ class SolverHJB(LangevinSDE):
             dir_path=dir_path,
             file_name=file_name,
         )
-        fig.ax.set_title(r'$\widetilde{V}_h$')
+        fig.ax.set_title(TITLES_FIG['optimal-potential'])
         fig.set_xlabel(r'$x_1$')
         fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-2, 2)
@@ -562,7 +562,7 @@ class SolverHJB(LangevinSDE):
             dir_path=dir_path,
             file_name=file_name,
         )
-        fig.ax.set_title(r'$u_h^*$')
+        fig.ax.set_title(TITLES_FIG['optimal-control'])
         fig.set_xlabel(r'$x_1$')
         fig.set_ylabel(r'$x_2$')
         fig.set_xlim(-1.5, 1.5)
