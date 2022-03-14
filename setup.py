@@ -15,11 +15,11 @@ with open(os.path.join(_dir, 'README.md'), 'r') as f:
 setup(
     name='sde-importance-sampling',
     version=VERSION,
-    description='Importance Sampling strategies for metastable sde diffusions',
+    description='Importance Sampling strategies for metastable diffusions',
     long_description_content_type='text/markdown',
     long_description=README,
     classifiers=[],
-    url='https://github.com/eborrell/sde-importance-sampling',
+    url='https://github.com/riberaborrell/sde-importance-sampling',
     license='GNU General Public License V3',
     author='Enric Ribera Borrell',
     author_email='ribera.borrell@me.com',
