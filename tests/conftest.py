@@ -12,11 +12,11 @@ def pytest_addoption(parser):
         help='Set the seed for RandomState',
     )
     parser.addoption(
-        '--n',
-        dest='n',
+        '--d',
+        dest='d',
         type=int,
-        default=1,
-        help='Set the dimension n. Default: 1',
+        default=2,
+        help='Set the dimension d. Default: 2',
     )
     parser.addoption(
         '--problem-name',
@@ -96,15 +96,15 @@ def pytest_addoption(parser):
         help='Set the learning rate. Default: 0.01',
     )
     parser.addoption(
-        '--N',
-        dest='N',
+        '--K',
+        dest='K',
         type=int,
         default=100,
         help='Set number of batch size. Default: 100',
     )
     parser.addoption(
-        '--N-train',
-        dest='N_train',
+        '--K-train',
+        dest='K_train',
         type=int,
         default=1000,
         help='Set number of points used for the training algorithms in the approximation' \
@@ -144,8 +144,8 @@ def seed(request):
     return request.config.getoption('seed')
 
 @pytest.fixture(scope='session')
-def n(request):
-    return request.config.getoption('n')
+def d(request):
+    return request.config.getoption('d')
 
 @pytest.fixture(scope='session')
 def alpha_i(request):
@@ -180,12 +180,12 @@ def sigma_i(request):
     return request.config.getoption('sigma_i')
 
 @pytest.fixture(scope='session')
-def N(request):
-    return request.config.getoption('N')
+def K(request):
+    return request.config.getoption('K')
 
 @pytest.fixture(scope='session')
-def N_train(request):
-    return request.config.getoption('N_train')
+def K_train(request):
+    return request.config.getoption('K_train')
 
 @pytest.fixture(scope='session')
 def dense(request):

@@ -1,6 +1,6 @@
-from sde_importance_sampling.langevin_sde import POTENTIAL_NAMES
-
 import argparse
+
+from sde_importance_sampling.langevin_sde import POTENTIAL_NAMES
 
 def get_base_parser():
     parser = argparse.ArgumentParser(description=None)
@@ -25,32 +25,34 @@ def get_base_parser():
         help='Set the seed for RandomState',
     )
     parser.add_argument(
-        '--n',
-        dest='n',
+        '--d',
+        dest='d',
         type=int,
         default=1,
-        help='Set the dimension n. Default: 1',
+        help='Set the dimension d. Default: 1',
     )
     parser.add_argument(
         '--alpha-i',
         dest='alpha_i',
         type=float,
         default=1.,
-        help='Set nd double well barrier height i-coordinate. Default: 1',
+        help='Set barrier height of the i-th coordinate for the multidimensional extension \
+              of the double well potential. Default: 1.',
     )
     parser.add_argument(
         '--alpha-j',
         dest='alpha_j',
         type=float,
         default=1.,
-        help='Set nd double well barrier height j-cooredinate. Default: 1',
+        help='Set barrier height of the j-th coordinate for the multidimensional extension \
+              of the double well potential. Default: 1.',
     )
     parser.add_argument(
         '--beta',
         dest='beta',
         type=float,
         default=1.,
-        help='Set the beta parameter. Default: 1',
+        help='Set the beta parameter. Default: 1.',
     )
     parser.add_argument(
         '--nu-i',
@@ -95,15 +97,15 @@ def get_base_parser():
         help='Set the time discretization increment for the hjb sol with det time horizont. Default: 0.005',
     )
     parser.add_argument(
-        '--N',
-        dest='N',
+        '--K',
+        dest='K',
         type=int,
         default=10**3,
         help='Set number of trajectories to sample. Default: 1.000',
     )
     parser.add_argument(
-        '--N-batch',
-        dest='N_batch',
+        '--K-batch',
+        dest='K_batch',
         type=int,
         default=10**5,
         help='Set number of trajectories to sample. Default: 100.000',
@@ -180,8 +182,8 @@ def get_base_parser():
         help='Set dt. Default: 0.01',
     )
     parser.add_argument(
-        '--N-meta',
-        dest='N_meta',
+        '--K-meta',
+        dest='K_meta',
         type=int,
         default=1,
         help='Set number of trajectories to sample. Default: 1',
@@ -263,8 +265,8 @@ def get_base_parser():
         help='Set dt in the sgd. Default: 0.001',
     )
     parser.add_argument(
-        '--N-sgd',
-        dest='N_sgd',
+        '--K-sgd',
+        dest='K_sgd',
         type=int,
         default=1000,
         help='Set number of trajectories to sample in the sgd. Default: 1000',
@@ -276,15 +278,15 @@ def get_base_parser():
         help='Set the seed for RandomState',
     )
     parser.add_argument(
-        '--N-grad',
-        dest='N_grad',
+        '--K-grad',
+        dest='K_grad',
         type=int,
         default=50,
         help='Set number of times the gradient is sampled. Default: 50',
     )
     parser.add_argument(
-        '--N-train',
-        dest='N_train',
+        '--K-train',
+        dest='K_train',
         type=int,
         default=1000,
         help='Set number of points used in the approximation problem. Default: 1000',

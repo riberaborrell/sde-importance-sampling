@@ -1,10 +1,10 @@
-from sde_importance_sampling.langevin_sde import LangevinSDE
-
 import pytest
+import time
 
 import numpy as np
 
-import time
+from sde_importance_sampling.langevin_sde import LangevinSDE
+
 
 class TestLangevinSDE:
 
@@ -12,12 +12,12 @@ class TestLangevinSDE:
     def sde_1d(self, problem_name, potential_name, alpha_i, beta):
         ''' creates Langevin SDE object with the given setting.
         '''
-        n = 1
+        d = 1
         sde = LangevinSDE(
             problem_name=problem_name,
             potential_name=potential_name,
-            n=n,
-            alpha=np.full(n, alpha_i),
+            d=d,
+            alpha=np.full(d, alpha_i),
             beta=beta,
         )
         return sde
@@ -26,25 +26,25 @@ class TestLangevinSDE:
     def sde_2d(self, problem_name, potential_name, alpha_i, beta):
         ''' creates Langevin SDE object with the given setting.
         '''
-        n = 1
+        d = 1
         sde = LangevinSDE(
             problem_name=problem_name,
             potential_name=potential_name,
-            n=n,
-            alpha=np.full(n, alpha_i),
+            d=d,
+            alpha=np.full(d, alpha_i),
             beta=beta,
         )
         return sde
 
     @pytest.fixture
-    def sde_nd(self, problem_name, potential_name, n, alpha_i, beta):
+    def sde_nd(self, problem_name, potential_name, d, alpha_i, beta):
         ''' creates Langevin SDE object with the given setting.
         '''
         sde = LangevinSDE(
             problem_name=problem_name,
             potential_name=potential_name,
-            n=n,
-            alpha=np.full(n, alpha_i),
+            d=d,
+            alpha=np.full(d, alpha_i),
             beta=beta,
         )
         return sde
@@ -81,7 +81,7 @@ class TestLangevinSDE:
         sde = sde_nd
         sde.discretize_domain(h=0.1)
         flat_domain_h = sde.get_flat_domain_h()
-        assert flat_domain_h.shape == (sde.Nh, sde.n)
+        assert flat_domain_h.shape == (sde.Nh, sde.d)
 
     def test_get_idx_target_set(self, sde_nd):
         sde = sde_nd
@@ -95,29 +95,27 @@ class TestLangevinSDE:
         sde = sde_nd
 
         # sample point uniformly
-        x = sde.sample_domain_uniformly(N=1)[0, :]
+        x = sde.sample_domain_uniformly(K=1)[0, :]
 
         # discretize domain
-        #sde.discretize_domain(h=0.005)
-        sde.discretize_domain_ith_coordinate(h=0.005)
+        sde.discretize_domain(h=0.005)
 
         # start timer
         ct_initial = time.perf_counter()
 
         # get index
-        idx = sde.get_index2(x)
-        #idx = sde.get_index_using_clip(x)
+        idx = sde.get_index(x)
 
         # stop timer
         ct_final = time.perf_counter()
 
         print('ct: {:.5f}'.format(ct_final - ct_initial))
 
-    def test_get_idx_vectorized(self, sde_nd, N):
+    def test_get_idx_vectorized(self, sde_nd, K):
         sde = sde_nd
 
         # sample point uniformly
-        x = sde.sample_domain_uniformly(N=N)
+        x = sde.sample_domain_uniformly(K=K)
 
         # discretize domain
         sde.discretize_domain_ith_coordinate(h=0.005)
@@ -126,11 +124,11 @@ class TestLangevinSDE:
         idx = sde.get_index_vectorized(x)
 
 
-    def test_get_idx_vectorized_ct(self, sde_nd, N):
+    def test_get_idx_vectorized_ct(self, sde_nd, K):
         sde = sde_nd
 
         # sample point uniformly
-        x = sde.sample_domain_uniformly(N=N)
+        x = sde.sample_domain_uniformly(K=K)
 
         # discretize domain
         sde.discretize_domain_ith_coordinate(h=0.005)
