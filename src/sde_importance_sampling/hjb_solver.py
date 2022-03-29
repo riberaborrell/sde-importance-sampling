@@ -407,8 +407,8 @@ class SolverHJB(object):
 
         self.value_function =  - np.log(self.psi)
 
-    #TODO! check this method
-    def get_idx_value_f_type(self, i):
+    #TODO! comment this method
+    def get_idx_value_f_type(self):
         '''
 
         Returns
@@ -418,15 +418,21 @@ class SolverHJB(object):
         '''
         return [slice(self.sde.Nx[i]) for i in range(self.sde.d)]
 
+    #TODO! comment this method
     def get_idx_u_type(self, i):
         '''
+
+        Parameters
+        ----------
+        i: int
+            index of the i-th coordinate
 
         Returns
         -------
         list
 
         '''
-        idx_u = [None for i in range(self.sde.d + 1)]
+        idx_u = [None for j in range(self.sde.d + 1)]
         idx_u[-1] = i
         for j in range(self.sde.d):
             idx_u[j] = slice(self.sde.Nx[j])
@@ -445,8 +451,9 @@ class SolverHJB(object):
 
         for i in range(self.sde.d):
 
-            idx_value_f_k_plus = self.get_idx_value_f_type(i)
-            idx_value_f_k_minus = self.get_idx_value_f_type(i)
+            # compute indices
+            idx_value_f_k_plus = self.get_idx_value_f_type()
+            idx_value_f_k_minus = self.get_idx_value_f_type()
             idx_u_k = self.get_idx_u_type(i)
             idx_u_0 = self.get_idx_u_type(i)
             idx_u_1 = self.get_idx_u_type(i)
@@ -464,6 +471,7 @@ class SolverHJB(object):
                     idx_u_N[j] = self.sde.Nx[j] - 1
                     break
 
+            # generalized central difference
             u_opt[tuple(idx_u_k)] = - self.sde.sigma *(
                 self.value_function[tuple(idx_value_f_k_plus)] - self.value_function[tuple(idx_value_f_k_minus)]
             ) / (2 * self.sde.h)
