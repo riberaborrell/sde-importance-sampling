@@ -34,6 +34,8 @@ class LangevinSDE(object):
         parameters of the potential
     beta: float
         inverse of the temperature
+    sigma: float
+        diffusion coefficient
     domain: array
         domain of the problem
     is_domain_hypercube: bool
@@ -177,6 +179,7 @@ class LangevinSDE(object):
         # check beta
         type(float) == float, ''
         self.beta = beta
+        self.sigma = np.sqrt(2 / beta)
 
         # check domain 
         self.set_domain(domain)

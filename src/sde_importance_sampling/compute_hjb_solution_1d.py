@@ -1,7 +1,8 @@
-from sde_importance_sampling.base_parser import get_base_parser
-from sde_importance_sampling.hjb_solver_1d import SolverHJB1d
-
 import numpy as np
+
+from sde_importance_sampling.base_parser import get_base_parser
+from sde_importance_sampling.langevin_sde import LangevinSDE
+from sde_importance_sampling.hjb_solver_1d import SolverHJB1d
 
 def get_parser():
     parser = get_base_parser()
@@ -13,24 +14,26 @@ def main():
     args = get_parser().parse_args()
 
     # set dimension
-    n = 1
+    d = 1
 
     # initialize hjb solver
-    sol_hjb = SolverHJB1d(
+    sde = LangevinSDE(
         problem_name='langevin_stop-t',
         potential_name='nd_2well',
-        n=n,
-        alpha=np.full(n, args.alpha_i),
+        d=d,
+        alpha=np.full(d, args.alpha_i),
         beta=args.beta,
-        h=args.h_hjb,
     )
+
+    # initialize hjb solver
+    sol_hjb = SolverHJB1d(sde, h=args.h_hjb)
 
     # compute soltuion
     if not args.load:
 
         # discretize domain
         sol_hjb.start_timer()
-        sol_hjb.discretize_domain()
+        sol_hjb.sde.discretize_domain()
 
         # compute hjb solution 
         sol_hjb.solve_bvp()
@@ -50,17 +53,7 @@ def main():
 
     # report solution
     if args.do_report:
-        sol_hjb.write_report(x=np.full(n, args.xzero_i))
-
-        import matplotlib.pyplot as plt
-        x = sol_hjb.domain_h[:, 0]
-        y = sol_hjb.u_opt[:, 0]
-        fig, ax = plt.subplots()
-        ax.set_xlabel('x')
-        ax.set_xlim(-2, 2)
-        plt.plot(x, y)
-        plt.grid()
-        plt.show()
+        sol_hjb.write_report(x=np.full(d, args.xzero_i))
 
     if args.do_plots:
 

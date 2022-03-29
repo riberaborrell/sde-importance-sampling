@@ -72,7 +72,7 @@ def get_base_parser():
         '--xzero-i',
         dest='xzero_i',
         type=float,
-        default=-1,
+        default=-1.,
         help='Set the initial posicion of the process at each axis. Default: -1',
     )
     parser.add_argument(
