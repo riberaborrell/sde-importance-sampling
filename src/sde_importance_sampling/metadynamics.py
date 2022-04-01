@@ -1,9 +1,6 @@
-from sde_importance_sampling.gaussian_ansatz_functions import GaussianAnsatz
-from sde_importance_sampling.utils_path import get_metadynamics_dir_path, \
-                                               make_dir_path, \
-                                               empty_dir, \
-                                               get_time_in_hms
-from sde_importance_sampling.utils_numeric import slice_1d_array, from_1dndarray_to_string
+import copy
+import os
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,13 +8,15 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-import copy
-import os
-import time
+from sde_importance_sampling.gaussian_ansatz_functions import GaussianAnsatz
+from sde_importance_sampling.utils_path import get_metadynamics_dir_path, \
+                                               make_dir_path, \
+                                               empty_dir, \
+                                               get_time_in_hms
+from sde_importance_sampling.utils_numeric import slice_1d_array, from_1dndarray_to_string
 
 META_TYPES = [
     'cum', # cumulative, bias potential with gaussian ansatz
-    'cum-nn', # cumulative, control with nn
     'ind', # independent
 ]
 
@@ -26,12 +25,106 @@ WEIGHTS_TYPES = [
     'geometric', # geometric succession
 ]
 
-class Metadynamics:
+class Metadynamics(object):
     '''
+    class representing the adapted metadynamics algorithm.
+
+    Attributes
+    ----------
+    sample: object
+        importance sampling object
+    seed: int
+        seed
+    k_lim: int
+
+    # sampling
+    delta: float
+        time interval between metadynamics updates
+    k_delta: int
+       number of steps between metadynamics updates
+    updates_lim: int
+        number of maximal updates
+    K: int
+        number of trajectories
+    xzero: array
+        initial point
+
+    # metadynamcis coefficients
+    meta_type: str
+        name of the metadynamics adapted algorithm
+    ms: array
+        number of updates used at each trajectory
+    time_steps: array
+        number of time steps used at each trajectory
+    succ: bool
+        True if trajectoy arrived in the target set
+
+    # gaussian ansatz
+    weights_type: str
+        type of weights
+    omega_0: float
+        initial weigh of the gaussian functions
+    omegas: array
+        parameters of the ansatz gaussian representation
+    means: array
+        centers of the gaussian functions
+    sigma_i: float
+
+    cov: array
+        covariance matrix
+
+    # nn
+    thetas
+
+    # computational time
+    ct_initial: float
+        initial computational time
+    ct_time: float
+        final computational time
+    ct: float
+        computational time
+
+    # set path
+    dir_path: str
+        directory path
+    updates_dir_path: str
+        directory path where the updates plots
+
+    # plots per trajectory
+    do_updates_plots: bool
+        True if updates plots
     '''
 
-    def __init__(self, sample, k, N, seed=None, meta_type='cum',
+    def __init__(self, sample, delta, K, seed=None, meta_type='cum',
                  weights_type='const', omega_0=1., sigma_i=0.5, do_updates_plots=False):
+        ''' init method
+
+        Parameters
+        ----------
+        sample: object
+            importance sampling object
+        delta: float
+            time interval between metadynamics updats
+        K: int
+            number of trajectories
+        seed: int
+            seed
+        meta_type: str
+            name of the metadynamics adapted algorithm
+        weights_type: str
+            type of weights
+        omega_0: float
+            initial weigh of the gaussian functions
+        means: array
+            centers of the gaussian functions
+        sigma_i: float
+
+        do_updates_plots: bool
+            True if updates plots
+        '''
+
+        # sde object
+        self.sde = sample.sde
 
         # sampling object
         self.sample = sample
@@ -42,79 +135,66 @@ class Metadynamics:
             np.random.seed(seed)
 
         # sampling
-        self.k_lim = None
-        self.k = k
-        self.updates_lim = None
-        self.N = N
-        self.xzero = None
+        self.delta = delta
+        self.K = K
 
         # metadynamics coefficients
         self.meta_type = meta_type
-        self.ms = None
-        self.time_steps = None
-
-        # succeeded
-        self.succ = None
 
         # gaussian ansatz
         self.weights_type = weights_type
         self.omega_0 = omega_0
-        self.omegas = None
-        self.means = None
         self.sigma_i = sigma_i
-        self.cov = self.sigma_i * np.eye(sample.n)
-
-        # nn
-        self.thetas = None
-
-        # computational time
-        self.ct_initial = None
-        self.ct_final = None
-        self.ct = None
-
-        # set path
-        self.dir_path = None
-        self.updates_dir_path = None
+        self.cov = self.sigma_i * np.eye(self.sde.d)
 
         # plots per trajectory
         self.do_updates_plots = do_updates_plots
 
     def set_dir_path(self):
+        ''' computes directory path
+        '''
         meta_rel_path = get_metadynamics_dir_path(
             self.meta_type,
             self.weights_type,
             self.omega_0,
             self.sigma_i,
             self.sample.dt,
-            self.k,
-            self.N,
+            self.delta,
+            self.K,
             self.seed,
         )
         self.dir_path = os.path.join(
-            self.sample.settings_dir_path,
+            self.sde.settings_dir_path,
             meta_rel_path,
         )
 
     def set_updates_dir_path(self):
-        '''
+        ''' computes directory path for the updates plots
         '''
         self.updates_dir_path = os.path.join(self.dir_path, 'updates')
         make_dir_path(self.updates_dir_path)
         empty_dir(self.updates_dir_path)
 
     def start_timer(self):
+        ''' start timer
+        '''
         self.ct_initial = time.perf_counter()
 
     def stop_timer(self):
+        ''' stop timer
+        '''
         self.ct_final = time.perf_counter()
         self.ct = self.ct_final - self.ct_initial
 
     def set_sampling_parameters(self, k_lim, dt, xzero):
-        '''set k-steps sampling and Euler-Marujama parameters
+        ''' set k-steps sampling and Euler-Marujama parameters
         '''
+        # number of time steps between updates
+        self.k_delta = int(self.delta / dt)
+
         # limit number of time steps and limit number of updates
         self.k_lim = k_lim
-        self.updates_lim = k_lim // self.k
+        self.updates_lim = k_lim // self.k_delta
 
         # initial position
         self.xzero = xzero
@@ -122,17 +202,19 @@ class Metadynamics:
         # sampling parameters
         self.sample.set_sampling_parameters(
             dt=dt,
-            k_lim=self.k,
+            k_lim=self.k_delta,
             xzero=xzero,
-            N=1,
+            K=1,
         )
 
     def preallocate_metadynamics_coefficients(self):
+        '''
+        '''
         # bias potentials coefficients
-        self.ms = np.zeros(self.N, dtype=np.int)
+        self.ms = np.zeros(self.K, dtype=np.int)
         self.omegas = np.empty(0)
-        self.means = np.empty((0, self.sample.n))
-        self.time_steps = np.empty(self.N, dtype=np.int32)
+        self.means = np.empty((0, self.sde.d))
+        self.time_steps = np.empty(self.K, dtype=np.int32)
 
         # nn parameters
         if self.meta_type == 'cum-nn':
@@ -140,16 +222,14 @@ class Metadynamics:
             self.thetas = np.empty((0, m))
 
         # boolean array telling us if the algorithm succeeded or not for each sample
-        self.succ = np.empty(self.N, dtype=bool)
+        self.succ = np.empty(self.K, dtype=bool)
 
     def set_weights(self):
         # constant weights
         if self.weights_type == 'const' and self.meta_type == 'ind':
             self.weights = self.omega_0 * np.ones(self.updates_lim)
         elif self.weights_type == 'const' and self.meta_type == 'cum':
-            self.weights = self.omega_0 * np.ones(self.N)
-        elif self.weights_type == 'const' and self.meta_type == 'cum-nn':
-            self.weights = self.omega_0 * np.ones(self.N)
+            self.weights = self.omega_0 * np.ones(self.K)
 
         # geometric decay
         elif self.weights_type == 'geometric' and self.meta_type == 'ind':
@@ -157,10 +237,7 @@ class Metadynamics:
             self.weights = np.array([self.omega_0 * (r**i) for i in np.arange(self.updates_lim)])
         elif self.weights_type == 'geometric' and self.meta_type == 'cum':
             r = 0.95
-            self.weights = np.array([self.omega_0 * (r**i) for i in np.arange(self.N)])
-        elif self.weights_type == 'geometric' and self.meta_type == 'cum-nn':
-            r = 0.95
-            self.weights = np.array([self.omega_0 * (r**i) for i in np.arange(self.N)])
+            self.weights = np.array([self.omega_0 * (r**i) for i in np.arange(self.K)])
 
     def independent_metadynamics_algorithm(self, i):
         '''
@@ -168,7 +245,7 @@ class Metadynamics:
         sample = self.sample
 
         # reset initial position
-        sample.xzero = np.full((sample.N, self.sample.n), self.xzero)
+        sample.xzero = np.full((sample.K, self.sde.d), self.xzero)
 
         # time steps of the sampled meta trajectory
         time_steps = 0
@@ -185,7 +262,7 @@ class Metadynamics:
                     means=self.means[idx],
                     sigma_i=self.sigma_i,
                 )
-                sample.ansatz.theta = self.weights[:j] * sample.beta / 2
+                sample.ansatz.theta = self.weights[:j] * self.sde.beta / 2
 
             # sample with the given weights
             self.succ[i], xtemp = sample.sample_meta()
@@ -199,7 +276,7 @@ class Metadynamics:
             self.means = np.vstack((self.means, np.mean(xtemp, axis=(0, 1))))
 
             # update initial point
-            sample.xzero = np.full((sample.N, self.sample.n), np.mean(xtemp[-1]))
+            sample.xzero = np.full((sample.K, self.sde.d), np.mean(xtemp[-1]))
 
             # update used time steps
             time_steps += sample.k_lim
@@ -215,7 +292,7 @@ class Metadynamics:
         sample = self.sample
 
         # reset initial position
-        sample.xzero = np.full((sample.N, self.sample.n), self.xzero)
+        sample.xzero = np.full((sample.K, self.sde.d), self.xzero)
 
         # time steps of the sampled meta trajectory
         time_steps = 0
@@ -231,7 +308,7 @@ class Metadynamics:
                     means=self.means,
                     sigma_i=self.sigma_i,
                 )
-                sample.ansatz.theta = self.omegas * sample.beta / 2
+                sample.ansatz.theta = self.omegas * self.sde.beta / 2
 
             # sample with the given weights
             self.succ[i], xtemp = sample.sample_meta()
@@ -246,7 +323,7 @@ class Metadynamics:
             self.means = np.vstack((self.means, np.mean(xtemp, axis=(0, 1))))
 
             # update initial point
-            sample.xzero = np.full((sample.N, self.sample.n), np.mean(xtemp[-1]))
+            sample.xzero = np.full((sample.K, self.sde.d), np.mean(xtemp[-1]))
 
             # update used time steps
             time_steps += sample.k_lim
@@ -265,7 +342,7 @@ class Metadynamics:
         sample = self.sample
 
         # reset initial position
-        sample.xzero = np.full((sample.N, self.sample.n), self.xzero)
+        sample.xzero = np.full((sample.K, self.sde.d), self.xzero)
 
         # set the weights of the bias functions for this trajectory
         #omegas = self.get_weights_trajectory()
@@ -300,7 +377,7 @@ class Metadynamics:
             print('center added: {}'.format(self.means[-1]))
 
             # update initial point
-            sample.xzero = np.full((sample.N, self.sample.n), np.mean(xtemp[-1]))
+            sample.xzero = np.full((sample.K, self.sde.d), np.mean(xtemp[-1]))
 
             # update used time steps
             time_steps += sample.k_lim
@@ -330,16 +407,16 @@ class Metadynamics:
 
         # training parameters
         self.n_iterations_lim = 10**3
-        self.N_train = 5 * 10**2
+        self.K_train = 5 * 10**2
 
         # initialize Gaussian Ansatz
-        ansatz = GaussianAnsatz(self.sample.n, normalized=False)
+        ansatz = GaussianAnsatz(self.sde, normalized=False)
 
         for i in np.arange(self.n_iterations_lim):
 
             # sample training data
-            x_domain = self.sample.sample_domain_uniformly(self.N_train)
-            #x_gaussian = self.sample.sample_multivariate_normal(mean, cov, self.N_train)
+            x_domain = self.sample.sample_domain_uniformly(self.K_train)
+            #x_gaussian = self.sample.sample_multivariate_normal(mean, cov, self.K_train)
             x = np.vstack((x_domain, x_gaussian))
             x_tensor = torch.tensor(x, requires_grad=False, dtype=torch.float32)
 
@@ -384,22 +461,29 @@ class Metadynamics:
             weights_type=self.weights_type,
             omega_0=self.omega_0,
             omegas=self.omegas,
-            k=self.k,
-            N=self.N,
+            delta=self.delta,
+            k_delta=self.k_delta,
+            K=self.K,
             succ=self.succ,
             time_steps=self.time_steps,
             ms=self.ms,
             means=self.means,
-            thetas=self.thetas,
+            #thetas=self.thetas,
             ct = self.ct,
         )
 
-    def load(self):
+    def load(self, dir_path=None, file_name='bias-potential.npz'):
         ''' loads the saved arrays and sets them as attributes back
         '''
+
+        # directory path
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        # load npz arrays
         try:
             data = np.load(
-                os.path.join(self.dir_path, 'bias-potential.npz'),
+                os.path.join(dir_path, file_name),
                 allow_pickle=True,
             )
             for file_name in data.files:
@@ -410,8 +494,8 @@ class Metadynamics:
             return True
 
         except:
-            msg = 'no meta bias potential found with dt={:.4f}, sigma_i={:.2f}, k={:d}, ' \
-                  'N={:.0e}'.format(self.sample.dt, self.sigma_i, self.k, self.N)
+            msg = 'no meta bias potential found with dt={:.4f}, sigma_i={:.2f}, delta={:d}, ' \
+                  'K={:.0e}'.format(self.sample.dt, self.sigma_i, self.delta, self.K)
             print(msg)
             return False
 
@@ -419,7 +503,7 @@ class Metadynamics:
         ''' returns the indices of the ansatz functions used for each trajectory up to the given update
         '''
         # trajectory
-        assert i in range(self.N), ''
+        assert i in range(self.K), ''
 
         # if None assign last update 
         if update is None:
@@ -446,7 +530,7 @@ class Metadynamics:
             means=self.means[idx],
             sigma_i=self.sigma_i,
         )
-        self.sample.ansatz.theta = self.omegas[idx] * self.sample.beta / 2
+        self.sample.ansatz.theta = self.omegas[idx] * self.sde.beta / 2
         self.sample.ansatz.set_value_function_constant_to_zero()
         #self.sample.ansatz.set_value_function_constant_corner()
 
@@ -455,13 +539,12 @@ class Metadynamics:
         '''
         # initialize Gaussian object if there is not one already
         if self.sample.ansatz is None:
-            self.sample.ansatz = GaussianAnsatz(self.sample.n, self.sample.beta,
-                                                normalized=False)
+            self.sample.ansatz = GaussianAnsatz(self.sde, normalized=False)
 
         if self.meta_type == 'ind':
             self.set_ansatz_averaged()
         elif self.meta_type == 'cum':
-            self.set_ansatz_trajectory(i=self.N -1)
+            self.set_ansatz_trajectory(i=self.K -1)
 
     def set_ansatz_averaged(self):
         ''' average omegas such that each trajectory is equally important
@@ -474,16 +557,16 @@ class Metadynamics:
         )
 
         m = np.sum(self.ms)
-        thetas = np.empty((self.N, m))
+        thetas = np.empty((self.K, m))
 
-        for i in np.arange(self.N):
+        for i in np.arange(self.K):
             # get means and thetas for each trajectory
             idx_i = self.get_trajectory_indices(i)
             meta_means_i = self.means[idx_i]
-            meta_thetas_i = self.omegas[idx_i] * self.sample.beta / 2
+            meta_thetas_i = self.omegas[idx_i] * self.sde.beta / 2
 
             # create ansatz functions corresponding to the ith metadynamics trajectory
-            meta_ansatz_i = GaussianAnsatz(n=self.sample.n, normalized=False)
+            meta_ansatz_i = GaussianAnsatz(self.sde, normalized=False)
             meta_ansatz_i.set_given_ansatz_functions(
                 means=meta_means_i,
                 sigma_i=self.sigma_i,
@@ -507,7 +590,7 @@ class Metadynamics:
         f.write('Center of the Gaussians\n')
         f.write('i: trajectory index, j: gaussian index\n')
         idx = 0
-        for i in np.arange(self.N):
+        for i in np.arange(self.K):
             for j in np.arange(self.ms[i]):
 
                 # get center added at the trajectory i update j
@@ -530,15 +613,14 @@ class Metadynamics:
         self.sample.k_lim = self.k_lim
         self.sample.xzero = self.xzero
 
-        self.sample.write_setting(f)
+        self.sde.write_setting(f)
         self.sample.write_euler_maruyama_parameters(f)
         self.sample.write_sampling_parameters(f)
 
         f.write('\nMetadynamics parameters and statistics\n')
         f.write('metadynamics algorithm: {}\n'.format(self.meta_type))
-        f.write('k: {:d}\n'.format(self.k))
-        f.write('N_meta: {:d}\n\n'.format(self.N))
-
+        f.write('delta: {:2.2f}\n'.format(self.delta))
+        f.write('K_meta: {:d}\n\n'.format(self.K))
 
         f.write('\nGaussians\n')
         f.write('sigma_i_meta: {:2.2f}\n'.format(self.sigma_i))
@@ -547,7 +629,7 @@ class Metadynamics:
 
         f.write('\nseed: {:d}\n'.format(self.seed))
         f.write('traj succeeded: {:2.2f} %\n'
-                ''.format(100 * np.sum(self.succ) / self.N))
+                ''.format(100 * np.sum(self.succ) / self.K))
         f.write('total m: {:d}\n'.format(np.sum(self.ms)))
         f.write('total time steps: {:,d}\n\n'.format(int(np.sum(self.time_steps))))
 
@@ -562,7 +644,7 @@ class Metadynamics:
         print(f.read())
         f.close()
 
-    def get_control_and_controlled_potential_1d(self, i=0, update=None):
+    def get_control_and_perturbed_potential_1d(self, i=0, update=None):
         '''
         '''
 
@@ -570,15 +652,15 @@ class Metadynamics:
         self.sample.get_grid_control()
         self.sample.integrate_grid_value_function_1d()
 
-        return self.sample.grid_control[:, 0], self.sample.grid_controlled_potential
+        return self.sample.grid_control[:, 0], self.sample.grid_perturbed_potential
 
 
     def plot_1d_updates(self, i=0, n_sliced_updates=5):
         from figures.myfigure import MyFigure
 
         # discretize domain and evaluate in grid
-        self.sample.discretize_domain(h=0.001)
-        x = self.sample.domain_h[:, 0]
+        self.sde.discretize_domain(h=0.001)
+        x = self.sde.domain_h[:, 0]
 
         # filter updates to show
         n_updates = self.ms[i]
@@ -594,7 +676,7 @@ class Metadynamics:
         # preallocate arrays
         value_fs = np.zeros((n_sliced_updates + 2, x.shape[0]))
         controls = np.zeros((n_sliced_updates + 2, x.shape[0]))
-        controlled_potentials = np.zeros((n_sliced_updates + 2, x.shape[0]))
+        perturbed_potentials = np.zeros((n_sliced_updates + 2, x.shape[0]))
 
         # preallocate functions
         labels = []
@@ -614,7 +696,7 @@ class Metadynamics:
         # evaluate at the grid
         self.sample.get_grid_value_function()
         self.sample.get_grid_control()
-        controlled_potentials[0, :] = self.sample.grid_controlled_potential
+        perturbed_potentials[0, :] = self.sample.grid_perturbed_potential
         value_fs[0, :] = self.sample.grid_value_function
         controls[0, :] = self.sample.grid_control[:, 0]
 
@@ -628,16 +710,16 @@ class Metadynamics:
             self.sample.get_grid_control()
 
             # update functions
-            controlled_potentials[index+1, :] = self.sample.grid_controlled_potential
+            perturbed_potentials[index+1, :] = self.sample.grid_perturbed_potential
             value_fs[index+1, :] = self.sample.grid_value_function
             controls[index+1, :] = self.sample.grid_control[:, 0]
 
         # get hjb solution
-        sol_hjb = self.sample.get_hjb_solver(h=0.001)
-        sol_hjb.discretize_domain()
-        sol_hjb.get_controlled_potential_and_drift()
-        value_fs[-1, :] = sol_hjb.value_f
-        controlled_potentials[-1, :] = sol_hjb.controlled_potential
+        sol_hjb = self.sde.get_hjb_solver()
+        sol_hjb.sde.discretize_domain()
+        sol_hjb.get_perturbed_potential_and_drift()
+        value_fs[-1, :] = sol_hjb.value_function
+        perturbed_potentials[-1, :] = sol_hjb.perturbed_potential
         controls[-1, :] = sol_hjb.u_opt[:, 0]
         labels.append('HJB solution')
         #colors[-1] = 'tab:cyan'
@@ -663,12 +745,12 @@ class Metadynamics:
             dir_path=self.dir_path,
             file_name='controlled-potential' + ext,
         )
-        controlled_potentials[-1, :] = sol_hjb.controlled_potential
+        perturbed_potentials[-1, :] = sol_hjb.perturbed_potential
         fig.set_title(r'$V(x) + V_b^{meta}(x)$')
         fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
         fig.set_ylim(0, 20)
-        fig.plot(x, controlled_potentials, labels=labels, colors=colors)
+        fig.plot(x, perturbed_potentials, labels=labels, colors=colors)
 
         # plot control
         fig = plt.figure(
@@ -714,21 +796,21 @@ class Metadynamics:
             ext = ''
 
         # discretize domain and evaluate in grid
-        self.sample.discretize_domain(h=0.001)
+        self.sde.discretize_domain(h=0.001)
         self.sample.get_grid_value_function()
         self.sample.get_grid_control()
 
         # get hjb solution
-        sol_hjb = self.sample.get_hjb_solver(h=0.001)
-        sol_hjb.discretize_domain()
-        sol_hjb.get_controlled_potential_and_drift()
+        sol_hjb = self.sde.get_hjb_solver()
+        sol_hjb.sde.discretize_domain()
+        sol_hjb.get_perturbed_potential_and_drift()
 
         # colors and labels
         labels = [r'meta (trajectory: {}, update: {})'.format(i, update), 'num sol HJB PDE']
         colors = ['tab:purple', 'tab:cyan']
 
         # domain
-        x = self.sample.domain_h[:, 0]
+        x = self.sde.domain_h[:, 0]
 
         # plot value function
         fig = plt.figure(
@@ -738,7 +820,7 @@ class Metadynamics:
         )
         y = np.vstack((
             self.sample.grid_value_function,
-            sol_hjb.value_f,
+            sol_hjb.value_function,
         ))
         fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
@@ -751,8 +833,8 @@ class Metadynamics:
             file_name='controlled-potential' + ext,
         )
         y = np.vstack((
-            self.sample.grid_controlled_potential,
-            sol_hjb.controlled_potential,
+            self.sample.grid_perturbed_potential,
+            sol_hjb.perturbed_potential,
         ))
         fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
@@ -841,7 +923,7 @@ class Metadynamics:
         fig.set_ylim(-2, 2)
         fig.set_colormap('Blues_r', start=0.10, stop=1.)
         fig.set_contour_levels_scale('linear')
-        fig.contour(X, Y, self.sample.grid_controlled_potential)
+        fig.contour(X, Y, self.sample.grid_perturbed_potential)
 
         # plot control
         U = self.sample.grid_control[:, :, 0]
@@ -925,7 +1007,7 @@ class Metadynamics:
             dir_path=plot_dir_path,
             file_name='controlled-potential-x{:d}'.format(i+1) + ext,
         )
-        y = self.sample.grid_controlled_potential_i
+        y = self.sample.grid_perturbed_potential_i
         fig.set_title(r'$V(x) + V_b^{meta}(x)$')
         fig.set_xlabel(r'$x_{:d}$'.format(i+1))
         fig.set_xlim(-2, 2)
@@ -973,7 +1055,7 @@ class Metadynamics:
         )
 
         # trajectories
-        x = np.arange(self.N)[n_iter_avg-1:]
+        x = np.arange(self.K)[n_iter_avg-1:]
 
         # number of gaussians
         y = np.convolve(
@@ -1002,7 +1084,7 @@ class Metadynamics:
         )
 
         # trajectories
-        x = np.arange(self.N)[n_iter_avg-1:]
+        x = np.arange(self.K)[n_iter_avg-1:]
 
         # running averages of the time steps
         run_avg_time_steps = np.convolve(
@@ -1012,7 +1094,7 @@ class Metadynamics:
         # time steps + k
         y = np.vstack((
             run_avg_time_steps,
-            np.full(self.N, self.k)[n_iter_avg-1:],
+            np.full(self.K, self.k_delta)[n_iter_avg-1:],
         ))
 
         labels = ['cumulative metadynamics', 'k']
@@ -1214,6 +1296,5 @@ class Metadynamics:
         # probability
         p = np.count_nonzero((value_f_at_x > a)) / N
         #p = np.count_nonzero((control_at_x > a).any(axis=1)) / N
-        breakpoint()
 
         return p

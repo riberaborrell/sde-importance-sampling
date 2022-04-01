@@ -72,7 +72,7 @@ def get_hjb_solution_dir_path(settings_dir_path, h):
     )
     return dir_path
 
-def get_not_controlled_dir_path(settings_dir_path, dt, N, seed):
+def get_not_controlled_dir_path(settings_dir_path, dt, K, seed):
     ''' returns the absolute path of mc sampling directory
     '''
     # set seed string
@@ -86,12 +86,12 @@ def get_not_controlled_dir_path(settings_dir_path, dt, N, seed):
         settings_dir_path,
         'mc-sampling',
         'dt_{}'.format(dt),
-        'N_{:.0e}'.format(N),
+        'K_{:.0e}'.format(K),
         seed_str,
     )
     return dir_path
 
-def get_controlled_dir_path(parent_dir_path, dt, N, seed):
+def get_controlled_dir_path(parent_dir_path, dt, K, seed):
     ''' returns the relative path of an importance sampling
     '''
     # set seed string
@@ -105,12 +105,12 @@ def get_controlled_dir_path(parent_dir_path, dt, N, seed):
         parent_dir_path,
         'is',
         'dt_{}'.format(dt),
-        'N_{:.0e}'.format(N),
+        'K_{:.0e}'.format(K),
         seed_str,
     )
     return dir_path
 
-def get_metadynamics_dir_path(meta_type, weights_type, omega_0, sigma_i, dt, k, N, seed):
+def get_metadynamics_dir_path(meta_type, weights_type, omega_0, sigma_i, dt, delta, K, seed):
     ''' returns relative path of the metadynamics algorithm
     '''
     # set seed string
@@ -126,8 +126,8 @@ def get_metadynamics_dir_path(meta_type, weights_type, omega_0, sigma_i, dt, k, 
         'omega0_{}'.format(omega_0),
         'sigma-i_{}'.format(sigma_i),
         'dt_{}'.format(dt),
-        'k_{}'.format(k),
-        'N_{}'.format(N),
+        'delta_{:2.2f}'.format(delta),
+        'K_{}'.format(K),
         seed_str,
     )
     return dir_path

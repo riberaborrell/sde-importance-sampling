@@ -103,11 +103,11 @@ class SolverHJB(object):
 
     plot_2d_value_function(dir_path=None, file_name='value-function')
 
-    plot_2d_controlled_potential(dir_path=None, file_name='perturbed-potential')
+    plot_2d_perturbed_potential(dir_path=None, file_name='perturbed-potential')
 
     plot_2d_control(scale=None, width=0.005, dir_path=None, file_name='control')
 
-    plot_2d_controlled_drift(scale=None, width=0.005, file_name='controlled-drift')
+    plot_2d_perturbed_drift(scale=None, width=0.005, file_name='perturbed-drift')
    '''
 
     def __init__(self, sde, h):
@@ -492,6 +492,7 @@ class SolverHJB(object):
         # save arrays in a npz file
         np.savez(
             os.path.join(self.dir_path, 'hjb-solution.npz'),
+            h=self.sde.h,
             domain_h=self.sde.domain_h,
             Nx=self.sde.Nx,
             Nh=self.sde.Nh,
@@ -518,31 +519,21 @@ class SolverHJB(object):
                     attr = data[attr_name]
 
                 # langevin SDE attribute
-                if attr_name in ['domain_h', 'Nx', 'Nh']:
+                if attr_name in ['h', 'domain_h', 'Nx', 'Nh']:
 
-                    # if attribute exists check if they are the same
-                    if hasattr(self.sde, attr_name):
-                        assert getattr(self.sde, attr_name) == attr
-
-                    # if attribute does not exist save attribute
-                    else:
-                        setattr(self.sde, attr_name, attr)
+                    # save attribute
+                    setattr(self.sde, attr_name, attr)
 
                 # hjb solver attribute
                 else:
 
-                    # if attribute exists check if they are the same
-                    if hasattr(self, attr_name):
-                        assert getattr(self, attr_name) == attr
-
-                    # if attribute does not exist save attribute
-                    else:
-                        setattr(self, attr_name, attr)
+                    # save attribute
+                    setattr(self, attr_name, attr)
 
             return True
 
         except:
-            print('no hjb-solution found with h={:.0e}'.format(self.h))
+            print('no hjb-solution found with h={:.0e}'.format(self.sde.h))
             return False
 
     def get_psi_at_x(self, x):
@@ -789,7 +780,7 @@ class SolverHJB(object):
         fig.contour(X, Y, self.value_f)
 
 
-    def plot_2d_controlled_potential(self, dir_path=None, file_name='perturbed-potential'):
+    def plot_2d_perturbed_potential(self, dir_path=None, file_name='perturbed-potential'):
         from figures.myfigure import MyFigure
 
         # set dir path
@@ -840,7 +831,7 @@ class SolverHJB(object):
         fig.vector_field(X, Y, U, V, scale=scale, width=width)
 
 
-    def plot_2d_controlled_drift(self, scale=None, width=0.005,
+    def plot_2d_perturbed_drift(self, scale=None, width=0.005,
                                  dir_path=None, file_name='perturbed-drift'):
         from figures.myfigure import MyFigure
 

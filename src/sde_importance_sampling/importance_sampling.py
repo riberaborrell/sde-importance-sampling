@@ -328,7 +328,7 @@ class Sampling(object):
         array
             bias potential evaluated at the x
         '''
-        return 2 * self.ansatz.value_function(x, theta) / self.beta
+        return 2 * self.ansatz.value_function(x, theta) / self.sde.beta
 
     def bias_gradient(self, u):
         ''' computes the bias gradient at x
@@ -829,7 +829,7 @@ class Sampling(object):
 
             # compute gradient
             if not self.is_controlled:
-                gradient = self.gradient(x[k - 1])
+                gradient = self.sde.gradient(x[k - 1])
 
             # or compute controlled gradient
             else:
@@ -1697,34 +1697,34 @@ class Sampling(object):
 
     def get_grid_value_function(self):
         # flatten domain_h
-        x = self.domain_h.reshape(self.Nh, self.sde.d)
+        x = self.sde.domain_h.reshape(self.sde.Nh, self.sde.d)
 
         # potential
-        self.grid_potential = self.potential(x).reshape(self.Nx)
+        self.grid_potential = self.sde.potential(x).reshape(self.sde.Nx)
 
         # bias potential
         if not self.is_controlled:
             # bias potential and value function
-            self.grid_bias_potential = np.zeros(self.Nx)
-            self.grid_value_function = np.zeros(self.Nx)
+            self.grid_bias_potential = np.zeros(self.sde.Nx)
+            self.grid_value_function = np.zeros(self.sde.Nx)
 
         # gaussian ansatz
         elif self.is_controlled and self.ansatz is not None:
 
             # set value function constant
-            if self.potential_name == 'nd_well':
+            if self.sde.potential_name == 'nd_well':
                 self.ansatz.set_value_function_constant_corner()
-            elif self.potential_name == 'nd_well_asym':
+            elif self.sde.potential_name == 'nd_well_asym':
                 self.ansatz.set_value_function_target_set()
 
             # bias potential and value function
-            self.grid_bias_potential = self.bias_potential(x).reshape(self.Nx)
-            self.grid_value_function = self.ansatz.value_function(x).reshape(self.Nx)
+            self.grid_bias_potential = self.bias_potential(x).reshape(self.sde.Nx)
+            self.grid_value_function = self.ansatz.value_function(x).reshape(self.sde.Nx)
 
         # controlled potential
         if self.grid_bias_potential is not None:
             # controlled potential
-            self.grid_controlled_potential = self.grid_potential + self.grid_bias_potential
+            self.grid_perturbed_potential = self.grid_potential + self.grid_bias_potential
 
     def integrate_grid_value_function_1d(self):
         '''
@@ -1755,7 +1755,7 @@ class Sampling(object):
 
         self.grid_value_function = value_f
         self.grid_bias_potential = 2 * value_f / self.beta
-        self.grid_controlled_potential = self.grid_potential + self.grid_bias_potential
+        self.grid_perturbed_potential = self.grid_potential + self.grid_bias_potential
 
     def get_grid_value_function_i(self, i=0, x_j=0.):
         ''' computes the value of the value function and the bias potential along the i-th
@@ -1785,31 +1785,31 @@ class Sampling(object):
         # controlled potential
         if self.grid_bias_potential_i is not None:
             # controlled potential
-            self.grid_controlled_potential_i = self.grid_potential_i + self.grid_bias_potential_i
+            self.grid_perturbed_potential_i = self.grid_potential_i + self.grid_bias_potential_i
 
     def get_grid_control(self):
         # flattened domain_h
-        x = self.domain_h.reshape(self.Nh, self.sde.d)
+        x = self.sde.domain_h.reshape(self.sde.Nh, self.sde.d)
 
         # gradient
-        self.grid_gradient = self.gradient(x).reshape(self.domain_h.shape)
+        self.grid_gradient = self.sde.gradient(x).reshape(self.sde.domain_h.shape)
 
         # null control
         if not self.is_controlled:
-            self.grid_control = np.zeros(self.domain_h.shape)
+            self.grid_control = np.zeros(self.sde.domain_h.shape)
 
         # gaussian ansatz control
         elif self.is_controlled and self.ansatz is not None:
-            self.grid_control = self.ansatz.control(x).reshape(self.domain_h.shape)
+            self.grid_control = self.ansatz.control(x).reshape(self.sde.domain_h.shape)
 
         # nn control
         elif self.is_controlled and self.nn_func_appr is not None:
             inputs = torch.tensor(x, dtype=torch.float)
             control_flattened = self.nn_func_appr.model(inputs).detach().numpy()
-            self.grid_control = control_flattened.reshape(self.domain_h.shape)
+            self.grid_control = control_flattened.reshape(self.sde.domain_h.shape)
 
         # controlled drift
-        self.grid_controlled_drift = - self.grid_gradient + np.sqrt(2) * self.grid_control
+        self.grid_perturbed_drift = - self.grid_gradient + np.sqrt(2) * self.grid_control
 
     def get_grid_control_i(self, i=0, x_j=0., k=None):
         ''' computes the value of the control along the i-th coordinate evaluated at x_j

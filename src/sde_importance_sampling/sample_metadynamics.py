@@ -1,12 +1,11 @@
-from sde_importance_sampling.base_parser import get_base_parser
-from sde_importance_sampling.gaussian_ansatz_functions import GaussianAnsatz
-from sde_importance_sampling.importance_sampling import Sampling
-from sde_importance_sampling.metadynamics import Metadynamics
-from sde_importance_sampling.langevin_sde import LangevinSDE
-
 import numpy as np
 
-import os
+from sde_importance_sampling.base_parser import get_base_parser
+from sde_importance_sampling.gaussian_ansatz_functions import GaussianAnsatz
+from sde_importance_sampling.langevin_sde import LangevinSDE
+from sde_importance_sampling.importance_sampling import Sampling
+from sde_importance_sampling.metadynamics import Metadynamics
+
 
 def get_parser():
     parser = get_base_parser()
@@ -18,33 +17,35 @@ def main():
 
     # set alpha array
     if args.potential_name == 'nd_2well':
-        alpha = np.full(args.n, args.alpha_i)
+        alpha = np.full(args.d, args.alpha_i)
     elif args.potential_name == 'nd_2well_asym':
-        alpha = np.empty(args.n)
+        alpha = np.empty(args.d)
         alpha[0] = args.alpha_i
         alpha[1:] = args.alpha_j
 
     # set target set array
     if args.potential_name == 'nd_2well':
-        target_set = np.full((args.n, 2), [1, 3])
+        target_set = np.full((args.d, 2), [1, 3])
     elif args.potential_name == 'nd_2well_asym':
-        target_set = np.empty((args.n, 2))
+        target_set = np.empty((args.d, 2))
         target_set[0] = [1, 3]
         target_set[1:] = [-3, 3]
 
-    # initialize sampling object
-    sample = Sampling(
-        problem_name=args.problem_name,
+    # initialize sde object
+    sde = LangevinSDE(
+        problem_name='langevin_stop-t',
         potential_name=args.potential_name,
-        n=args.n,
+        d=args.d,
         alpha=alpha,
         beta=args.beta,
         target_set=target_set,
-        is_controlled=True,
     )
 
+    # initialize sampling object
+    sample = Sampling(sde, is_controlled=False)
+
     # initialize Gaussian Ansatz
-    sample.ansatz = GaussianAnsatz(n=args.n, beta=args.beta, normalized=False)
+    sample.ansatz = GaussianAnsatz(sde, normalized=False)
 
     # initialize meta nd object
     meta = Metadynamics(
@@ -53,8 +54,8 @@ def main():
         weights_type=args.weights_type,
         omega_0=args.omega_0_meta,
         sigma_i=args.sigma_i,
-        k=args.k_meta,
-        N=args.N_meta,
+        delta=args.delta_meta,
+        K=args.K_meta,
         seed=args.seed,
     )
 
@@ -62,7 +63,7 @@ def main():
     meta.set_sampling_parameters(
         k_lim=args.k_lim,
         dt=args.dt_meta,
-        xzero=np.full(args.n, args.xzero_i),
+        xzero=np.full(args.d, args.xzero_i),
     )
 
     # set path
@@ -80,7 +81,7 @@ def main():
         meta.set_weights()
 
         # metadynamics algorythm for different samples
-        for i in np.arange(meta.N):
+        for i in np.arange(meta.K):
             if args.meta_type == 'ind':
                 meta.independent_metadynamics_algorithm(i)
             elif args.meta_type == 'cum':
@@ -114,23 +115,21 @@ def main():
         meta.plot_time_steps()
 
         # 1d plots
-        if sample.n == 1:
-            meta.plot_1d_updates(i=0)
-            return
-            idx_traj_with_updates = [i for i in range(args.N_meta) if meta.ms[i] != 0]
+        if sde.d == 1:
+            idx_traj_with_updates = [i for i in range(args.K_meta) if meta.ms[i] != 0]
             for i in idx_traj_with_updates:
                 meta.plot_1d_updates(i=i)
                 meta.plot_1d_update()
 
         # 2d plots
-        elif sample.n == 2:
+        elif sde.d == 2:
             meta.plot_2d_means()
             meta.plot_2d_update()
             meta.plot_nd_ith_coordinate_update(i=0)
             meta.plot_nd_ith_coordinate_update(i=1)
 
         # 3d plots
-        elif sample.n == 3:
+        elif sde.d == 3:
             meta.plot_3d_means()
             meta.plot_nd_ith_coordinate_update(i=0)
             meta.plot_nd_ith_coordinate_update(i=1)

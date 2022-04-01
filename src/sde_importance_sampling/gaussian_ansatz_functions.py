@@ -1,68 +1,90 @@
-from sde_importance_sampling.langevin_sde import LangevinSDE
-from sde_importance_sampling.utils_path import make_dir_path, get_gaussian_ansatz_dir_path
+import os
 
 import numpy as np
 import torch
 
-import os
+from sde_importance_sampling.langevin_sde import LangevinSDE
+from sde_importance_sampling.utils_path import make_dir_path, get_gaussian_ansatz_dir_path
 
-class GaussianAnsatz():
+class GaussianAnsatz(object):
+    ''' Gaussian ansatz
+
+    Attributes
+    ----------
+    sde: object
+        LangevinSDE object
+    m: int
+        number of ansatz functions
+    means: array
+        centers of the Gaussian functions
+    means_tensor: tensor
+        centers of the Gaussian functions
+    cov: array
+        covariance matrix
+    inv_cov: array
+        inverse of the covariance matrix
+    det_cov: float
+        determinant of the covariance matrix
+    sigma_i: float
+
+    theta: array
+
+    normalized: bool
+        True if the Gaussian functions are normalized normal density functions
+    is_cov_scalar_matrix: bool
+        True if the covariance matrix is a scalar matrix
+
+    distributed: str
+
+    m_i: int
+        number of ansatz functions placed in each coordinate
+    sigma_i_meta: float
+
+    k: int
+
+    K_meta: int
+
+    seed_meta: int
+
+    theta_type: str
+
+    K_value_f: float
+        value function constanct
+
+    dir_path: str
+        directory path
     '''
-    '''
-    def __init__(self, n, beta, normalized=True):
-        '''
-        '''
-        # dimension of the state space
-        self.n = n
 
-        # inverse of temperature
-        self.beta = beta
+    def __init__(self, sde, normalized=True):
+        ''' init method
 
-        # number of ansatz, means and cov
-        self.m = None
-        self.means = None
-        self.means_tensor = None
-        self.cov = None
-        self.inv_cov = None
-        self.det_cov = None
-        self.sigma_i = None
-        self.theta = None
+        Parameters
+        ----------
+        sde: object
+            LangevinSDE object
+        normalized: bool
+            True if the Gaussian functions are normalized normal density functions
+        '''
+
+        # environment
+        self.sde = sde
+
+        # normalize flag
         self.normalized = normalized
-        self.is_cov_scalar_matrix = True
 
-        # distributed
-        self.distributed = None
-
-        # uniform distributed along the axis
-        self.m_i = None
-
-        # meta distributed
-        self.sigma_i_meta = None
-        self.k = None
-        self.N_meta = None
-        self.seed_meta = None
-
-        self.theta_type = None
-
-        # value function constanct
-        self.K_value_f = None
-
-        # directory path
-        self.dir_path = None
-
-    def set_dir_path(self, sde):
-        '''
+    def set_dir_path(self):
+        ''' set directory path for the chosen gaussian ansatz representation
         '''
         # get dir path
         dir_path = get_gaussian_ansatz_dir_path(
-            sde.settings_dir_path,
+            self.sde.settings_dir_path,
             self.distributed,
             self.theta_type,
             self.m_i,
             self.sigma_i,
             self.sigma_i_meta,
             self.k,
-            self.N_meta,
+            self.K_meta,
             self.seed_meta,
         )
 
@@ -73,9 +95,12 @@ class GaussianAnsatz():
     def set_cov_matrix(self, sigma_i=None, cov=None):
         ''' sets the covariance matrix of the gaussian functions
 
-        Args:
-            sigma_i (float): value in the diagonal entries of the covariance matrix.
-            cov ((n, n)-array): covariance matrix
+        Parameters
+        ----------
+        sigma_i: float, optional
+            value in the diagonal entries of the covariance matrix
+        cov: (d, d)-array, optional
+            covariance matrix
         '''
 
         # scalar covariance matrix case
@@ -83,20 +108,20 @@ class GaussianAnsatz():
 
             # covariance matrix
             self.sigma_i = sigma_i
-            self.cov = sigma_i * np.eye(self.n)
+            self.cov = sigma_i * np.eye(self.sde.d)
             self.is_cov_scalar_matrix = True
 
             # compute inverse
-            self.inv_cov = np.eye(self.n) / sigma_i
+            self.inv_cov = np.eye(self.sde.d) / sigma_i
 
             # compute determinant
-            self.det_cov = sigma_i**self.n
+            self.det_cov = sigma_i**self.sde.d
 
         # general case
         if cov is not None:
 
             # check covariance matrix
-            assert cov.shape == (self.n, self.n), ''
+            assert cov.shape == (self.sde.d, self.sde.d), ''
 
             # set covariance matrix
             self.cov = cov
@@ -111,14 +136,18 @@ class GaussianAnsatz():
     def set_given_ansatz_functions(self, means, sigma_i=None, cov=None):
         ''' sets means and covariance matrix for gaussian ansatz
 
-        Args:
-            means ((m, n)-array): centers of the gaussian functions
-            sigma_i (float): value in the diagonal entries of the covariance matrix
-            cov ((n, n)-array): covariance matrix
+        Parameters
+        ----------
+        means: (m, d)-array
+            centers of the gaussian functions
+        sigma_i: float
+            value in the diagonal entries of the covariance matrix
+        cov: (d, d)-array
+            covariance matrix
         '''
         # check means
         assert means.ndim == 2, ''
-        assert means.shape[1] == self.n, ''
+        assert means.shape[1] == self.sde.d, ''
 
         # set means
         self.m = means.shape[0]
@@ -129,27 +158,29 @@ class GaussianAnsatz():
         self.set_cov_matrix(sigma_i, cov)
 
 
-    def set_unif_dist_ansatz_functions(self, sde, m_i, sigma_i):
+    def set_unif_dist_ansatz_functions(self, m_i, sigma_i):
         ''' sets gaussian ansatz uniformly distributed in the domain with scalar covariance
             matrix.
 
-        Args:
-            sde (obj): langevin sde environment object
-            m_i (float): number of gaussian ansatz along each direction
-            sigma_i (float): value in the diagonal entries of the covariance matrix
+        Parameters
+        ----------
+        m_i: float
+            number of gaussian ansatz along each direction
+        sigma_i: float
+            value in the diagonal entries of the covariance matrix
         '''
 
         # set number of gaussians
         self.m_i = m_i
-        self.m = m_i ** self.n
+        self.m = m_i ** self.sde.d
 
         # distribute centers of Gaussians uniformly
         mgrid_input = []
-        for i in range(self.n):
-            slice_i = slice(sde.domain[i, 0], sde.domain[i, 1], complex(0, m_i))
+        for i in range(self.sde.d):
+            slice_i = slice(self.sde.domain[i, 0], self.sde.domain[i, 1], complex(0, m_i))
             mgrid_input.append(slice_i)
         self.means = np.mgrid[mgrid_input]
-        self.means = np.moveaxis(self.means, 0, -1).reshape(self.m, self.n)
+        self.means = np.moveaxis(self.means, 0, -1).reshape(self.m, self.sde.d)
         self.means_tensor = torch.tensor(self.means)
         self.distributed = 'uniform'
 
@@ -157,10 +188,10 @@ class GaussianAnsatz():
         self.set_cov_matrix(sigma_i=sigma_i)
 
 
+    #TODO: check method
     def set_meta_dist_ansatz_functions(self, sde, dt_meta, sigma_i_meta, is_cumulative, k, N_meta):
         '''
         '''
-        #TODO: update meta parameters
         meta = sde.get_metadynamics_sampling(dt_meta, sigma_i_meta, is_cumulative, k, N_meta)
         assert N_meta == meta.ms.shape[0], ''
 
@@ -170,10 +201,10 @@ class GaussianAnsatz():
         self.N_meta = N_meta
         self.distributed = 'meta'
 
+    #TODO: check method
     def set_meta_ansatz_functions(self, sde, dt_meta, sigma_i_meta, k, N_meta):
         '''
         '''
-        #TODO: update meta parameters
         meta = sde.get_metadynamics_sampling(dt_meta, sigma_i_meta, k, N_meta)
         meta_total_m = int(np.sum(meta.ms))
         assert N_meta == meta.ms.shape[0], ''
@@ -196,23 +227,28 @@ class GaussianAnsatz():
         self.theta_type = 'meta'
 
     def set_theta_null(self):
+        ''' set the parameters of the gaussian ansatz to zero
+        '''
         self.theta = np.zeros(self.m)
         self.theta_type = 'null'
 
     def set_theta_random(self):
+        ''' sample the parameters of the gaussian ansatz uniformly
+        '''
         bound = 0.1
         self.theta = np.random.uniform(-bound, bound, self.m)
         self.theta_type = 'random'
 
-    def set_theta_hjb(self, sde, h):
-        '''
+    def set_theta_hjb(self, h):
+        ''' compute the parameters of the gaussian ansatz functions such that the corresponding
+            value function solve the hjb solution
         '''
         # get hjb solver
-        hjb_sol = sde.get_hjb_solver(h)
+        hjb_sol = self.sde.get_hjb_solver(h)
 
         # flatten domain and value function
         Nh = hjb_sol.Nh
-        x = hjb_sol.domain_h.reshape(Nh, self.n)
+        x = hjb_sol.domain_h.reshape(Nh, self.sde.d)
         value_f = hjb_sol.value_f.reshape(Nh,)
 
         # compute the optimal theta given a basis of ansatz functions
@@ -261,14 +297,21 @@ class GaussianAnsatz():
     def mvn_pdf_basis_numpy(self, x):
         ''' Multivariate normal pdf (nd Gaussian) basis V(x; means, cov) with different m means
             but same covariance matrix evaluated at x. Computations with numpy
-            x ((N, n)-array) : position
 
-            returns (N, m)-array
+        Parameters
+        ----------
+        x: (K, d)-array
+            position
+
+        Returns
+        -------
+        mvn_pdf_basis
+            (K, m)-array
         '''
-        # assume shape of x array to be (N, n)
+        # assume shape of x array to be (K, d)
         assert x.ndim == 2, ''
-        assert x.shape[1] == self.n, ''
-        N = x.shape[0]
+        assert x.shape[1] == self.sde.d, ''
+        K = x.shape[0]
 
         # prepare position and means for broadcasting
         x = x[:, np.newaxis, :]
@@ -280,14 +323,14 @@ class GaussianAnsatz():
         else:
             x_centered = (x - means).reshape(N*self.m, self.n)
             exp_term = np.matmul(x_centered, self.inv_cov)
-            exp_term = np.sum(exp_term * x_centered, axis=1).reshape(N, self.m)
+            exp_term = np.sum(exp_term * x_centered, axis=1).reshape(K, self.m)
             exp_term *= - 0.5
 
         # compute normalization factor if needed
         if self.normalized:
 
             # compute norm factor
-            norm_factor = np.sqrt(((2 * np.pi) ** self.n) * self.det_cov)
+            norm_factor = np.sqrt(((2 * np.pi) ** self.sde.d) * self.det_cov)
 
             # normalize
             mvn_pdf_basis = np.exp(exp_term) / norm_factor
@@ -300,16 +343,20 @@ class GaussianAnsatz():
         ''' Multivariate normal pdf (nd Gaussian) basis v(x; means, cov) with different means
             but same covariance matrix evaluated at x. Computations with pytorch.
 
-        Args:
-            x ((N, n)-array) : position
+        Parameters
+        ----------
+        x: (K, d)-array
+            position
 
-        Returns:
-            (N, m)-array
+        Returns
+        -------
+        mvn_pdf_basis
+            (K, m)-array
         '''
-        # assume shape of x array to be (N, n)
+        # assume shape of x array to be (K, d)
         assert x.ndim == 2, ''
-        assert x.shape[1] == self.n, ''
-        N = x.shape[0]
+        assert x.shape[1] == self.sde.d, ''
+        K = x.shape[0]
 
         # tensorize x
         x_tensor = torch.tensor(x)
@@ -319,14 +366,14 @@ class GaussianAnsatz():
         # scalar covariance matrix
         if self.is_cov_scalar_matrix:
             log_mvn_pdf_basis = - 0.5 * torch.sum(
-                (x_tensor.view(N, 1, self.n) - self.means_tensor.view(1, self.m, self.n))**2,
+                (x_tensor.view(K, 1, self.sde.d) - self.means_tensor.view(1, self.m, self.sde.d))**2,
                 axis=2,
             ) / self.sigma_i
 
             # add normalization factor
             if self.normalized:
                 log_mvn_pdf_basis -= torch.log(2 * torch.tensor(np.pi) * self.sigma_i) \
-                                   * self.n / 2
+                                   * self.sde.d / 2
 
         # general covariance matrix
         else:
@@ -336,29 +383,36 @@ class GaussianAnsatz():
             x = x[:, np.newaxis, :]
             means = self.means[np.newaxis, :, :]
 
-            x_centered = (x - means).reshape(N*self.m, self.n)
+            x_centered = (x - means).reshape(K * self.m, self.sde.d)
             log_mvn_pdf_basis = -0.5 * np.sum(
                 np.matmul(x_centered, self.inv_cov) * x_centered,
                 axis=1,
-            ).reshape(N, self.m)
+            ).reshape(K, self.m)
 
             # add normalization factor
             if self.normalized:
-                log_mvn_pdf_basis -= torch.log((2 * torch.tensor(np.pi)) ** self.n * self.det_cov) / 2
+                log_mvn_pdf_basis -= torch.log((2 * torch.tensor(np.pi)) ** self.sde.d * self.det_cov) / 2
 
         return torch.exp(log_mvn_pdf_basis).numpy()
 
     def mvn_pdf_gradient_basis_numpy(self, x):
         ''' Multivariate normal pdf gradient (nd Gaussian gradients) basis \nabla V(x; means, cov)
         with different means but same covaianc matrix evaluated at x. Computations with numpy
-            x ((N, n)-array) : posicion
 
-            returns (N, m, n)-array
+        Parameters
+        ----------
+        x: (K, d)-array
+            posicion
+
+        Returns
+        -------
+        mvn_pdf_gradient
+            (K, m, d)-array
         '''
-        # assume shape of x array to be (N, n)
+        # assume shape of x array to be (K, d)
         assert x.ndim == 2, ''
-        assert x.shape[1] == self.n, ''
-        N = x.shape[0]
+        assert x.shape[1] == self.sde.d, ''
+        K = x.shape[0]
 
         # compute nd gaussian basis
         mvn_pdf_basis = self.mvn_pdf_basis(x)
@@ -379,16 +433,20 @@ class GaussianAnsatz():
         ''' Multivariate normal pdf gradient (nd Gaussian gradients) basis \nabla V(x; means, cov)
         with different means but same covaianc matrix evaluated at x. Computations with torch
 
-        Args:
-            x ((N, n)-array) : posicion
+        Parameters
+        ----------
+        x: (K, d)-array
+            posicion
 
-        Returns:
-            (N, m, n)-array
+        Returns
+        -------
+        mvn_pdf_gradient
+            (K, m, d)-array
         '''
-        # assume shape of x array to be (N, n)
+        # assume shape of x array to be (K, d)
         assert x.ndim == 2, ''
-        assert x.shape[1] == self.n, ''
-        N = x.shape[0]
+        assert x.shape[1] == self.sde.d, ''
+        K = x.shape[0]
 
         # get nd gaussian basis
         mvn_pdf_basis = self.mvn_pdf_basis(x)
@@ -400,7 +458,7 @@ class GaussianAnsatz():
 
         # scalar covariance matrix
         if self.is_cov_scalar_matrix:
-            A = - (x_tensor.view(N, 1, self.n) - self.means_tensor.view(1, self.m, self.n)) \
+            A = - (x_tensor.view(K, 1, self.sde.d) - self.means_tensor.view(1, self.m, self.sde.d)) \
                 / self.sigma_i
 
         # general covariance matrix
@@ -412,9 +470,14 @@ class GaussianAnsatz():
         return (A * mvn_pdf_basis[:, :, np.newaxis]).numpy()
 
     def set_value_function_constant_to_zero(self):
+        ''' sets the value function constant to zero
+        '''
         self.K_value_f = 0
 
     def set_value_function_constant_target_set(self):
+        ''' sets the value function constant such that the evaluation of the value function at the
+            target sets points on average is zero
+        '''
 
         # discretize domain
         self.discretize_domain()
@@ -425,16 +488,16 @@ class GaussianAnsatz():
         # impose value function in the target set to be null
         self.K_value_f = - np.mean(value_f[idx_ts])
 
-    def set_value_function_constant_boarder(self):
-        pass
-        #self.K_value_f = 
-
     def set_value_function_constant_corner(self, theta=None):
+        ''' sets the value function constant such that the evaluation of the value function at the
+            target set corner (1, ..., 1) is zero
+        '''
+
         if theta is None:
             theta = self.theta
 
         # define target set corner (1, ..., 1)
-        x = np.ones((1, self.n))
+        x = np.ones((1, self.sde.d))
 
         # evaluate value function at x
         basis_value_f_at_x = self.mvn_pdf_basis(x)
@@ -445,11 +508,17 @@ class GaussianAnsatz():
     def value_function(self, x, theta=None):
         '''This method computes the value function evaluated at x
 
-        Args:
-            x ((N, n)-array) : position
-            theta ((m,)-array): parameters
+        Parameters
+        ----------
+        x: (K, d)-array
+            position
+        theta: (m,)-array
+            parameters
 
-        Return:
+        Returns
+        -------
+        array
+            value function evaluated at the given points
         '''
         if theta is None:
             theta = self.theta
@@ -464,16 +533,24 @@ class GaussianAnsatz():
     def control(self, x, theta=None):
         '''This method computes the control evaluated at x
 
-        Args:
-            x ((N, n)-array) : position
-            theta ((m,)-array): parameters
+        Parameters
+        ----------
+        x: (K, d)-array
+            position
+        theta: (m,)-array
+            parameters
+
+        Returns
+        -------
+        array
+            control evaluated at the given points
         '''
         assert x.ndim == 2, ''
-        assert x.shape[1] == self.n, ''
+        assert x.shape[1] == self.sde.d, ''
         if theta is None:
             theta = self.theta
 
-        basis_control = - (np.sqrt(2) / self.beta) * self.mvn_pdf_gradient_basis(x)
+        basis_control = - (np.sqrt(2) / self.sde.beta) * self.mvn_pdf_gradient_basis(x)
         control = np.tensordot(basis_control, theta, axes=([1], [0]))
         return control
 
