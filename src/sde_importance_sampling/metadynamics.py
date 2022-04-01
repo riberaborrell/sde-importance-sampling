@@ -384,7 +384,7 @@ class Metadynamics(object):
             return True
 
         except:
-            msg = 'no meta bias potential found with dt={:.4f}, sigma_i={:.2f}, delta={:d}, ' \
+            msg = 'no meta bias potential found with dt={:.4f}, sigma_i={:.2f}, delta={:2.2f}, ' \
                   'K={:.0e}'.format(self.sample.dt, self.sigma_i, self.delta, self.K)
             print(msg)
             return False
