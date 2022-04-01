@@ -1,184 +1,407 @@
-from sde_importance_sampling.langevin_sde import LangevinSDE
-from sde_importance_sampling.utils_path import get_not_controlled_dir_path, \
-                                               get_controlled_dir_path, \
-                                               get_time_in_hms
+import os
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-import time
-import os
+from sde_importance_sampling.langevin_sde import LangevinSDE
+from sde_importance_sampling.utils_path import get_not_controlled_dir_path, \
+                                               get_controlled_dir_path, \
+                                               get_time_in_hms
 
-class Sampling(LangevinSDE):
+class Sampling(object):
     '''
+
+    Attributes
+    ----------
+
+    # general
+    sde: langevinSDE object
+        overdamped langevin sde object
+    dir_path: str
+        directory path for the hjb solver
+
+    # sampling
+    is_controlled: bool
+        True if the sampling is controlled
+    is_optimal: bool
+        True if the control is the solution of the hjb equation
+    seed: int
+        random seed
+    xzero:
+
+    K: int
+        number of trajectories
+    xt: array
+        position of the trajectory
+    save_trajectory: bool
+        True if
+    traj: array
+        trajectory of the particles
+
+    # Euler-Marujama
+    dt: float
+        time step discretization
+    k_lim: int
+        number of maximal time steps
+    k: int
+        number of time steps used
+
+    # ansatz functions (gaussians) and coefficients
+    ansatz: object
+        gaussian ansatz object
+
+    # function approximation by a neural network
+    nn_func_appr: object
+        function approximation object
+
+    # grid evalutations
+    grid_potential: array
+        potential evaluated in the discretized domain
+    grid_bias_potential: array
+        bias potential evaluated in the discretized domain
+    grid_perturbed_potential: array
+        perturbed potential evaluated in the discretized domain
+    grid_value_function: array
+        value function evaluated in the discretized domain
+    grid_gradient: array
+        gradient evaluated in the discretized domain
+    grid_control: array
+        control evaluated in the discretized domain
+    grid_perturbed_drift: array
+        perturbed drift evaluated in the discretized domain
+
+    # variables
+
+    # deterministic and stochastic integrals
+    stoch_int_t: array
+        stochastic integral from 0 to t.
+    stoch_int_fht: array
+        stochastic integral from 0 to fht.
+    det_int_t: array
+        deterministic integral from 0 to t.
+    det_int_fht: array
+        deterministic integral from 0 to fht.
+
+    # trajectories which arrived
+    n_traj_arrived: int
+        number of trajectories which arrived in the target set
+    been_in_target_set: bool array
+        True if trajectory arrived in the target set
+
+
+    # first hitting time
+    fht: array
+        first hitting times of the trajectories in the target set
+    first_fht: float
+        first hitting time of the first trajectory
+    last_fht: float
+        last hitting time of the last trajectory
+    mean_fht: float
+        mean of the first hitting times
+    var_fht: float
+        variance of the first hitting times
+    re_fht: float
+        relative error of the first hitting times
+
+    # quantity of interest
+    mean_I: float
+        mean of the quantity of interest
+    var_I: float
+        variance of the quantity of interest
+    re_I: float
+        relative error of the quantity of interest
+
+    mean_I_u: float
+        mean of the importance sampling quantity of interest
+    var_I_u: float
+        variance of the importance sampling quantity of interest
+    re_I_u: float
+        relative error of the importance sampling quantity of interest
+
+    # loss and its gradient
+    loss:
+
+    var_loss:
+
+    grad_loss:
+
+    ipa_loss:
+
+
+    # control l2 error wrt the hjb solution
+    do_u_l2_error: bool
+        True if the l2 error along the trajectories is computed
+    u_l2_error: array
+        l2 error between the control and the reference control along the trajectory
+
+    # computational time
+    ct_initial: float
+        initial computational time
+    ct_time: float
+        final computational time
+    ct: float
+        computational time
+
+    # dir_path
+    dir_path = None
+
+    Methods
+    -------
+    __init__()
+
+    set_not_controlled_dir_path()
+
+    set_controlled_dir_path(parent_dir_path)
+
+    bias_potential(x, theta=None)
+
+    bias_gradient(u)
+
+    tilted_potential(x)
+
+    perturbed_gradient(x, u)
+
+    brownian_increment(tensor=False)
+
+    set_sampling_parameters(dt, k_lim, xzero, N, seed=None)
+
+    start_timer()
+
+    stop_timer()
+
+    preallocate_fht()
+
+    preallocate_girsanov_martingale_terms()
+
+    preallocate_integrals()
+
+    preallocate_l2_error()
+
+    initial_position(tensor=False)
+
+    initialize_running_integrals()
+
+    initialize_running_l2_error()
+
+    initialize_running_l2_error()
+
+    update_integrals(ut, dB)
+
+    update_running_l2_error(xt, ut)
+
+    update_running_l2_error_det(k, xt, ut)
+
+    sde_update(x, gradient, dbt, tensor=False)
+
+    get_idx_new_in_target_set(x)
+
+    sample_not_controlled_det()
+
+    sample_not_controlled()
+
+    sample_controlled()
+
+    sample_optimal_controlled_det(h, dt)
+
+    sample_optimal_controlled(h)
+
+    sample_meta()
+
+    sample_loss_ipa_ansatz()
+
+    sample_loss_ipa_nn(device)
+
+    sample_loss_ipa_nn_det(device)
+
+    sample_loss_ipa2_nn(device)
+
+    sample_loss_re_nn(device)
+
+    compute_mean_variance_and_rel_error(x)
+
+    compute_fht_statistics()
+
+    compute_I_statistics()
+
+    compute_I_u_statistics()
+
+    compute_I_u_statistics_det()
+
+    compute_loss()
+
+    save()
+
+    load()
+
+    write_euler_maruyama_parameters(f)
+
+    write_sampling_parameters(f)
+
+    write_report()
+
+    get_grid_value_function()
+
+    integrate_grid_value_function_1d()
+
+    get_grid_value_function_i(i=0, x_j=0.)
+
+    get_grid_control()
+
+    get_grid_control_i(i=0, x_j=0., k=None)
+
+    plot_trajectory(n_iter_avg=1, dir_path=None, file_name='trajectory')
+
+
     '''
 
-    def __init__(self, problem_name, potential_name, n, alpha, beta, domain=None,
-                 target_set=None, h=None, is_controlled=None, T=None, nu=None, is_optimal=None):
-        '''
+    def __init__(self, sde, h=None, is_controlled=True, is_optimal=False,
+                 do_u_l2_error=False, save_trajectory=False):
+        ''' init method
+
+        Parameters
+        ----------
+        sde: langevinSDE object
+            overdamped langevin sde object
+        h: float, optional
+            step size
+        is_controlled: bool, optional
+            True if the sampling is controlled
+        is_optimal: bool, optimal
+            True if the control is the solution of the hjb equation
+        do_u_l2_error: bool, optimal
+            True if the L2-error between the control and the reference solution along the
+            trajectory is computed
+        save_trajectory: bool, optimal
+            True if the trajectory should be saved in an array
         '''
 
-        super().__init__(problem_name, potential_name, n, alpha, beta,
-                         domain, target_set, T, nu)
+        # overdamped langevin sde
+        self.sde = sde
+        self.sde.h = h
 
         # sampling
         self.is_controlled = is_controlled
         self.is_optimal = is_optimal
-        self.seed = None
-        self.xzero = None
-        self.N = None
-        self.xt = None
-        self.save_trajectory = False
-        self.traj = None
-
-        # Euler-Marujama
-        self.dt = None
-        self.k_lim = None
-        self.k = None
-
-        # ansatz functions (gaussians) and coefficients
-        self.ansatz = None
-
-        # function approximation by a neural network
-        self.nn_func_appr = None
-
-        # grid evalutations
-        self.grid_potential = None
-        self.grid_bias_potential = None
-        self.grid_controlled_potential = None
-        self.grid_value_function = None
-
-        self.grid_gradient = None
-        self.grid_control = None
-        self.grid_controlled_drift = None
-
-        # variables
-
-        # deterministic and stochastic integrals
-        self.stoch_int_t = None
-        self.stoch_int_fht = None
-        self.det_int_t = None
-        self.det_int_fht = None
-
-        # trajectories which arrived
-        self.N_arrived = None
-        self.been_in_target_set = None
-
-        # first hitting time
-        self.fht = None
-        self.first_fht = None
-        self.last_fht = None
-        self.mean_fht = None
-        self.var_fht = None
-        self.re_fht = None
-
-        # quantity of interest
-        self.mean_I = None
-        self.var_I = None
-        self.re_I = None
-
-        # reweighting
-        #self.M1_fht = None
-        #self.M2_fht = None
-        #self.M_fht = None
-        #self.k = None
-        #self.M1_k = None
-        #self.M2_k = None
-        #self.mean_M_k= None
-
-        self.mean_I_u = None
-        self.var_I_u = None
-        self.re_I_u = None
-
-        # loss and its gradient
-        self.loss = None
-        self.var_loss = None
-        self.grad_loss = None
-        self.ipa_loss = None
-
-        # control l2 error wrt the hjb solution
-        self.do_u_l2_error = False
-        self.u_l2_error = None
-
-        # computational time
-        self.ct_initial = None
-        self.ct_final = None
-        self.ct = None
-
-        # dir_path
-        self.dir_path = None
+        self.save_trajectory = save_trajectory
+        self.do_u_l2_error = do_u_l2_error
 
     def set_not_controlled_dir_path(self):
+        ''' computes not controlled directory path
+        '''
         assert self.dt is not None, ''
-        assert self.N is not None, ''
+        assert self.K is not None, ''
 
         self.dir_path = get_not_controlled_dir_path(
-            self.settings_dir_path,
+            self.sde.settings_dir_path,
             self.dt,
-            self.N,
+            self.K,
             self.seed,
         )
 
     def set_controlled_dir_path(self, parent_dir_path):
+        ''' computes controlled directory path
+        '''
         assert self.dt is not None, ''
-        assert self.N is not None, ''
+        assert self.K is not None, ''
 
         self.dir_path = get_controlled_dir_path(
             parent_dir_path,
             self.dt,
-            self.N,
+            self.K,
             self.seed,
         )
 
     def bias_potential(self, x, theta=None):
-        '''This method computes the bias potential at x
+        ''' computes the bias potential at x
 
-        Args:
-            x ((N, n)-array) : position
-            theta ((m,)-array): parameters
+        Parameters
+        ----------
+        x: (K, d)-array
+            position
+        theta: (m,)-array
+            parameters
+
+        Returns
+        -------
+        array
+            bias potential evaluated at the x
         '''
         return 2 * self.ansatz.value_function(x, theta) / self.beta
 
     def bias_gradient(self, u):
-        '''This method computes the bias gradient at x
+        ''' computes the bias gradient at x
 
-        Args:
-            u ((N, n)-array) : control at x
+        Parameters
+        ----------
+        u: (K, d)-array
+            control at x
+
+        Returns
+        -------
+        array
+            bias gradient evaluated at the x
         '''
-        return - np.sqrt(2) * u
+        return - self.sde.sigma * u
 
-    def tilted_potential(self, x):
-        '''This method computes the tilted potential at x
+    def perturbed_potential(self, x):
+        ''' computes the perturbed potential at x
 
-        Args:
-            x ((N, n)-array) : position/s
-            theta ((m,)-array): parameters
+        Parameters
+        ----------
+        x: (K, d)-array
+            position/s
+        theta: (m,)-array
+            parameters
+
+        Returns
+        -------
+        array
+            perturned potential at x
         '''
-        return self.potential(x) + self.bias_potential(x, theta)
+        return self.sde.potential(x) + self.bias_potential(x, theta)
 
-    def tilted_gradient(self, x, u):
-        '''This method computes the tilted gradient at x
+    def perturbed_gradient(self, x, u):
+        ''' computes the perturbed gradient at x
 
-        Args:
-            x ((N, n)-array) : position/s
-            u ((N, n)-array) : control at x
+        Parameters
+        ----------
+        x: (K, d)-array
+            position/s
+        u: (K, d)-array
+            control at x
+
+        Returns
+        -------
+        array
+            perturbed gradient at x
         '''
         assert x.shape == u.shape
 
-        return self.gradient(x) + self.bias_gradient(u)
+        return self.sde.gradient(x) + self.bias_gradient(u)
 
     def brownian_increment(self, tensor=False):
+        ''' computes brownian increments
+
+        Parameters
+        ----------
+        tensor: bool, optional
+            True if returned array is a pytorch tensor
+
+        Returns
+        -------
+        (K, d)-array
+            brownian increment
         '''
-        '''
-        dB = np.sqrt(self.dt) \
-           * np.random.normal(0, 1, self.N * self.n).reshape(self.N, self.n)
+        dbt = np.sqrt(self.dt) \
+            * np.random.normal(0, 1, self.K * self.sde.d).reshape(self.K, self.sde.d)
         if tensor:
-            dB = torch.tensor(dB, dtype=torch.float32)
+            dbt = torch.tensor(dB, dtype=torch.float32)
 
-        return dB
+        return dbt
 
-    def set_sampling_parameters(self, dt, k_lim, xzero, N, seed=None):
+    def set_sampling_parameters(self, dt=0.01, k_lim=10**8, xzero=None, K=1000, seed=None):
         '''
         '''
         # set random seed
@@ -192,54 +415,58 @@ class Sampling(LangevinSDE):
 
         # sampling
         self.xzero = xzero
-        self.N = N
+        self.K = K
 
     def start_timer(self):
+        ''' start timer
+        '''
         self.ct_initial = time.perf_counter()
 
     def stop_timer(self):
+        ''' stop timer
+        '''
         self.ct_final = time.perf_counter()
         self.ct = self.ct_final - self.ct_initial
 
     def preallocate_fht(self):
         '''
         '''
-        assert self.N is not None, ''
+        assert self.K is not None, ''
 
         # boolean array telling us if a trajectory have been in the target set
-        self.been_in_target_set = np.repeat([False], self.N).reshape(self.N, 1)
+        self.been_in_target_set = np.repeat([False], self.K).reshape(self.K, 1)
 
         # first hitting time of each trajectory
-        self.fht = np.empty(self.N)
+        self.fht = np.empty(self.K)
 
     def preallocate_girsanov_martingale_terms(self):
         ''' preallocates Girsanov Martingale terms, M_fht = e^(M1_fht + M2_fht)
         '''
-        assert self.N is not None, ''
+        assert self.K is not None, ''
 
-        self.M1_fht = np.empty(self.N)
-        self.M2_fht = np.empty(self.N)
+        self.M1_fht = np.empty(self.K)
+        self.M2_fht = np.empty(self.K)
 
     def preallocate_integrals(self):
         '''
         '''
-        assert self.N is not None, ''
+        assert self.K is not None, ''
 
-        self.stoch_int_fht = np.empty(self.N)
-        self.det_int_fht = np.empty(self.N)
+        self.stoch_int_fht = np.empty(self.K)
+        self.det_int_fht = np.empty(self.K)
 
     def preallocate_l2_error(self):
         '''
         '''
-        assert self.N is not None, ''
+        assert self.K is not None, ''
 
-        self.u_l2_error_fht = np.empty(self.N)
+        self.u_l2_error_fht = np.empty(self.K)
 
 
     def initial_position(self, tensor=False):
         ''' returns same initial posicion for all trajectories
         '''
-        x_init = np.full((self.N, self.n), self.xzero, dtype=np.float64)
+        x_init = np.full((self.K, self.sde.d), self.xzero, dtype=np.float64)
         if tensor:
             x_init = torch.tensor(x_init, dtype=torch.float32)
 
@@ -249,17 +476,17 @@ class Sampling(LangevinSDE):
     def initialize_running_integrals(self):
         '''
         '''
-        assert self.N is not None, ''
+        assert self.K is not None, ''
 
-        self.stoch_int_t = np.zeros(self.N)
-        self.det_int_t = np.zeros(self.N)
+        self.stoch_int_t = np.zeros(self.K)
+        self.det_int_t = np.zeros(self.K)
 
     def initialize_running_l2_error(self):
         '''
         '''
-        assert self.N is not None, ''
+        assert self.K is not None, ''
 
-        self.u_l2_error_t = np.zeros(self.N)
+        self.u_l2_error_t = np.zeros(self.K)
 
     def update_integrals(self, ut, dB):
         '''
@@ -276,7 +503,7 @@ class Sampling(LangevinSDE):
     def update_running_l2_error(self, xt, ut):
 
         # hjb control
-        idx_xt = self.get_index_vectorized(xt)
+        idx_xt = self.sde.get_index_vectorized(xt)
         ut_hjb = self.u_hjb[idx_xt]
 
         # update u l2 running error
@@ -292,23 +519,55 @@ class Sampling(LangevinSDE):
         # update u l2 running error
         self.u_l2_error_t += (np.linalg.norm(ut - ut_hjb, axis=1) ** 2) * self.dt
 
-    def sde_update(self, x, gradient, dB, tensor=False):
+    def sde_update(self, xt, gradient, dbt, tensor=False):
+        ''' updates position of the trajectories following the overdamped lanvevin sde
+
+        Parameters
+        ----------
+        xt: (K, d)-array
+            position
+        gradient: (K, d)-array
+            (perturbed) gradient of x
+        dbt: (K,)-array
+            brownian increment
+        tensor: bool, optional
+            True if the return array should be a pytorch tensor
+
+        Returns
+        -------
+        (K, d)-array
+            updated position
+        '''
+        # compute drift term
         drift = - gradient * self.dt
 
+        # compute diffusion term
         if not tensor:
-            diffusion = np.dot(dB, np.sqrt(2 / self.beta) * np.eye(self.n))
+            diffusion = np.dot(dbt, self.sde.sigma * np.eye(self.sde.d))
         else:
-            diffusion = torch.mm(dB, np.sqrt(2 / self.beta) * torch.eye(self.n))
+            diffusion = torch.mm(dbt, self.sde.sigma * torch.eye(self.sde.d))
 
-        return x + drift + diffusion
+        return xt + drift + diffusion
 
     def get_idx_new_in_target_set(self, x):
+        ''' computes the indices of the trajectories which are new in the target set and
+            updates the been_in_target_set array.
 
+        Parameters
+        ----------
+        x: (K, d)-array
+            position
+
+        Returns
+        -------
+        array
+            indices of the trajectories
+        '''
         # boolean array telling us if a trajectory is in the target set
         is_in_target_set = (
-            (x >= self.target_set[:, 0]) &
-            (x <= self.target_set[:, 1])
-        ).all(axis=1).reshape(self.N, 1)
+            (x >= self.sde.target_set[:, 0]) &
+            (x <= self.sde.target_set[:, 1])
+        ).all(axis=1).reshape(self.K, 1)
 
         # indices of trajectories new in the target set
         idx = np.where(
@@ -321,6 +580,7 @@ class Sampling(LangevinSDE):
 
         return idx
 
+    #TODO! revise det time horizont
     def sample_not_controlled_det(self):
         self.start_timer()
 
@@ -330,7 +590,7 @@ class Sampling(LangevinSDE):
         for k in np.arange(1, self.k_lim + 1):
 
             # compute gradient
-            gradient = self.gradient(xt)
+            gradient = self.sde.gradient(xt)
 
             # get Brownian increment
             dB = self.brownian_increment()
@@ -339,7 +599,7 @@ class Sampling(LangevinSDE):
             xt = self.sde_update(xt, gradient, dB)
 
         # save work functional
-        self.work = self.g(xt)
+        self.work = self.sde.g(xt)
 
         self.stop_timer()
 
@@ -352,7 +612,7 @@ class Sampling(LangevinSDE):
 
         # preallocate array for the trajectory
         if self.save_trajectory:
-            self.traj = np.empty((self.k_lim + 1, self.n))
+            self.traj = np.empty((self.k_lim + 1, self.sde.d))
 
         # start trajectories
         for k in np.arange(self.k_lim + 1):
@@ -373,13 +633,13 @@ class Sampling(LangevinSDE):
                 break
 
             # compute gradient
-            gradient = self.gradient(xt)
+            gradient = self.sde.gradient(xt)
 
             # get Brownian increment
-            dB = self.brownian_increment()
+            dbt = self.brownian_increment()
 
             # sde update
-            xt = self.sde_update(xt, gradient, dB)
+            xt = self.sde_update(xt, gradient, dbt)
 
         self.stop_timer()
 
@@ -393,7 +653,6 @@ class Sampling(LangevinSDE):
             # load hjb solution
             sol_hjb = self.get_hjb_solver()
             self.u_hjb = sol_hjb.u_opt
-            self.h = sol_hjb.h
 
             # preallocate l2 error
             self.preallocate_l2_error()
@@ -420,10 +679,10 @@ class Sampling(LangevinSDE):
                 ut = ut_tensor.detach().numpy()
 
             # get Brownian increment
-            dB = self.brownian_increment()
+            dbt = self.brownian_increment()
 
             # stochastic and deterministic integrals 
-            self.update_integrals(ut, dB)
+            self.update_integrals(ut, dbt)
 
             # update l2 running error
             if self.do_u_l2_error:
@@ -445,10 +704,10 @@ class Sampling(LangevinSDE):
                 break
 
             # compute gradient
-            gradient = self.tilted_gradient(xt, ut)
+            gradient = self.perturbed_gradient(xt, ut)
 
             # sde update
-            xt = self.sde_update(xt, gradient, dB)
+            xt = self.sde_update(xt, gradient, dbt)
 
 
         self.compute_fht_statistics()
@@ -457,6 +716,7 @@ class Sampling(LangevinSDE):
             self.u_l2_error = np.mean(self.u_l2_error_fht)
         self.stop_timer()
 
+    #TODO! revise det time horizont
     def sample_optimal_controlled_det(self, h, dt):
         self.start_timer()
 
@@ -477,7 +737,7 @@ class Sampling(LangevinSDE):
             ut = np.moveaxis(ut, 0, -1)
 
             # compute gradient
-            gradient = self.tilted_gradient(xt, ut)
+            gradient = self.perturbed_gradient(xt, ut)
 
             # get Brownian increment
             dB = self.brownian_increment()
@@ -500,9 +760,8 @@ class Sampling(LangevinSDE):
         self.preallocate_integrals()
 
         # load hjb solver and get the "optimal" control
-        sol_hjb = self.get_hjb_solver(h)
+        sol_hjb = self.sde.get_hjb_solver(h)
         u_opt = sol_hjb.u_opt
-        self.h = sol_hjb.h
 
         # initialize xt
         xt = self.initial_position()
@@ -512,7 +771,7 @@ class Sampling(LangevinSDE):
 
         # preallocate array for the trajectory
         if self.save_trajectory:
-            self.traj = np.empty((self.k_lim + 1, self.n))
+            self.traj = np.empty((self.k_lim + 1, self.sde.d))
 
         # start trajectories
         for k in np.arange(self.k_lim + 1):
@@ -522,14 +781,14 @@ class Sampling(LangevinSDE):
                 self.traj[k] = xt[0, :]
 
             # control at xt
-            idx_xt = self.get_index_vectorized(xt)
+            idx_xt = self.sde.get_index_vectorized(xt)
             ut = u_opt[idx_xt]
 
             # get Brownian increment
-            dB = self.brownian_increment()
+            dbt = self.brownian_increment()
 
             # stochastic and deterministic integrals 
-            self.update_integrals(ut, dB)
+            self.update_integrals(ut, dbt)
 
             # get indices from the trajectories which are new in target set
             idx = self.get_idx_new_in_target_set(xt)
@@ -546,10 +805,10 @@ class Sampling(LangevinSDE):
                 break
 
             # compute gradient
-            controlled_gradient = self.tilted_gradient(xt, ut)
+            controlled_gradient = self.perturbed_gradient(xt, ut)
 
             # sde update
-            xt = self.sde_update(xt, controlled_gradient, dB)
+            xt = self.sde_update(xt, controlled_gradient, dbt)
 
         self.compute_fht_statistics()
         self.compute_I_u_statistics()
@@ -560,7 +819,7 @@ class Sampling(LangevinSDE):
         self.preallocate_fht()
 
         # preallocate trajectory
-        x = np.empty((self.k_lim + 1, self.N, self.n))
+        x = np.empty((self.k_lim + 1, self.K, self.sde.d))
 
         # initialize xt
         x[0] = self.initial_position()
@@ -584,7 +843,7 @@ class Sampling(LangevinSDE):
                     ut = ut_tensor.detach().numpy()
 
                 # compute gradient
-                gradient = self.tilted_gradient(x[k - 1], ut)
+                gradient = self.perturbed_gradient(x[k - 1], ut)
 
             # get Brownian increment
             dB = self.brownian_increment()
@@ -596,7 +855,7 @@ class Sampling(LangevinSDE):
             _ = self.get_idx_new_in_target_set(x[k])
 
             # check if the half of the trajectories have arrived to the target set
-            if np.sum(self.been_in_target_set) >= self.N / 2:
+            if np.sum(self.been_in_target_set) >= self.K / 2:
                 return True, x[:k]
 
         return False, x
@@ -620,12 +879,12 @@ class Sampling(LangevinSDE):
         m = self.ansatz.m
 
         # preallocate loss and its gradient for the trajectories
-        loss_traj = np.empty(self.N)
-        grad_loss_traj = np.empty((self.N, m))
+        loss_traj = np.empty(self.K)
+        grad_loss_traj = np.empty((self.K, m))
 
         # initialize running gradient of phi and running gradient of S
-        grad_phi_t = np.zeros((self.N, m))
-        grad_S_t = np.zeros((self.N, m))
+        grad_phi_t = np.zeros((self.K, m))
+        grad_S_t = np.zeros((self.K, m))
 
         # initialize xt
         xt = self.initial_position()
@@ -687,7 +946,7 @@ class Sampling(LangevinSDE):
                 break
 
             # compute gradient
-            gradient = self.tilted_gradient(xt, ut)
+            gradient = self.perturbed_gradient(xt, ut)
 
             # sde update
             xt = self.sde_update(xt, gradient, dB)
@@ -729,10 +988,10 @@ class Sampling(LangevinSDE):
         m = model.d_flat
 
         # initialize phi and S
-        phi_t = torch.zeros(self.N)
-        phi_fht = torch.empty(self.N)
-        S_t = torch.zeros(self.N)
-        S_fht = torch.empty(self.N)
+        phi_t = torch.zeros(self.K)
+        phi_fht = torch.empty(self.K)
+        S_t = torch.zeros(self.K)
+        S_fht = torch.empty(self.K)
 
         # initialize trajectory
         xt = self.initial_position()
@@ -758,14 +1017,14 @@ class Sampling(LangevinSDE):
 
             # update running phi
             ut_norm_tensor = torch.linalg.norm(ut_tensor, axis=1)
-            phi_t = phi_t + ((1 + 0.5 * self.beta * (ut_norm_tensor ** 2)) * self.dt).reshape(self.N,)
+            phi_t = phi_t + ((1 + 0.5 * self.beta * (ut_norm_tensor ** 2)) * self.dt).reshape(self.K,)
 
             # update running discretized action
             S_t = S_t \
                 - np.sqrt(self.beta) * torch.matmul(
                     torch.unsqueeze(ut_tensor, 1),
                     torch.unsqueeze(dB_tensor, 2),
-                ).reshape(self.N,)
+                ).reshape(self.K,)
 
             # stochastic and deterministic integrals 
             self.update_integrals(ut, dB)
@@ -841,8 +1100,8 @@ class Sampling(LangevinSDE):
         m = model.d_flat
 
         # initialize phi and S
-        phi_t = torch.zeros(self.N)
-        S_t = torch.zeros(self.N)
+        phi_t = torch.zeros(self.K)
+        S_t = torch.zeros(self.K)
 
         # initialize trajectory
         xt = self.initial_position()
@@ -870,14 +1129,14 @@ class Sampling(LangevinSDE):
 
             # update running phi
             ut_norm_tensor = torch.linalg.norm(ut_tensor, axis=1)
-            phi_t = phi_t + (0.5 * self.beta * (ut_norm_tensor ** 2) * self.dt).reshape(self.N,)
+            phi_t = phi_t + (0.5 * self.beta * (ut_norm_tensor ** 2) * self.dt).reshape(self.K,)
 
             # update running discretized action
             S_t = S_t \
                 - np.sqrt(self.beta) * torch.matmul(
                 torch.unsqueeze(ut_tensor, 1),
                 torch.unsqueeze(dB_tensor, 2),
-            ).reshape(self.N,)
+            ).reshape(self.K,)
 
             # update l2 running error
             if self.do_u_l2_error:
@@ -940,11 +1199,11 @@ class Sampling(LangevinSDE):
         m = model.d_flat
 
         # initialize loss and ipa loss for the trajectories
-        loss_traj = np.zeros(self.N)
-        ipa_loss_traj = torch.zeros(self.N)
-        a_tensor = torch.zeros(self.N).to(device)
-        b_tensor = torch.zeros(self.N).to(device)
-        c_tensor = torch.zeros(self.N).to(device)
+        loss_traj = np.zeros(self.K)
+        ipa_loss_traj = torch.zeros(self.K)
+        a_tensor = torch.zeros(self.K).to(device)
+        b_tensor = torch.zeros(self.K).to(device)
+        c_tensor = torch.zeros(self.K).to(device)
 
         # initialize trajectory
         xt = self.initial_position()
@@ -977,16 +1236,16 @@ class Sampling(LangevinSDE):
                      + torch.matmul(
                          torch.unsqueeze(ut_tensor_det, 1),
                          torch.unsqueeze(ut_tensor, 2),
-                     ).reshape(self.N,) * self.dt
+                     ).reshape(self.K,) * self.dt
 
             ut_norm_det = torch.linalg.norm(ut_tensor_det, axis=1)
-            b_tensor = b_tensor + ((1 + 0.5 * (ut_norm_det ** 2)) * self.dt).reshape(self.N,)
+            b_tensor = b_tensor + ((1 + 0.5 * (ut_norm_det ** 2)) * self.dt).reshape(self.K,)
 
             c_tensor = c_tensor \
                      - np.sqrt(self.beta) * torch.matmul(
                          torch.unsqueeze(ut_tensor, 1),
                          torch.unsqueeze(dB_tensor, 2),
-                     ).reshape(self.N,)
+                     ).reshape(self.K,)
 
             # stochastic and deterministic integrals 
             self.update_integrals(ut, dB)
@@ -1042,10 +1301,10 @@ class Sampling(LangevinSDE):
         m = model.d_flat
 
         # initialize loss and ipa loss for the trajectories
-        #loss_traj = np.zeros(self.N)
-        re_loss_traj = torch.zeros(self.N)
-        #phi_det = torch.zeros(self.N)
-        phi = torch.zeros(self.N)
+        #loss_traj = np.zeros(self.K)
+        re_loss_traj = torch.zeros(self.K)
+        #phi_det = torch.zeros(self.K)
+        phi = torch.zeros(self.K)
 
         # initialize trajectory
         xt_tensor = self.initial_position(tensor=True)
@@ -1076,11 +1335,11 @@ class Sampling(LangevinSDE):
 
             # update statistics
             #ut_norm_det = torch.linalg.norm(ut_tensor_det, axis=1)
-            #phi_det = phi_det + ((1 + 0.5 * (ut_norm_det ** 2)) * self.dt).reshape(self.N,)
+            #phi_det = phi_det + ((1 + 0.5 * (ut_norm_det ** 2)) * self.dt).reshape(self.K,)
 
             #ut_norm = torch.linalg.norm(ut_tensor, axis=1)
-            #phi = phi + ((1 + 0.5 * (ut_norm ** 2)) * self.dt).reshape(self.N,)
-            phi = phi + ((1 + 0.5 * torch.sum(ut_tensor ** 2, dim=1)) * self.dt).reshape(self.N)
+            #phi = phi + ((1 + 0.5 * (ut_norm ** 2)) * self.dt).reshape(self.K,)
+            phi = phi + ((1 + 0.5 * torch.sum(ut_tensor ** 2, dim=1)) * self.dt).reshape(self.K)
 
             # stochastic and deterministic integrals 
             #self.update_integrals(ut, dB)
@@ -1141,8 +1400,8 @@ class Sampling(LangevinSDE):
 
         # count trajectories which have arrived
         idx_arrived = np.where(self.been_in_target_set == True)[0]
-        self.N_arrived = self.fht[idx_arrived].shape[0]
-        if self.N_arrived != self.N:
+        self.n_traj_arrived = self.fht[idx_arrived].shape[0]
+        if self.n_traj_arrived != self.K:
             return
 
         # replace trajectories which have not arrived
@@ -1161,44 +1420,61 @@ class Sampling(LangevinSDE):
     def compute_I_statistics(self):
         ''' compute mean, variance and relative error of the sampled quantity of interest
         '''
-        if self.problem_name == 'langevin_stop-t':
+        if self.sde.problem_name == 'langevin_stop-t':
             I = np.exp(- self.fht)
-        elif self.problem_name == 'langevin_det-t':
+        elif self.sde.problem_name == 'langevin_det-t':
             I = np.exp(- self.work)
         self.mean_I, \
         self.var_I, \
         self.re_I = self.compute_mean_variance_and_rel_error(I)
 
     def compute_I_u_statistics(self):
-        #TODO: compute mean of M_fht
+        '''
+        '''
+
+        # reweighting factor
         M_fht = np.exp(
-            - np.sqrt(self.beta) * self.stoch_int_fht
-            - (self.beta / 2) * self.det_int_fht
+            - self.stoch_int_fht
+            - (1 / 2) * self.det_int_fht
+        )
+
+        # compute mean of the reweighting factor
+        self.mean_M_fht = np.mean(M_fht)
+
+        # importance sampling quantity of interest
+        I_u = np.exp(
+            - self.fht
+            - self.stoch_int_fht
+            - (1 / 2) * self.det_int_fht
         )
 
         # compute mean, variance and relative error of I_u
-        I_u = np.exp(
-            - self.fht
-            - np.sqrt(self.beta) * self.stoch_int_fht
-            - (self.beta / 2) * self.det_int_fht
-        )
         self.mean_I_u, \
         self.var_I_u, \
         self.re_I_u = self.compute_mean_variance_and_rel_error(I_u)
 
+    #TODO! revise det time horizont
     def compute_I_u_statistics_det(self):
-        #TODO: compute mean of M_fht
-        M_fht = np.exp(
-            - np.sqrt(self.beta) * self.stoch_int_t
-            - (self.beta / 2) * self.det_int_t
+        '''
+        '''
+
+        # reweighting factor
+        M_t = np.exp(
+            - self.stoch_int_t
+            - (1 / 2) * self.det_int_t
+        )
+
+        # compute mean of the reweighting factor
+        self.mean_M_t = np.mean(M_t)
+
+        # importance sampling quantity of interest
+        I_u = np.exp(
+            - self.work
+            - self.stoch_int_t
+            - (1 / 2) * self.det_int_t
         )
 
         # compute mean, variance and relative error of I_u
-        I_u = np.exp(
-            - self.work
-            - np.sqrt(self.beta) * self.stoch_int_t
-            - (self.beta / 2) * self.det_int_t
-        )
         self.mean_I_u, \
         self.var_I_u, \
         self.re_I_u = self.compute_mean_variance_and_rel_error(I_u)
@@ -1229,19 +1505,19 @@ class Sampling(LangevinSDE):
         # add sampling attributes
         files_dict['seed'] = self.seed
         files_dict['xzero'] = self.xzero
-        files_dict['N'] = self.N
+        files_dict['K'] = self.K
 
         # Euler-Marujama
         files_dict['dt'] = self.dt
         files_dict['k_lim'] =self.k_lim
 
         # fht
-        if self.problem_name == 'langevin_stop-t':
+        if self.sde.problem_name == 'langevin_stop-t':
             files_dict['been_in_target_set'] = self.been_in_target_set
             files_dict['fht'] = self.fht
             self.k = int(np.max(self.fht) / self.dt)
             files_dict['k'] = self.k
-            files_dict['N_arrived'] = self.N_arrived
+            files_dict['n_traj_arrived'] = self.n_traj_arrived
             files_dict['first_fht'] = self.first_fht
             files_dict['last_fht'] = self.last_fht
             files_dict['mean_fht'] = self.mean_fht
@@ -1249,12 +1525,13 @@ class Sampling(LangevinSDE):
             files_dict['re_fht'] = self.re_fht
 
         # quantity of interest
-        files_dict['mean_I'] = self.mean_I
-        files_dict['var_I'] = self.var_I
-        files_dict['re_I'] = self.re_I
+        if not self.is_controlled:
+            files_dict['mean_I'] = self.mean_I
+            files_dict['var_I'] = self.var_I
+            files_dict['re_I'] = self.re_I
 
         # reweighted quantity of interest
-        if self.is_controlled:
+        else:
             files_dict['stoch_int_fht'] = self.stoch_int_fht
             files_dict['det_int_fht'] = self.det_int_fht
             files_dict['mean_I_u'] = self.mean_I_u
@@ -1300,11 +1577,11 @@ class Sampling(LangevinSDE):
             return True
         except:
             if not self.is_controlled:
-                msg = 'no mc-sampling found with dt={:.4f} and N={:.0e}' \
-                      ''.format(self.dt, self.N)
+                msg = 'no mc-sampling found with dt={:.4f} and K={:.0e}' \
+                      ''.format(self.dt, self.K)
             else:
-                msg = 'no importance-sampling found with dt={:.4f} and N={:.0e}' \
-                      ''.format(self.dt, self.N)
+                msg = 'no importance-sampling found with dt={:.4f} and K={:.0e}' \
+                      ''.format(self.dt, self.K)
             print(msg)
             return False
 
@@ -1318,7 +1595,7 @@ class Sampling(LangevinSDE):
         f.write('controlled process: {}\n'.format(self.is_controlled))
 
         initial_posicion = 'xzero: ('
-        for i in range(self.n):
+        for i in range(self.sde.d):
             if i == 0:
                 initial_posicion += '{:2.1f}'.format(self.xzero[i])
             else:
@@ -1326,7 +1603,7 @@ class Sampling(LangevinSDE):
         initial_posicion += ')\n'
         f.write(initial_posicion)
 
-        f.write('sampled trajectories: {:,d}\n'.format(self.N))
+        f.write('sampled trajectories: {:,d}\n'.format(self.K))
 
         if self.seed is not None:
             f.write('seed: {:2.1f}\n'.format(self.seed))
@@ -1359,13 +1636,13 @@ class Sampling(LangevinSDE):
         elif self.is_controlled and not self.is_optimal and self.nn_func_appr is not None:
             self.nn_func_appr.write_parameters(f)
 
-        if self.problem_name == 'langevin_stop-t':
+        if self.sde.problem_name == 'langevin_stop-t':
             f.write('\nStatistics\n')
 
             f.write('trajectories which arrived: {:2.2f} %\n'
-                    ''.format(100 * self.N_arrived / self.N))
+                    ''.format(100 * self.n_traj_arrived / self.K))
 
-            if self.N_arrived < self.N:
+            if self.n_traj_arrived < self.K:
                 f.write('used time steps: {:,d}\n\n'.format(self.k_lim))
 
                 # close file
@@ -1382,31 +1659,31 @@ class Sampling(LangevinSDE):
             f.write('First hitting time (fht)\n')
             f.write('first fht = {:2.3f}\n'.format(self.first_fht))
             f.write('last fht = {:2.3f}\n'.format(self.last_fht))
-            f.write('m_N(fht) = {:2.3f}\n'.format(self.mean_fht))
-            f.write('s_N^2(fht) = {:2.3f}\n'.format(self.var_fht))
-            f.write('re_N(fht) = {:2.3f}\n'.format(self.re_fht))
-            f.write('mc-error(fht) = {:2.3f}\n\n'.format(np.sqrt(self.var_fht / self.N)))
+            f.write('m_K(fht) = {:2.3f}\n'.format(self.mean_fht))
+            f.write('s_K^2(fht) = {:2.3f}\n'.format(self.var_fht))
+            f.write('re_K(fht) = {:2.3f}\n'.format(self.re_fht))
+            f.write('mc-error(fht) = {:2.3f}\n\n'.format(np.sqrt(self.var_fht / self.K)))
 
             f.write('First hitting time step (fhts)\n\n')
-            f.write('m_N(fhts) = {:2.3f}\n'.format(self.mean_fht / self.dt))
-            #f.write('s_N^2(fhts) = {:2.3f}\n'.format(self.var_fht / (self.dt **2)))
-            #f.write('re_N(fhts) = {:2.3f}\n\n'.format(self.re_fht))
+            f.write('m_K(fhts) = {:2.3f}\n'.format(self.mean_fht / self.dt))
+            #f.write('s_K^2(fhts) = {:2.3f}\n'.format(self.var_fht / (self.dt **2)))
+            #f.write('re_K(fhts) = {:2.3f}\n\n'.format(self.re_fht))
 
         if not self.is_controlled:
             f.write('\nQuantity of interest\n')
-            f.write('m_N(I) = {:2.3e}\n'.format(self.mean_I))
-            f.write('s_N^2(I) = {:2.3e}\n'.format(self.var_I))
-            f.write('re_N(I) = {:2.3e}\n'.format(self.re_I))
-            f.write('mc-error(I) = {:2.3e}\n'.format(np.sqrt(self.var_I / self.N)))
-            f.write('-log(m_N(I)) = {:2.3e}\n\n'.format(-np.log(self.mean_I)))
+            f.write('m_K(I) = {:2.3e}\n'.format(self.mean_I))
+            f.write('s_K^2(I) = {:2.3e}\n'.format(self.var_I))
+            f.write('re_K(I) = {:2.3e}\n'.format(self.re_I))
+            f.write('mc-error(I) = {:2.3e}\n'.format(np.sqrt(self.var_I / self.K)))
+            f.write('-log(m_K(I)) = {:2.3e}\n\n'.format(-np.log(self.mean_I)))
 
         else:
             f.write('\nReweighted Quantity of interest\n')
-            f.write('m_N(I^u) = {:2.3e}\n'.format(self.mean_I_u))
-            f.write('s_N^2(I^u) = {:2.3e}\n'.format(self.var_I_u))
-            f.write('re_N(I^u) = {:2.3e}\n'.format(self.re_I_u))
-            f.write('mc-error(I^u) = {:2.3e}\n'.format(np.sqrt(self.var_I_u / self.N)))
-            f.write('-log(m_N(I^u)) = {:2.3e}\n\n'.format(-np.log(self.mean_I_u)))
+            f.write('m_K(I^u) = {:2.3e}\n'.format(self.mean_I_u))
+            f.write('s_K^2(I^u) = {:2.3e}\n'.format(self.var_I_u))
+            f.write('re_K(I^u) = {:2.3e}\n'.format(self.re_I_u))
+            f.write('mc-error(I^u) = {:2.3e}\n'.format(np.sqrt(self.var_I_u / self.K)))
+            f.write('-log(m_K(I^u)) = {:2.3e}\n\n'.format(-np.log(self.mean_I_u)))
 
         h, m, s = get_time_in_hms(self.ct)
         f.write('Computational time: {:d}:{:02d}:{:02.2f}\n\n'.format(h, m, s))
@@ -1420,7 +1697,7 @@ class Sampling(LangevinSDE):
 
     def get_grid_value_function(self):
         # flatten domain_h
-        x = self.domain_h.reshape(self.Nh, self.n)
+        x = self.domain_h.reshape(self.Nh, self.sde.d)
 
         # potential
         self.grid_potential = self.potential(x).reshape(self.Nx)
@@ -1486,7 +1763,7 @@ class Sampling(LangevinSDE):
         '''
 
         # inputs
-        x = x_j * np.ones((self.Nh, self.n))
+        x = x_j * np.ones((self.Nh, self.sde.d))
         x[:, i] = self.domain_i_h
 
         # potential
@@ -1512,7 +1789,7 @@ class Sampling(LangevinSDE):
 
     def get_grid_control(self):
         # flattened domain_h
-        x = self.domain_h.reshape(self.Nh, self.n)
+        x = self.domain_h.reshape(self.Nh, self.sde.d)
 
         # gradient
         self.grid_gradient = self.gradient(x).reshape(self.domain_h.shape)
@@ -1544,7 +1821,7 @@ class Sampling(LangevinSDE):
             assert k is not None, ''
 
         # inputs
-        x = x_j * np.ones((self.Nh, self.n))
+        x = x_j * np.ones((self.Nh, self.sde.d))
         x[:, i] = self.domain_i_h
 
         # gaussian ansatz control
@@ -1591,11 +1868,11 @@ class Sampling(LangevinSDE):
         # coordinates
         traj = np.moveaxis(self.traj, 0, -1)
 
-        y = np.empty((self.n, traj_fhs - n_iter_avg + 1))
-        for i in range(self.n):
+        y = np.empty((self.sde.d, traj_fhs - n_iter_avg + 1))
+        for i in range(self.sde.d):
             y[i] = np.convolve(traj[i], np.ones(n_iter_avg) / n_iter_avg, mode='valid')
 
-        labels = [r'$x_{:d}$'.format(i+1) for i in np.arange(self.n)]
+        labels = [r'$x_{:d}$'.format(i+1) for i in np.arange(self.sde.d)]
 
         fig.set_title(r'trajectory')
         fig.set_xlabel(r'$t$')

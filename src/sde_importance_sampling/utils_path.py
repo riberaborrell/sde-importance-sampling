@@ -1,12 +1,11 @@
-from sde_importance_sampling.config import project_root_dir, data_root_dir
-
-import numpy as np
-
 from datetime import datetime
 from pathlib import Path
 import shutil
-
 import os
+
+import numpy as np
+
+from sde_importance_sampling.config import project_root_dir, data_root_dir
 
 def get_project_dir():
     ''' returns the absolute path of the repository's directory

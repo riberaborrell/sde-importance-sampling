@@ -25,12 +25,8 @@ class SolverHJB(object):
     ----------
     sde: langevinSDE object
         overdamped langevin sde object
-    ct_initial: float
-        initial computational time
-    ct_time: float
-        final computational time
-    ct: float
-        computational time
+    dir_path: str
+        directory path for the hjb solver
     psi: array
         solution of the BVP problem
     solved: bool
@@ -45,6 +41,12 @@ class SolverHJB(object):
         perturbed potential
     perturbed_drift: array
         perturbed drift
+    ct_initial: float
+        initial computational time
+    ct_time: float
+        final computational time
+    ct: float
+        computational time
 
 
     Methods

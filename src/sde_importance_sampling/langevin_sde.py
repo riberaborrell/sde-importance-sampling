@@ -799,14 +799,7 @@ class LangevinSDE(object):
             return
 
         # initialize hjb solver
-        sol_hjb = SolverHJB(
-            problem_name=self.problem_name,
-            potential_name=self.potential_name,
-            d=self.d,
-            alpha=self.alpha,
-            beta=self.beta,
-            h=h,
-        )
+        sol_hjb = SolverHJB(self, h=h)
 
         # load already computed solution
         if sol_hjb.load():
