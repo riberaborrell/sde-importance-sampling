@@ -156,14 +156,14 @@ def get_base_parser():
     parser.add_argument(
         '--meta-type',
         dest='meta_type',
-        choices=['ind', 'cum', 'cum-nn'],
+        choices=['independent', 'cumulative'],
         default='cum',
         help='type of metadynamics algorithm. Default: cumulative algorithm',
     )
     parser.add_argument(
         '--weights-type',
         dest='weights_type',
-        choices=['const', 'geometric'],
+        choices=['constant', 'geometric'],
         default='geometric',
         help='type of decay of the gaussian ansatz weights. Default: geometric',
     )

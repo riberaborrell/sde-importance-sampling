@@ -243,7 +243,7 @@ class Sampling(object):
 
     get_grid_value_function()
 
-    integrate_grid_value_function_1d()
+    integrate_value_function_1d()
 
     get_grid_value_function_i(i=0, x_j=0.)
 
@@ -328,7 +328,8 @@ class Sampling(object):
         array
             bias potential evaluated at the x
         '''
-        return 2 * self.ansatz.value_function(x, theta) / self.sde.beta
+        assert self.ansatz is not None, ''
+        return self.ansatz.value_function(x, theta) * self.sde.sigma**2
 
     def bias_gradient(self, u):
         ''' computes the bias gradient at x
@@ -1696,66 +1697,74 @@ class Sampling(object):
         f.close()
 
     def get_grid_value_function(self):
+        ''' evaluates the value function at the discretized domain.
+        '''
+
         # flatten domain_h
         x = self.sde.domain_h.reshape(self.sde.Nh, self.sde.d)
 
         # potential
         self.grid_potential = self.sde.potential(x).reshape(self.sde.Nx)
 
-        # bias potential
+        # value function
+
+        # not controlled, i.e zero
         if not self.is_controlled:
-            # bias potential and value function
-            self.grid_bias_potential = np.zeros(self.sde.Nx)
             self.grid_value_function = np.zeros(self.sde.Nx)
 
-        # gaussian ansatz
+        # controlled with gaussian ansatz representation
         elif self.is_controlled and self.ansatz is not None:
 
             # set value function constant
-            if self.sde.potential_name == 'nd_well':
+            if self.sde.potential_name == 'nd_2well':
                 self.ansatz.set_value_function_constant_corner()
-            elif self.sde.potential_name == 'nd_well_asym':
+            elif self.sde.potential_name == 'nd_2well_asym':
                 self.ansatz.set_value_function_target_set()
 
-            # bias potential and value function
-            self.grid_bias_potential = self.bias_potential(x).reshape(self.sde.Nx)
+            # evaluate value function
             self.grid_value_function = self.ansatz.value_function(x).reshape(self.sde.Nx)
 
-        # controlled potential
-        if self.grid_bias_potential is not None:
-            # controlled potential
+        # controlled with nn representation
+        elif self.is_controlled and self.nn_func_appr is not None:
+
+            # 1d numerical integration
+            if self.sde.d == 1:
+                self.integrate_value_function_1d()
+            else:
+                raise "numerical integration is just supported by d=1"
+
+        # bias potential
+        self.grid_bias_potential = self.grid_value_function * self.sde.sigma**2
+
+        # perturbed potential
+        if hasattr(self, 'grid_bias_potential'):
             self.grid_perturbed_potential = self.grid_potential + self.grid_bias_potential
 
-    def integrate_grid_value_function_1d(self):
+    def integrate_value_function_1d(self):
+        ''' computes the value function on the grid (for 1d sde) by integrating numerically.
         '''
-        '''
-        assert self.domain_h is not None, ''
+        assert self.sde.d == 1, ''
+        assert self.sde.domain_h is not None, ''
         assert self.grid_control is not None, ''
 
         # grid
-        x = self.domain_h
-
-        # potential evaluated at the grid
-        self.grid_potential = self.potential(x).reshape(self.Nx)
+        x = self.sde.domain_h
 
         # control evaluated at the grid
         u = self.grid_control
 
         # initialize value function
-        value_f = np.zeros(self.Nx)
+        value_f = np.zeros(self.sde.Nx)
 
         # get indices where grid in the left / right of the target set
-        target_set_lb, target_set_ub = self.target_set[0]
-        idx_l = np.where(x < target_set_lb)[0]
+        target_set_lb, target_set_ub = self.sde.target_set[0]
+        idx_l = np.where(x <= target_set_lb)[0]
 
         # compute value function in the left of the target set
         for k in np.flip(idx_l):
-            value_f[k - 1] = value_f[k] + (1 / np.sqrt(2.0)) * u[k] * self.h
-            value_f[-1] = 0
+            value_f[k - 1] = value_f[k] + (1 / self.sde.sigma) * u[k] * self.sde.h
 
         self.grid_value_function = value_f
-        self.grid_bias_potential = 2 * value_f / self.beta
-        self.grid_perturbed_potential = self.grid_potential + self.grid_bias_potential
 
     def get_grid_value_function_i(self, i=0, x_j=0.):
         ''' computes the value of the value function and the bias potential along the i-th
@@ -1809,7 +1818,7 @@ class Sampling(object):
             self.grid_control = control_flattened.reshape(self.sde.domain_h.shape)
 
         # controlled drift
-        self.grid_perturbed_drift = - self.grid_gradient + np.sqrt(2) * self.grid_control
+        self.grid_perturbed_drift = - self.grid_gradient + self.sde.sigma * self.grid_control
 
     def get_grid_control_i(self, i=0, x_j=0., k=None):
         ''' computes the value of the control along the i-th coordinate evaluated at x_j

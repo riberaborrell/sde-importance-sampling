@@ -569,10 +569,18 @@ class StochasticOptimizationMethod:
         np.savez(file_path, **files_dict)
 
 
-    def load(self):
+    def load(self, dir_path=None, file_name='som.npz'):
+        '''
+        '''
+
+        # directory path
+        if dir_path is None:
+            dir_path = self.dir_path
+
+        # load npz arrays
         try:
             data = np.load(
-                  os.path.join(self.dir_path, 'som.npz'),
+                  os.path.join(dir_path, file_name),
                   allow_pickle=True,
             )
             for file_name in data.files:
@@ -1285,7 +1293,7 @@ class StochasticOptimizationMethod:
 
         # evaluate value function in grid
         if self.sample.n == 1:
-            self.sample.integrate_grid_value_function_1d()
+            self.sample.integrate_value_function_1d()
 
         return np.copy(self.sample.grid_control), np.copy(self.sample.grid_controlled_potential)
 

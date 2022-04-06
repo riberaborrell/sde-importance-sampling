@@ -26,33 +26,82 @@ class GaussianAnsatz(object):
     det_cov: float
         determinant of the covariance matrix
     sigma_i: float
-
+        factor of the scalar covariance matrix
     theta: array
-
+        parameters of the Gaussian ansatz representation
     normalized: bool
         True if the Gaussian functions are normalized normal density functions
     is_cov_scalar_matrix: bool
         True if the covariance matrix is a scalar matrix
-
     distributed: str
-
+        states how the centers of the Gaussian functions are distributed. "uniform" means
+        that they are placed uniformly along the axis of the space. "meta" means that they are
+        placed in the same place where the metadynamics algorithm did an update
     m_i: int
         number of ansatz functions placed in each coordinate
     sigma_i_meta: float
-
-    k: int
-
+        factor of the scalar covariance matrix for the metadynamics algorithm
+    delta_meta: float
+        time interval between metadynamics updates
     K_meta: int
-
+        number of trajectories used in the metadynamics algorithm
     seed_meta: int
-
+        random seed used in the metadynamics algorithm
     theta_type: str
+        ?
 
     K_value_f: float
         value function constanct
 
     dir_path: str
         directory path
+
+    Methods
+    -------
+    __init__(sde, normalized=True)
+
+    set_dir_path()
+
+    set_cov_matrix(sigma_i=None, cov=None)
+
+    set_given_ansatz_functions(means, sigma_i=None, cov=None)
+
+    set_unif_dist_ansatz_functions(m_i, sigma_i)
+
+    set_meta_ansatz_functions(sde, dt_meta, sigma_i_meta, k, K_meta)
+
+    set_theta_null()
+
+    set_theta_random()
+
+    set_theta_hjb(h)
+
+    set_theta_metadynamics(meta, h)
+
+    mvn_pdf_basis_numpy(x)
+
+    mvn_pdf_basis(x)
+
+    mvn_pdf_gradient_basis(x)
+
+    set_value_function_constant_to_zero()
+
+    set_value_function_constant_target_set()
+
+    set_value_function_constant_corner(theta=None)
+
+    value_function(x, theta=None)
+
+    control(x, theta=None)
+
+    write_ansatz_parameters(f)
+
+    plot_1d_multivariate_normal_pdf(domain)
+
+    plot_2d_multivariate_normal_pdf(domain)
+
+    plot_nd_multivariate_normal_pdf(i=0, domain_i=[-3, 3], x_j=0.)
+
     '''
 
     def __init__(self, sde, normalized=True):
@@ -189,31 +238,31 @@ class GaussianAnsatz(object):
 
 
     #TODO: check method
-    def set_meta_dist_ansatz_functions(self, sde, dt_meta, sigma_i_meta, is_cumulative, k, N_meta):
+    def set_meta_dist_ansatz_functions(self, sde, dt_meta, sigma_i_meta, is_cumulative, k, K_meta):
         '''
         '''
-        meta = sde.get_metadynamics_sampling(dt_meta, sigma_i_meta, is_cumulative, k, N_meta)
-        assert N_meta == meta.ms.shape[0], ''
+        meta = sde.get_metadynamics_sampling(dt_meta, sigma_i_meta, is_cumulative, k, K_meta)
+        assert K_meta == meta.ms.shape[0], ''
 
         self.set_given_ansatz_functions(means=meta.means, sigma_i=meta.sigma_i)
         self.sigma_i_meta = sigma_i_meta
         self.k = k
-        self.N_meta = N_meta
+        self.K_meta = K_meta
         self.distributed = 'meta'
 
     #TODO: check method
-    def set_meta_ansatz_functions(self, sde, dt_meta, sigma_i_meta, k, N_meta):
+    def set_meta_ansatz_functions(self, sde, dt_meta, sigma_i_meta, k, K_meta):
         '''
         '''
-        meta = sde.get_metadynamics_sampling(dt_meta, sigma_i_meta, k, N_meta)
+        meta = sde.get_metadynamics_sampling(dt_meta, sigma_i_meta, k, K_meta)
         meta_total_m = int(np.sum(meta.ms))
-        assert N_meta == meta.ms.shape[0], ''
+        assert K_meta == meta.ms.shape[0], ''
 
         # get the centers used for each trajectory
         means = np.empty((meta_total_m, self.n))
         theta = np.empty(meta_total_m)
         flatten_idx = 0
-        for i in np.arange(N_meta):
+        for i in np.arange(K_meta):
             means[flatten_idx:flatten_idx+meta.ms[i]] = meta.means[i, :meta.ms[i]]
             theta[flatten_idx:flatten_idx+meta.ms[i]] = meta.thetas[i, :meta.ms[i]]
             flatten_idx += meta.ms[i]
@@ -221,8 +270,8 @@ class GaussianAnsatz(object):
         self.set_given_ansatz_functions(means=means, sigma_i=meta.sigma_i)
         self.sigma_i_meta = sigma_i_meta
         self.k = k
-        self.N_meta = N_meta
-        self.theta = theta / N_meta
+        self.K_meta = K_meta
+        self.theta = theta / K_meta
         self.distributed = 'meta'
         self.theta_type = 'meta'
 
@@ -257,13 +306,10 @@ class GaussianAnsatz(object):
         self.h = h
         self.theta_type = 'optimal'
 
-    def set_theta_metadynamics(self, meta, h):
+    #TODO: revise!
+    def set_theta_metadynamics(self, meta, distributed, h=None):
         '''
         '''
-        if self.distributed == 'meta':
-            assert self.sigma_i_meta == meta.sigma_i, ''
-            assert self.k == meta.k, ''
-            assert self.N_meta == meta.N, ''
 
         # discretize domain
         meta.sample.discretize_domain(h)
@@ -290,8 +336,8 @@ class GaussianAnsatz(object):
         # save parameters
         self.theta_type = 'meta'
         self.sigma_i_meta = meta.sigma_i
-        self.k = meta.k
-        self.N_meta = meta.N
+        self.delta_meta = meta.delta
+        self.K_meta = meta.K
         self.seed_meta = meta.seed
 
     def mvn_pdf_basis_numpy(self, x):
@@ -321,7 +367,7 @@ class GaussianAnsatz(object):
         if self.is_cov_scalar_matrix:
             exp_term = - 0.5 * np.sum((x - means)**2, axis=2) / self.sigma_i
         else:
-            x_centered = (x - means).reshape(N*self.m, self.n)
+            x_centered = (x - means).reshape(K*self.m, self.sde.d)
             exp_term = np.matmul(x_centered, self.inv_cov)
             exp_term = np.sum(exp_term * x_centered, axis=1).reshape(K, self.m)
             exp_term *= - 0.5
@@ -366,7 +412,8 @@ class GaussianAnsatz(object):
         # scalar covariance matrix
         if self.is_cov_scalar_matrix:
             log_mvn_pdf_basis = - 0.5 * torch.sum(
-                (x_tensor.view(K, 1, self.sde.d) - self.means_tensor.view(1, self.m, self.sde.d))**2,
+                (x_tensor.view(K, 1, self.sde.d)
+               - self.means_tensor.view(1, self.m, self.sde.d))**2,
                 axis=2,
             ) / self.sigma_i
 
@@ -419,15 +466,15 @@ class GaussianAnsatz(object):
 
         # compute gradient of the exponential term
         if self.is_cov_scalar_matrix:
-            A = - (x[:, np.newaxis, :] - self.means[np.newaxis, :, :]) / self.sigma_i
+            grad_exp_term = (x[:, np.newaxis, :] - self.means[np.newaxis, :, :]) / self.sigma_i
         else:
-            A = - 0.5 * np.matmul(
+            grad_exp_term = 0.5 * np.matmul(
                 x[:, np.newaxis, :] - self.means[np.newaxis, :, :],
                 self.inv_cov + self.inv_cov.T,
             )
 
         # compute gaussian gradients basis
-        return A * mvn_pdf_basis[:, :, np.newaxis]
+        return - grad_exp_ternm * mvn_pdf_basis[:, :, np.newaxis]
 
     def mvn_pdf_gradient_basis(self, x):
         ''' Multivariate normal pdf gradient (nd Gaussian gradients) basis \nabla V(x; means, cov)
@@ -458,22 +505,23 @@ class GaussianAnsatz(object):
 
         # scalar covariance matrix
         if self.is_cov_scalar_matrix:
-            A = - (x_tensor.view(K, 1, self.sde.d) - self.means_tensor.view(1, self.m, self.sde.d)) \
-                / self.sigma_i
+            grad_exp_term = (
+                x_tensor.view(K, 1, self.sde.d) - self.means_tensor.view(1, self.m, self.sde.d)
+            ) / self.sigma_i
 
         # general covariance matrix
         else:
-            #TODO! convert to pytorch
-            A = - 0.5 * np.matmul(x - means, self.inv_cov + self.inv_cov.T)
+            grad_exp_term = 0.5 * np.matmul(x - means, self.inv_cov + self.inv_cov.T)
 
         # compute gaussian gradients basis
-        return (A * mvn_pdf_basis[:, :, np.newaxis]).numpy()
+        return (- grad_exp_term * mvn_pdf_basis[:, :, np.newaxis]).numpy()
 
     def set_value_function_constant_to_zero(self):
         ''' sets the value function constant to zero
         '''
         self.K_value_f = 0
 
+    #TODO! revise method
     def set_value_function_constant_target_set(self):
         ''' sets the value function constant such that the evaluation of the value function at the
             target sets points on average is zero
@@ -499,11 +547,11 @@ class GaussianAnsatz(object):
         # define target set corner (1, ..., 1)
         x = np.ones((1, self.sde.d))
 
-        # evaluate value function at x
-        basis_value_f_at_x = self.mvn_pdf_basis(x)
-        value_f_at_x = np.dot(basis_value_f_at_x, theta)
+        # evaluate value function at the corner
+        value_f =  np.dot(self.mvn_pdf_basis(x), - theta / self.sde.sigma)
 
-        self.K_value_f = - value_f_at_x
+        self.K_value_f = - value_f
+
 
     def value_function(self, x, theta=None):
         '''This method computes the value function evaluated at x
@@ -524,8 +572,7 @@ class GaussianAnsatz(object):
             theta = self.theta
 
         # value function without constant K
-        basis_value_f = self.mvn_pdf_basis(x)
-        value_f =  np.dot(basis_value_f, theta)
+        value_f =  np.dot(self.mvn_pdf_basis(x), - theta / self.sde.sigma)
 
         return value_f + self.K_value_f
 
@@ -550,8 +597,11 @@ class GaussianAnsatz(object):
         if theta is None:
             theta = self.theta
 
-        basis_control = - (np.sqrt(2) / self.sde.beta) * self.mvn_pdf_gradient_basis(x)
-        control = np.tensordot(basis_control, theta, axes=([1], [0]))
+        control = np.tensordot(
+            self.mvn_pdf_gradient_basis(x),
+            theta,
+            axes=([1], [0]),
+        )
         return control
 
 
@@ -567,8 +617,8 @@ class GaussianAnsatz(object):
 
         elif self.distributed == 'meta':
             f.write('sigma_i_meta: {:2.2f}\n'.format(self.sigma_i_meta))
-            f.write('k: {:d}\n'.format(self.k))
-            f.write('N_meta: {:2.2f}\n'.format(self.N_meta))
+            f.write('delta_meta: {:2.2f}\n'.format(self.delta_meta))
+            f.write('K_meta: {:2.2f}\n'.format(self.K_meta))
 
         f.write('m: {:d}\n\n'.format(self.m))
 

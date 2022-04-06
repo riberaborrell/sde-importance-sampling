@@ -16,13 +16,13 @@ from sde_importance_sampling.utils_path import get_metadynamics_dir_path, \
 from sde_importance_sampling.utils_numeric import slice_1d_array, from_1dndarray_to_string
 
 META_TYPES = [
-    'cum', # cumulative, bias potential with gaussian ansatz
-    'ind', # independent
+    'cumulative',   # cumulative, bias potential with gaussian ansatz
+    'independent', # independent
 ]
 
 WEIGHTS_TYPES = [
-    'const', # constant
-    'geometric', # geometric succession
+    'constant',     # constant
+    'geometric',    # geometric succession
 ]
 
 class Metadynamics(object):
@@ -69,7 +69,7 @@ class Metadynamics(object):
     means: array
         centers of the gaussian functions
     sigma_i: float
-
+        factor of the scalar covariance matrix
     cov: array
         covariance matrix
 
@@ -89,14 +89,10 @@ class Metadynamics(object):
         directory path
     updates_dir_path: str
         directory path where the updates plots
-
-    # plots per trajectory
-    do_updates_plots: bool
-        True if updates plots
     '''
 
-    def __init__(self, sample, delta, K, seed=None, meta_type='cum',
-                 weights_type='const', omega_0=1., sigma_i=0.5, do_updates_plots=False):
+    def __init__(self, sample, delta, K, seed=None, meta_type='cumulative',
+                 weights_type='constant', omega_0=1., sigma_i=0.5):
         ''' init method
 
         Parameters
@@ -118,9 +114,8 @@ class Metadynamics(object):
         means: array
             centers of the gaussian functions
         sigma_i: float
+            factor of the scalar covariance matrix
 
-        do_updates_plots: bool
-            True if updates plots
         '''
 
         # sde object
@@ -139,16 +134,16 @@ class Metadynamics(object):
         self.K = K
 
         # metadynamics coefficients
+        assert meta_type in META_TYPES, ''
         self.meta_type = meta_type
 
         # gaussian ansatz
+        assert weights_type in WEIGHTS_TYPES, ''
         self.weights_type = weights_type
         self.omega_0 = omega_0
         self.sigma_i = sigma_i
         self.cov = self.sigma_i * np.eye(self.sde.d)
 
-        # plots per trajectory
-        self.do_updates_plots = do_updates_plots
 
     def set_dir_path(self):
         ''' computes directory path
@@ -216,31 +211,34 @@ class Metadynamics(object):
         self.means = np.empty((0, self.sde.d))
         self.time_steps = np.empty(self.K, dtype=np.int32)
 
-        # nn parameters
-        if self.meta_type == 'cum-nn':
-            m = self.sample.nn_func_appr.model.d_flat
-            self.thetas = np.empty((0, m))
-
         # boolean array telling us if the algorithm succeeded or not for each sample
         self.succ = np.empty(self.K, dtype=bool)
 
     def set_weights(self):
+        '''
+        '''
+
         # constant weights
-        if self.weights_type == 'const' and self.meta_type == 'ind':
+        if self.weights_type == 'constant' and self.meta_type == 'independent':
             self.weights = self.omega_0 * np.ones(self.updates_lim)
-        elif self.weights_type == 'const' and self.meta_type == 'cum':
+        elif self.weights_type == 'constant' and self.meta_type == 'cumulative':
             self.weights = self.omega_0 * np.ones(self.K)
 
         # geometric decay
-        elif self.weights_type == 'geometric' and self.meta_type == 'ind':
+        elif self.weights_type == 'geometric' and self.meta_type == 'independent':
             r = 0.95
             self.weights = np.array([self.omega_0 * (r**i) for i in np.arange(self.updates_lim)])
-        elif self.weights_type == 'geometric' and self.meta_type == 'cum':
+        elif self.weights_type == 'geometric' and self.meta_type == 'cumulative':
             r = 0.95
             self.weights = np.array([self.omega_0 * (r**i) for i in np.arange(self.K)])
 
     def independent_metadynamics_algorithm(self, i):
-        '''
+        ''' sample metadynamics trajectory independently.
+
+        Parameters
+        ----------
+        i: int
+            index of the sampled trajectory
         '''
         sample = self.sample
 
@@ -257,12 +255,16 @@ class Metadynamics(object):
                 sample.is_controlled = False
             else:
                 sample.is_controlled = True
+
+                # get index corresponding to the i-th trajectory
                 idx = slice(np.sum(self.ms[:i]), np.sum(self.ms[:i]) + j)
+
+                # update gaussian ansatz parameters
                 sample.ansatz.set_given_ansatz_functions(
                     means=self.means[idx],
                     sigma_i=self.sigma_i,
                 )
-                sample.ansatz.theta = self.weights[:j] * self.sde.beta / 2
+                sample.ansatz.theta = - self.weights[:j] / self.sde.sigma
 
             # sample with the given weights
             self.succ[i], xtemp = sample.sample_meta()
@@ -287,7 +289,12 @@ class Metadynamics(object):
         self.time_steps[i] = time_steps
 
     def cumulative_metadynamics_algorithm(self, i):
-        '''
+        ''' sample metadynamics trajectory in a cumulative way.
+
+        Parameters
+        ----------
+        i: int
+            index of the sampled trajectory
         '''
         sample = self.sample
 
@@ -304,11 +311,13 @@ class Metadynamics(object):
                 sample.is_controlled = False
             else:
                 sample.is_controlled = True
+
+                # update gaussian ansatz parameters
                 sample.ansatz.set_given_ansatz_functions(
                     means=self.means,
                     sigma_i=self.sigma_i,
                 )
-                sample.ansatz.theta = self.omegas * self.sde.beta / 2
+                sample.ansatz.theta = - self.omegas / self.sde.sigma
 
             # sample with the given weights
             self.succ[i], xtemp = sample.sample_meta()
@@ -358,7 +367,6 @@ class Metadynamics(object):
             time_steps=self.time_steps,
             ms=self.ms,
             means=self.means,
-            #thetas=self.thetas,
             ct = self.ct,
         )
 
@@ -384,7 +392,7 @@ class Metadynamics(object):
             return True
 
         except:
-            msg = 'no meta bias potential found with dt={:.4f}, sigma_i={:.2f}, delta={:d}, ' \
+            msg = 'no meta bias potential found with dt={:.4f}, sigma_i={:.2f}, delta={:2.2f}, ' \
                   'K={:.0e}'.format(self.sample.dt, self.sigma_i, self.delta, self.K)
             print(msg)
             return False
@@ -402,11 +410,11 @@ class Metadynamics(object):
             assert update in range(self.ms[i] + 1), ''
 
         # independent trajectories
-        if self.meta_type == 'ind':
+        if self.meta_type == 'independent':
             return slice(np.sum(self.ms[:i]), np.sum(self.ms[:i]) + update)
 
         # cumulative trajectories
-        elif self.meta_type == 'cum':
+        elif self.meta_type == 'cumulative':
             return slice(0, np.sum(self.ms[:i]) + update)
 
     def set_ansatz_trajectory(self, i, update=None):
@@ -420,20 +428,19 @@ class Metadynamics(object):
             means=self.means[idx],
             sigma_i=self.sigma_i,
         )
-        self.sample.ansatz.theta = self.omegas[idx] * self.sde.beta / 2
-        self.sample.ansatz.set_value_function_constant_to_zero()
-        #self.sample.ansatz.set_value_function_constant_corner()
+        self.sample.ansatz.theta = - self.omegas[idx] / self.sde.sigma
+        self.sample.is_controlled = True
 
     def set_ansatz(self):
         '''
         '''
         # initialize Gaussian object if there is not one already
-        if self.sample.ansatz is None:
+        if not hasattr(self.sample, 'ansatz'):
             self.sample.ansatz = GaussianAnsatz(self.sde, normalized=False)
 
-        if self.meta_type == 'ind':
+        if self.meta_type == 'independent':
             self.set_ansatz_averaged()
-        elif self.meta_type == 'cum':
+        elif self.meta_type == 'cumulative':
             self.set_ansatz_trajectory(i=self.K -1)
 
     def set_ansatz_averaged(self):
@@ -453,7 +460,7 @@ class Metadynamics(object):
             # get means and thetas for each trajectory
             idx_i = self.get_trajectory_indices(i)
             meta_means_i = self.means[idx_i]
-            meta_thetas_i = self.omegas[idx_i] * self.sde.beta / 2
+            meta_thetas_i = - self.omegas[idx_i] / self.sde.sigma
 
             # create ansatz functions corresponding to the ith metadynamics trajectory
             meta_ansatz_i = GaussianAnsatz(self.sde, normalized=False)
@@ -535,17 +542,34 @@ class Metadynamics(object):
         f.close()
 
     def get_control_and_perturbed_potential_1d(self, i=0, update=None):
-        '''
+        ''' get the control and perturbed potential for the given metadynamics trajectory
+            and the given update
+
+        Parameters
+        ----------
+        i: int, optional
+            index of the sampled trajectory
+        update: int, optional
+            index of the update of the sampled trajectory
         '''
 
         self.set_ansatz_trajectory(i=i, update=update)
+        self.sample.get_grid_value_function()
         self.sample.get_grid_control()
-        self.sample.integrate_grid_value_function_1d()
 
         return self.sample.grid_control[:, 0], self.sample.grid_perturbed_potential
 
 
     def plot_1d_updates(self, i=0, n_sliced_updates=5):
+        ''' plot updates for the given trajectory
+
+        Parameters
+        ----------
+        i: int, optional
+            index of the sampled trajectory
+        n_sliced_updates: int, optional
+            number of updates which are showed in the plot
+        '''
         from figures.myfigure import MyFigure
 
         # discretize domain and evaluate in grid
@@ -565,20 +589,21 @@ class Metadynamics(object):
 
         # preallocate arrays
         value_fs = np.zeros((n_sliced_updates + 2, x.shape[0]))
-        controls = np.zeros((n_sliced_updates + 2, x.shape[0]))
+        bias_potentials = np.zeros((n_sliced_updates + 2, x.shape[0]))
         perturbed_potentials = np.zeros((n_sliced_updates + 2, x.shape[0]))
+        controls = np.zeros((n_sliced_updates + 2, x.shape[0]))
 
         # preallocate functions
         labels = []
         colors = [None for i in range(n_sliced_updates + 2)]
 
         # the initial bias potential is the not controlled potential
-        if self.meta_type == 'ind':
-            labels.append(r'not controlled potential')
+        if self.meta_type == 'independent':
+            labels.append(r'not perturbd potential')
             self.sample.is_controlled = False
 
         # the initial bias potential is given by the previous trajectory
-        elif self.meta_type == 'cum':
+        elif self.meta_type == 'cumulative':
             labels.append(r'initial bias potential')
             self.sample.is_controlled = True
             self.set_ansatz_trajectory(i, update=0)
@@ -586,8 +611,9 @@ class Metadynamics(object):
         # evaluate at the grid
         self.sample.get_grid_value_function()
         self.sample.get_grid_control()
-        perturbed_potentials[0, :] = self.sample.grid_perturbed_potential
         value_fs[0, :] = self.sample.grid_value_function
+        bias_potentials[0, :] = self.sample.grid_bias_potential
+        perturbed_potentials[0, :] = self.sample.grid_perturbed_potential
         controls[0, :] = self.sample.grid_control[:, 0]
 
         self.sample.is_controlled = True
@@ -600,8 +626,9 @@ class Metadynamics(object):
             self.sample.get_grid_control()
 
             # update functions
-            perturbed_potentials[index+1, :] = self.sample.grid_perturbed_potential
             value_fs[index+1, :] = self.sample.grid_value_function
+            bias_potentials[index+1, :] = self.sample.grid_bias_potential
+            perturbed_potentials[index+1, :] = self.sample.grid_perturbed_potential
             controls[index+1, :] = self.sample.grid_control[:, 0]
 
         # get hjb solution
@@ -629,11 +656,22 @@ class Metadynamics(object):
         fig.set_xlim(-2, 2)
         fig.plot(x, value_fs, labels=labels, colors=colors)
 
+        # plot bias potential
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=self.dir_path,
+            file_name='bias-potential' + ext,
+        )
+        fig.set_title(r'$V_b^{meta}(x)$')
+        fig.set_xlabel('x')
+        fig.set_xlim(-2, 2)
+        fig.plot(x, bias_potentials, labels=labels, colors=colors)
+
         # plot controlled potential
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=self.dir_path,
-            file_name='controlled-potential' + ext,
+            file_name='perturbed-potential' + ext,
         )
         perturbed_potentials[-1, :] = sol_hjb.perturbed_potential
         fig.set_title(r'$V(x) + V_b^{meta}(x)$')
@@ -716,11 +754,25 @@ class Metadynamics(object):
         fig.set_xlim(-2, 2)
         fig.plot(x, y, labels=labels, colors=colors)
 
-        # plot controlled potential
+        # plot bias potential
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=plot_dir_path,
-            file_name='controlled-potential' + ext,
+            file_name='bias-potential' + ext,
+        )
+        y = np.vstack((
+            self.sample.grid_bias_potential,
+            sol_hjb.value_function,
+        ))
+        fig.set_xlabel('x')
+        fig.set_xlim(-2, 2)
+        fig.plot(x, y, labels=labels, colors=colors)
+
+        # plot perturbed potential
+        fig = plt.figure(
+            FigureClass=MyFigure,
+            dir_path=plot_dir_path,
+            file_name='perturbed-potential' + ext,
         )
         y = np.vstack((
             self.sample.grid_perturbed_potential,
@@ -804,7 +856,7 @@ class Metadynamics(object):
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=plot_dir_path,
-            file_name='controlled-potential' + ext,
+            file_name='perturbed-potential' + ext,
         )
         fig.set_title(r'$V(x) + V_b^{meta}(x)$')
         fig.set_xlabel(r'$x_1$')
@@ -895,7 +947,7 @@ class Metadynamics(object):
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=plot_dir_path,
-            file_name='controlled-potential-x{:d}'.format(i+1) + ext,
+            file_name='perturbed-potential-x{:d}'.format(i+1) + ext,
         )
         y = self.sample.grid_perturbed_potential_i
         fig.set_title(r'$V(x) + V_b^{meta}(x)$')

@@ -82,13 +82,10 @@ def main():
 
         # metadynamics algorythm for different samples
         for i in np.arange(meta.K):
-            if args.meta_type == 'ind':
+            if args.meta_type == 'independent':
                 meta.independent_metadynamics_algorithm(i)
-            elif args.meta_type == 'cum':
+            elif args.meta_type == 'cumulative':
                 meta.cumulative_metadynamics_algorithm(i)
-            elif args.meta_type == 'cum-nn':
-                pass
-                #meta.cumulative_metadynamics_algorithm(i)
 
         # stop timer
         meta.stop_timer()
@@ -119,7 +116,7 @@ def main():
             idx_traj_with_updates = [i for i in range(args.K_meta) if meta.ms[i] != 0]
             for i in idx_traj_with_updates:
                 meta.plot_1d_updates(i=i)
-                meta.plot_1d_update()
+            #meta.plot_1d_update(i=i, update=1)
 
         # 2d plots
         elif sde.d == 2:

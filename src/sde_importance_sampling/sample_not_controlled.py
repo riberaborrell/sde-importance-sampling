@@ -1,8 +1,8 @@
 import numpy as np
 
 from sde_importance_sampling.base_parser import get_base_parser
-from sde_importance_sampling.langevin_sde import LangevinSDE
 from sde_importance_sampling.importance_sampling import Sampling
+from sde_importance_sampling.langevin_sde import LangevinSDE
 
 def get_parser():
     parser = get_base_parser()

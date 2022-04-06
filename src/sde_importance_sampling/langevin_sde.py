@@ -864,13 +864,12 @@ class LangevinSDE(object):
             return sample
 
     def get_metadynamics_sampling(self, meta_type, weights_type, omega_0,
-                                  sigma_i, dt, k, K, seed=None):
+                                  sigma_i, dt, delta, K, seed=None):
         from sde_importance_sampling.importance_sampling import Sampling
         from sde_importance_sampling.metadynamics import Metadynamics
 
         # initialize controlled sampling object
-        sample = Sampling.new_from(self)
-        sample.is_controlled = True
+        sample = Sampling(self, is_controlled=True)
         sample.dt = dt
 
         # initialize meta nd object
@@ -880,7 +879,7 @@ class LangevinSDE(object):
             weights_type=weights_type,
             omega_0=omega_0,
             sigma_i=sigma_i,
-            k=k,
+            delta=delta,
             K=K,
             seed=seed,
         )
