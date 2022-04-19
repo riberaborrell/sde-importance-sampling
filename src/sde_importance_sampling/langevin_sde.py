@@ -68,6 +68,8 @@ class LangevinSDE(object):
         discretized domain
     domain_h_flat: array
         flat discretized domain
+    settings_dir_path: str
+        absolute path of the directory for the chosen sde setting
 
     Methods
     -------
@@ -124,11 +126,7 @@ class LangevinSDE(object):
     get_hjb_sampling(sol_hjb_dir_path, dt, K, seed=None)
 
     get_metadynamics_sampling(meta_type, weights_type, omega_0,
-                              sigma_i, dt, k, K, seed=None)
-
-    get_metadynamics_nn_sampling(dt, sigma_i, meta_type, k, K)
-
-    get_flat_bias_sampling(dt, k_lim, K)
+                              sigma_i, dt, delta, K, seed=None)
 
     write_setting(f)
 
@@ -288,7 +286,7 @@ class LangevinSDE(object):
 
         Returns
         -------
-        array
+        local_mins: array
             (2^n, n)-array with the 2^n local minimums of the double well potential
 
         '''
@@ -330,7 +328,7 @@ class LangevinSDE(object):
 
         Returns
         -------
-        array
+        eucl_dist: array
             (2^n, n)-array with the 2^n local minimums of the double well potential
         '''
         assert type(x) == np.ndarray, ''
@@ -787,6 +785,13 @@ class LangevinSDE(object):
         return np.where(is_in_target_set == True)[0]
 
     def get_hjb_solver(self, h=None) -> None:
+        ''' load hjb solver object
+
+        Parameters
+        ----------
+        h: float
+            space discretization step
+        '''
         from sde_importance_sampling.hjb_solver import SolverHJB
 
         if h is None and self.d == 1:
@@ -805,6 +810,7 @@ class LangevinSDE(object):
         if sol_hjb.load():
             return sol_hjb
 
+    #TODO! revise method
     def get_hjb_solver_det(self, h=0.01, dt=0.005) -> None:
         from sde_importance_sampling.hjb_solver_det import SolverHJBDet
 
@@ -826,11 +832,21 @@ class LangevinSDE(object):
             return sol_hjb
 
     def get_not_controlled_sampling(self, dt, K, seed=None) -> None:
+        ''' load not controlled sampling
+
+        Parameters
+        ----------
+        dt: float
+            time discretization step
+        K: int
+            number of sampled trajectories
+        seed: int, optimal
+            seed
+        '''
         from sde_importance_sampling.importance_sampling import Sampling
 
         # initialize not controlled sampling object
-        sample = Sampling.new_from(self)
-        sample.is_controlled = False
+        sample = Sampling(self, is_controlled=False)
 
         # set Euler-Marujama discretiztion step and number of trajectories
         sample.dt = dt
@@ -845,11 +861,23 @@ class LangevinSDE(object):
             return sample
 
     def get_hjb_sampling(self, sol_hjb_dir_path, dt, K, seed=None) -> None:
+        ''' load hjb sampling
+
+        Parameters
+        ----------
+        sol_hjb_dir_path: str
+            directory path of the hjb solver
+        dt: float
+            time discretization step
+        K: int
+            number of sampled trajectories
+        seed: int, optimal
+            seed
+        '''
         from sde_importance_sampling.importance_sampling import Sampling
 
         # initialize not controlled sampling object
-        sample = Sampling.new_from(self)
-        sample.is_controlled = True
+        sample = Sampling(self, is_controlled=True)
 
         # set Euler-Marujama discretiztion step and number of trajectories
         sample.dt = dt
@@ -865,8 +893,29 @@ class LangevinSDE(object):
 
     def get_metadynamics_sampling(self, meta_type, weights_type, omega_0,
                                   sigma_i, dt, delta, K, seed=None):
-        from sde_importance_sampling.importance_sampling import Sampling
+        ''' load metadynamics sampling
+
+        Parameters
+        ----------
+        meta_type: str
+            name of the metadynamics adapted algorithm
+        weights_type: str
+            type of weights
+        omega_0: float
+            initial weigh of the gaussian functions
+        sigma_i: float
+            factor of the scalar covariance matrix
+        dt: float
+            time discretization step
+        delta: float
+            time increment
+        K: int
+            number of sampled trajectories
+        seed: int, optimal
+            seed
+        '''
         from sde_importance_sampling.metadynamics import Metadynamics
+        from sde_importance_sampling.importance_sampling import Sampling
 
         # initialize controlled sampling object
         sample = Sampling(self, is_controlled=True)
@@ -890,51 +939,6 @@ class LangevinSDE(object):
         # load already sampled trajectories
         meta.load()
         return meta
-
-    def get_metadynamics_nn_sampling(self, dt, sigma_i, meta_type, k, K):
-        from mds.langevin_nd_importance_sampling import Sampling
-        from mds.langevin_nd_metadynamics_nn import MetadynamicsNN
-
-        # initialize controlled sampling object
-        sample = Sampling.new_from(self)
-        sample.is_controlled = True
-        sample.dt = dt
-
-        # initialize meta nd object
-        meta = MetadynamicsNN(
-            sample=sample,
-            k=k,
-            K=K,
-            sigma_i=sigma_i,
-        )
-        meta.meta_type = meta_type
-
-        # set path
-        meta.set_dir_path()
-
-        # load already sampled trajectories
-        meta.load()
-        return meta
-
-    def get_flat_bias_sampling(self, dt, k_lim, K):
-        from mds.langevin_nd_importance_sampling import Sampling
-        from mds.langevin_nd_flat_bias_potential import GetFlatBiasPotential
-
-        # initialize sampling object
-        sample = Sampling.new_from(self)
-        sample.dt = dt
-        sample.k_lim = k_lim
-        sample.K = K
-
-        # initialize flatbias object
-        flatbias = GetFlatBiasPotential(sample)
-
-        # set path
-        flatbias.set_dir_path()
-
-        # load already sampled trajectories
-        flatbias.load()
-        return flatbias
 
     def write_setting(self, f):
         ''' writes the setting parameters
