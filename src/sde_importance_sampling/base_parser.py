@@ -157,7 +157,7 @@ def get_base_parser():
         '--meta-type',
         dest='meta_type',
         choices=['independent', 'cumulative'],
-        default='cum',
+        default='cumulative',
         help='type of metadynamics algorithm. Default: cumulative algorithm',
     )
     parser.add_argument(

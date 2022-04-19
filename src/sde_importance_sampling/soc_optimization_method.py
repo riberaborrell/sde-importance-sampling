@@ -1,21 +1,195 @@
-from sde_importance_sampling.utils_path import make_dir_path, get_som_dir_path, get_time_in_hms
-from sde_importance_sampling.utils_numeric import slice_1d_array
-from sde_importance_sampling.utils_figures import COLORS_FIG, TITLES_FIG, LABELS_FIG
+import os
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.optim as optim
 
-import time
-import os
+from sde_importance_sampling.utils_path import make_dir_path, get_som_dir_path, get_time_in_hms
+from sde_importance_sampling.utils_numeric import slice_1d_array
+from sde_importance_sampling.utils_figures import COLORS_FIG, TITLES_FIG, LABELS_FIG
 
-class StochasticOptimizationMethod:
+
+class StochasticOptimizationMethod(object):
     '''
+
+    Attributes
+    ----------
+
+    sample: Sampling object
+        Sampling object to estimate the loss and its gradient
+    loss_type: str
+        type of loss function
+    optimizer: str
+        type of optimization method
+    lr: float
+        (initial) learning rate and maximal number of iterations
+    n_iterations_lim: int
+        maximum number of iterations for the stochastic optimization method
+    n_iterations: int
+        number of iterations for used
+    n_iterations_backup: int
+        number of iterations between saving the control parameters
+    m: int
+        dimension of the parameter space for the control
+
+    # array for each iterations
+    thetas: array
+        parameters of the control
+    last_thetas: array
+        parameters of the control of the last iteration
+    save_thetas_all_it: bool
+        flag is True if the parameters of the control are saved for all iterations
+    losses: array
+        array containing the loss values at each iterations
+    vars_loss: array
+        array containing the variance of the loss at each iteration
+    eff_losses: array
+        array containing the effective loss values at each iteration
+    re_losses: array
+        array containing the relative entropy loss
+    grad_losses: array
+        array containing the gradient of the loss function
+    means_I_u: array
+        array containing the estimation of the importance sampling quantity of interest
+    vars_I_u: array
+        array containing the variance of the importance sampling quantity of interest
+    res_I_u: array
+        array containing the relative error of the importance sampling quantity of interest
+    u_l2_errors: array
+        array containing the L^2-error between the control and the reference solution
+    time_steps: array
+        array containing the time steps used in the sampling
+    cts: array
+        array containing the computational time used at each iteration
+
+    # computational time
+    ct_initial: float
+        initial computational time
+    ct_time: float
+        final computational time
+    ct: float
+
+    # directory paths
+    dir_path: str
+        absolute path of the directory for the soc problem
+    iterations_dir_path: str
+        absolute path of the directory for the iterations of the soc problem
+
+    # hjb solver
+    sol_hjb: HJB Solver object
+        HJB solver object
+
+
+    Methods
+    -------
+    __init__()
+
+    set_dir_path()
+
+    set_iterations_dir_path()
+
+    start_timer()
+
+    stop_timer()
+
+    preallocate_arrays()
+
+    update_arrays(i)
+
+    compute_arrays_running_averages(n_iter_run_avg=None, n_iter_run_window=1)
+
+    cut_array_given_threshold(attr_name='', epsilon=None)
+
+    compute_cts_sum()
+
+    compute_ct_arrays(Nx=1000, n_avg=10, ct_max=None)
+
+    get_iteration_statistics(i)
+
+    sgd_gaussian_ansatz()
+
+    som_nn()
+
+    som_nn_variance_gradient(N_grad)
+
+    save()
+
+    save_var_grad()
+
+    load(dir_path=None, file_name='som.npz')
+
+    load_var_grad()
+
+    write_report()
+
+    write_iteration_report(f)
+
+    load_mc_sampling(dt_mc=0.01, N_mc=10**3, seed=None)
+
+    load_hjb_solution_and_sampling(h_hjb=0.1, dt_hjb=0.01, N_hjb=10**3, seed=None)
+
+    load_plot_labels_colors_and_linestyles()
+
+    plot_loss()
+
+    plot_var_loss()
+
+    plot_mean_I_u()
+
+    plot_var_I_u()
+
+    plot_re_I_u()
+
+    plot_error_bar_I_u()
+
+    plot_time_steps()
+
+    plot_cts()
+
+    plot_u_l2_error()
+
+    plot_u_l2_error_change()
+
+    plot_re_I_u_cts()
+
+    plot_control_i(it=-1, i=0, x_j=0.)
+
+    plot_control_slices_ith_coordinate(it=-1, dir_path=None, file_name='control')
+
+    plot_control_i_det(it=-1, i=0, t=None)
+
+    get_control(i=None, h=0.1)
+
+    plot_1d_iteration(i=None)
+
+    plot_1d_iterations()
+
+    plot_2d_iteration(i=None)
+
     '''
     def __init__(self, sample, loss_type=None, optimizer=None, lr=None, n_iterations_lim=None,
                  n_iterations_backup=None, save_thetas_all_it=True):
-        '''
+        ''' init methods
+
+        Parameters
+        ----------
+
+        sample: Sampling object
+            Sampling object to estimate the loss and its gradient
+        loss_type: str
+            type of loss function
+        optimizer: str
+            type of optimization method
+        lr: float
+            (initial) learning rate and maximal number of iterations
+        n_iterations_lim: int
+            maximum number of iterations for the stochastic optimization method
+        n_iterations_backup: int
+            number of iterations between saving the control parameters
+        save_thetas_all_it: bool
+            flag is True if the parameters of the control are saved for all iterations
         '''
 
         # sampling object to estimate the loss and its gradient
@@ -35,41 +209,15 @@ class StochasticOptimizationMethod:
         else:
             self.n_iterations_backup = n_iterations_lim
 
-        # per iteration
-        self.m = None
-        self.n_iterations = None
-        self.thetas = None
-        self.last_thetas = None
         self.save_thetas_all_it = save_thetas_all_it
-        self.losses = None
-        self.vars_loss = None
-        self.ipa_losses = None
-        self.re_losses = None
-        self.grad_losses = None
-        self.means_I_u = None
-        self.vars_I_u = None
-        self.res_I_u = None
-        self.u_l2_errors = None
-        self.time_steps = None
-        self.cts = None
-
-        # computational time
-        self.ct_initial = None
-        self.ct_final = None
-        self.ct = None
-
-        # set path
-        self.dir_path = None
         self.set_dir_path()
-        self.iterations_dir_path = None
-
-        # hjb solver
-        self.sol_hjb = None
 
     def set_dir_path(self):
-        if self.sample.ansatz is not None:
+        ''' sets the directory absolute path for the soc problem
+        '''
+        if hasattr(self.sample, 'ansatz'):
             func_appr_dir_path = self.sample.ansatz.dir_path
-        elif self.sample.nn_func_appr is not None:
+        elif hasattr(self.sample, 'nn_func_appr'):
             func_appr_dir_path = self.sample.nn_func_appr.dir_path
 
         self.dir_path = get_som_dir_path(
@@ -78,22 +226,31 @@ class StochasticOptimizationMethod:
             self.optimizer,
             self.lr,
             self.sample.dt,
-            self.sample.N,
+            self.sample.K,
             self.sample.seed,
         )
 
     def set_iterations_dir_path(self):
+        '''
+        '''
         self.iterations_dir_path = os.path.join(self.dir_path, 'SGD iterations')
         make_dir_path(self.iterations_dir_path)
 
     def start_timer(self):
+        ''' start timer
+        '''
         self.ct_initial = time.perf_counter()
 
     def stop_timer(self):
+        ''' stop timer
+        '''
         self.ct_final = time.perf_counter()
         self.ct = self.ct_final - self.ct_initial
 
     def preallocate_arrays(self):
+        ''' preallocate arrays containing information of the soc approximation problem at each
+            iteration.
+        '''
 
         # parameters
         if self.save_thetas_all_it:
@@ -116,28 +273,36 @@ class StochasticOptimizationMethod:
         self.time_steps = np.empty(self.n_iterations_lim, dtype=int)
         self.cts = np.empty(self.n_iterations_lim)
 
-        if self.sample.ansatz is not None:
+        # gradient of the loss function
+        if hasattr(self.sample, 'ansatz'):
             self.grad_losses = np.empty((self.n_iterations_lim, self.m))
 
 
     def update_arrays(self, i):
+        ''' update arrays
+
+        Parameters
+        ----------
+        i: int
+            index of the iteration
+        '''
 
         # update number of iterations used
         self.n_iterations = i + 1
 
         # add parameters for each iteration
         if self.save_thetas_all_it:
-            if self.sample.ansatz is not None:
+            if hasattr(self.sample, 'ansatz'):
                 self.thetas[i, :] = self.sample.ansatz.theta
-            elif self.sample.nn_func_appr is not None:
+            elif hasattr(self.sample, 'nn_func_appr'):
                 model = self.sample.nn_func_appr.model
                 self.thetas[i, :] = model.get_parameters()
 
         # add parameters for the last iteration
         if not self.save_thetas_all_it and i == self.n_iterations_lim -1 :
-            if self.sample.ansatz is not None:
+            if hasattr(self.sample, 'ansatz'):
                 self.last_thetas = self.sample.ansatz.theta
-            elif self.sample.nn_func_appr is not None:
+            elif hasattr(self.sample, 'nn_func_appr'):
                 model = self.sample.nn_func_appr.model
                 self.last_thetas = model.get_parameters()
 
@@ -145,7 +310,7 @@ class StochasticOptimizationMethod:
         self.losses[i] = self.sample.loss
         self.vars_loss[i] = self.sample.var_loss
 
-        if self.sample.ansatz is not None:
+        if hasattr(self.sample, 'ansatz'):
             self.grad_losses[i, :] = self.sample.grad_loss
 
         # add I_u statistics
@@ -158,9 +323,9 @@ class StochasticOptimizationMethod:
             self.u_l2_errors[i] = self.sample.u_l2_error
 
         # add time statistics
-        if self.sample.problem_name == 'langevin_stop-t':
+        if self.sample.sde.problem_name == 'langevin_stop-t':
             self.time_steps[i] = int(np.max(self.sample.fht) / self.sample.dt)
-        elif self.sample.problem_name == 'langevin_det-t':
+        elif self.sample.sde.problem_name == 'langevin_det-t':
             self.time_steps[i] = self.sample.k_lim
         self.cts[i] = self.sample.ct
 
@@ -169,12 +334,14 @@ class StochasticOptimizationMethod:
         ''' Computes the running averages of all the sgd iterations arrays if they exist.
             Also cuts the running averaged array.
 
-            Args:
-                n_iter_run_avg (int): number of iterations of the running averaged array
-                n_iter_run_window (int): number of iterations used to averaged. Length of the
-                                         running average window.
-
+        Parameters
+        ----------
+        n_iter_run_avg: int
+            number of iterations of the running averaged array
+        n_iter_run_window: int
+            number of iterations used to averaged. Length of the running average window.
         '''
+
         # number of iterations of the running window
         assert n_iter_run_window <= self.n_iterations, ''
         self.n_iter_run_window = n_iter_run_window
@@ -202,7 +369,7 @@ class StochasticOptimizationMethod:
         for attr_name in attr_names:
 
             # skip l2 error if it is not computed
-            if attr_name == 'u_l2_errors' and self.u_l2_errors is None:
+            if attr_name == 'u_l2_errors' and not hasattr(self, 'u_l2_errors'):
                 continue
 
             # get cutted array
@@ -222,6 +389,14 @@ class StochasticOptimizationMethod:
     def cut_array_given_threshold(self, attr_name='', epsilon=None):
         ''' cut the array given by the attribute name up to the point where their running
             average is smaller than epsilon
+
+        Parameters
+        ----------
+        attr_name: str
+            name of the attribute containing the string that we want to cut.
+        epsilon: float
+            threshold value
+
         '''
         assert attr_name in ['vars_I_u', 'res_I_u', 'losses', 'u_l2_errors'], ''
         assert epsilon is not None, ''
@@ -252,6 +427,13 @@ class StochasticOptimizationMethod:
     def compute_ct_arrays(self, Nx=1000, n_avg=10, ct_max=None):
         ''' Computes ct arrays. The ct array is a linear discretization. The arrays are
             directly computed with running averages.
+
+        Parameters
+        ----------
+        Nx: int
+            number of points of the ct interval where we are going to interpolate
+        n_avg: int
+            number of iteration of the running windows
         '''
 
         # total ct
@@ -307,6 +489,13 @@ class StochasticOptimizationMethod:
 
 
     def get_iteration_statistics(self, i):
+        ''' get relevant information of the soc problem iteration
+
+        Parameters
+        ----------
+        i: int
+            index of the iteration
+        '''
         msg = 'it.: {:d}, loss: {:2.3f}, mean I^u: {:2.3e}, re I^u: {:2.3f}' \
               ', time steps: {:2.1e}'.format(
                   i,
@@ -317,7 +506,9 @@ class StochasticOptimizationMethod:
               )
         return msg
 
-    def sgd_ipa_gaussian_ansatz(self):
+    def sgd_gaussian_ansatz(self):
+        ''' stochastic gradient descent with gaussian ansatz parametrization
+        '''
         self.start_timer()
 
         # number of parameters
@@ -329,7 +520,7 @@ class StochasticOptimizationMethod:
         for i in np.arange(self.n_iterations_lim):
 
             # compute loss and its gradient 
-            succ = self.sample.sample_loss_ipa_ansatz()
+            succ = self.sample.sample_grad_loss_ansatz()
 
             # check if sample succeeded
             if not succ:
@@ -354,6 +545,8 @@ class StochasticOptimizationMethod:
         self.save()
 
     def som_nn(self):
+        ''' stochastic gradient based method with nn parametrization
+        '''
         self.start_timer()
 
         # model and number of parameters
@@ -384,9 +577,9 @@ class StochasticOptimizationMethod:
             optimizer.zero_grad()
 
             # compute ipa loss 
-            if self.loss_type == 'ipa' and self.sample.problem_name == 'langevin_stop-t':
+            if self.loss_type == 'ipa' and self.sample.sde.problem_name == 'langevin_stop-t':
                 succ = self.sample.sample_loss_ipa_nn(device)
-            elif self.loss_type == 'ipa' and self.sample.problem_name == 'langevin_det-t':
+            elif self.loss_type == 'ipa' and self.sample.sde.problem_name == 'langevin_det-t':
                 succ = self.sample.sample_loss_ipa_nn_det(device)
 
             # compute relative error loss
@@ -421,14 +614,22 @@ class StochasticOptimizationMethod:
         self.stop_timer()
         self.save()
 
-    def som_nn_variance_gradient(self, N_grad):
+    def som_nn_variance_gradient(self, K_grad):
+        ''' stochastic gradient based optimization with nn approximation and estimation of the
+            variance of the gradient at each iteration
+
+        Parameters
+        ----------
+        K_grad: int
+            number of batches used to estimate the gradient
+        '''
         assert self.loss_type == 'ipa', ''
         assert self.sample.problem_name == 'langevin_stop-t', ''
 
         self.start_timer()
 
         # save number of times the gradient is sampled
-        self.N_grad = N_grad
+        self.K_grad = K_grad
 
         # model and number of parameters
         model = self.sample.nn_func_appr.model
@@ -450,10 +651,10 @@ class StochasticOptimizationMethod:
             )
 
         # preallocate parameters and losses
-        self.thetas_grad = np.empty((self.n_iterations_lim, self.N_grad, self.m))
+        self.thetas_grad = np.empty((self.n_iterations_lim, self.K_grad, self.m))
 
         for i in np.arange(self.n_iterations_lim):
-            for j in np.arange(self.N_grad):
+            for j in np.arange(self.K_grad):
 
                 # reset gradients
                 optimizer.zero_grad()
@@ -478,6 +679,8 @@ class StochasticOptimizationMethod:
         self.save_var_grad()
 
     def save(self):
+        ''' saves the relevant arrays as a npz files
+        '''
 
         # set file path
         file_path = os.path.join(self.dir_path, 'som.npz')
@@ -491,7 +694,7 @@ class StochasticOptimizationMethod:
 
         # add sampling attributes
         files_dict['seed'] = self.sample.seed
-        files_dict['N'] = self.sample.N
+        files_dict['K'] = self.sample.K
 
         # Euler-Marujama
         files_dict['dt'] = self.sample.dt
@@ -501,24 +704,24 @@ class StochasticOptimizationMethod:
         files_dict['n_iterations'] = self.n_iterations
 
         # parameters
-        if self.thetas is not None:
+        if hasattr(self, 'thetas'):
             files_dict['thetas'] = self.thetas[:self.n_iterations]
-        if self.last_thetas is not None:
+        if hasattr(self, 'last_thetas'):
             files_dict['last_thetas'] = self.last_thetas
 
         # loss and its variance
         files_dict['losses'] = self.losses[:self.n_iterations]
-        if self.vars_loss is not None:
+        if hasattr(self, 'vars_loss'):
             files_dict['vars_loss'] = self.vars_loss[:self.n_iterations]
 
-        if self.ipa_losses is not None:
-            files_dict['ipa_losses'] = self.ipa_losses[:self.n_iterations]
+        if hasattr(self, 'eff_losses'):
+            files_dict['eff_losses'] = self.eff_losses[:self.n_iterations]
 
-        if self.re_losses is not None:
+        if hasattr(self, 're_losses'):
             files_dict['re_losses'] = self.re_losses[:self.n_iterations]
 
         # gradient of the loss
-        if self.grad_losses is not None:
+        if hasattr(self, 'grad_losses'):
             files_dict['grad_losses'] = self.grad_losses[:self.n_iterations, :]
 
         # quantity of interest and time steps
@@ -528,7 +731,7 @@ class StochasticOptimizationMethod:
         files_dict['time_steps'] = self.time_steps[:self.n_iterations]
 
         # u l2 error
-        if self.u_l2_errors is not None:
+        if hasattr(self, 'u_l2_errors'):
             files_dict['u_l2_errors'] = self.u_l2_errors[:self.n_iterations]
 
         # computational time
@@ -539,6 +742,8 @@ class StochasticOptimizationMethod:
         np.savez(file_path, **files_dict)
 
     def save_var_grad(self):
+        ''' saves the relevant arrays as a npz files when estimating the variance of the gradient
+        '''
 
         # set file path
         file_path = os.path.join(self.dir_path, 'som_var_grad.npz')
@@ -552,7 +757,7 @@ class StochasticOptimizationMethod:
 
         # add sampling attributes
         files_dict['seed'] = self.sample.seed
-        files_dict['N'] = self.sample.N
+        files_dict['K'] = self.sample.K
 
         # Euler-Marujama
         files_dict['dt'] = self.sample.dt
@@ -561,7 +766,7 @@ class StochasticOptimizationMethod:
         files_dict['n_iterations'] = self.n_iterations
 
         # gradient samples
-        files_dict['N_grad'] = self.N_grad
+        files_dict['K_grad'] = self.K_grad
 
         files_dict['thetas_grad'] = self.thetas_grad
 
@@ -592,6 +797,8 @@ class StochasticOptimizationMethod:
             return False
 
     def load_var_grad(self):
+        '''
+        '''
         try:
             data = np.load(
                   os.path.join(self.dir_path, 'som_var_grad.npz'),
@@ -607,6 +814,9 @@ class StochasticOptimizationMethod:
 
 
     def write_report(self):
+        ''' opens file and writes report on it. Also prints its content
+        '''
+
         sample = self.sample
 
         # set path
@@ -615,9 +825,9 @@ class StochasticOptimizationMethod:
         # write in file
         f = open(file_path, 'w')
 
-        if self.sample.ansatz is not None:
+        if hasattr(self.sample, 'ansatz'):
             pass
-        elif self.sample.nn_func_appr is not None:
+        elif hasattr(self.sample, 'nn_func_appr'):
             pass
             #sample.nn_func_appr.write_parameters(f)
 
@@ -637,7 +847,7 @@ class StochasticOptimizationMethod:
         f.write('RE[I_u]: {:2.3f}\n'.format(self.res_I_u[-1]))
         f.write('value function: {:2.3f}\n'.format(- np.log(self.means_I_u[-1])))
         f.write('loss function: {:2.3f}\n'.format(self.losses[-1]))
-        if self.u_l2_errors is not None:
+        if hasattr(self, 'u_l2_errors'):
            f.write('u l2 error: {:2.3f}\n'.format(self.u_l2_errors[-1]))
 
         self.compute_arrays_running_averages(n_iter_run_window=10)
@@ -647,7 +857,7 @@ class StochasticOptimizationMethod:
         f.write('RE[I_u]: {:2.3f}\n'.format(self.run_avg_res_I_u[-1]))
         f.write('value function: {:2.3f}\n'.format(- np.log(self.run_avg_means_I_u[-1])))
         f.write('loss function: {:2.3f}\n\n'.format(self.run_avg_losses[-1]))
-        if self.u_l2_errors is not None:
+        if hasattr(self, 'u_l2_errors'):
             f.write('u l2 error: {:2.3f}\n'.format(self.run_avg_u_l2_errors[-1]))
 
         h, m, s = get_time_in_hms(self.ct)
@@ -662,6 +872,13 @@ class StochasticOptimizationMethod:
         f.close()
 
     def write_iteration_report(self, f):
+        ''' writes in the given file the relevant information of the iteration
+
+        Parameters
+        ----------
+        f: pyObject
+            file where we write on
+        '''
         for i in range(self.n_iterations):
             f.write('iteration = {:d}\n'.format(i))
             f.write('theta = {}\n'.format(self.thetas[i]))
@@ -671,16 +888,16 @@ class StochasticOptimizationMethod:
                     ''.format(np.linalg.norm(self.grad_losses[i])))
             f.write('time steps = {}\n'.format(self.time_steps[i]))
 
-    def load_mc_sampling(self, dt_mc=0.01, N_mc=10**3, seed=None):
+    def load_mc_sampling(self, dt_mc=0.01, K_mc=10**3, seed=None):
         '''
         '''
 
         # save parameters
         self.dt_mc = dt_mc
-        self.N_mc = N_mc
+        self.K_mc = K_mc
 
         # load mc sampling
-        sample_mc = self.sample.get_not_controlled_sampling(dt_mc, N_mc, seed)
+        sample_mc = self.sample.sde.get_not_controlled_sampling(dt_mc, K_mc, seed)
 
         # length of the arrrays
         n_iter = self.n_iter_run_avg# - self.n_iter_run_window
@@ -700,7 +917,7 @@ class StochasticOptimizationMethod:
             self.time_steps_mc = np.full(n_iter, np.nan)
             self.ct_mc = np.full(n_iter, np.nan)
 
-    def load_hjb_solution_and_sampling(self, h_hjb=0.1, dt_hjb=0.01, N_hjb=10**3, seed=None):
+    def load_hjb_solution_and_sampling(self, h_hjb=0.1, dt_hjb=0.01, K_hjb=10**3, seed=None):
         '''
         '''
         from sde_importance_sampling.importance_sampling import Sampling
@@ -708,13 +925,13 @@ class StochasticOptimizationMethod:
         # save parameters
         self.h_hjb = h_hjb
         self.dt_hjb = dt_hjb
-        self.N_hjb = N_hjb
+        self.K_hjb = K_hjb
 
         # load hjb solver
-        if self.sample.problem_name == 'langevin_stop-t':
-            self.sol_hjb = self.sample.get_hjb_solver(h_hjb)
-        elif self.sample.problem_name == 'langevin_det-t':
-            self.sol_hjb = self.sample.get_hjb_solver_det(h_hjb, dt_hjb)
+        if self.sample.sde.problem_name == 'langevin_stop-t':
+            self.sol_hjb = self.sample.sde.get_hjb_solver(h_hjb)
+        elif self.sample.sde.problem_name == 'langevin_det-t':
+            self.sol_hjb = self.sample.sde.get_hjb_solver_det(h_hjb, dt_hjb)
 
         # break if there is no hjb solution
         if self.sol_hjb is None:
@@ -723,20 +940,20 @@ class StochasticOptimizationMethod:
         # length of the arrrays
         n_iter = self.n_iter_run_avg
 
-        if self.sample.problem_name == 'langevin_stop-t':
+        if self.sample.sde.problem_name == 'langevin_stop-t':
             hjb_psi_at_x = self.sol_hjb.get_psi_at_x(self.sample.xzero)
             hjb_value_f_at_x = self.sol_hjb.get_value_function_at_x(self.sample.xzero)
             self.psi_hjb = np.full(n_iter, hjb_psi_at_x)
             self.value_f_hjb = np.full(n_iter, hjb_value_f_at_x)
 
-        elif self.sample.problem_name == 'langevin_det-t':
+        elif self.sample.sde.problem_name == 'langevin_det-t':
             hjb_psi_at_x = self.sol_hjb.get_psi_t_x(0., self.sample.xzero)
             hjb_value_f_at_x = self.sol_hjb.get_value_funtion_t_x(0., self.sample.xzero)
             self.psi_hjb = np.full(n_iter, hjb_psi_at_x)
             self.value_f_hjb = np.full(n_iter, hjb_value_f_at_x)
 
         # load hjb sampling
-        sample_hjb = self.sample.get_hjb_sampling(self.sol_hjb.dir_path, dt_hjb, N_hjb, seed)
+        sample_hjb = self.sample.sde.get_hjb_sampling(self.sol_hjb.dir_path, dt_hjb, K_hjb, seed)
 
         # break if there is no hjb sampling
         if sample_hjb is None:
@@ -790,7 +1007,7 @@ class StochasticOptimizationMethod:
         x = np.arange(self.n_iter_run_avg)
 
         # loss, mc sampling, hjb sampling and hjb solution
-        if self.sol_hjb is None:
+        if not hasattr(self, 'sol_hjb'):
             y = np.vstack((
                 self.run_avg_losses,
                 self.value_f_mc,
@@ -852,7 +1069,7 @@ class StochasticOptimizationMethod:
         x = np.arange(self.n_iter_run_avg)
 
         # mean I^u, mc sampling, hjb sampling and hjb solution
-        if self.sol_hjb is None:
+        if not hasattr(self, 'sol_hjb'):
             y = np.vstack((
                 self.run_avg_means_I_u,
                 self.mean_I_mc,
@@ -889,7 +1106,7 @@ class StochasticOptimizationMethod:
         x = np.arange(self.n_iter_run_avg)
 
         # re I^u, mc sampling, hjb sampling and hjb solution
-        if self.sol_hjb is None:
+        if not hasattr(self, 'sol_hjb'):
             y = np.vstack((
                 self.run_avg_vars_I_u,
                 self.var_I_mc,
@@ -929,7 +1146,7 @@ class StochasticOptimizationMethod:
         x = np.arange(self.n_iter_run_avg)
 
         # without reference solution
-        if self.sol_hjb is None:
+        if not hasattr(self, 'sol_hjb'):
             y = np.vstack((
                 self.run_avg_res_I_u,
                 self.re_I_mc,
@@ -993,7 +1210,7 @@ class StochasticOptimizationMethod:
         x = np.arange(self.n_iter_run_avg)
 
         # loss, mc sampling, hjb sampling and hjb solution
-        if self.sol_hjb is None:
+        if not hasattr(self, 'sol_hjb'):
             y = np.vstack((
                 self.run_avg_time_steps,
                 self.time_steps_mc,
@@ -1030,7 +1247,7 @@ class StochasticOptimizationMethod:
         x = np.arange(self.n_iter_run_avg)
 
         # computational time, mc sampling, hjb sampling and hjb solution
-        if self.sol_hjb is None:
+        if not hasattr(self, 'sol_hjb'):
             y = np.vstack((
                 self.run_avg_cts,
                 self.ct_mc,
@@ -1052,7 +1269,7 @@ class StochasticOptimizationMethod:
         fig.set_xlabel(LABELS_FIG['grad-steps'])
         fig.set_plot_scale('semilogy')
 
-        if self.sol_hjb is None:
+        if not hasattr(self, 'sol_hjb'):
             fig.plot(x, y, self.labels, self.colors, self.linestyles)
         else:
             fig.plot(x, y, self.labels[:3], self.colors[:3], self.linestyles[:3])
@@ -1115,7 +1332,7 @@ class StochasticOptimizationMethod:
         x = self.ct_ct
 
         # without reference solution
-        if self.sol_hjb is None:
+        if not hasattr(self, 'sol_hjb'):
             y = np.vstack((
                 self.run_avg_ct_res_I_u,
                 self.re_I_mc,
@@ -1275,6 +1492,8 @@ class StochasticOptimizationMethod:
 
 
     def get_control(self, i=None, h=0.1):
+        '''
+        '''
 
         # last iteration if i is not given
         if i is None:
@@ -1282,9 +1501,9 @@ class StochasticOptimizationMethod:
         assert i < self.n_iterations, ''
 
         # set theta
-        if self.sample.ansatz is not None:
+        if hasattr(self.sample, 'ansatz'):
             self.sample.ansatz.theta = self.thetas[i]
-        elif self.sample.nn_func_appr is not None:
+        elif hasattr(self.sample, 'nn_func_appr'):
             self.sample.nn_func_appr.model.load_parameters(self.thetas[i])
 
         # discretize domain and evaluate control in grid
@@ -1310,28 +1529,28 @@ class StochasticOptimizationMethod:
         ext = '_iter{}'.format(i)
 
         # set theta
-        if self.sample.ansatz is not None:
+        if hasattr(self.sample, 'ansatz'):
             self.sample.ansatz.theta = self.thetas[i]
-        elif self.sample.nn_func_appr is not None:
+        elif hasattr(self.sample, 'nn_func_appr'):
             self.sample.nn_func_appr.model.load_parameters(self.thetas[i])
 
         # discretize domain and evaluate in grid
-        self.sample.discretize_domain(h=0.001)
+        self.sample.sde.discretize_domain(h=0.001)
         self.sample.get_grid_value_function()
         self.sample.get_grid_control()
 
         # get hjb solution
-        sol_hjb = self.sample.get_hjb_solver(h=0.001)
-        sol_hjb.get_controlled_potential_and_drift()
+        sol_hjb = self.sample.sde.get_hjb_solver(h=0.001)
+        sol_hjb.get_perturbed_potential_and_drift()
 
         # colors and labels
         labels = [r'SOC (iteration: {})'.format(i), 'HJB solution']
         colors = ['tab:blue', 'tab:cyan']
 
         # domain
-        x = self.sample.domain_h[:, 0]
+        x = self.sample.sde.domain_h[:, 0]
 
-        if self.sample.grid_value_function is not None:
+        if hasattr(self.sample, 'grid_value_function'):
 
             # plot value function
             fig = plt.figure(
@@ -1341,7 +1560,7 @@ class StochasticOptimizationMethod:
             )
             y = np.vstack((
                 self.sample.grid_value_function,
-                sol_hjb.value_f,
+                sol_hjb.value_function,
             ))
             fig.set_xlabel = 'x'
             fig.set_xlim(-2, 2)
@@ -1351,11 +1570,11 @@ class StochasticOptimizationMethod:
             fig = plt.figure(
                 FigureClass=MyFigure,
                 dir_path=self.iterations_dir_path,
-                file_name='controlled-potential' + ext,
+                file_name='perturbed-potential' + ext,
             )
             y = np.vstack((
-                self.sample.grid_controlled_potential,
-                sol_hjb.controlled_potential,
+                self.sample.grid_perturbed_potential,
+                sol_hjb.perturbed_potential,
             ))
             fig.set_xlabel = 'x'
             fig.set_xlim(-2, 2)
@@ -1377,11 +1596,13 @@ class StochasticOptimizationMethod:
 
 
     def plot_1d_iterations(self):
+        '''
+        '''
         from figures.myfigure import MyFigure
 
         # discretize domain and evaluate in grid
-        self.sample.discretize_domain(h=0.001)
-        x = self.sample.domain_h[:, 0]
+        self.sample.sde.discretize_domain(h=0.001)
+        x = self.sample.sde.domain_h[:, 0]
 
         # filter iterations to show
         iterations = np.arange(self.n_iterations)
@@ -1389,7 +1610,7 @@ class StochasticOptimizationMethod:
         n_sliced_iterations = sliced_iterations.shape[0]
 
         # preallocate arrays
-        controlled_potentials = np.zeros((n_sliced_iterations + 1, x.shape[0]))
+        perturbed_potentials = np.zeros((n_sliced_iterations + 1, x.shape[0]))
         value_fs = np.zeros((n_sliced_iterations + 1, x.shape[0]))
         controls = np.zeros((n_sliced_iterations + 1, x.shape[0]))
 
@@ -1412,13 +1633,13 @@ class StochasticOptimizationMethod:
 
             # update functions
             if self.sample.grid_value_function is not None:
-                controlled_potentials[idx, :] = self.sample.grid_controlled_potential
+                perturbed_potentials[idx, :] = self.sample.grid_perturbed_potential
                 value_fs[idx, :] = self.sample.grid_value_function
             controls[idx, :] = self.sample.grid_control[:, 0]
 
         # get hjb solution
-        sol_hjb = self.sample.get_hjb_solver(h=0.001)
-        sol_hjb.get_controlled_potential_and_drift()
+        sol_hjb = self.sample.sde.get_hjb_solver(h=0.001)
+        sol_hjb.get_perturbed_potential_and_drift()
         labels.append('HJB solution')
         colors.append('tab:cyan')
 
@@ -1430,7 +1651,7 @@ class StochasticOptimizationMethod:
                 dir_path=self.dir_path,
                 file_name='value-function',
             )
-            value_fs[-1, :] = sol_hjb.value_f
+            value_fs[-1, :] = sol_hjb.value_function
             fig.set_xlabel = 'x'
             fig.set_xlim(-2, 2)
             fig.plot(x, value_fs, labels=labels, colors=colors)
@@ -1439,12 +1660,12 @@ class StochasticOptimizationMethod:
             fig = plt.figure(
                 FigureClass=MyFigure,
                 dir_path=self.dir_path,
-                file_name='controlled-potential',
+                file_name='perturbed-potential',
             )
-            controlled_potentials[-1, :] = sol_hjb.controlled_potential
+            perturbed_potentials[-1, :] = sol_hjb.perturbed_potential
             fig.set_xlabel = 'x'
             fig.set_xlim(-2, 2)
-            fig.plot(x, controlled_potentials, labels=labels, colors=colors)
+            fig.plot(x, perturbed_potentials, labels=labels, colors=colors)
 
 
         # plot control

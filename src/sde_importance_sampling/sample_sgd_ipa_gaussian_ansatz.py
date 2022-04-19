@@ -1,12 +1,13 @@
-from sde_importance_sampling.base_parser import get_base_parser
-from sde_importance_sampling.langevin_sde import LangevinSDE
-from sde_importance_sampling.gaussian_ansatz_functions import GaussianAnsatz
-from sde_importance_sampling.soc_optimization_method import StochasticOptimizationMethod
-from sde_importance_sampling.importance_sampling import Sampling
+import os
 
 import numpy as np
 
-import os
+from sde_importance_sampling.base_parser import get_base_parser
+from sde_importance_sampling.gaussian_ansatz_functions import GaussianAnsatz
+from sde_importance_sampling.langevin_sde import LangevinSDE
+from sde_importance_sampling.importance_sampling import Sampling
+from sde_importance_sampling.soc_optimization_method import StochasticOptimizationMethod
+
 
 def get_parser():
     parser = get_base_parser()
@@ -20,43 +21,42 @@ def main():
 
     # set alpha array
     if args.potential_name == 'nd_2well':
-        alpha = np.full(args.n, args.alpha_i)
+        alpha = np.full(args.d, args.alpha_i)
     elif args.potential_name == 'nd_2well_asym':
-        alpha = np.empty(args.n)
+        alpha = np.empty(args.d)
         alpha[0] = args.alpha_i
         alpha[1:] = args.alpha_j
 
     # set target set array
     if args.potential_name == 'nd_2well':
-        target_set = np.full((args.n, 2), [1, 3])
+        target_set = np.full((args.d, 2), [1, 3])
     elif args.potential_name == 'nd_2well_asym':
-        target_set = np.empty((args.n, 2))
+        target_set = np.empty((args.d, 2))
         target_set[0] = [1, 3]
         target_set[1:] = [-3, 3]
 
-    # initialize sampling object
-    sample = Sampling(
-        problem_name=args.problem_name,
+    # initialize sde object
+    sde = LangevinSDE(
+        problem_name='langevin_stop-t',
         potential_name=args.potential_name,
-        n=args.n,
+        d=args.d,
         alpha=alpha,
         beta=args.beta,
         target_set=target_set,
-        is_controlled=True,
     )
 
-    # initialize sde object
-    sde = LangevinSDE.new_from(sample)
+    # initialize sampling object
+    sample = Sampling(sde, is_controlled=True)
 
     # initialize Gaussian ansatz
-    sample.ansatz = GaussianAnsatz(n=args.n, beta=args.n)
+    sample.ansatz = GaussianAnsatz(sde, normalized=True)
 
     # distribute Gaussian ansatz
     if args.distributed == 'uniform':
-        sample.ansatz.set_unif_dist_ansatz_functions(sde, args.m_i, args.sigma_i)
+        sample.ansatz.set_unif_dist_ansatz_functions(args.m_i, args.sigma_i)
     elif args.distributed == 'meta':
-        #sample.ansatz.set_meta_dist_ansatz_functions(sde, args.dt_meta, args.sigma_i_meta,
-        #                                             args.k, args.N_meta)
+        #sample.ansatz.set_meta_dist_ansatz_functions(args.dt_meta, args.sigma_i_meta,
+        #                                             args.delta, args.K_meta)
         pass
 
     # set initial coefficients
@@ -68,7 +68,7 @@ def main():
         sde.h = args.h
         meta = sde.get_metadynamics_sampling(args.meta_type, args.weights_type,
                                              args.omega_0_meta, args.sigma_i, args.dt_meta,
-                                             args.k_meta, args.N_meta, args.seed)
+                                             args.delta_meta, args.K_meta, args.seed)
 
         sample.ansatz.set_theta_metadynamics(meta, args.h)
     elif args.theta == 'hjb':
@@ -77,13 +77,13 @@ def main():
         return
 
     # set dir path for gaussian ansatz
-    sample.ansatz.set_dir_path(sde)
+    sample.ansatz.set_dir_path()
 
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(
         seed=args.seed,
-        xzero=np.full(args.n, args.xzero_i),
-        N=args.N,
+        xzero=np.full(args.d, args.xzero_i),
+        K=args.K,
         dt=args.dt,
         k_lim=args.k_lim,
     )
@@ -105,7 +105,7 @@ def main():
     # start gd with ipa estimator for the gradient
     if not args.load:
         try:
-            sgd.sgd_ipa_gaussian_ansatz()
+            sgd.sgd_gaussian_ansatz()
 
         # save if job is manually interrupted
         except KeyboardInterrupt:
@@ -124,16 +124,17 @@ def main():
     # do plots 
     if args.do_plots:
 
-        if args.n == 1:
+        if args.d == 1:
             sgd.plot_1d_iteration()
             sgd.plot_1d_iterations()
 
-        elif args.n == 2:
+        elif args.d == 2:
             sgd.plot_2d_iteration()
 
         # load mc sampling and hjb solution and prepare labels
-        sgd.load_mc_sampling(dt_mc=0.01, N_mc=10**3)
-        sgd.load_hjb_solution_and_sampling(h_hjb=0.001, dt_hjb=0.01, N_hjb=10**3)
+        sgd.n_iter_run_avg = 10
+        sgd.load_mc_sampling(dt_mc=0.01, K_mc=10**3, seed=args.seed)
+        sgd.load_hjb_solution_and_sampling(h_hjb=0.001, dt_hjb=0.01, K_hjb=10**3, seed=args.seed)
         sgd.load_plot_labels_colors_and_linestyles()
 
         # loss
@@ -154,11 +155,12 @@ def main():
 
 
     if args.do_importance_sampling:
+
         # set sampling and Euler-Marujama parameters
         sample.set_sampling_parameters(
             seed=args.seed,
-            xzero=np.full(args.n, args.xzero_i),
-            N=args.N,
+            xzero=np.full(args.d, args.xzero_i),
+            K=args.K,
             dt=args.dt,
             k_lim=args.k_lim,
         )
@@ -167,7 +169,7 @@ def main():
         dir_path = os.path.join(
             sgd.dir_path,
             'is',
-            'N_{:.0e}'.format(sample.N),
+            'K_{:.0e}'.format(sample.K),
         )
         sample.set_dir_path(dir_path)
 

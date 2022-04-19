@@ -144,8 +144,10 @@ class Sampling(object):
     ct: float
         computational time
 
-    # dir_path
-    dir_path = None
+    # directory path
+    dir_path: str
+        absolute path of the directory for the importance sampling
+
 
     Methods
     -------
@@ -209,7 +211,7 @@ class Sampling(object):
 
     sample_meta()
 
-    sample_loss_ipa_ansatz()
+    sample_gradloss_ansatz()
 
     sample_loss_ipa_nn(device)
 
@@ -489,13 +491,13 @@ class Sampling(object):
 
         self.u_l2_error_t = np.zeros(self.K)
 
-    def update_integrals(self, ut, dB):
+    def update_integrals(self, ut, dbt):
         '''
         '''
         # stochastic integral
         self.stoch_int_t += np.matmul(
             ut[:, np.newaxis, :],
-            dB[:, :, np.newaxis],
+            dbt[:, :, np.newaxis],
         ).squeeze()
 
         # deterministic integral
@@ -605,6 +607,8 @@ class Sampling(object):
         self.stop_timer()
 
     def sample_not_controlled(self):
+        ''' samples quantity of interest following the not controlled o.l. equation
+        '''
         self.start_timer()
         self.preallocate_fht()
 
@@ -645,6 +649,9 @@ class Sampling(object):
         self.stop_timer()
 
     def sample_controlled(self):
+        ''' samples importance sampling (reweighted) quantity of interest following
+            the controlled o.l. equation
+        '''
         self.start_timer()
         self.preallocate_fht()
         self.preallocate_integrals()
@@ -756,6 +763,10 @@ class Sampling(object):
         self.stop_timer()
 
     def sample_optimal_controlled(self, h):
+        ''' samples importance sampling (reweighted) quantity of interest following
+            the controlled o.l. equation with the optimal control. The optimal control
+            is provided by the solution of the hjb solver.
+        '''
         self.start_timer()
         self.preallocate_fht()
         self.preallocate_integrals()
@@ -817,6 +828,8 @@ class Sampling(object):
 
 
     def sample_meta(self):
+        ''' samples metadynamic trajectories between updates
+        '''
         self.preallocate_fht()
 
         # preallocate trajectory
@@ -847,10 +860,10 @@ class Sampling(object):
                 gradient = self.perturbed_gradient(x[k - 1], ut)
 
             # get Brownian increment
-            dB = self.brownian_increment()
+            dbt = self.brownian_increment()
 
             # sde update
-            x[k] = self.sde_update(x[k - 1], gradient, dB)
+            x[k] = self.sde_update(x[k - 1], gradient, dbt)
 
             # update been in target set
             _ = self.get_idx_new_in_target_set(x[k])
@@ -861,7 +874,10 @@ class Sampling(object):
 
         return False, x
 
-    def sample_loss_ipa_ansatz(self):
+    def sample_grad_loss_ansatz(self):
+        ''' samples the gradient of the cost functional with Gaussian ansatz representation
+        '''
+
         self.start_timer()
         self.preallocate_fht()
         self.preallocate_integrals()
@@ -879,9 +895,9 @@ class Sampling(object):
         # number of ansatz functions
         m = self.ansatz.m
 
-        # preallocate loss and its gradient for the trajectories
-        loss_traj = np.empty(self.K)
-        grad_loss_traj = np.empty((self.K, m))
+        # preallocate cost functional and its gradient for each trajectory
+        loss = np.empty(self.K)
+        grad_loss = np.empty((self.K, m))
 
         # initialize running gradient of phi and running gradient of S
         grad_phi_t = np.zeros((self.K, m))
@@ -905,17 +921,17 @@ class Sampling(object):
 
             # the gradient of the control wrt the parameters are the basis
             # of the gaussian ansatz gradient
-            grad_ut = - (np.sqrt(2) / self.beta) * self.ansatz.mvn_pdf_gradient_basis(xt)
+            grad_ut = self.ansatz.mvn_pdf_gradient_basis(xt)
 
             # get Brownian increment
-            dB = self.brownian_increment()
+            dbt = self.brownian_increment()
 
             # update running gradient of phi and running gradient of S
-            grad_phi_t += self. beta * np.sum(ut[:, np.newaxis, :] * grad_ut, axis=2) * self.dt
-            grad_S_t -= np.sqrt(self.beta) * np.sum(dB[:, np.newaxis, :] * grad_ut, axis=2)
+            grad_phi_t += np.sum(ut[:, np.newaxis, :] * grad_ut, axis=2) * self.dt
+            grad_S_t -= np.sum(dbt[:, np.newaxis, :] * grad_ut, axis=2)
 
             # stochastic and deterministic integrals 
-            self.update_integrals(ut, dB)
+            self.update_integrals(ut, dbt)
 
             # update l2 running error
             if self.do_u_l2_error:
@@ -933,10 +949,10 @@ class Sampling(object):
                 self.det_int_fht[idx] = self.det_int_t[idx]
 
                 # save loss and grad loss for the arrived trajectories
-                loss_traj[idx] = self.fht[idx] + 0.5 * self.beta * self.det_int_fht[idx]
-                grad_loss_traj[idx, :] = grad_phi_t[idx, :] \
-                                       - loss_traj[idx][:, np.newaxis] \
-                                       * grad_S_t[idx, :]
+                loss[idx] = self.fht[idx] + 0.5 * self.det_int_fht[idx]
+                grad_loss[idx, :] = grad_phi_t[idx, :] \
+                                  - loss[idx][:, np.newaxis] \
+                                  * grad_S_t[idx, :]
 
                 # u l2 error
                 if self.do_u_l2_error:
@@ -950,12 +966,12 @@ class Sampling(object):
             gradient = self.perturbed_gradient(xt, ut)
 
             # sde update
-            xt = self.sde_update(xt, gradient, dB)
+            xt = self.sde_update(xt, gradient, dbt)
 
         # compute averages
-        self.loss = np.mean(loss_traj)
-        self.var_loss = np.var(loss_traj)
-        self.grad_loss = np.mean(grad_loss_traj, axis=0)
+        self.loss = np.mean(loss)
+        self.var_loss = np.var(loss)
+        self.grad_loss = np.mean(grad_loss, axis=0)
 
         # compute statistics
         self.compute_I_u_statistics()
@@ -1018,11 +1034,11 @@ class Sampling(object):
 
             # update running phi
             ut_norm_tensor = torch.linalg.norm(ut_tensor, axis=1)
-            phi_t = phi_t + ((1 + 0.5 * self.beta * (ut_norm_tensor ** 2)) * self.dt).reshape(self.K,)
+            phi_t = phi_t + ((1 + 0.5 * self.sde.beta * (ut_norm_tensor ** 2)) * self.dt).reshape(self.K,)
 
             # update running discretized action
             S_t = S_t \
-                - np.sqrt(self.beta) * torch.matmul(
+                - np.sqrt(self.sde.beta) * torch.matmul(
                     torch.unsqueeze(ut_tensor, 1),
                     torch.unsqueeze(dB_tensor, 2),
                 ).reshape(self.K,)
@@ -1060,7 +1076,7 @@ class Sampling(object):
                break
 
             # compute gradient
-            controlled_gradient = self.gradient(xt) - np.sqrt(2) * ut
+            controlled_gradient = self.sde.gradient(xt) - np.sqrt(2) * ut
 
             # sde update
             xt = self.sde_update(xt, controlled_gradient, dB)
@@ -1130,11 +1146,11 @@ class Sampling(object):
 
             # update running phi
             ut_norm_tensor = torch.linalg.norm(ut_tensor, axis=1)
-            phi_t = phi_t + (0.5 * self.beta * (ut_norm_tensor ** 2) * self.dt).reshape(self.K,)
+            phi_t = phi_t + (0.5 * self.sde.beta * (ut_norm_tensor ** 2) * self.dt).reshape(self.K,)
 
             # update running discretized action
             S_t = S_t \
-                - np.sqrt(self.beta) * torch.matmul(
+                - np.sqrt(self.sde.beta) * torch.matmul(
                 torch.unsqueeze(ut_tensor, 1),
                 torch.unsqueeze(dB_tensor, 2),
             ).reshape(self.K,)
@@ -1144,10 +1160,10 @@ class Sampling(object):
                 self.update_running_l2_error_det(k, xt, ut)
 
             # sde update
-            #controlled_gradient = self.gradient(xt) - np.sqrt(2) * ut
+            #controlled_gradient = self.sde.gradient(xt) - np.sqrt(2) * ut
             #xt = self.sde_update(xt, controlled_gradient, dB_tensor)
             #xt_tensor = torch.tensor(xt, dtype=torch.float32)
-            controlled_gradient = self.gradient(xt_tensor, tensor=True) - np.sqrt(2) * ut_tensor
+            controlled_gradient = self.sde.gradient(xt_tensor, tensor=True) - np.sqrt(2) * ut_tensor
             xt_tensor = self.sde_update(xt_tensor, controlled_gradient, dB_tensor, tensor=True)
             xt = xt_tensor.detach().numpy()
 
@@ -1229,7 +1245,7 @@ class Sampling(object):
             ut = ut_tensor_det.numpy()
 
             # sde update
-            controlled_gradient = self.gradient(xt) - np.sqrt(2) * ut
+            controlled_gradient = self.sde.gradient(xt) - np.sqrt(2) * ut
             xt = self.sde_update(xt, controlled_gradient, dB)
 
             # update statistics
@@ -1243,7 +1259,7 @@ class Sampling(object):
             b_tensor = b_tensor + ((1 + 0.5 * (ut_norm_det ** 2)) * self.dt).reshape(self.K,)
 
             c_tensor = c_tensor \
-                     - np.sqrt(self.beta) * torch.matmul(
+                     - np.sqrt(self.sde.beta) * torch.matmul(
                          torch.unsqueeze(ut_tensor, 1),
                          torch.unsqueeze(dB_tensor, 2),
                      ).reshape(self.K,)
@@ -1324,7 +1340,7 @@ class Sampling(object):
 
 
             # sde update
-            gradient_tensor = self.gradient(xt_tensor, tensor=True)
+            gradient_tensor = self.sde.gradient(xt_tensor, tensor=True)
             controlled_gradient = gradient_tensor - np.sqrt(2) * ut_tensor
             xt_tensor = self.sde_update(xt_tensor, controlled_gradient, dB_tensor, tensor=True)
             xt = xt_tensor.detach().numpy()
