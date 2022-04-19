@@ -1,7 +1,7 @@
 from datetime import datetime
+import os
 from pathlib import Path
 import shutil
-import os
 
 import numpy as np
 
@@ -169,7 +169,7 @@ def get_flat_bias_dir_path(settings_dir_path, dt, k_lim, N):
     return dir_path
 
 def get_gaussian_ansatz_dir_path(settings_dir_path, distributed, theta, m_i=None,
-                                 sigma_i=None, sigma_i_meta=None, k=None, N_meta=None,
+                                 sigma_i=None, sigma_i_meta=None, delta_meta=None, K_meta=None,
                                  seed_meta=None, h=None):
     ''' Get gaussian ansatz dir path and create its directories
     '''
@@ -198,8 +198,8 @@ def get_gaussian_ansatz_dir_path(settings_dir_path, distributed, theta, m_i=None
             dir_path,
             distributed,
             'sigma-i_meta_{}'.format(float(sigma_i_meta)),
-            'k_{}'.format(k),
-            'N_meta_{}'.format(N_meta),
+            'delta_{}'.format(delta),
+            'K_meta_{}'.format(K_meta),
         )
     if theta == 'null':
         dir_path = os.path.join(dir_path, 'theta_' + theta)
@@ -208,8 +208,8 @@ def get_gaussian_ansatz_dir_path(settings_dir_path, distributed, theta, m_i=None
             dir_path,
             'theta_' + theta,
             'sigma-i_meta_{}'.format(float(sigma_i_meta)),
-            'k_{}'.format(k),
-            'N_meta_{}'.format(N_meta),
+            'delta_{}'.format(delta),
+            'K_meta_{}'.format(K_meta),
             seed_str,
         )
     elif distributed == 'meta' and theta == 'meta':
@@ -228,7 +228,7 @@ def get_gaussian_ansatz_dir_path(settings_dir_path, distributed, theta, m_i=None
 
 
 
-def get_som_dir_path(func_appr_dir_path, loss_type, optimizer, lr, dt, N, seed):
+def get_som_dir_path(func_appr_dir_path, loss_type, optimizer, lr, dt, K, seed):
     ''' Get stochastic optimization method absolute dir path and create its directories
     '''
 
@@ -245,7 +245,7 @@ def get_som_dir_path(func_appr_dir_path, loss_type, optimizer, lr, dt, N, seed):
         optimizer,
         'lr_{}'.format(float(lr)),
         'dt_{}'.format(dt),
-        'N_{}'.format(N),
+        'K_{}'.format(K),
         seed_str,
     )
     return dir_path
@@ -266,9 +266,9 @@ def get_datetime_stamp():
     time_stamp = datetime.today().strftime('%Y%m%d_%H%M%S')
     return time_stamp
 
-def get_trajectories_stamp(N):
-    assert type(N) == int, 'Error:'
-    trajectories_stamp = 'N{:.0e}'.format(N)
+def get_trajectories_stamp(K):
+    assert type(K) == int, 'Error:'
+    trajectories_stamp = 'K{:.0e}'.format(K)
     return sde_stamp
 
 def get_time_in_hms(dt):

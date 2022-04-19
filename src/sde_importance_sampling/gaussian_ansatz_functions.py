@@ -121,6 +121,13 @@ class GaussianAnsatz(object):
         # normalize flag
         self.normalized = normalized
 
+        # metadynamics attributes
+        self.sigma_i_meta = None
+        self.delta_meta = None
+        self.K_meta = None
+        self.seed_meta = None
+
+
     def set_dir_path(self):
         ''' set directory path for the chosen gaussian ansatz representation
         '''
@@ -132,7 +139,7 @@ class GaussianAnsatz(object):
             self.m_i,
             self.sigma_i,
             self.sigma_i_meta,
-            self.k,
+            self.delta_meta,
             self.K_meta,
             self.seed_meta,
         )
