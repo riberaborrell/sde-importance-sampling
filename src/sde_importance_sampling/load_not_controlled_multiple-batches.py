@@ -1,9 +1,12 @@
-from sde_importance_sampling.base_parser import get_base_parser
-from sde_importance_sampling.importance_sampling import Sampling
-
-import numpy as np
 import os
 import re
+
+import numpy as np
+
+from sde_importance_sampling.base_parser import get_base_parser
+from sde_importance_sampling.langevin_sde import LangevinSDE
+from sde_importance_sampling.importance_sampling import Sampling
+
 
 def get_parser():
     parser = get_base_parser()
@@ -14,46 +17,50 @@ def main():
     args = get_parser().parse_args()
 
     # check number of batch trajectories
-    assert args.N % args.N_batch == 0, ''
+    assert args.K % args.K_batch == 0, ''
 
     # number of batch samples
-    n_batch_samples = args.N // args.N_batch
+    n_batch_samples = args.K // args.K_batch
 
     # set alpha array
     if args.potential_name == 'nd_2well':
-        alpha = np.full(args.n, args.alpha_i)
+        alpha = np.full(args.d, args.alpha_i)
     elif args.potential_name == 'nd_2well_asym':
-        alpha = np.empty(args.n)
+        alpha = np.empty(args.d)
         alpha[0] = args.alpha_i
         alpha[1:] = args.alpha_j
 
     # set target set array
     if args.potential_name == 'nd_2well':
-        target_set = np.full((args.n, 2), [1, 3])
+        target_set = np.full((args.d, 2), [1, 3])
     elif args.potential_name == 'nd_2well_asym':
-        target_set = np.empty((args.n, 2))
+        target_set = np.empty((args.d, 2))
         target_set[0] = [1, 3]
         target_set[1:] = [-3, 3]
 
-    # initialize sampling and batch sampling object
-    sample = Sampling(
-        problem_name=args.problem_name,
+    # initialize sde object
+    sde = LangevinSDE(
+        problem_name='langevin_stop-t',
         potential_name=args.potential_name,
-        n=args.n,
+        d=args.d,
         alpha=alpha,
         beta=args.beta,
         target_set=target_set,
-        is_controlled=False,
     )
-    batch_sample = Sampling.new_from(sample)
+
+    # initialize sampling object
+    sample = Sampling(sde, is_controlled=False)
+
+    # initialize batch sampling object
+    batch_sample = Sampling(sde, is_controlled=False)
 
     # set sampling and Euler-Marujama parameters
     assert args.seed is None, ''
     sample.set_sampling_parameters(
         dt=args.dt,
         k_lim=args.k_lim,
-        xzero=np.full(args.n, args.xzero_i),
-        N=args.N,
+        xzero=np.full(args.d, args.xzero_i),
+        K=args.K,
         seed=args.seed,
     )
 
@@ -74,7 +81,7 @@ def main():
 
         # set same dir path
         batch_sample.dt = args.dt
-        batch_sample.N = args.N_batch
+        batch_sample.K = args.K_batch
         batch_sample.seed = i + 1
 
         # load files
@@ -82,7 +89,7 @@ def main():
         batch_sample.load()
 
         # add fht
-        idx_i_batch = slice(batch_sample.N * i, batch_sample.N * (i + 1))
+        idx_i_batch = slice(batch_sample.K * i, batch_sample.K * (i + 1))
         sample.been_in_target_set[(idx_i_batch, 0)] = batch_sample.been_in_target_set[:, 0]
         sample.fht[idx_i_batch] = batch_sample.fht
 
