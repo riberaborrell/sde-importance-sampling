@@ -47,8 +47,6 @@ class StochasticOptimizationMethod(object):
         array containing the variance of the loss at each iteration
     eff_losses: array
         array containing the effective loss values at each iteration
-    re_losses: array
-        array containing the relative entropy loss
     grad_losses: array
         array containing the gradient of the loss function
     means_I_u: array
@@ -109,6 +107,8 @@ class StochasticOptimizationMethod(object):
     get_iteration_statistics(i)
 
     sgd_gaussian_ansatz()
+
+    sgd_nn()
 
     som_nn()
 
@@ -400,7 +400,7 @@ class StochasticOptimizationMethod(object):
         '''
         assert attr_name in ['vars_I_u', 'res_I_u', 'losses', 'u_l2_errors'], ''
         assert epsilon is not None, ''
-        assert self.n_iter_avg is not None, ''
+        assert hasattr(self, 'n_iter_avg'), ''
         attr_name_run_avg = 'run_avg_' + attr_name
         attr_name_eps_cut = attr_name + '_eps_cut'
 
@@ -544,6 +544,48 @@ class StochasticOptimizationMethod(object):
         self.stop_timer()
         self.save()
 
+    def sgd_nn(self):
+        ''' stochastic gradient descent with nn parametrization
+        '''
+        self.start_timer()
+
+        # model and number of parameters
+        model = self.sample.nn_func_appr.model
+        self.m = model.d_flat
+
+        # define device
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+        # preallocate parameters and losses
+        self.preallocate_arrays()
+
+        for i in np.arange(self.n_iterations_lim):
+
+            # compute loss and its gradient 
+            succ = self.sample.sample_grad_loss_nn()
+
+            # check if sample succeeded
+            if not succ:
+                break
+
+            # save parameters, statistics and losses
+            self.update_arrays(i)
+
+            # print iteration info
+            msg = self.get_iteration_statistics(i)
+            print(msg)
+
+            # back up save
+            if (i + 1) % self.n_iterations_backup == 0:
+                self.stop_timer()
+                self.save()
+
+            # update coefficients
+            self.sample.ansatz.theta = self.thetas[i, :] - self.lr * self.grad_losses[i, :]
+
+        self.stop_timer()
+        self.save()
+
     def som_nn(self):
         ''' stochastic gradient based method with nn parametrization
         '''
@@ -576,15 +618,12 @@ class StochasticOptimizationMethod(object):
             # reset gradients
             optimizer.zero_grad()
 
-            # compute ipa loss 
-            if self.loss_type == 'ipa' and self.sample.sde.problem_name == 'langevin_stop-t':
-                succ = self.sample.sample_loss_ipa_nn(device)
-            elif self.loss_type == 'ipa' and self.sample.sde.problem_name == 'langevin_det-t':
-                succ = self.sample.sample_loss_ipa_nn_det(device)
-
-            # compute relative error loss
-            elif self.loss_type == 're':
-                succ = self.sample.sample_loss_re_nn(device)
+            # compute effective loss 
+            if self.sample.sde.problem_name == 'langevin_stop-t':
+                succ = self.sample.sample_eff_loss_nn(device)
+            elif self.sample.sde.problem_name == 'langevin_det-t':
+                pass
+                #succ = self.sample.sample_loss_ipa_nn_det(device)
 
             # check if sample succeeded
             if not succ:
@@ -603,10 +642,7 @@ class StochasticOptimizationMethod(object):
                 self.save()
 
             # compute gradients
-            if self.loss_type == 'ipa':
-                self.sample.ipa_loss.backward()
-            elif self.loss_type == 're':
-                self.sample.re_loss.backward()
+            self.sample.eff_loss.backward()
 
             # update parameters
             optimizer.step()
@@ -716,9 +752,6 @@ class StochasticOptimizationMethod(object):
 
         if hasattr(self, 'eff_losses'):
             files_dict['eff_losses'] = self.eff_losses[:self.n_iterations]
-
-        if hasattr(self, 're_losses'):
-            files_dict['re_losses'] = self.re_losses[:self.n_iterations]
 
         # gradient of the loss
         if hasattr(self, 'grad_losses'):
@@ -1162,9 +1195,9 @@ class StochasticOptimizationMethod(object):
                 self.re_I_mc,
                 self.re_I_u_hjb,
             ))
-            labels = self.labels
-            colors = self.colors
-            linestyles = self.linestyles
+            labels = self.labels[:3]
+            colors = self.colors[:3]
+            linestyles = self.linestyles[:3]
 
         # figure
         fig = plt.figure(
@@ -1623,13 +1656,13 @@ class StochasticOptimizationMethod(object):
             colors.append(None)
 
             # set theta
-            if self.sample.ansatz is not None:
+            if hasattr(self.sample, 'ansatz'):
                 self.sample.ansatz.theta = self.thetas[i]
-            elif self.sample.nn_func_appr is not None:
+            elif hasattr(self.sample, 'nn_func_appr'):
                 self.sample.nn_func_appr.model.load_parameters(self.thetas[i])
 
-            self.sample.get_grid_value_function()
             self.sample.get_grid_control()
+            self.sample.get_grid_value_function()
 
             # update functions
             if self.sample.grid_value_function is not None:

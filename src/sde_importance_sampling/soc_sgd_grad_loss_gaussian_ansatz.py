@@ -149,7 +149,7 @@ def main():
         sgd.plot_cts()
 
         # u l2 error and its change
-        if sgd.u_l2_errors is not None:
+        if hasattr(sgd, 'u_l2_errors'):
             sgd.plot_u_l2_error()
             sgd.plot_u_l2_error_change()
 

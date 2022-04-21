@@ -130,7 +130,7 @@ def main():
         sample.do_u_l2_error = True
 
     # initialize SOM object
-    sgd = StochasticOptimizationMethod(
+    som = StochasticOptimizationMethod(
         sample=sample,
         loss_type=args.loss_type,
         optimizer=args.optimizer,
@@ -142,16 +142,16 @@ def main():
     # start sgd
     if not args.load:
         try:
-            sgd.som_nn()
+            som.som_nn()
 
         # save if job is manually interrupted
         except KeyboardInterrupt:
-            sgd.stop_timer()
-            sgd.save()
+            som.stop_timer()
+            som.save()
 
     # load already run gd
     else:
-        if not sgd.load():
+        if not som.load():
             return
 
     # report adam
@@ -162,32 +162,33 @@ def main():
     if args.do_plots:
 
         # load mc sampling and hjb solution and prepare labels
-        sgd.load_mc_sampling(dt_mc=0.01, K_mc=10**3, seed=1)
-        sgd.load_hjb_solution_and_sampling(h_hjb=0.001, dt_hjb=0.01, K_hjb=10**3, seed=1)
-        sgd.load_plot_labels_colors_and_linestyles()
+        som.compute_arrays_running_averages(n_iter_run_window=1)
+        som.load_mc_sampling(dt_mc=0.01, K_mc=10**3, seed=1)
+        som.load_hjb_solution_and_sampling(h_hjb=0.001, dt_hjb=0.01, K_hjb=10**3, seed=1)
+        som.load_plot_labels_colors_and_linestyles()
 
         # loss
-        sgd.plot_loss()
+        som.plot_loss()
 
         # mean and relative error of the reweighted quantity of interest
-        sgd.plot_mean_I_u()
-        sgd.plot_re_I_u()
+        som.plot_mean_I_u()
+        som.plot_re_I_u()
 
         # time steps and computational time
-        sgd.plot_time_steps()
-        sgd.plot_cts()
+        som.plot_time_steps()
+        som.plot_cts()
 
         # u l2 error and its change
-        if sgd.u_l2_errors is not None:
-            sgd.plot_u_l2_error()
-            sgd.plot_u_l2_error_change()
+        if hasattr(som, 'u_l2_errors'):
+            som.plot_u_l2_error()
+            som.plot_u_l2_error_change()
 
-        if args.n == 1:
-            #sgd.plot_1d_iteration()
-            sgd.plot_1d_iterations()
+        if args.d == 1:
+            #som.plot_1d_iteration()
+            som.plot_1d_iterations()
 
-        elif args.n == 2:
-            sgd.plot_2d_iteration(i=0)
+        elif args.d == 2:
+            som.plot_2d_iteration(i=0)
 
 
 if __name__ == "__main__":

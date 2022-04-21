@@ -161,7 +161,7 @@ class Sampling(object):
 
     bias_gradient(u)
 
-    tilted_potential(x)
+    perturbed_potential(x)
 
     perturbed_gradient(x, u)
 
@@ -211,15 +211,9 @@ class Sampling(object):
 
     sample_meta()
 
-    sample_gradloss_ansatz()
+    sample_grad_loss_ansatz()
 
-    sample_loss_ipa_nn(device)
-
-    sample_loss_ipa_nn_det(device)
-
-    sample_loss_ipa2_nn(device)
-
-    sample_loss_re_nn(device)
+    sample_eff_loss_nn(device)
 
     compute_mean_variance_and_rel_error(x)
 
@@ -292,8 +286,9 @@ class Sampling(object):
     def set_not_controlled_dir_path(self):
         ''' computes not controlled directory path
         '''
-        assert self.dt is not None, ''
-        assert self.K is not None, ''
+        assert hasattr(self, 'dt'), ''
+        assert hasattr(self, 'K'), ''
+        assert hasattr(self, 'seed'), ''
 
         self.dir_path = get_not_controlled_dir_path(
             self.sde.settings_dir_path,
@@ -305,8 +300,9 @@ class Sampling(object):
     def set_controlled_dir_path(self, parent_dir_path):
         ''' computes controlled directory path
         '''
-        assert self.dt is not None, ''
-        assert self.K is not None, ''
+        assert hasattr(self, 'dt'), ''
+        assert hasattr(self, 'K'), ''
+        assert hasattr(self, 'seed'), ''
 
         self.dir_path = get_controlled_dir_path(
             parent_dir_path,
@@ -330,7 +326,8 @@ class Sampling(object):
         array
             bias potential evaluated at the x
         '''
-        assert self.ansatz is not None, ''
+        assert hasattr(self, 'ansatz'), ''
+
         return self.ansatz.value_function(x, theta) * self.sde.sigma**2
 
     def bias_gradient(self, u):
@@ -434,7 +431,7 @@ class Sampling(object):
     def preallocate_fht(self):
         '''
         '''
-        assert self.K is not None, ''
+        assert hasattr(self, 'K'), ''
 
         # boolean array telling us if a trajectory have been in the target set
         self.been_in_target_set = np.repeat([False], self.K).reshape(self.K, 1)
@@ -445,7 +442,7 @@ class Sampling(object):
     def preallocate_girsanov_martingale_terms(self):
         ''' preallocates Girsanov Martingale terms, M_fht = e^(M1_fht + M2_fht)
         '''
-        assert self.K is not None, ''
+        assert hasattr(self, 'K'), ''
 
         self.M1_fht = np.empty(self.K)
         self.M2_fht = np.empty(self.K)
@@ -453,7 +450,7 @@ class Sampling(object):
     def preallocate_integrals(self):
         '''
         '''
-        assert self.K is not None, ''
+        assert hasattr(self, 'K'), ''
 
         self.stoch_int_fht = np.empty(self.K)
         self.det_int_fht = np.empty(self.K)
@@ -461,7 +458,7 @@ class Sampling(object):
     def preallocate_l2_error(self):
         '''
         '''
-        assert self.K is not None, ''
+        assert hasattr(self, 'K'), ''
 
         self.u_l2_error_fht = np.empty(self.K)
 
@@ -479,7 +476,7 @@ class Sampling(object):
     def initialize_running_integrals(self):
         '''
         '''
-        assert self.K is not None, ''
+        assert hasattr(self, 'K'), ''
 
         self.stoch_int_t = np.zeros(self.K)
         self.det_int_t = np.zeros(self.K)
@@ -487,7 +484,7 @@ class Sampling(object):
     def initialize_running_l2_error(self):
         '''
         '''
-        assert self.K is not None, ''
+        assert hasattr(self, 'K'), ''
 
         self.u_l2_error_t = np.zeros(self.K)
 
@@ -679,9 +676,9 @@ class Sampling(object):
         for k in np.arange(self.k_lim + 1):
 
             # control at xt
-            if self.ansatz is not None:
+            if hasattr(self, 'ansatz'):
                 ut = self.ansatz.control(xt)
-            elif self.nn_func_appr is not None:
+            elif hasattr(self, 'nn_func_appr'):
                 xt_tensor = torch.tensor(xt, dtype=torch.float)
                 ut_tensor = self.nn_func_appr.model.forward(xt_tensor)
                 ut = ut_tensor.detach().numpy()
@@ -849,9 +846,9 @@ class Sampling(object):
             else:
 
                 # control at xt
-                if self.ansatz is not None:
+                if hasattr(self, 'ansatz'):
                     ut = self.ansatz.control(x[k - 1])
-                elif self.nn_func_appr is not None:
+                elif hasattr(self, 'nn_func_appr'):
                     xt_tensor = torch.tensor(x[k - 1], dtype=torch.float)
                     ut_tensor = self.nn_func_appr.model.forward(xt_tensor)
                     ut = ut_tensor.detach().numpy()
@@ -895,13 +892,17 @@ class Sampling(object):
         # number of ansatz functions
         m = self.ansatz.m
 
-        # preallocate cost functional and its gradient for each trajectory
-        loss = np.empty(self.K)
-        grad_loss = np.empty((self.K, m))
+        # initialize terms of the gradient of the cost functional
+        work_t = np.zeros(self.K)
+        work_fht = np.empty(self.K)
 
-        # initialize running gradient of phi and running gradient of S
-        grad_phi_t = np.zeros((self.K, m))
-        grad_S_t = np.zeros((self.K, m))
+        # deterministic integral of the product between u and its derivative
+        a_t = np.zeros((self.K, m))
+        a_fht = np.empty((self.K, m))
+
+        # stochastic integral of the derivative of u
+        b_t = np.zeros((self.K, m))
+        b_fht = np.empty((self.K, m))
 
         # initialize xt
         xt = self.initial_position()
@@ -926,9 +927,12 @@ class Sampling(object):
             # get Brownian increment
             dbt = self.brownian_increment()
 
-            # update running gradient of phi and running gradient of S
-            grad_phi_t += np.sum(ut[:, np.newaxis, :] * grad_ut, axis=2) * self.dt
-            grad_S_t -= np.sum(dbt[:, np.newaxis, :] * grad_ut, axis=2)
+            # update work
+            work_t += self.dt
+
+            # update running integrals a and b 
+            a_t += np.sum(ut[:, np.newaxis, :] * grad_ut, axis=2) * self.dt
+            b_t -= np.sum(dbt[:, np.newaxis, :] * grad_ut, axis=2)
 
             # stochastic and deterministic integrals 
             self.update_integrals(ut, dbt)
@@ -948,11 +952,11 @@ class Sampling(object):
                 self.stoch_int_fht[idx] = self.stoch_int_t[idx]
                 self.det_int_fht[idx] = self.det_int_t[idx]
 
-                # save loss and grad loss for the arrived trajectories
-                loss[idx] = self.fht[idx] + 0.5 * self.det_int_fht[idx]
-                grad_loss[idx, :] = grad_phi_t[idx, :] \
-                                  - loss[idx][:, np.newaxis] \
-                                  * grad_S_t[idx, :]
+                # save work and running integrals a and b
+                work_fht[idx] = work_t[idx]
+                a_fht[idx] = a_t[idx]
+                b_fht[idx] = b_t[idx]
+
 
                 # u l2 error
                 if self.do_u_l2_error:
@@ -968,10 +972,16 @@ class Sampling(object):
             # sde update
             xt = self.sde_update(xt, gradient, dbt)
 
-        # compute averages
-        self.loss = np.mean(loss)
-        self.var_loss = np.var(loss)
-        self.grad_loss = np.mean(grad_loss, axis=0)
+        # compute cost functional (loss)
+        phi_fht = work_fht + 0.5 * self.det_int_fht
+        self.loss = np.mean(phi_fht)
+        self.var_loss = np.var(phi_fht)
+
+        # compute gradient
+        self.grad_loss = np.mean(
+            a_fht - phi_fht[:, np.newaxis] * b_fht,
+            axis=0,
+        )
 
         # compute statistics
         self.compute_I_u_statistics()
@@ -983,7 +993,9 @@ class Sampling(object):
         return True
 
 
-    def sample_loss_ipa_nn(self, device):
+    def sample_eff_loss_nn(self, device):
+        ''' samples the effective loss with a nn representation
+        '''
         self.start_timer()
         self.preallocate_fht()
         self.preallocate_integrals()
@@ -1004,11 +1016,13 @@ class Sampling(object):
         # number of flattened parameters
         m = model.d_flat
 
-        # initialize phi and S
-        phi_t = torch.zeros(self.K)
-        phi_fht = torch.empty(self.K)
-        S_t = torch.zeros(self.K)
-        S_fht = torch.empty(self.K)
+        # initialize work and stochastic integral as tensors
+        work_t = torch.zeros(self.K)
+        work_fht = torch.empty(self.K)
+        det_int_t = torch.zeros(self.K)
+        det_int_fht = torch.empty(self.K)
+        stoch_int_t = torch.zeros(self.K)
+        stoch_int_fht = torch.empty(self.K)
 
         # initialize trajectory
         xt = self.initial_position()
@@ -1029,22 +1043,23 @@ class Sampling(object):
             ut = ut_tensor.detach().numpy()
 
             # get Brownian increment and tensorize it
-            dB = self.brownian_increment()
-            dB_tensor = torch.tensor(dB, requires_grad=False, dtype=torch.float32)
+            dbt = self.brownian_increment()
+            dbt_tensor = torch.tensor(dbt, requires_grad=False, dtype=torch.float32)
 
-            # update running phi
-            ut_norm_tensor = torch.linalg.norm(ut_tensor, axis=1)
-            phi_t = phi_t + ((1 + 0.5 * self.sde.beta * (ut_norm_tensor ** 2)) * self.dt).reshape(self.K,)
+            # update work
+            work_t = work_t + self.dt
 
-            # update running discretized action
-            S_t = S_t \
-                - np.sqrt(self.sde.beta) * torch.matmul(
+            # update deterministic integral
+            det_int_t = det_int_t + (torch.linalg.norm(ut_tensor, axis=1) ** 2) * self.dt
+
+            # update stochastic integral
+            stoch_int_t = stoch_int_t + torch.matmul(
                     torch.unsqueeze(ut_tensor, 1),
-                    torch.unsqueeze(dB_tensor, 2),
+                    torch.unsqueeze(dbt_tensor, 2),
                 ).reshape(self.K,)
 
             # stochastic and deterministic integrals 
-            self.update_integrals(ut, dB)
+            self.update_integrals(ut, dbt)
 
             # update l2 running error
             if self.do_u_l2_error:
@@ -1063,9 +1078,10 @@ class Sampling(object):
                 # get tensor indices if there are new trajectories 
                 idx_tensor = torch.tensor(idx, dtype=torch.long).to(device)
 
-                # save phi and S loss for the arrived trajectorries
-                phi_fht[idx_tensor] = phi_t.index_select(0, idx_tensor)
-                S_fht[idx_tensor] = S_t.index_select(0, idx_tensor)
+                # save integrals for the arrived trajectorries
+                work_fht[idx_tensor] = work_t.index_select(0, idx_tensor)
+                det_int_fht[idx_tensor] = det_int_t.index_select(0, idx_tensor)
+                stoch_int_fht[idx_tensor] = stoch_int_t.index_select(0, idx_tensor)
 
                 # u l2 error
                 if self.do_u_l2_error:
@@ -1076,20 +1092,19 @@ class Sampling(object):
                break
 
             # compute gradient
-            controlled_gradient = self.sde.gradient(xt) - np.sqrt(2) * ut
+            gradient = self.perturbed_gradient(xt, ut)
 
             # sde update
-            xt = self.sde_update(xt, controlled_gradient, dB)
+            xt = self.sde_update(xt, gradient, dbt)
             xt_tensor = torch.tensor(xt, dtype=torch.float32)
 
-        # compute loss
-        a = torch.mean(phi_fht)
-        self.loss = a.detach().numpy()
-        self.var_loss = torch.var(phi_fht)
+        # compute cost functional (loss)
+        phi_fht = work_fht + 0.5 * det_int_fht
+        self.loss = np.mean(phi_fht.detach().numpy())
+        self.var_loss = np.var(phi_fht.detach().numpy())
 
-        # compute ipa loss
-        b = - torch.mean(phi_fht.detach() * S_fht)
-        self.ipa_loss = a + b
+        # compute effective loss
+        self.eff_loss = torch.mean(0.5 * det_int_fht + phi_fht.detach() * stoch_int_fht)
 
         self.compute_I_u_statistics()
         if self.do_u_l2_error:
@@ -1098,297 +1113,6 @@ class Sampling(object):
         self.stop_timer()
 
         return True
-
-    def sample_loss_ipa_nn_det(self, device):
-        self.start_timer()
-
-        if self.do_u_l2_error:
-
-            # load hjb solver 
-            self.sol_hjb = self.get_hjb_solver_det(dt=self.dt)
-
-            # preallocate l2 error
-            self.preallocate_l2_error()
-
-        # nn model
-        model = self.nn_func_appr.model
-
-        # number of flattened parameters
-        m = model.d_flat
-
-        # initialize phi and S
-        phi_t = torch.zeros(self.K)
-        S_t = torch.zeros(self.K)
-
-        # initialize trajectory
-        xt = self.initial_position()
-        xt_tensor = torch.tensor(xt, dtype=torch.float32)
-
-        # initialize control
-        ut_tensor = model.forward(k, xt_tensor)
-        ut = ut_tensor.detach().numpy()
-
-        # initialize deterministic and stochastic integrals at time t
-        self.initialize_running_integrals()
-
-        # initialize l2 error at time t
-        if self.do_u_l2_error:
-            self.initialize_running_l2_error()
-
-        for k in np.arange(0, self.k_lim):
-
-            # get Brownian increment and tensorize it
-            dB = self.brownian_increment()
-            dB_tensor = torch.tensor(dB, requires_grad=False, dtype=torch.float32)
-
-            # update stochastic and deterministic running integrals 
-            self.update_integrals(ut, dB)
-
-            # update running phi
-            ut_norm_tensor = torch.linalg.norm(ut_tensor, axis=1)
-            phi_t = phi_t + (0.5 * self.sde.beta * (ut_norm_tensor ** 2) * self.dt).reshape(self.K,)
-
-            # update running discretized action
-            S_t = S_t \
-                - np.sqrt(self.sde.beta) * torch.matmul(
-                torch.unsqueeze(ut_tensor, 1),
-                torch.unsqueeze(dB_tensor, 2),
-            ).reshape(self.K,)
-
-            # update l2 running error
-            if self.do_u_l2_error:
-                self.update_running_l2_error_det(k, xt, ut)
-
-            # sde update
-            #controlled_gradient = self.sde.gradient(xt) - np.sqrt(2) * ut
-            #xt = self.sde_update(xt, controlled_gradient, dB_tensor)
-            #xt_tensor = torch.tensor(xt, dtype=torch.float32)
-            controlled_gradient = self.sde.gradient(xt_tensor, tensor=True) - np.sqrt(2) * ut_tensor
-            xt_tensor = self.sde_update(xt_tensor, controlled_gradient, dB_tensor, tensor=True)
-            xt = xt_tensor.detach().numpy()
-
-            # control
-            ut_tensor = model.forward(k, xt_tensor)
-            ut = ut_tensor.detach().numpy()
-
-
-        # save work functional
-        self.work = self.g(xt)
-
-        # update phi
-        phi_t = phi_t + self.g(xt_tensor, tensor=True)
-
-        # compute loss
-        a = torch.mean(phi_t)
-        self.loss = a.detach().numpy()
-
-        # compute ipa loss
-        b = - torch.mean(phi_t.detach() * S_t)
-        self.ipa_loss = a + b
-
-        self.compute_I_u_statistics_det()
-        if self.do_u_l2_error:
-            self.u_l2_error = np.mean(self.u_l2_error_fht)
-
-        self.stop_timer()
-
-        return True
-
-    def sample_loss_ipa2_nn(self, device):
-        self.preallocate_fht()
-        self.preallocate_integrals()
-
-        if self.do_u_l2_error:
-
-            # load hjb solution
-            sol_hjb = self.get_hjb_solver()
-            self.u_hjb = sol_hjb.u_opt
-            self.h = sol_hjb.h
-
-            # preallocate l2 error
-            self.preallocate_l2_error()
-
-
-        # nn model
-        model = self.nn_func_appr.model
-
-        # number of flattened parameters
-        m = model.d_flat
-
-        # initialize loss and ipa loss for the trajectories
-        loss_traj = np.zeros(self.K)
-        ipa_loss_traj = torch.zeros(self.K)
-        a_tensor = torch.zeros(self.K).to(device)
-        b_tensor = torch.zeros(self.K).to(device)
-        c_tensor = torch.zeros(self.K).to(device)
-
-        # initialize trajectory
-        xt = self.initial_position()
-
-        # initialize deterministic and stochastic integrals at time t
-        self.initialize_running_integrals()
-
-        # initialize l2 error at time t
-        if self.do_u_l2_error:
-            self.initialize_running_l2_error()
-
-        for k in np.arange(1, self.k_lim + 1):
-
-            # get Brownian increment and tensorize it
-            dB = self.brownian_increment()
-            dB_tensor = torch.tensor(dB, requires_grad=False, dtype=torch.float32).to(device)
-
-            # control
-            xt_tensor = torch.tensor(xt, dtype=torch.float)
-            ut_tensor = model.forward(xt_tensor)
-            ut_tensor_det = ut_tensor.detach()
-            ut = ut_tensor_det.numpy()
-
-            # sde update
-            controlled_gradient = self.sde.gradient(xt) - np.sqrt(2) * ut
-            xt = self.sde_update(xt, controlled_gradient, dB)
-
-            # update statistics
-            a_tensor = a_tensor \
-                     + torch.matmul(
-                         torch.unsqueeze(ut_tensor_det, 1),
-                         torch.unsqueeze(ut_tensor, 2),
-                     ).reshape(self.K,) * self.dt
-
-            ut_norm_det = torch.linalg.norm(ut_tensor_det, axis=1)
-            b_tensor = b_tensor + ((1 + 0.5 * (ut_norm_det ** 2)) * self.dt).reshape(self.K,)
-
-            c_tensor = c_tensor \
-                     - np.sqrt(self.sde.beta) * torch.matmul(
-                         torch.unsqueeze(ut_tensor, 1),
-                         torch.unsqueeze(dB_tensor, 2),
-                     ).reshape(self.K,)
-
-            # stochastic and deterministic integrals 
-            self.update_integrals(ut, dB)
-
-            # update l2 running error
-            if self.do_u_l2_error:
-                self.update_running_l2_error(xt, ut)
-
-            # get indices of trajectories which are new in the target set
-            idx = self.get_idx_new_in_target_set(xt)
-
-            if idx.shape[0] != 0:
-
-                # save first hitting time and integrals
-                self.fht[idx] = k * self.dt
-                self.stoch_int_fht[idx] = self.stoch_int_t[idx]
-                self.det_int_fht[idx] = self.det_int_t[idx]
-
-                # get tensor indices if there are new trajectories 
-                idx_tensor = torch.tensor(idx, dtype=torch.long).to(device)
-
-                # save loss and ipa loss for the arrived trajectorries
-                loss_traj[idx] = b_tensor.numpy()[idx]
-                ipa_loss_traj[idx_tensor] = a_tensor.index_select(0, idx_tensor) \
-                                          - b_tensor.index_select(0, idx_tensor) \
-                                          * c_tensor.index_select(0, idx_tensor)
-
-                # u l2 error
-                if self.do_u_l2_error:
-                    self.u_l2_error_fht[idx] = self.u_l2_error_t[idx]
-
-            # stop if all trajectories have arrived to the target set
-            if self.been_in_target_set.all() == True:
-               break
-
-        self.loss = np.mean(loss_traj)
-        self.ipa_loss = torch.mean(ipa_loss_traj)
-
-        self.compute_I_u_statistics()
-        if self.do_u_l2_error:
-            self.u_l2_error = np.mean(self.u_l2_error_fht)
-
-        return True
-
-    def sample_loss_re_nn(self, device):
-        self.preallocate_fht()
-        #self.preallocate_integrals()
-
-        ## nn model
-        model = self.nn_func_appr.model
-
-        # number of flattened parameters
-        m = model.d_flat
-
-        # initialize loss and ipa loss for the trajectories
-        #loss_traj = np.zeros(self.K)
-        re_loss_traj = torch.zeros(self.K)
-        #phi_det = torch.zeros(self.K)
-        phi = torch.zeros(self.K)
-
-        # initialize trajectory
-        xt_tensor = self.initial_position(tensor=True)
-
-        # control
-        ut_tensor = model.forward(xt_tensor)
-
-        # initialize deterministic and stochastic integrals at time t
-        #self.initialize_running_integrals()
-
-        for k in np.arange(1, self.k_lim + 1):
-
-            # get Brownian increment
-            dB_tensor = self.brownian_increment(tensor=True)
-            #dB = dB_tensor.detach().numpy()
-
-
-            # sde update
-            gradient_tensor = self.sde.gradient(xt_tensor, tensor=True)
-            controlled_gradient = gradient_tensor - np.sqrt(2) * ut_tensor
-            xt_tensor = self.sde_update(xt_tensor, controlled_gradient, dB_tensor, tensor=True)
-            xt = xt_tensor.detach().numpy()
-
-            # control
-            ut_tensor = model.forward(xt_tensor)
-            #ut_tensor_det = ut_tensor.detach()
-            #ut = ut_tensor_det.numpy()
-
-            # update statistics
-            #ut_norm_det = torch.linalg.norm(ut_tensor_det, axis=1)
-            #phi_det = phi_det + ((1 + 0.5 * (ut_norm_det ** 2)) * self.dt).reshape(self.K,)
-
-            #ut_norm = torch.linalg.norm(ut_tensor, axis=1)
-            #phi = phi + ((1 + 0.5 * (ut_norm ** 2)) * self.dt).reshape(self.K,)
-            phi = phi + ((1 + 0.5 * torch.sum(ut_tensor ** 2, dim=1)) * self.dt).reshape(self.K)
-
-            # stochastic and deterministic integrals 
-            #self.update_integrals(ut, dB)
-
-            # get indices of trajectories which are new in the target set
-            idx = self.get_idx_new_in_target_set(xt)
-
-            if idx.shape[0] != 0:
-
-                # save first hitting time and Girsanov Martingale terms
-                self.fht[idx] = k * self.dt
-                #self.stoch_int_fht[idx] = self.stoch_int_t[idx]
-                #self.det_int_fht[idx] = self.det_int_t[idx]
-
-                # get tensor indices if there are new trajectories 
-                idx_tensor = torch.tensor(idx, dtype=torch.long).to(device)
-
-                # save loss and ipa loss for the arrived trajectorries
-                #loss_traj[idx] = phi_det.numpy()[idx]
-                re_loss_traj[idx_tensor] = phi.index_select(0, idx_tensor)
-
-
-            # stop if all trajectories have arrived to the target set
-            if self.been_in_target_set.all() == True:
-               break
-
-        #self.loss = np.mean(loss_traj)
-        self.re_loss = torch.mean(re_loss_traj)
-
-        #self.compute_I_u_statistics()
-
-        return True, k
 
     def compute_mean_variance_and_rel_error(self, x):
         '''This method computes the mean, the variance and the relative
@@ -1648,9 +1372,9 @@ class Sampling(object):
         self.write_sampling_parameters(f)
 
         # controll representation
-        if self.is_controlled and not self.is_optimal and self.ansatz is not None:
+        if self.is_controlled and not self.is_optimal and hasattr(self, 'ansatz'):
             self.ansatz.write_ansatz_parameters(f)
-        elif self.is_controlled and not self.is_optimal and self.nn_func_appr is not None:
+        elif self.is_controlled and not self.is_optimal and hasattr(self, 'nn_func_appr'):
             self.nn_func_appr.write_parameters(f)
 
         if self.sde.problem_name == 'langevin_stop-t':
@@ -1729,7 +1453,7 @@ class Sampling(object):
             self.grid_value_function = np.zeros(self.sde.Nx)
 
         # controlled with gaussian ansatz representation
-        elif self.is_controlled and self.ansatz is not None:
+        elif self.is_controlled and hasattr(self, 'ansatz'):
 
             # set value function constant
             if self.sde.potential_name == 'nd_2well':
@@ -1741,7 +1465,7 @@ class Sampling(object):
             self.grid_value_function = self.ansatz.value_function(x).reshape(self.sde.Nx)
 
         # controlled with nn representation
-        elif self.is_controlled and self.nn_func_appr is not None:
+        elif self.is_controlled and hasattr(self, 'nn_func_appr'):
 
             # 1d numerical integration
             if self.sde.d == 1:
@@ -1760,8 +1484,8 @@ class Sampling(object):
         ''' computes the value function on the grid (for 1d sde) by integrating numerically.
         '''
         assert self.sde.d == 1, ''
-        assert self.sde.domain_h is not None, ''
-        assert self.grid_control is not None, ''
+        assert hasattr(self.sde, 'domain_h'), ''
+        assert hasattr(self, 'grid_control'), ''
 
         # grid
         x = self.sde.domain_h
@@ -1801,14 +1525,15 @@ class Sampling(object):
             self.grid_value_function_i = np.zeros(self.Nh)
 
         # gaussian ansatz
-        elif self.is_controlled and self.ansatz is not None:
+        elif self.is_controlled and hasattr(self, 'ansatz'):
 
             # bias potential and value function
             self.grid_bias_potential_i = self.bias_potential(x)
             self.grid_value_function_i = self.ansatz.value_function(x)
 
         # controlled potential
-        if self.grid_bias_potential_i is not None:
+        if hasattr(self, 'grid_bias_potential_i'):
+
             # controlled potential
             self.grid_perturbed_potential_i = self.grid_potential_i + self.grid_bias_potential_i
 
@@ -1824,11 +1549,11 @@ class Sampling(object):
             self.grid_control = np.zeros(self.sde.domain_h.shape)
 
         # gaussian ansatz control
-        elif self.is_controlled and self.ansatz is not None:
+        elif self.is_controlled and hasattr(self, 'ansatz'):
             self.grid_control = self.ansatz.control(x).reshape(self.sde.domain_h.shape)
 
         # nn control
-        elif self.is_controlled and self.nn_func_appr is not None:
+        elif self.is_controlled and hasattr(self, 'nn_func_appr'):
             inputs = torch.tensor(x, dtype=torch.float)
             control_flattened = self.nn_func_appr.model(inputs).detach().numpy()
             self.grid_control = control_flattened.reshape(self.sde.domain_h.shape)
@@ -1850,13 +1575,13 @@ class Sampling(object):
         x[:, i] = self.domain_i_h
 
         # gaussian ansatz control
-        if self.ansatz is not None:
+        if hasattr(self, 'ansatz'):
 
             # evaluate control
             control = self.ansatz.control(x)
 
         # nn control
-        if self.nn_func_appr is not None:
+        if hasattr(self, 'nn_func_appr'):
 
             # tensorize inputs
             inputs = torch.tensor(x, dtype=torch.float)
