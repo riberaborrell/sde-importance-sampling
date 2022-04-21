@@ -737,8 +737,8 @@ class SolverHJB(object):
             dir_path = self.dir_path
 
         # contour plot
-        X = self.domain_h[:, :, 0]
-        Y = self.domain_h[:, :, 1]
+        X = self.sde.domain_h[:, :, 0]
+        Y = self.sde.domain_h[:, :, 1]
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=dir_path,
@@ -763,8 +763,8 @@ class SolverHJB(object):
             dir_path = self.dir_path
 
         # contour plot
-        X = self.domain_h[:, :, 0]
-        Y = self.domain_h[:, :, 1]
+        X = self.sde.domain_h[:, :, 0]
+        Y = self.sde.domain_h[:, :, 1]
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=dir_path,
@@ -777,7 +777,7 @@ class SolverHJB(object):
         fig.set_contour_levels_scale('log')
         fig.set_colormap('Blues_r', start=0.10, stop=1.)
         plt.subplots_adjust(left=0.12, right=0.96, bottom=0.12)
-        fig.contour(X, Y, self.value_f)
+        fig.contour(X, Y, self.value_function)
 
 
     def plot_2d_perturbed_potential(self, dir_path=None, file_name='perturbed-potential'):
@@ -788,8 +788,8 @@ class SolverHJB(object):
             dir_path = self.dir_path
 
         # contour plot
-        X = self.domain_h[:, :, 0]
-        Y = self.domain_h[:, :, 1]
+        X = self.sde.domain_h[:, :, 0]
+        Y = self.sde.domain_h[:, :, 1]
         fig = plt.figure(
             FigureClass=MyFigure,
             dir_path=dir_path,
@@ -813,8 +813,8 @@ class SolverHJB(object):
         if dir_path is None:
             dir_path = self.dir_path
 
-        X = self.domain_h[:, :, 0]
-        Y = self.domain_h[:, :, 1]
+        X = self.sde.domain_h[:, :, 0]
+        Y = self.sde.domain_h[:, :, 1]
         U = self.u_opt[:, :, 0]
         V = self.u_opt[:, :, 1]
         fig = plt.figure(
@@ -839,8 +839,8 @@ class SolverHJB(object):
         if dir_path is None:
             dir_path = self.dir_path
 
-        X = self.domain_h[:, :, 0]
-        Y = self.domain_h[:, :, 1]
+        X = self.sde.domain_h[:, :, 0]
+        Y = self.sde.domain_h[:, :, 1]
         U = self.perturbed_drift[:, :, 0]
         V = self.perturbed_drift[:, :, 1]
         fig = plt.figure(
