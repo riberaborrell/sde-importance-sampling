@@ -32,6 +32,15 @@ def main():
         target_set[0] = [1, 3]
         target_set[1:] = [-3, 3]
 
+    # initialize sde object
+    sde = LangevinSDE(
+        problem_name='langevin_stop-t',
+        potential_name=args.potential_name,
+        d=args.d,
+        alpha=alpha,
+        beta=args.beta,
+        target_set=target_set,
+    )
 
     # initialize sampling object
     sample = Sampling(sde, is_controlled=True)
