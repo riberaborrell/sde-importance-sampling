@@ -1,25 +1,26 @@
-from sde_importance_sampling.neural_networks import TwoLayerNN, \
-                                                    FeedForwardNN, \
-                                                    DenseNN, \
-                                                    SequentialNN
-
 import numpy as np
 import pytest
 import torch
 
+from function_approximation.models import TwoLayerNN, \
+                                          FeedForwardNN, \
+                                          DenseNN, \
+                                          SequentialNN
+
+
 class TestTwoLayerNN:
 
     @pytest.fixture
-    def random_inputs(self, N, n):
+    def random_inputs(self, K, d):
         ''' generates random input data
         '''
-        return torch.rand(N, n, dtype=torch.float32)
+        return torch.rand(K, d, dtype=torch.float32)
 
     @pytest.fixture
-    def random_two_layer_nn(self, n, d1):
+    def random_two_layer_nn(self, d, d1):
         ''' initializes TwoLayerNN with random weights
         '''
-        return TwoLayerNN(n, d1, n)
+        return TwoLayerNN(d, d1, d)
 
     def test_initialization(self, random_inputs, random_two_layer_nn):
         '''
@@ -27,22 +28,22 @@ class TestTwoLayerNN:
         model = random_two_layer_nn
         output = model.forward(random_inputs)
 
-        N, n = random_inputs.size()
-        assert output.size() == (N, n)
+        K, d = random_inputs.size()
+        assert output.size() == (K, d)
 
 
 class TestFeedForwardNN:
     @pytest.fixture
-    def random_inputs(self, N, n):
+    def random_inputs(self, K, d):
         ''' generates random input data
         '''
-        return torch.rand(N, n, dtype=torch.float32)
+        return torch.rand(K, d, dtype=torch.float32)
 
     @pytest.fixture
-    def random_feed_forward_nn(self, n):
+    def random_feed_forward_nn(self, d):
         ''' initializes FeedForwardNN with random weights
         '''
-        d_layers = [n, 30, 30, n]
+        d_layers = [d, 30, 30, d]
         return FeedForwardNN(d_layers)
 
     def test_initialization(self, random_inputs, random_feed_forward_nn):
@@ -51,8 +52,8 @@ class TestFeedForwardNN:
         model = random_feed_forward_nn
         output = model.forward(random_inputs)
 
-        N, n = random_inputs.size()
-        assert output.size() == (N, n)
+        K, d = random_inputs.size()
+        assert output.size() == (K, d)
 
     def test_get_parameters(self, random_inputs, random_feed_forward_nn):
         model = random_feed_forward_nn
@@ -62,19 +63,19 @@ class TestFeedForwardNN:
 
 class TestSequentialNN:
     @pytest.fixture
-    def random_inputs(self, N, n):
+    def random_inputs(self, K, d):
         ''' generates random input data
         '''
-        return torch.rand(N, n, dtype=torch.float32)
+        return torch.rand(K, d, dtype=torch.float32)
 
     @pytest.fixture
-    def sequential_nn(self, n):
+    def sequential_nn(self, d):
         ''' initializes SequentialNN with K feed forward models withrandom weights
         '''
-        d_layers = [n, 30, 30, n]
+        d_layers = [d, 30, 30, d]
         activation_type = 'tanh'
-        N = 201
-        return SequentialNN(N, d_layers, activation_type)
+        K = 201
+        return SequentialNN(K, d_layers, activation_type)
 
     def test_initialization(self, random_inputs, sequential_nn):
         '''
@@ -82,8 +83,8 @@ class TestSequentialNN:
         model = sequential_nn
         output = model.forward(0, random_inputs)
 
-        N, n = random_inputs.size()
-        assert output.size() == (N, n)
+        K, d = random_inputs.size()
+        assert output.size() == (K, d)
 
     def test_get_parameters(self, random_inputs, sequential_nn):
         model = sequential_nn

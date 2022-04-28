@@ -1,9 +1,9 @@
-import pytest
 import time
 
 import numpy as np
+import pytest
 
-from sde_importance_sampling.langevin_sde import LangevinSDE
+from sde.langevin_sde import LangevinSDE
 
 
 class TestLangevinSDE:

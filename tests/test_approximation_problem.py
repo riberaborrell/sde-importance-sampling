@@ -1,42 +1,41 @@
-from sde_importance_sampling.langevin_sde import LangevinSDE
-from sde_importance_sampling.gaussian_ansatz_functions import GaussianAnsatz
-from sde_importance_sampling.neural_networks import FeedForwardNN, DenseNN
-from sde_importance_sampling.function_approximation import FunctionApproximation
-
-import pytest
-
 import numpy as np
-
+import pytest
 import torch
 import torch.nn as nn
 import torch.optim as optim
+
+from function_approximation.gaussian_ansatz import GaussianAnsatz
+from function_approximation.models import FeedForwardNN, DenseNN
+from function_approximation.function_approximation import FunctionApproximation
+from sde.langevin_sde import LangevinSDE
+
 
 class TestApproximationProblem:
 
 
     @pytest.fixture
-    def sde(self, problem_name, potential_name, n, alpha_i, beta):
+    def sde(self, problem_name, potential_name, d, alpha_i, beta):
         ''' creates Langevin SDE object with the given setting.
         '''
         sde = LangevinSDE(
             problem_name=problem_name,
             potential_name=potential_name,
-            n=n,
-            alpha=np.full(n, alpha_i),
+            d=d,
+            alpha=np.full(d, alpha_i),
             beta=beta,
         )
         return sde
 
     @pytest.fixture
-    def gaussian_ansatz(self, n, beta):
+    def gaussian_ansatz(self, sde):
         '''initializes Gaussian Ansatz object with just one Gaussian function.
         '''
 
         # init object
-        ansatz = GaussianAnsatz(n, beta, normalized=False)
+        ansatz = GaussianAnsatz(sde, normalized=False)
 
         # set gaussian
-        means = - 1. * np.ones((1, n))
+        means = - 1. * np.ones((1, sde.d))
         sigma_i = 1.
         ansatz.set_given_ansatz_functions(means=means, sigma_i=sigma_i)
 
@@ -52,14 +51,14 @@ class TestApproximationProblem:
         # initialize feed-forward nn
         if not dense:
             model = FeedForwardNN(
-                d_layers=[sde.n, 30, 30, sde.n],
+                d_layers=[sde.d, 30, 30, sde.d],
                 activation_type='tanh',
             )
 
         # initialize dense nn
         else:
             model = DenseNN(
-                d_layers=[sde.n, 30, 30, sde.n],
+                d_layers=[sde.d, 30, 30, sde.d],
                 activation_type='tanh',
             )
 
@@ -73,7 +72,7 @@ class TestApproximationProblem:
 
         return func
 
-    def test_alternative_training_algorithm(self, sde, gaussian_ansatz, function_appr, N_train, lr):
+    def test_alternative_training_algorithm(self, sde, gaussian_ansatz, function_appr, K_train, lr):
         '''
         '''
 
@@ -98,7 +97,7 @@ class TestApproximationProblem:
         for i in np.arange(n_iterations_lim):
 
             # sample training data
-            x = sde.sample_domain_uniformly(N=N_train)
+            x = sde.sample_domain_uniformly(K=K_train)
             x_tensor = torch.tensor(x, requires_grad=False, dtype=torch.float32)
 
             # evaluate target function
@@ -129,22 +128,22 @@ class TestApproximationProblem:
         print('it.: {:d}, loss: {:2.3e}\n'.format(i, output))
 
         # evaluate at (-1, ..., -1)
-        x_tensor = -1 * torch.ones(1, sde.n)
+        x_tensor = -1 * torch.ones(1, sde.d)
         x = x_tensor.detach().numpy()
         target_function_at_x = gaussian_ansatz.control(x)
         model_at_x = model.forward(x_tensor).detach().numpy()
-        assert np.allclose(target_function_at_x, model_at_x, atol=10**-3)
+        assert np.allclose(target_function_at_x, model_at_x, atol=10**-2)
 
         # evaluate at (0, ..., 0)
-        x_tensor = 0 * torch.ones(1, sde.n)
+        x_tensor = 0 * torch.ones(1, sde.d)
         x = x_tensor.detach().numpy()
         target_function_at_x = gaussian_ansatz.control(x)
         model_at_x = model.forward(x_tensor).detach().numpy()
-        assert np.allclose(target_function_at_x, model_at_x, atol=10**-3)
+        assert np.allclose(target_function_at_x, model_at_x, atol=10**-2)
 
         # evaluate at (0.5, ..., 0.5)
-        x_tensor = 0.5 * torch.ones(1, sde.n)
+        x_tensor = 0.5 * torch.ones(1, sde.d)
         x = x_tensor.detach().numpy()
         target_function_at_x = gaussian_ansatz.control(x)
         model_at_x = model.forward(x_tensor).detach().numpy()
-        assert np.allclose(target_function_at_x, model_at_x, atol=10**-3)
+        assert np.allclose(target_function_at_x, model_at_x, atol=10**-2)

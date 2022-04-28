@@ -1,8 +1,7 @@
-from sde_importance_sampling.langevin_sde import POTENTIAL_NAMES
-
+import numpy as np
 import pytest
 
-import numpy as np
+from sde.langevin_sde import POTENTIAL_NAMES
 
 def pytest_addoption(parser):
     parser.addoption(

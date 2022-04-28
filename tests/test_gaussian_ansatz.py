@@ -1,13 +1,15 @@
-from sde_importance_sampling.functions import mvn_pdf, mvn_pdf_gradient
-from sde_importance_sampling.gaussian_ansatz_functions import GaussianAnsatz
-from sde_importance_sampling.utils_path import get_tests_plots_dir
+import time
 
 import numpy as np
+import pytest
 import scipy.stats as stats
 import torch
-import pytest
 
-import time
+from sde.functions import mvn_pdf, mvn_pdf_gradient
+from sde.langevin_sde import LangevinSDE
+from function_approximation.gaussian_ansatz import GaussianAnsatz
+from utils.paths import get_tests_plots_dir
+
 
 class TestGaussianAnsatzFunctions:
 
@@ -17,33 +19,45 @@ class TestGaussianAnsatzFunctions:
         '''
         return get_tests_plots_dir()
 
+    @pytest.fixture
+    def sde(self, problem_name, potential_name, d, alpha_i, beta):
+        ''' creates Langevin SDE object with the given setting.
+        '''
+        sde = LangevinSDE(
+            problem_name=problem_name,
+            potential_name=potential_name,
+            d=d,
+            alpha=np.full(d, alpha_i),
+            beta=beta,
+        )
+        return sde
 
     @pytest.fixture
-    def random_inputs(self, N, n):
+    def random_inputs(self, K, d):
         '''generates random input data
         '''
-        return np.random.rand(N, n)
+        return np.random.rand(K, d)
 
     @pytest.fixture
-    def random_means(self, m, n):
+    def random_means(self, m, d):
         '''generates centers for the Gaussian ansatz
         '''
-        return np.random.rand(m, n)
+        return np.random.rand(m, d)
 
     @pytest.fixture
-    def ansatz(self, n, beta, random_means):
+    def ansatz(self, sde, random_means):
         '''initializes GaussianAnsatz with the given centers
         '''
 
         # initialize gaussian ansatz
-        #ansatz = GaussianAnsatz(n, beta, normalized=True)
-        ansatz = GaussianAnsatz(n, beta, normalized=False)
+        #ansatz = GaussianAnsatz(sde, normalized=True)
+        ansatz = GaussianAnsatz(sde, normalized=False)
 
         # scalar covariance matrix
         sigma_i = 1.
 
         # covariance matrix
-        cov = 1 * np.eye(n)
+        cov = 1 * np.eye(sde.d)
 
         # set gaussians
         #ansatz.set_given_ansatz_functions(means=random_means, cov=cov)
@@ -64,10 +78,10 @@ class TestGaussianAnsatzFunctions:
         return stats.norm.pdf(x, mu, sigma) * (mu - x) / sigma**2
 
 
-    def test_1d_mvn_pdf(self, N):
+    def test_1d_mvn_pdf(self, K):
 
         # get N 1-dimensional points 
-        x = np.random.rand(N, 1)
+        x = np.random.rand(K, 1)
 
         # general mvn pdf evaluated at x
         mu = 0.
@@ -83,10 +97,10 @@ class TestGaussianAnsatzFunctions:
         assert np.isclose(nu, nu_test).all()
 
 
-    def test_1d_mvn_pdf_gradient(self, N):
+    def test_1d_mvn_pdf_gradient(self, K):
 
         # get N 1-dimensional points 
-        x = np.random.rand(N, 1)
+        x = np.random.rand(K, 1)
 
         # gradient of the general mvn pdf evaluated at x
         mu = 0.
@@ -102,14 +116,14 @@ class TestGaussianAnsatzFunctions:
         assert np.isclose(kappa, kappa_test).all()
 
 
-    def test_mvn_pdf_gradient_broadcasting(self, N, n):
+    def test_mvn_pdf_gradient_broadcasting(self, K, d):
 
         # get N n-dimensional points 
-        x = np.random.rand(N, n)
+        x = np.random.rand(K, d)
 
         # gradient of the general mvn pdf evaluated at x (using broadcasting)
-        mean = np.full(n, 1)
-        cov = 2. * np.eye(n)
+        mean = np.full(d, 1)
+        cov = 2. * np.eye(d)
         kappa = mvn_pdf_gradient(x, mean, cov)
 
         # gradient of the general mvn pdf evaluated at x (without broadcasting)
@@ -124,10 +138,10 @@ class TestGaussianAnsatzFunctions:
         inv_cov = np.linalg.inv(cov)
 
         # gradient of the exponential term of the pdf
-        grad_exp_term = np.zeros((N, n))
-        for i in range(N):
-            for j in range(n):
-                for k in range(n):
+        grad_exp_term = np.zeros((K, d))
+        for i in range(K):
+            for j in range(d):
+                for k in range(d):
                     grad_exp_term[i, j] += (x[i, j] - mean[j]) * (inv_cov[j, k] + inv_cov[k, j])
         grad_exp_term *= - 0.5
 
@@ -137,23 +151,26 @@ class TestGaussianAnsatzFunctions:
         assert np.isclose(kappa, grad_mvn_pdf).all()
 
 
-    #@pytest.mark.skip()
-    def test_mvn_pdf_basis_1d_1m(self, N, beta):
+    @pytest.mark.skip()
+    def test_mvn_pdf_basis_1d_1m(self, sde, K):
         '''
         '''
+
+        # set dimension
+        assert sde.d == 1
+
         # get N 1-dimensional points 
-        n = 1
-        x = np.random.rand(N, n)
+        x = np.random.rand(K, sde.d)
 
         # get 1 centers of the gaussian
         m = 1
-        means = np.random.rand(m, n)
+        means = np.random.rand(m, sde.d)
 
         # scalar covariance matrix
         sigma_i = 0.5
 
         # initialize gaussian ansatz
-        ansatz = GaussianAnsatz(n, beta)
+        ansatz = GaussianAnsatz(sde)
 
         # set gaussians
         ansatz.set_given_ansatz_functions(means=means, sigma_i=sigma_i)
@@ -173,9 +190,9 @@ class TestGaussianAnsatzFunctions:
 
     def test_mvn_pdf_basis_broadcasting(self, random_inputs, ansatz):
 
-        #  N n-dimensional points 
+        #  K d-dimensional points 
         x = random_inputs
-        N, n = random_inputs.shape
+        K, d = random_inputs.shape
 
         # get basis of gaussian functions evaluated at x (using broadcasting)
         mvn_pdf_basis = ansatz.mvn_pdf_basis(x)
@@ -193,11 +210,11 @@ class TestGaussianAnsatzFunctions:
         inv_cov = np.linalg.inv(cov)
 
         # compute exp term
-        exp_term = np.zeros((N, m))
-        for i in range(N):
+        exp_term = np.zeros((K, m))
+        for i in range(K):
             for l in range(m):
-                for j in range(n):
-                    for k in range(n):
+                for j in range(d):
+                    for k in range(d):
                         exp_term[i, l] += (x[i, j] - means[l, j]) \
                                         * inv_cov[j, k] \
                                         * (x[i, k] - means[l, k])
@@ -206,7 +223,7 @@ class TestGaussianAnsatzFunctions:
 
         # compute norm factor
         if ansatz.normalized:
-            norm_factor = np.sqrt(((2 * np.pi) ** n) * np.linalg.det(cov))
+            norm_factor = np.sqrt(((2 * np.pi) ** d) * np.linalg.det(cov))
 
             # normalize
             mvn_pdf_basis_test = np.exp(exp_term) / norm_factor
@@ -220,9 +237,9 @@ class TestGaussianAnsatzFunctions:
 
     def test_mvn_pdf_gradient_basis_broadcasting(self, random_inputs, ansatz):
 
-        #  N n-dimensional points 
+        #  K d-dimensional points 
         x = random_inputs
-        N, n = random_inputs.shape
+        K, d = random_inputs.shape
 
         # get basis of gradient of gaussian functions evaluated at x (using broadcasting)
         mvn_pdf_gradient_basis = ansatz.mvn_pdf_gradient_basis(x)
@@ -245,11 +262,11 @@ class TestGaussianAnsatzFunctions:
         # prepare position and means for broadcasting
 
         # compute gradient of the exponential term
-        exp_term_gradient = np.zeros((N, m, n))
-        for i in range(N):
+        exp_term_gradient = np.zeros((K, m, d))
+        for i in range(K):
             for l in range(m):
-                for j in range(n):
-                    for k in range(n):
+                for j in range(d):
+                    for k in range(d):
                             exp_term_gradient[i, l, j] += (x[i, j] - means[l, j]) \
                                                         * (inv_cov[j, k] + inv_cov[k, j])
         exp_term_gradient *= - 0.5
@@ -273,16 +290,16 @@ class TestGaussianAnsatzFunctions:
 
         print('ct: {:.3f}'.format(ct_final - ct_initial))
 
-    def test_mvn_pdf_basis_torch_ct(self, n, N, m):
+    def test_mvn_pdf_basis_torch_ct(self, d, K, m):
 
         # start timer
         ct_initial = time.perf_counter()
 
-        x = torch.randn([N, n])
-        means = torch.randn([m, n])
+        x = torch.randn([K, d])
+        means = torch.randn([m, d])
         sigma_i = 1.0
 
-        log_p = - 0.5 * torch.sum((means.view(1, m, n) - x.view(N, 1, n))**2, 2) / sigma_i - torch.log(2 * torch.tensor(np.pi) * sigma_i) * n / 2
+        log_p = - 0.5 * torch.sum((means.view(1, m, d) - x.view(K, 1, d))**2, 2) / sigma_i - torch.log(2 * torch.tensor(np.pi) * sigma_i) * d / 2
         p_evaluated = torch.sum(torch.exp(log_p), 1)
 
         # stop timer
@@ -290,13 +307,13 @@ class TestGaussianAnsatzFunctions:
 
         print('ct: {:.3f}'.format(ct_final - ct_initial))
 
-    def test_mvn_pdf_basis_numpy_ct(self, n, N, m):
+    def test_mvn_pdf_basis_numpy_ct(self, d, K, m):
 
         # start timer
         ct_initial = time.perf_counter()
 
-        x = np.random.randn(N, n)
-        means = np.random.randn(m, n)
+        x = np.random.randn(K, d)
+        means = np.random.randn(m, d)
         sigma_i = 1.0
 
         # prepare position and means for broadcasting
@@ -307,7 +324,7 @@ class TestGaussianAnsatzFunctions:
         exp_term = - 0.5 * np.sum((x[:, np.newaxis, :] - means[np.newaxis, :, :])**2, axis=2) / sigma_i
 
         # normalize
-        norm_factor = np.sqrt(((2 * np.pi * sigma_i) ** n))
+        norm_factor = np.sqrt(((2 * np.pi * sigma_i) ** d))
         mvn_pdf_basis = np.exp(exp_term) / norm_factor
 
         # stop timer
@@ -357,19 +374,19 @@ class TestGaussianAnsatzFunctions:
 
 
     @pytest.mark.skip()
-    def test_mvn_pdf_1d_plot(self, dir_path, beta):
+    def test_mvn_pdf_1d_plot(self, sde, dir_path):
 
         # set dimension
-        n = 1
+        assert sde.d == 1
 
         # set 1 center
-        means = np.zeros((1, n))
+        means = np.zeros((1, sde.d))
 
         # covariance matrix
-        cov = 0.5 * np.eye(n)
+        cov = 0.5 * np.eye(sde.d)
 
         # initialize gaussian ansatz
-        ansatz = GaussianAnsatz(n, beta, normalized=False)
+        ansatz = GaussianAnsatz(sde, normalized=False)
 
         # set gaussians
         ansatz.set_given_ansatz_functions(means=means, cov=cov)
@@ -380,19 +397,19 @@ class TestGaussianAnsatzFunctions:
 
 
     @pytest.mark.skip()
-    def test_mvn_pdf_2d_plot(self, dir_path, beta):
+    def test_mvn_pdf_2d_plot(self, sde, dir_path):
 
         # set dimension
-        n = 2
+        assert sde.d == 2
 
         # set 1 center
-        means = np.zeros((1, n))
+        means = np.zeros((1, sde.d))
 
         # covariance matrix
-        cov = 0.5 * np.eye(n)
+        cov = 0.5 * np.eye(sde.d)
 
         # initialize gaussian ansatz
-        ansatz = GaussianAnsatz(n, beta, normalized=False)
+        ansatz = GaussianAnsatz(sde, normalized=False)
 
         # set gaussians
         ansatz.set_given_ansatz_functions(means=means, cov=cov)
@@ -403,21 +420,21 @@ class TestGaussianAnsatzFunctions:
 
 
     @pytest.mark.skip()
-    def test_mvn_pdf_nd_plot(self, dir_path, beta):
+    def test_mvn_pdf_nd_plot(self, sde, dir_path):
 
         # set dimension
-        n = 10
+        d = 10
 
         # set 1 center
 
         # set 1 center
-        means = np.zeros((1, n))
+        means = np.zeros((1, sde.d))
 
         # covariance matrix
-        cov = 0.5 * np.eye(n)
+        cov = 0.5 * np.eye(sde.d)
 
         # initialize gaussian ansatz
-        ansatz = GaussianAnsatz(n, beta, normalized=False)
+        ansatz = GaussianAnsatz(sde, normalized=False)
 
         # set gaussians
         ansatz.set_given_ansatz_functions(means=means, cov=cov)

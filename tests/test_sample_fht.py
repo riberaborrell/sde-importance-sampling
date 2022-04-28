@@ -1,31 +1,39 @@
-from sde_importance_sampling.importance_sampling import Sampling
-
-import pytest
 from copy import copy, deepcopy
 
 import numpy as np
+import pytest
+
+from sampling.importance_sampling import Sampling
+from sde.langevin_sde import LangevinSDE
+
 
 class TestSamplingFht:
 
     @pytest.fixture
-    def sample(self, n, alpha_i, beta, dt, k_lim, N):
+    def sde(self, problem_name, potential_name, d, alpha_i, beta):
+        ''' creates Langevin SDE object with the given setting.
+        '''
+        sde = LangevinSDE(
+            problem_name=problem_name,
+            potential_name=potential_name,
+            d=d,
+            alpha=np.full(d, alpha_i),
+            beta=beta,
+        )
+        return sde
+
+    @pytest.fixture
+    def sample(self, sde, dt, k_lim, K):
 
         # initialize sampling object
-        sample = Sampling(
-            problem_name='langevin_stop-t',
-            potential_name='nd_2well',
-            n=n,
-            alpha=np.full(n, alpha_i),
-            beta=beta,
-            is_controlled=False,
-        )
+        sample = Sampling(sde, is_controlled=False)
 
         # set sampling and Euler-Marujama parameters
         sample.set_sampling_parameters(
             dt=dt,
             k_lim=k_lim,
-            xzero=np.full(n, -1),
-            N=N,
+            xzero=np.full(sde.d, -1),
+            K=K,
         )
         return sample
 
@@ -60,13 +68,13 @@ class TestSamplingFht:
                 break
 
             # compute gradient
-            gradient = sample.gradient(xt)
+            gradient = sample.sde.gradient(xt)
 
             # get Brownian increment
-            dB = sample.brownian_increment()
+            dbt = sample.brownian_increment()
 
             # sde update
-            xt = sample.sde_update(xt, gradient, dB)
+            xt = sample.sde_update(xt, gradient, dbt)
 
         sample.stop_timer()
 
@@ -86,7 +94,7 @@ class TestSamplingFht:
         sample.start_timer()
 
         # initialize fht array
-        sample.fht = np.zeros(sample.N)
+        sample.fht = np.zeros(sample.K)
 
         # initialize xt
         xt = sample.initial_position()
@@ -95,29 +103,29 @@ class TestSamplingFht:
 
             # not in the target set
             idx = (
-                (xt < sample.target_set[:, 0]) |
-                (xt > sample.target_set[:, 1])
-            ).any(axis=1).reshape(sample.N,)
+                (xt < sample.sde.target_set[:, 0]) |
+                (xt > sample.sde.target_set[:, 1])
+            ).any(axis=1).reshape(sample.K,)
 
             # number of trajectory which are not in the target set
-            N_idx = np.sum(idx)
+            K_idx = np.sum(idx)
 
             # if all trajectories are in the target set
-            if N_idx == 0:
+            if K_idx == 0:
 
                 # save number of time steps used
                 sample.k = k
                 break
 
             # compute gradient
-            gradient = sample.gradient(xt[idx])
+            gradient = sample.sde.gradient(xt[idx])
 
             # get Brownian increment
-            dB = np.sqrt(sample.dt) \
-               * np.random.normal(0, 1, N_idx * sample.n).reshape(N_idx, sample.n)
+            dbt = np.sqrt(sample.dt) \
+                * np.random.normal(0, 1, K_idx * sample.sde.d).reshape(K_idx, sample.sde.d)
 
             # sde update
-            xt[idx] = sample.sde_update(xt[idx], gradient, dB)
+            xt[idx] = sample.sde_update(xt[idx], gradient, dbt)
 
             # update first hitting time
             sample.fht[idx] += sample.dt
