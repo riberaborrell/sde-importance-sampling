@@ -1,5 +1,6 @@
 # set the absolute path of the project directory
-# project_root_dir = '/project/abs/path'
+PROJECT_ROOT_DIR = '/project/abs/path'
 
 # set the absolute path of the data directory
-# data_root_dir = '/data/abs/path/'
+DATA_ROOT_DIR = '/data/abs/path'
+

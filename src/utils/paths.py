@@ -5,20 +5,17 @@ import shutil
 
 import numpy as np
 
-from utils.config import project_root_dir, data_root_dir
+from utils.config import PROJECT_ROOT_DIR, DATA_ROOT_DIR
 
 def get_project_dir():
     ''' returns the absolute path of the repository's directory
     '''
-    #return Path(__file__).parent.parent.parent
-    return project_root_dir
+    return PROJECT_ROOT_DIR
 
 def get_data_dir():
     ''' returns the absolute path of the repository's data directory
     '''
-    #project_path = get_project_dir()
-    #return os.path.join(project_path, 'data')
-    return data_root_dir
+    return DATA_ROOT_DIR
 
 def get_tests_plots_dir():
     ''' returns the absolute path of the directory for the tests plots
@@ -45,16 +42,14 @@ def empty_dir(dir_path):
             except Exception as e:
                 print('Failed to delete {}. Reason: {}'.format((file_path, e)))
 
-def get_overleaf_dir_path(problem_name, potential_name):
-    ''' returns the absolute path of overleaf directory
+def get_fig_notebooks_dir_path():
+    ''' returns the absolute path of the notebooks directory figures
     '''
 
     # get dir path
     dir_path = os.path.join(
         get_data_dir(),
-        problem_name,
-        potential_name,
-        'overleaf',
+        'notebooks',
     )
 
     # create dir path if not exists
