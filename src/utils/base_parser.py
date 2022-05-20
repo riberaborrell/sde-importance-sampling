@@ -224,11 +224,11 @@ def get_base_parser():
         help='Set type of approximation problem training algorithm. Default: "classic"',
     )
     parser.add_argument(
-        '--loss-type',
-        dest='loss_type',
-        choices=['ipa', 're'],
+        '--grad-estimator',
+        dest='grad_estimator',
+        choices=['ipa', 'eff_loss'],
         default='ipa',
-        help='Set type of loss. Default: "ipa"',
+        help='Set type of grad estimation. Default: "ipa"',
     )
     parser.add_argument(
         '--optimizer',

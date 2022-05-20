@@ -132,7 +132,7 @@ def main():
     # initialize SOM object
     som = StochasticOptimizationMethod(
         sample=sample,
-        loss_type=args.loss_type,
+        grad_estimator=args.grad_estimator,
         optimizer=args.optimizer,
         lr=args.lr,
         n_iterations_lim=args.n_iterations_lim,

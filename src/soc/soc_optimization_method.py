@@ -19,7 +19,7 @@ class StochasticOptimizationMethod(object):
 
     sample: Sampling object
         Sampling object to estimate the loss and its gradient
-    loss_type: str
+    grad_estimator: str
         type of loss function
     optimizer: str
         type of optimization method
@@ -169,7 +169,7 @@ class StochasticOptimizationMethod(object):
     plot_2d_iteration(i=None)
 
     '''
-    def __init__(self, sample, loss_type=None, optimizer=None, lr=None, n_iterations_lim=None,
+    def __init__(self, sample, grad_estimator=None, optimizer=None, lr=None, n_iterations_lim=None,
                  n_iterations_backup=None, save_thetas_all_it=True):
         ''' init methods
 
@@ -178,7 +178,7 @@ class StochasticOptimizationMethod(object):
 
         sample: Sampling object
             Sampling object to estimate the loss and its gradient
-        loss_type: str
+        grad_estimator: str
             type of loss function
         optimizer: str
             type of optimization method
@@ -196,7 +196,7 @@ class StochasticOptimizationMethod(object):
         self.sample = sample
 
         # type of loss function
-        self.loss_type = loss_type
+        self.grad_estimator = grad_estimator
 
         # type of optimization method
         self.optimizer = optimizer
@@ -222,7 +222,7 @@ class StochasticOptimizationMethod(object):
 
         self.dir_path = get_som_dir_path(
             func_appr_dir_path,
-            self.loss_type,
+            self.grad_estimator,
             self.optimizer,
             self.lr,
             self.sample.dt,
@@ -659,7 +659,7 @@ class StochasticOptimizationMethod(object):
         K_grad: int
             number of batches used to estimate the gradient
         '''
-        assert self.loss_type == 'ipa', ''
+        assert self.grad_estimator == 'ipa', ''
         assert self.sample.problem_name == 'langevin_stop-t', ''
 
         self.start_timer()
@@ -865,7 +865,7 @@ class StochasticOptimizationMethod(object):
             #sample.nn_func_appr.write_parameters(f)
 
         f.write('\nStochastic optimization method parameters\n')
-        f.write('loss type: {}\n'.format(self.loss_type))
+        f.write('type of gradient estimator: {}\n'.format(self.grad_estimator))
         f.write('som type: {}\n\n'.format(self.optimizer))
 
         f.write('lr: {}\n'.format(self.lr))

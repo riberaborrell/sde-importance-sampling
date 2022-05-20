@@ -95,7 +95,7 @@ def main():
     # initialize gradient descent object
     sgd = StochasticOptimizationMethod(
         sample=sample,
-        loss_type='ipa',
+        grad_estimator='ipa',
         optimizer='sgd',
         lr=args.lr,
         n_iterations_lim=args.n_iterations_lim,
