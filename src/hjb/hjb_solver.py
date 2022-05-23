@@ -603,12 +603,12 @@ class SolverHJB(object):
 
         # potential, bias potential and tilted potential
         V = self.sde.potential(x).reshape(self.sde.Nx)
-        self.bias_potential = 2 * self.value_function / self.sde.beta
+        self.bias_potential = self.value_function * self.sde.sigma**2
         self.perturbed_potential = V + self.bias_potential
 
         # gradient and tilted drift
         dV = self.sde.gradient(x).reshape(self.sde.domain_h.shape)
-        self.perturbed_drift = - dV + np.sqrt(2) * self.u_opt
+        self.perturbed_drift = - dV + self.sigma * self.u_opt
 
     def write_report(self, x):
         ''' writes the hjb solver parameters

@@ -143,7 +143,7 @@ class LangevinSDE(object):
             label determining if the problem is elliptic or parabolic
         potential_name: str
             type of potential for the o.l. equation
-        n: int
+        d: int
             dimension of the problem
         alpha: array
             parameters of the potential
@@ -329,7 +329,7 @@ class LangevinSDE(object):
         Returns
         -------
         eucl_dist: array
-            (2^n, n)-array with the 2^n local minimums of the double well potential
+            (2^d, d)-array with the 2^d local minimums of the double well potential
         '''
         assert type(x) == np.ndarray, ''
         assert x.ndim == 2, ''
@@ -363,16 +363,16 @@ class LangevinSDE(object):
             flag telling us if the subset if an hyperrectangle
         '''
         # get subset dimension
-        n = subset.shape[0]
+        d = subset.shape[0]
 
         # 1d case
-        if n == 1:
+        if d == 1:
             return True
 
         # nd case
         lb = subset[0, 0]
         rb = subset[0, 1]
-        for i in range(1, n):
+        for i in range(1, d):
             if lb != subset[i, 0] or rb != subset[i, 1]:
                 return False
         return True

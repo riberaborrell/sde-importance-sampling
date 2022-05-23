@@ -5,10 +5,10 @@ import pytest
 import torch
 
 from sde.langevin_sde import LangevinSDE
-from function_approximation.models import GaussianAnsatzNN
+from function_approximation.models import GaussianAnsatzModel
 
 
-class TestGaussianAnsatzNN:
+class TestGaussianAnsatzModel:
 
     @pytest.fixture
     def sde(self, problem_name, potential_name, d, alpha_i, beta):
@@ -31,9 +31,9 @@ class TestGaussianAnsatzNN:
 
     @pytest.fixture
     def gaussian_ansatz(self, sde, m_i, sigma_i):
-        ''' initializes GaussianAnsatzNN model and distributes uniformly the means
+        ''' initializes GaussianAnsatzModel and distributes uniformly the means
         '''
-        return GaussianAnsatzNN(sde, m_i, sigma_i)
+        return GaussianAnsatzModel(sde, m_i, sigma_i)
 
     def test_mvn_pdf_basis_size(self, gaussian_ansatz, random_inputs):
         '''
