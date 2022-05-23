@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 from function_approximation.function_approximation import FunctionApproximation
-from function_approximation.models import GaussianAnsatzNN
+from function_approximation.models import GaussianAnsatzModel
 from sde.langevin_sde import LangevinSDE
 from sampling.importance_sampling import Sampling
 from soc.soc_optimization_method import StochasticOptimizationMethod
@@ -46,7 +46,7 @@ def main():
     sample = Sampling(sde, is_controlled=True)
 
     # initialize gaussian ansatz nn 
-    model = GaussianAnsatzNN(sde.d, sde.beta, sde.domain, args.m_i, args.sigma_i)
+    model = GaussianAnsatzModel(sde, args.m_i, args.sigma_i)
 
     # initialize function approximation
     func = FunctionApproximation(
@@ -152,6 +152,7 @@ def main():
     if args.do_plots:
 
         # load mc sampling and hjb solution and prepare labels
+        som.compute_arrays_running_averages(n_iter_run_window=1)
         sgd.load_mc_sampling(dt_mc=0.01, K_mc=10**3, seed=args.seed)
         sgd.load_hjb_solution_and_sampling(h_hjb=0.001, dt_hjb=0.01, K_hjb=10**3, seed=args.seed)
         sgd.load_plot_labels_colors_and_linestyles()

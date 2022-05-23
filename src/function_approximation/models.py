@@ -10,31 +10,40 @@ ACTIVATION_FUNCTION_TYPES = [
     'tanh',
 ]
 
-class GaussianAnsatzNN(nn.Module):
-    def __init__(self, sde, m_i, sigma_i, normalized=True, seed=None):
-        super(GaussianAnsatzNN, self).__init__()
+class GaussianAnsatzModel(nn.Module):
+    def __init__(self, sde, m_i, sigma_i=None, cov=None, normalized=True, seed=None):
+        super(GaussianAnsatzModel, self).__init__()
 
-        ''' Gaussian ansatz NN model
-            n (int): dimension
-            beta (float) : inverse of the temperature
-            m_i (int) : number of ansatz functions per axis
-            means ((m, n)-tensor) : centers of the gaussian functions
-            sigma_i (float): value in the diagonal entries of the covariance matrix
-            cov ((n, n)-tensor) : covariance matrix
+        ''' Gaussian ansatz pytorch model
+
+        Parameters
+        ----------
+        sde : object
+            LangevinSDE object
+        m_i : int
+            number of ansatz functions per axis
+        means : (m, n)-tensor
+            centers of the gaussian functions
+        sigma_i : float
+            value in the diagonal entries of the covariance matrix
+        cov : (n, n)-tensor
+            covariance matrix
         '''
+        # environment
+        self.sde = sde
+
+        # normalize Gaussian flag
+        self.normalized = normalized
 
         # set seed
         if seed is not None:
             torch.manual_seed(seed)
 
-        # normalize Gaussian flag
-        self.normalized = normalized
-
         # dimension and inverse of temperature
         self.d = sde.d
 
         # set gaussians uniformly in the domain
-        self.set_unif_dist_ansatz_functions(sde.domain, m_i, sigma_i)
+        self.set_unif_dist_ansatz_functions(m_i, sigma_i)
 
         # set parameters
         self.theta = torch.nn.Parameter(torch.randn(self.m))
@@ -47,9 +56,9 @@ class GaussianAnsatzNN(nn.Module):
 
         Parameters
         ----------
-        sigma_i: float
+        sigma_i : float
             value in the diagonal entries of the covariance matrix.
-        cov: tensor
+        cov : tensor
             covariance matrix
         '''
 
@@ -84,7 +93,7 @@ class GaussianAnsatzNN(nn.Module):
             # compute determinant
             self.det_cov = torch.linalg.det(cov)
 
-    def set_unif_dist_ansatz_functions(self, domain, m_i, sigma_i):
+    def set_unif_dist_ansatz_functions(self, m_i, sigma_i):
         ''' sets the centers of the ansatz functions uniformly distributed along the domain
             with scalar covariance matrix
 
@@ -105,7 +114,7 @@ class GaussianAnsatzNN(nn.Module):
         # distribute centers of Gaussians uniformly
         mgrid_input = []
         for i in range(self.d):
-            slice_i = slice(domain[i, 0], domain[i, 1], complex(0, m_i))
+            slice_i = slice(self.sde.domain[i, 0], self.sde.domain[i, 1], complex(0, m_i))
             mgrid_input.append(slice_i)
         means = np.mgrid[mgrid_input]
         means = np.moveaxis(means, 0, -1).reshape(self.m, self.d)
