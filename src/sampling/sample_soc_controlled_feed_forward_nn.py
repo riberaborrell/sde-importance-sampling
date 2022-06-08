@@ -1,12 +1,11 @@
 import numpy as np
 
 from function_approximation.function_approximation import FunctionApproximation
-from sde.langevin_sde import LangevinSDE
-from sampling.importance_sampling import Sampling
 from function_approximation.models import FeedForwardNN, DenseNN
+from sampling.importance_sampling import Sampling
+from sde.langevin_sde import LangevinSDE
 from soc.soc_optimization_method import StochasticOptimizationMethod
 from utils.base_parser import get_base_parser
-
 
 def get_parser():
     parser = get_base_parser()
@@ -43,7 +42,7 @@ def main():
     )
 
     # initialize sampling object
-    sample = Sampling(sde, is_controlled=True)
+    sgd_sample = Sampling(sde, is_controlled=True)
 
     # get dimensions of each layer
     if args.d_layers is not None:
@@ -81,40 +80,46 @@ def main():
         func.training_algorithm = args.train_alg
 
         # get metadynamics
-        meta = sde.get_metadynamics_sampling(args.meta_type, args.weights_type,
-                                             args.omega_0_meta, args.sigma_i, args.dt_meta,
-                                             args.delta_meta, args.K_meta, args.seed)
+        meta = sde.get_metadynamics_sampling(
+            meta_type=args.meta_type,
+            weights_type=args.weights_type,
+            omega_0=args.omega_0_meta,
+            sigma_i=args.sigma_i,
+            dt=args.dt_meta,
+            delta=args.delta_meta,
+            K=args.K_meta,
+            seed=args.seed_sgd,
+        )
         dir_path = meta.dir_path
 
     # set dir path for nn
     func.set_dir_path(dir_path)
 
-    # set initial parameters
-    if args.theta == 'random':
+    # add nn function approximation
+    sgd_sample.nn_func_appr = func
 
-        # the nn parameters are randomly initialized 
-        pass
+    # set sampling and Euler-Marujama parameters
+    sgd_sample.seed = args.seed_sgd
+    sgd_sample.xzero = np.full(args.d, args.xzero_i)
+    sgd_sample.K = args.K_sgd
+    sgd_sample.dt = args.dt
 
-    elif args.theta == 'null':
+    # initialize SOM object
+    som = StochasticOptimizationMethod(
+        sample=sgd_sample,
+        grad_estimator=args.grad_estimator,
+        optimizer=args.optimizer,
+        lr=args.lr,
+        n_iterations_lim=args.n_iterations_lim,
+        n_iterations_backup=args.n_iterations_backup,
+    )
 
-        # set nn parameters to be zero
-        func.zero_parameters()
-
-    elif args.theta == 'not-controlled':
-
-        # train nn parameters such that control is zero
-        func.train_parameters(sde=sde)
-
-    elif args.theta == 'meta':
-
-        # train parameters if not trained yet
-        func.train_parameters(meta=meta)
-    else:
+    # load stochastic optimization method
+    if not som.load():
         return
 
-
-    # add nn function approximation
-    sample.nn_func_appr = func
+    # initialize sampling object
+    sample = Sampling(sde, is_controlled=True)
 
     # set sampling and Euler-Marujama parameters
     sample.set_sampling_parameters(
@@ -125,70 +130,29 @@ def main():
         k_lim=args.k_lim,
     )
 
-    # set u l2 error flag
-    if args.do_u_l2_error:
-        sample.do_u_l2_error = True
+    # set controlled sampling dir path
+    sample.set_controlled_dir_path(som.dir_path)
 
-    # initialize SOM object
-    som = StochasticOptimizationMethod(
-        sample=sample,
-        grad_estimator=args.grad_estimator,
-        optimizer=args.optimizer,
-        lr=args.lr,
-        n_iterations_lim=args.n_iterations_lim,
-        n_iterations_backup=args.n_iterations_backup,
-    )
-
-    # start sgd
     if not args.load:
-        try:
-            som.som_nn()
 
-        # save if job is manually interrupted
-        except KeyboardInterrupt:
-            som.stop_timer()
-            som.save()
+        # load model parameters from last iteration
+        sgd_sample.nn_func_appr.model.load_parameters(som.thetas[-1])
+        sample.nn_func_appr = sgd_sample.nn_func_appr
 
-    # load already run gd
+        # sample and compute statistics
+        sample.sample_controlled()
+
+        # save statistics
+        sample.save()
+
+    # load already sampled bias potential
     else:
-        if not som.load():
+        if not sample.load():
             return
 
-    # report adam
+    # print statistics
     if args.do_report:
-        som.write_report()
-
-    # do plots 
-    if args.do_plots:
-
-        # load mc sampling and hjb solution and prepare labels
-        som.compute_arrays_running_averages(n_iter_run_window=1)
-        som.load_mc_sampling(dt_mc=0.01, K_mc=10**3, seed=1)
-        som.load_hjb_solution_and_sampling(h_hjb=0.001, dt_hjb=0.01, K_hjb=10**3, seed=1)
-        som.load_plot_labels_colors_and_linestyles()
-
-        # loss
-        som.plot_loss()
-
-        # mean and relative error of the reweighted quantity of interest
-        som.plot_mean_I_u()
-        som.plot_re_I_u()
-
-        # time steps and computational time
-        som.plot_time_steps()
-        som.plot_cts()
-
-        # u l2 error and its change
-        if hasattr(som, 'u_l2_errors'):
-            som.plot_u_l2_error()
-            som.plot_u_l2_error_change()
-
-        if args.d == 1:
-            #som.plot_1d_iteration()
-            som.plot_1d_iterations()
-
-        elif args.d == 2:
-            som.plot_2d_iteration(i=0)
+        sample.write_report()
 
 
 if __name__ == "__main__":

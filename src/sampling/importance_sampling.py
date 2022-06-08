@@ -252,7 +252,7 @@ class Sampling(object):
 
     '''
 
-    def __init__(self, sde, h=None, is_controlled=True, is_optimal=False,
+    def __init__(self, sde, is_controlled=True, is_optimal=False,
                  do_u_l2_error=False, save_trajectory=False):
         ''' init method
 
@@ -260,8 +260,6 @@ class Sampling(object):
         ----------
         sde: langevinSDE object
             overdamped langevin sde object
-        h: float, optional
-            step size
         is_controlled: bool, optional
             True if the sampling is controlled
         is_optimal: bool, optimal
@@ -275,7 +273,6 @@ class Sampling(object):
 
         # overdamped langevin sde
         self.sde = sde
-        self.sde.h = h
 
         # sampling
         self.is_controlled = is_controlled

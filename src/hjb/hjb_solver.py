@@ -608,7 +608,7 @@ class SolverHJB(object):
 
         # gradient and tilted drift
         dV = self.sde.gradient(x).reshape(self.sde.domain_h.shape)
-        self.perturbed_drift = - dV + self.sigma * self.u_opt
+        self.perturbed_drift = - dV + self.sde.sigma * self.u_opt
 
     def write_report(self, x):
         ''' writes the hjb solver parameters
