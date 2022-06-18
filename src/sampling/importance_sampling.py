@@ -653,7 +653,7 @@ class Sampling(object):
         if self.do_u_l2_error:
 
             # load hjb solution
-            sol_hjb = self.get_hjb_solver()
+            sol_hjb = self.sde.get_hjb_solver()
             self.u_hjb = sol_hjb.u_opt
 
             # preallocate l2 error
@@ -879,9 +879,9 @@ class Sampling(object):
         if self.do_u_l2_error:
 
             # load hjb solution
-            sol_hjb = self.get_hjb_solver()
+            sol_hjb = self.sde.get_hjb_solver()
             self.u_hjb = sol_hjb.u_opt
-            self.h = sol_hjb.h
+            self.h = sol_hjb.sde.h
 
             # preallocate l2 error
             self.preallocate_l2_error()
@@ -1000,9 +1000,9 @@ class Sampling(object):
         if self.do_u_l2_error:
 
             # load hjb solution
-            sol_hjb = self.get_hjb_solver()
+            sol_hjb = self.sde.get_hjb_solver()
             self.u_hjb = sol_hjb.u_opt
-            self.h = sol_hjb.h
+            self.h = sol_hjb.sde.h
 
             # preallocate l2 error
             self.preallocate_l2_error()

@@ -152,7 +152,7 @@ def main():
     if args.do_plots:
 
         # load mc sampling and hjb solution and prepare labels
-        som.compute_arrays_running_averages(n_iter_run_window=1)
+        sgd.compute_arrays_running_averages(n_iter_run_window=1)
         sgd.load_mc_sampling(dt_mc=0.01, K_mc=10**3, seed=args.seed)
         sgd.load_hjb_solution_and_sampling(h_hjb=0.001, dt_hjb=0.01, K_hjb=10**3, seed=args.seed)
         sgd.load_plot_labels_colors_and_linestyles()
