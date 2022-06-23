@@ -829,7 +829,7 @@ class Metadynamics(object):
             ext = ''
 
         # discretize domain and evaluate in grid
-        self.sample.discretize_domain(h=0.05)
+        self.sample.sde.discretize_domain(h=0.05)
         self.sample.get_grid_value_function()
         self.sample.get_grid_control()
 
@@ -914,7 +914,7 @@ class Metadynamics(object):
             ext = ''
 
         # discretize domain and evaluate in grid
-        self.sample.discretize_domain_ith_coordinate(h=0.01)
+        self.sample.sde.discretize_domain_ith_coordinate(h=0.01)
         self.sample.get_grid_value_function_i(i=i, x_j=x_j)
         self.sample.get_grid_control_i(i=i, x_j=x_j)
 

@@ -1405,7 +1405,7 @@ class StochasticOptimizationMethod(object):
         self.sample.nn_func_appr.model.load_parameters(self.thetas[it])
 
         # get control
-        self.sample.discretize_domain_ith_coordinate(h=0.01)
+        self.sample.sde.discretize_domain_ith_coordinate(h=0.01)
         self.sample.get_grid_control_i(i=i, x_j=x_j)
 
         x = self.sample.domain_i_h
@@ -1439,7 +1439,7 @@ class StochasticOptimizationMethod(object):
         self.sample.nn_func_appr.model.load_parameters(self.thetas[it])
 
         # discretize ith coordinate
-        self.sample.discretize_domain_ith_coordinate(h=0.01)
+        self.sample.sde.discretize_domain_ith_coordinate(h=0.01)
 
         # get control
         self.sample.get_grid_control_i(i=0, x_j=-1)
@@ -1502,7 +1502,7 @@ class StochasticOptimizationMethod(object):
         k = self.sample.get_time_index(t)
 
         # get control
-        self.sample.discretize_domain_ith_coordinate(h=0.01)
+        self.sample.sde.discretize_domain_ith_coordinate(h=0.01)
         self.sample.get_grid_control_i(i=i, k=k)
 
         # get hjb solution
@@ -1540,14 +1540,15 @@ class StochasticOptimizationMethod(object):
             self.sample.nn_func_appr.model.load_parameters(self.thetas[i])
 
         # discretize domain and evaluate control in grid
-        self.sample.discretize_domain(h=h)
+        self.sample.sde.discretize_domain(h=h)
         self.sample.get_grid_control()
 
         # evaluate value function in grid
-        if self.sample.n == 1:
+        if self.sample.sde.d == 1:
             self.sample.integrate_value_function_1d()
+            self.sample.get_grid_value_function()
 
-        return np.copy(self.sample.grid_control), np.copy(self.sample.grid_controlled_potential)
+        return np.copy(self.sample.grid_control), np.copy(self.sample.grid_perturbed_potential)
 
     def plot_1d_iteration(self, i=None):
         from figures.myfigure import MyFigure
@@ -1731,7 +1732,7 @@ class StochasticOptimizationMethod(object):
             self.sample.nn_func_appr.model.load_parameters(self.thetas[i])
 
         # discretize domain and evaluate in grid
-        self.sample.discretize_domain(h=0.005)
+        self.sample.sde.discretize_domain(h=0.005)
         self.sample.get_grid_value_function()
         self.sample.get_grid_control()
 

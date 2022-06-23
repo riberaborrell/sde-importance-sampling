@@ -319,7 +319,7 @@ class GaussianAnsatz(object):
         '''
 
         # discretize domain
-        meta.sample.discretize_domain(h)
+        meta.sample.sde.discretize_domain(h)
 
         # flattened domain_h
         x = meta.sample.get_flat_domain_h()
@@ -535,7 +535,7 @@ class GaussianAnsatz(object):
         '''
 
         # discretize domain
-        self.discretize_domain()
+        self.sde.discretize_domain()
 
         # get idx in the target set
         idx_ts = self.get_idx_target_set()
