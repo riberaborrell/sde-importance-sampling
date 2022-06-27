@@ -7,18 +7,14 @@ from utils.base_parser import get_base_parser
 
 def get_parser():
     parser = get_base_parser()
-    parser.description = 'Load not controlled nd overdamped Langevin SDE from Multiple batches'
+    parser.description = 'Load not controlled nd overdamped Langevin SDE from one bigger batch'
     return parser
 
 def main():
     args = get_parser().parse_args()
 
     # check number of batch trajectories
-    assert args.K >= args.K_batch, ''
-    assert args.K % args.K_batch == 0, ''
-
-    # number of batch samples
-    n_batch_samples = args.K // args.K_batch
+    assert args.K < args.K_batch, ''
 
     # set alpha array
     if args.potential_name == 'nd_2well':
@@ -63,7 +59,7 @@ def main():
     )
 
     # set number of batch samples used
-    sample.n_batch_samples = n_batch_samples
+    sample.n_batch_samples = 1
 
     # set path
     sample.set_not_controlled_dir_path()
@@ -71,29 +67,23 @@ def main():
     # preallocate first hitting times array and been in target set array flag
     sample.preallocate_fht()
 
-    # initialize total number of time steps and delta time
-    sample.k = 0
-    sample.ct = 0.
+    # set same dir path
+    batch_sample.dt = args.dt
+    batch_sample.K = args.K_batch
+    batch_sample.seed = 1
 
-    for i in np.arange(n_batch_samples):
+    # load files
+    batch_sample.set_not_controlled_dir_path()
+    batch_sample.load()
 
-        # set same dir path
-        batch_sample.dt = args.dt
-        batch_sample.K = args.K_batch
-        batch_sample.seed = i + 1
+    # add fht
+    idx_i_reduced_batch = slice(0, sample.K)
+    sample.been_in_target_set[:, 0] = batch_sample.been_in_target_set[(idx_i_reduced_batch, 0)]
+    sample.fht = batch_sample.fht[idx_i_reduced_batch]
 
-        # load files
-        batch_sample.set_not_controlled_dir_path()
-        batch_sample.load()
-
-        # add fht
-        idx_i_batch = slice(batch_sample.K * i, batch_sample.K * (i + 1))
-        sample.been_in_target_set[(idx_i_batch, 0)] = batch_sample.been_in_target_set[:, 0]
-        sample.fht[idx_i_batch] = batch_sample.fht
-
-        # add time steps and computational time
-        sample.k += batch_sample.k
-        sample.ct += batch_sample.ct
+    # take total number of time steps and delta time
+    sample.k = batch_sample.k
+    sample.ct = batch_sample.ct
 
     # compute statistics
     sample.compute_fht_statistics()
