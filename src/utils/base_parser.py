@@ -227,7 +227,7 @@ def get_base_parser():
         '--grad-estimator',
         dest='grad_estimator',
         choices=['ipa', 'eff_loss'],
-        default='ipa',
+        default='eff_loss',
         help='Set type of grad estimation. Default: "ipa"',
     )
     parser.add_argument(

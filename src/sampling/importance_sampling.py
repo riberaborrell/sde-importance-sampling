@@ -1510,7 +1510,7 @@ class Sampling(object):
 
         # inputs
         x = x_j * np.ones((self.Nh, self.sde.d))
-        x[:, i] = self.domain_i_h
+        x[:, i] = self.sde.domain_i_h
 
         # potential
         self.grid_potential_i = self.potential(x)
@@ -1564,12 +1564,12 @@ class Sampling(object):
             the control is evaluated at time k
         '''
         # check if time step k is given for the deterministic time horizont problem
-        if self.problem_name == 'langevin_det-t':
+        if self.sde.problem_name == 'langevin_det-t':
             assert k is not None, ''
 
         # inputs
-        x = x_j * np.ones((self.Nh, self.sde.d))
-        x[:, i] = self.domain_i_h
+        x = x_j * np.ones((self.sde.Nh, self.sde.d))
+        x[:, i] = self.sde.domain_i_h
 
         # gaussian ansatz control
         if hasattr(self, 'ansatz'):
@@ -1584,9 +1584,9 @@ class Sampling(object):
             inputs = torch.tensor(x, dtype=torch.float)
 
             # evaluate control
-            if self.problem_name == 'langevin_det-t':
+            if self.sde.problem_name == 'langevin_det-t':
                 control = self.nn_func_appr.model(k, inputs).detach().numpy()
-            elif self.problem_name == 'langevin_stop-t':
+            elif self.sde.problem_name == 'langevin_stop-t':
                 control = self.nn_func_appr.model(inputs).detach().numpy()
 
         # get i-th coordinate
