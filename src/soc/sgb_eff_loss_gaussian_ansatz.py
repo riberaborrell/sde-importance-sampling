@@ -46,7 +46,7 @@ def main():
     sample = Sampling(sde, is_controlled=True)
 
     # initialize gaussian ansatz nn 
-    model = GaussianAnsatzModel(sde, args.m_i, args.sigma_i)
+    model = GaussianAnsatzModel(sde)
 
     # initialize function approximation
     func = FunctionApproximation(
@@ -55,53 +55,75 @@ def main():
         initialization=args.theta,
     )
 
-    # get dir path for nn
-    if args.theta in ['random', 'null']:
-        dir_path = sde.settings_dir_path
+    # set initial parameters
+    if args.theta == 'random':
 
-    if args.theta == 'not-controlled':
+        # set gaussians uniformly in the domain
+        model.set_unif_dist_ansatz_functions(args.m_i, args.sigma_i)
+
+        # set dir path for the function approximation
+        func.set_dir_path(sde.settings_dir_path)
+
+    elif args.theta == 'null':
+
+        # set gaussians uniformly in the domain
+        model.set_unif_dist_ansatz_functions(args.m_i, args.sigma_i)
+
+        # set dir path for the function approximation
+        func.set_dir_path(sde.settings_dir_path)
+
+        # set parameters to be zero
+        func.zero_parameters()
+
+    elif args.theta == 'not-controlled':
+
+        # set gaussians uniformly in the domain
+        model.set_unif_dist_ansatz_functions(args.m_i, args.sigma_i)
 
         # set training algorithm
         func.training_algorithm = args.train_alg
 
-        dir_path = sde.settings_dir_path
+        # set dir path for the function approximation
+        func.set_dir_path(sde.settings_dir_path)
 
-    elif args.theta == 'meta':
+        # train parameters such that control is zero
+        func.train_parameters(sde=sde)
 
-        # set training algorithm
-        func.training_algorithm = args.train_alg
+    elif args.theta == 'meta' and args.distributed == 'uniform':
+
+        # set gaussians uniformly in the domain
+        model.set_unif_dist_ansatz_functions(args.m_i, args.sigma_i)
 
         # get metadynamics
         meta = sde.get_metadynamics_sampling(args.meta_type, args.weights_type,
                                              args.omega_0_meta, args.sigma_i, args.dt_meta,
                                              args.delta_meta, args.K_meta, args.seed)
-        dir_path = meta.dir_path
 
-    # set dir path for nn
-    func.set_dir_path(dir_path)
+        # set training algorithm
+        func.training_algorithm = args.train_alg
 
-    # set initial parameters
-    if args.theta == 'random':
+        # set dir path for the function approximation
+        func.set_dir_path(meta.dir_path)
 
-        # the nn parameters are randomly initialized 
-        pass
-
-    elif args.theta == 'null':
-
-        # set nn parameters to be zero
-        func.zero_parameters()
-
-    elif args.theta == 'not-controlled':
-
-        # train nn parameters such that control is zero
-        func.train_parameters(sde=sde)
-
-    elif args.theta == 'meta':
-
-        # train parameters if not trained yet
+        # train parameters such that the control equals the control from metadynamics
         func.train_parameters(meta=meta)
+
+    elif args.theta == 'meta' and args.distributed == 'meta':
+
+        # get metadynamics
+        meta = sde.get_metadynamics_sampling(args.meta_type, args.weights_type,
+                                             args.omega_0_meta, args.sigma_i, args.dt_meta,
+                                             args.delta_meta, args.K_meta, args.seed)
+
+        # set gaussians uniformly in the domain
+        model.set_meta_dist_ansatz_functions(meta)
+
+        # set dir path for the function approximation
+        func.set_dir_path(meta.dir_path)
+
     else:
         return
+
 
     # add nn function approximation
     sample.nn_func_appr = func
@@ -168,11 +190,11 @@ def main():
         sgd.plot_time_steps()
         sgd.plot_cts()
 
-        if args.n == 1:
+        if args.d == 1:
             #sgd.plot_1d_iteration()
             sgd.plot_1d_iterations()
 
-        elif args.n == 2:
+        elif args.d == 2:
             sgd.plot_2d_iteration()
 
 

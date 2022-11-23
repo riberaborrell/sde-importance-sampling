@@ -11,24 +11,65 @@ ACTIVATION_FUNCTION_TYPES = [
 ]
 
 class GaussianAnsatzModel(nn.Module):
-    def __init__(self, sde, m_i, sigma_i=None, cov=None, normalized=True, seed=None):
+    ''' Gaussian ansatz Model
+
+    Attributes
+    ----------
+    sde : object
+        LangevinSDE object
+    normalized: bool
+        True if the Gaussian functions are normalized normal density functions
+    distributed: str
+        states how the centers of the Gaussian functions are distributed. "uniform" means
+        that they are placed uniformly along the axis of the space. "meta" means that they are
+        placed in the same place where the metadynamics algorithm did an update
+    m_i : int
+        number of ansatz functions per axis
+    means : (m, n)-tensor
+        centers of the gaussian functions
+    sigma_i : float
+        value in the diagonal entries of the covariance matrix
+    cov : (n, n)-tensor
+        covariance matrix
+
+    Methods
+    -------
+    __init__(sde, normalized=True, seed=None)
+
+    set_cov_matrix(sigma_i=None, cov=None)
+
+    set_unif_dist_ansatz_functions(m_i, sigma_i)
+
+    set_meta_dist_ansatz_functions(meta)
+
+    mvn_pdf_basis(x)
+
+    mvn_pdf_gradient_basis(x)
+
+    forward(x)
+
+    get_parameters()
+
+    load_parameters(theta)
+
+    get_rel_path()
+
+    '''
+    def __init__(self, sde, normalized=True, seed=None):
         super(GaussianAnsatzModel, self).__init__()
 
-        ''' Gaussian ansatz pytorch model
+        ''' init method
 
         Parameters
         ----------
         sde : object
             LangevinSDE object
-        m_i : int
-            number of ansatz functions per axis
-        means : (m, n)-tensor
-            centers of the gaussian functions
-        sigma_i : float
-            value in the diagonal entries of the covariance matrix
-        cov : (n, n)-tensor
-            covariance matrix
+        normalized: bool
+            True if the Gaussian functions are normalized normal density functions
+        seed: int
+            random seed used to initialize the weights
         '''
+
         # environment
         self.sde = sde
 
@@ -41,15 +82,6 @@ class GaussianAnsatzModel(nn.Module):
 
         # dimension and inverse of temperature
         self.d = sde.d
-
-        # set gaussians uniformly in the domain
-        self.set_unif_dist_ansatz_functions(m_i, sigma_i)
-
-        # set parameters
-        self.theta = torch.nn.Parameter(torch.randn(self.m))
-
-        # dimension of flattened parameters
-        self.d_flat = self.m
 
     def set_cov_matrix(self, sigma_i=None, cov=None):
         ''' sets the covariance matrix of the gaussian functions
@@ -107,9 +139,13 @@ class GaussianAnsatzModel(nn.Module):
             value in the diagonal entries of the covariance matrix
         '''
 
+        # distribution of ansatz funcitons
+        self.distributed = 'uniform'
+
         # set number of gaussians
         self.m_i = m_i
         self.m = m_i ** self.d
+        self.d_flat = self.m
 
         # distribute centers of Gaussians uniformly
         mgrid_input = []
@@ -123,6 +159,42 @@ class GaussianAnsatzModel(nn.Module):
         # set covariance matrix
         self.set_cov_matrix(sigma_i=sigma_i)
 
+        # set parameters
+        self.theta = torch.nn.Parameter(torch.randn(self.m))
+
+
+    def set_meta_dist_ansatz_functions(self, meta):
+        ''' sets the ansatz functions from metadynamics
+
+        Parameters
+        ----------
+        meta: Metadynamics object
+            Metadynamics object
+        '''
+        # distribution of ansatz funcitons
+        self.distributed = 'meta'
+
+        # set number of gaussians
+        self.m = meta.omegas.shape[0]
+        self.d_flat = self.m
+
+        # set means
+        self.means = torch.tensor(meta.means, dtype=torch.float32)
+
+        # set covariance matrix
+        self.set_cov_matrix(sigma_i=meta.sigma_i)
+
+        # compute normalization factor
+        if self.normalized and self.is_cov_scalar_matrix:
+            norm_factor = (2 * torch.tensor(np.pi) * self.sigma_i)**(self.d / 2)
+        elif self.normalized and not self.is_cov_scalar_matrix:
+            norm_factor = torch.sqrt(2 * torch.tensor(np.pi)**self.d * self.det_cov)
+        else:
+            norm_factor = torch.tensor(1.)
+
+        # set parameters
+        theta = (- self.sde.sigma * meta.omegas / norm_factor).type(torch.float32)
+        self.theta = torch.nn.Parameter(theta)
 
     def mvn_pdf_basis(self, x):
         ''' Multivariate normal pdf (nd Gaussian) basis v(x; means, cov) with different means
@@ -235,10 +307,16 @@ class GaussianAnsatzModel(nn.Module):
         )
 
     def get_rel_path(self):
-        rel_path = os.path.join(
-            'gaussian-ansatz-nn',
-            'm_{}'.format(self.m),
-        )
+        if self.distributed == 'uniform':
+            rel_path = os.path.join(
+                'gaussian-ansatz-nn',
+                'm_{}'.format(self.m),
+            )
+        elif self.distributed == 'meta':
+            rel_path = os.path.join(
+                'gaussian-ansatz-nn',
+                'meta-distributed',
+            )
         return rel_path
 
 
@@ -340,8 +418,38 @@ class TwoLayerNN(nn.Module):
 
 
 class FeedForwardNN(nn.Module):
+    ''' Feed Forward Neural Network model
+
+    Attributes
+    ----------
+
+    Methods
+    -------
+    __init__(d_layers, activation_type='relu', seed=None)
+
+    forward(x)
+
+    get_gradient_parameters()
+
+    get_parameters()
+
+    load_parameters(theta)
+
+    get_rel_path()
+
+    write_parameters(f)
+
+
+    '''
     def __init__(self, d_layers, activation_type='relu', seed=None):
         super(FeedForwardNN, self).__init__()
+        ''' init method
+
+        Parameters
+        ----------
+        seed: int
+            random seed used to initialize the weights
+        '''
 
         # set seed
         if seed is not None:
