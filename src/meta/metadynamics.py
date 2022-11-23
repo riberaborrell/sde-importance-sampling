@@ -834,8 +834,8 @@ class Metadynamics(object):
         self.sample.get_grid_control()
 
         # domain
-        X = self.sample.domain_h[:, :, 0]
-        Y = self.sample.domain_h[:, :, 1]
+        X = self.sample.sde.domain_h[:, :, 0]
+        Y = self.sample.sde.domain_h[:, :, 1]
 
         # plot value function
         fig = plt.figure(
@@ -929,7 +929,7 @@ class Metadynamics(object):
             labels = [r'meta']
 
         # domain
-        x = self.sample.domain_i_h
+        x = self.sample.sde.domain_i_h
 
         # plot bias potential 
         fig = plt.figure(

@@ -1509,17 +1509,17 @@ class Sampling(object):
         '''
 
         # inputs
-        x = x_j * np.ones((self.Nh, self.sde.d))
+        x = x_j * np.ones((self.sde.Nh, self.sde.d))
         x[:, i] = self.sde.domain_i_h
 
         # potential
-        self.grid_potential_i = self.potential(x)
+        self.grid_potential_i = self.sde.potential(x)
 
         # bias potential
         if not self.is_controlled:
             # bias potential and value function
-            self.grid_bias_potential_i = np.zeros(self.Nh)
-            self.grid_value_function_i = np.zeros(self.Nh)
+            self.grid_bias_potential_i = np.zeros(self.sde.Nh)
+            self.grid_value_function_i = np.zeros(self.sde.Nh)
 
         # gaussian ansatz
         elif self.is_controlled and hasattr(self, 'ansatz'):
