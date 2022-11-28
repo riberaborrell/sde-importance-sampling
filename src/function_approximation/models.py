@@ -188,13 +188,13 @@ class GaussianAnsatzModel(nn.Module):
         if self.normalized and self.is_cov_scalar_matrix:
             norm_factor = (2 * torch.tensor(np.pi) * self.sigma_i)**(self.d / 2)
         elif self.normalized and not self.is_cov_scalar_matrix:
-            norm_factor = torch.sqrt(2 * torch.tensor(np.pi)**self.d * self.det_cov)
+            norm_factor = torch.sqrt(torch.tensor(2 * np.pi)**self.d * self.det_cov)
         else:
             norm_factor = torch.tensor(1.)
 
         # set parameters
-        theta = (- self.sde.sigma * meta.omegas / norm_factor).type(torch.float32)
-        self.theta = torch.nn.Parameter(theta)
+        omegas = torch.tensor(meta.omegas, dtype=torch.float32)
+        self.theta = torch.nn.Parameter(- omegas * norm_factor / self.sde.sigma)
 
     def mvn_pdf_basis(self, x):
         ''' Multivariate normal pdf (nd Gaussian) basis v(x; means, cov) with different means

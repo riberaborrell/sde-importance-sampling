@@ -1570,15 +1570,15 @@ class StochasticOptimizationMethod(object):
 
         # discretize domain and evaluate in grid
         self.sample.sde.discretize_domain(h=0.001)
-        self.sample.get_grid_value_function()
         self.sample.get_grid_control()
+        self.sample.get_grid_value_function()
 
         # get hjb solution
         sol_hjb = self.sample.sde.get_hjb_solver(h=0.001)
         sol_hjb.get_perturbed_potential_and_drift()
 
         # colors and labels
-        labels = [r'SOC (iteration: {})'.format(i), 'HJB solution']
+        labels = [r'SOC (iteration: {})'.format(i), 'Reference solution']
         colors = ['tab:blue', 'tab:cyan']
 
         # domain
@@ -1612,6 +1612,7 @@ class StochasticOptimizationMethod(object):
             ))
             fig.set_xlabel = 'x'
             fig.set_xlim(-2, 2)
+            fig.set_ylim(0, 10)
             fig.plot(x, y, labels=labels, colors=colors)
 
         # plot control
@@ -1726,25 +1727,25 @@ class StochasticOptimizationMethod(object):
         ext = '_iter{}'.format(i)
 
         # set theta
-        if self.sample.ansatz is not None:
+        if hasattr(self.sample, 'ansatz'):
             self.sample.ansatz.theta = self.thetas[i]
-        elif self.sample.nn_func_appr is not None:
+        elif hasattr(self.sample, 'nn_func_appr'):
             self.sample.nn_func_appr.model.load_parameters(self.thetas[i])
 
         # discretize domain and evaluate in grid
         self.sample.sde.discretize_domain(h=0.005)
-        self.sample.get_grid_value_function()
+        #self.sample.get_grid_value_function()
         self.sample.get_grid_control()
 
         # get hjb solution
-        sol_hjb = self.sample.get_hjb_solver(h=0.005)
-        sol_hjb.get_controlled_potential_and_drift()
+        sol_hjb = self.sample.sde.get_hjb_solver(h=0.005)
+        sol_hjb.get_perturbed_potential_and_drift()
 
         # domain
-        X = self.sample.domain_h[:, :, 0]
-        Y = self.sample.domain_h[:, :, 1]
+        X = self.sample.sde.domain_h[:, :, 0]
+        Y = self.sample.sde.domain_h[:, :, 1]
 
-        if self.sample.grid_value_function is not None:
+        if hasattr(self.sample, 'grid_value_function'):
 
             # plot value function
             fig = plt.figure(

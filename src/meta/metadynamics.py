@@ -14,6 +14,7 @@ from utils.paths import get_metadynamics_dir_path, \
                         empty_dir, \
                         get_time_in_hms
 from utils.numeric import slice_1d_array, from_1dndarray_to_string
+from utils.figures import TITLES_FIG
 
 META_TYPES = [
     'cumulative',   # cumulative, bias potential with gaussian ansatz
@@ -89,6 +90,73 @@ class Metadynamics(object):
         directory path
     updates_dir_path: str
         directory path where the updates plots
+
+    Methods
+    -------
+    __init__(self, sample, delta, K, seed=None, meta_type='cumulative',
+             weights_type='constant', omega_0=1., sigma_i=0.5)
+
+    set_dir_path()
+
+    set_updates_dir_path()
+
+    start_timer()
+
+    stop_timer()
+
+    set_sampling_parameters(k_lim, dt, xzero)
+
+    preallocate_metadynamics_coefficients()
+
+    set_weights()
+
+    independent_metadynamics_algorithm(i)
+
+    cumulative_metadynamics_algorithm(i)
+
+    save()
+
+    load(dir_path=None, file_name='bias-potential.npz')
+
+    get_trajectory_indices(i=0, update=None)
+
+    set_ansatz_trajectory(i, update=None)
+
+    set_ansatz()
+
+    set_ansatz_averaged()
+
+    write_means(f)
+
+    write_report()
+
+    get_control_and_perturbed_potential_1d(i=0, update=None)
+
+    plot_1d_updates(i=0, n_sliced_updates=5)
+
+    plot_1d_update(i=0, update=None)
+
+    plot_2d_update(i=None, update=None)
+
+    plot_nd_ith_coordinate_update(j=None, update=None, i=0, x_j=0.)
+
+    plot_n_gaussians(n_iter_avg=1, dir_path=None, file_name='n-gaussian')
+
+    plot_time_steps(n_iter_avg=1, dir_path=None, file_name='time-steps')
+
+    plot_2d_means(dir_path=None, file_name='means')
+
+    plot_3d_means(dir_path=None, file_name='means')
+
+    plot_projected_means(i, j)
+
+    plot_nd_means()
+
+    plot_means_to_mins_distance()
+
+    compute_means_position_histogram()
+
+    compute_probability_sampling_in_support()
     '''
 
     def __init__(self, sample, delta, K, seed=None, meta_type='cumulative',
@@ -651,7 +719,7 @@ class Metadynamics(object):
             dir_path=self.dir_path,
             file_name='value-function' + ext,
         )
-        fig.set_title(r'$\Phi^{meta}(x)$')
+        fig.set_title(TITLES_FIG['value-function-meta'])
         fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
         fig.plot(x, value_fs, labels=labels, colors=colors)
@@ -674,7 +742,7 @@ class Metadynamics(object):
             file_name='perturbed-potential' + ext,
         )
         perturbed_potentials[-1, :] = sol_hjb.perturbed_potential
-        fig.set_title(r'$V(x) + V_b^{meta}(x)$')
+        fig.set_title(TITLES_FIG['perturbed-potential-meta'])
         fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
         fig.set_ylim(0, 20)
@@ -687,19 +755,28 @@ class Metadynamics(object):
             file_name='control' + ext,
         )
         controls[-1, :] = sol_hjb.u_opt[:, 0]
-        fig.set_title(r'$u^{meta}(x)$')
+        fig.set_title(TITLES_FIG['control-meta'])
         fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
         fig.plot(x, controls, labels=labels, colors=colors)
 
-    def plot_1d_update(self, i=None, update=None):
+    def plot_1d_update(self, i=0, update=None):
+        ''' plot given  update for the given trajectory
+
+        Parameters
+        ----------
+        i: int, optional
+            index of the sampled trajectory
+        update: int, optional
+            index of the update
+        '''
         from figures.myfigure import MyFigure
 
         # plot given update for the chosen trajectory
         if i is not None:
             # number of updates of i meta trajectory
             n_updates = self.ms[i]
-            updates = np.arange(n_updates)
+            updates = np.arange(n_updates+1)
 
             # if update not given choose last update
             if update is None:
@@ -734,7 +811,7 @@ class Metadynamics(object):
         sol_hjb.get_perturbed_potential_and_drift()
 
         # colors and labels
-        labels = [r'meta (trajectory: {}, update: {})'.format(i, update), 'num sol HJB PDE']
+        labels = [r'meta (trajectory: {}, update: {})'.format(i, update), 'Reference Solution']
         colors = ['tab:purple', 'tab:cyan']
 
         # domain
@@ -778,8 +855,10 @@ class Metadynamics(object):
             self.sample.grid_perturbed_potential,
             sol_hjb.perturbed_potential,
         ))
+        fig.set_title(TITLES_FIG['perturbed-potential-meta'])
         fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
+        fig.set_ylim(0, 10)
         fig.plot(x, y, labels=labels, colors=colors)
 
         # plot control
@@ -792,6 +871,7 @@ class Metadynamics(object):
             self.sample.grid_control[:, 0],
             sol_hjb.u_opt[:, 0],
         ))
+        fig.set_title(TITLES_FIG['control-meta'])
         fig.set_xlabel('x')
         fig.set_xlim(-2, 2)
         fig.plot(x, y, labels=labels, colors=colors)
