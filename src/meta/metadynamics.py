@@ -16,8 +16,14 @@ from utils.paths import get_metadynamics_dir_path, \
 from utils.numeric import slice_1d_array, from_1dndarray_to_string
 from utils.figures import TITLES_FIG
 
+CV_TYPES = [
+    'identity',   # metadynamics on the whole state space
+    'projection', # metadynamics on the first coordinate of the state space
+    None,
+]
+
 META_TYPES = [
-    'cumulative',   # cumulative, bias potential with gaussian ansatz
+    'cumulative',  # cumulative, bias potential with gaussian ansatz
     'independent', # independent
 ]
 
@@ -159,7 +165,7 @@ class Metadynamics(object):
     compute_probability_sampling_in_support()
     '''
 
-    def __init__(self, sample, delta, K, seed=None, meta_type='cumulative',
+    def __init__(self, sample, delta, K, seed=None, cv_type=None, meta_type='cumulative',
                  weights_type='constant', omega_0=1., sigma_i=0.5):
         ''' init method
 
@@ -201,6 +207,10 @@ class Metadynamics(object):
         self.delta = delta
         self.K = K
 
+        # collective variables
+        assert cv_type in CV_TYPES, ''
+        self.cv_type = cv_type
+
         # metadynamics coefficients
         assert meta_type in META_TYPES, ''
         self.meta_type = meta_type
@@ -216,7 +226,8 @@ class Metadynamics(object):
     def set_dir_path(self):
         ''' computes directory path
         '''
-        meta_rel_path = get_metadynamics_dir_path(
+        self.meta_rel_path = get_metadynamics_dir_path(
+            self.cv_type,
             self.meta_type,
             self.weights_type,
             self.omega_0,
@@ -228,7 +239,7 @@ class Metadynamics(object):
         )
         self.dir_path = os.path.join(
             self.sde.settings_dir_path,
-            meta_rel_path,
+            self.meta_rel_path,
         )
 
     def set_updates_dir_path(self):

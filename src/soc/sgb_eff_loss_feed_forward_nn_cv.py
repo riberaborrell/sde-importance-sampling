@@ -17,29 +17,33 @@ def main():
     args = get_parser().parse_args()
 
     # set alpha array
-    if args.potential_name == 'nd_2well':
-        alpha = np.full(args.d, args.alpha_i)
-    elif args.potential_name == 'nd_2well_asym':
-        alpha = np.empty(args.d)
-        alpha[0] = args.alpha_i
-        alpha[1:] = args.alpha_j
+    alpha = np.empty(args.d)
+    alpha[0] = args.alpha_i
+    alpha[1:] = args.alpha_j
 
     # set target set array
-    if args.potential_name == 'nd_2well':
-        target_set = np.full((args.d, 2), [1, 3])
-    elif args.potential_name == 'nd_2well_asym':
-        target_set = np.empty((args.d, 2))
-        target_set[0] = [1, 3]
-        target_set[1:] = [-3, 3]
+    target_set = np.empty((args.d, 2))
+    target_set[0] = [1, 3]
+    target_set[1:] = [-3, 3]
 
     # initialize sde object
     sde = LangevinSDE(
         problem_name='langevin_stop-t',
-        potential_name=args.potential_name,
+        potential_name='nd_2well_asym',
         d=args.d,
         alpha=alpha,
         beta=args.beta,
         target_set=target_set,
+    )
+
+    # initialize efficient sde object
+    eff_sde = LangevinSDE(
+        problem_name='langevin_stop-t',
+        potential_name='nd_2well',
+        d=1,
+        alpha=alpha[0:1],
+        beta=args.beta,
+        target_set=target_set[0:1],
     )
 
     # initialize sampling object
@@ -65,53 +69,21 @@ def main():
     )
 
     # get dir path for nn
-    if args.theta in ['random', 'null']:
-        dir_path = sde.settings_dir_path
 
-    if args.theta == 'not-controlled':
+    # set training algorithm
+    func.training_algorithm = args.train_alg
 
-        # set training algorithm
-        func.training_algorithm = args.train_alg
-
-        dir_path = sde.settings_dir_path
-
-    elif args.theta == 'meta':
-
-        # set training algorithm
-        func.training_algorithm = args.train_alg
-
-        # get metadynamics
-        meta = sde.get_metadynamics_sampling(args.cv_type, args.meta_type, args.weights_type,
-                                             args.omega_0_meta, args.sigma_i, args.dt_meta,
-                                             args.delta_meta, args.K_meta, args.seed)
-        dir_path = meta.dir_path
+    # get metadynamics
+    meta = sde.get_metadynamics_sampling(args.cv_type, args.meta_type, args.weights_type,
+                                         args.omega_0_meta, args.sigma_i, args.dt_meta,
+                                         args.delta_meta, args.K_meta, args.seed)
+    dir_path = meta.dir_path
 
     # set dir path for nn
     func.set_dir_path(dir_path)
 
     # set initial parameters
-    if args.theta == 'random':
-
-        # the nn parameters are randomly initialized 
-        pass
-
-    elif args.theta == 'null':
-
-        # set nn parameters to be zero
-        func.zero_parameters()
-
-    elif args.theta == 'not-controlled':
-
-        # train nn parameters such that control is zero
-        func.train_parameters(sde=sde)
-
-    elif args.theta == 'meta':
-
-        # train parameters if not trained yet
-        func.train_parameters(meta=meta)
-    else:
-        return
-
+    func.train_parameters(meta=meta, eff_sde=eff_sde)
 
     # add nn function approximation
     sample.nn_func_appr = func

@@ -147,13 +147,15 @@ class FunctionApproximation(object):
                     layer._parameters[key], requires_grad=True
                 )
 
-    def train_parameters(self, sde=None, sol_hjb=None, meta=None):
+    def train_parameters(self, sde=None, eff_sde=None, sol_hjb=None, meta=None):
         ''' train parameters such that our model approximates the chosen target function.
 
         Parameters
         ----------
         sde: LangevinSDE object, optional
             langevin sde object
+        eff_sde: LangevinSDE object, optional
+            langevin sde object corresponding to the effective dynamics
         sol_hjb: HJBSolver object, optional
             hjb solver object
         meta: Metadynamics object, optional
@@ -177,7 +179,11 @@ class FunctionApproximation(object):
             assert sde is not None, ''
         elif self.initialization == 'meta':
             assert meta is not None, ''
-            sde = meta.sample.sde
+            if meta.cv_type == 'identity':
+                sde = meta.sample.sde
+            elif meta.cv_type == 'projection':
+                assert eff_sde is not None, ''
+                sde = meta.sample.sde
         elif self.initialization == 'hjb':
             assert sol_hjb is not None, ''
             sde = sol_hjb.sde
@@ -185,6 +191,8 @@ class FunctionApproximation(object):
         # choose training algorithm
         if self.training_algorithm == 'classic':
             self.train_parameters_classic(sde, sol_hjb, meta)
+        elif self.training_algorithm == 'alternative' and meta is not None and meta.cv_type=='projection':
+            self.train_parameters_alternative_cv(sde, eff_sde, meta)
         elif self.training_algorithm == 'alternative':
             self.train_parameters_alternative(sde, sol_hjb, meta)
         else:
@@ -350,10 +358,10 @@ class FunctionApproximation(object):
             self.n_iterations_lim = 10**4
             self.K_train = 10**3
 
-            K_centers = int(0.95 * self.K_train)
             m = meta.ms.sum()
-            K_gauss = K_centers // m
-            K_uniform = self.K_train - K_centers + K_centers % m
+            K_gauss = int(0.95 * self.K_train) // m
+            K_centers = K_gauss*m
+            K_uniform = self.K_train - K_centers
 
         # hjb
         elif self.initialization == 'hjb':
@@ -371,11 +379,14 @@ class FunctionApproximation(object):
             lr=0.01,
         )
 
-        if self.initialization == 'meta':
+        if self.initialization == 'meta' and meta.cv_type == 'identity':
 
             # create ansatz functions from meta
             meta.sample.ansatz = GaussianAnsatz(sde, normalized=False)
             meta.set_ansatz()
+
+        elif self.initialization == 'meta' and meta.cv_type == 'projection':
+            pass
 
         # compute target function if target function is zero
         if self.initialization == 'not-controlled':
@@ -422,6 +433,89 @@ class FunctionApproximation(object):
 
             elif self.initialization == 'hjb':
                 pass
+
+            # tensorize target function evaluation
+            target_tensor = torch.tensor(target, requires_grad=False, dtype=torch.float32)
+
+            # compute loss
+            inputs = self.model.forward(x_tensor)
+            output = loss(inputs, target_tensor)
+            if i % 1 == 0:
+                print('it.: {:d}, loss: {:2.3e}'.format(i, output))
+
+            # save loss
+            self.losses_train[i] = output.detach().numpy()
+
+            # compute gradients
+            output.backward()
+
+            # update parameters
+            optimizer.step()
+
+            # reset gradients
+            optimizer.zero_grad()
+
+        print('\nnn trained with {}!'.format(self.initialization))
+        print('it.: {:d}, loss: {:2.3e}\n'.format(i, output))
+
+        # number of iterations used
+        self.n_iterations = i
+
+    def train_parameters_alternative_cv(self, sde, eff_sde, meta):
+
+        # set sgd parameters
+        self.n_iterations_lim = 10**4
+        self.K_train = 10**3
+
+        m = meta.ms.sum()
+        K_gauss = int(0.95 * self.K_train) // m
+        K_centers = K_gauss*m
+        K_uniform = self.K_train - K_centers
+
+        # losses
+        self.losses_train = np.empty(self.n_iterations_lim)
+
+        # define mean square error loss
+        loss = nn.MSELoss()
+
+        # define optimizer
+        optimizer = optim.Adam(
+            self.model.parameters(),
+            lr=0.01,
+        )
+
+        # create ansatz functions from meta
+        meta.sample.ansatz = GaussianAnsatz(eff_sde, normalized=False)
+        meta.set_ansatz()
+
+        for i in np.arange(self.n_iterations_lim):
+
+            # sample training data
+
+            # preallocate training points
+            y = np.empty((self.K_train, eff_sde.d))
+
+            # sample normal distributed for each gaussian
+            for l in range(m):
+
+                y[K_gauss*l:K_gauss*(l+1), :] = eff_sde.sample_multivariate_normal(
+                    mean=meta.means[l],
+                    cov=0.1 * np.eye(eff_sde.d),
+                    K=K_gauss,
+                )
+
+            # extend points in the whole state space
+            x = sde.sample_domain_uniformly(
+                K=self.K_train,
+                subset=np.full((sde.d, 2), [-2, 2]),
+            )
+            x[:K_centers, 0] = y[:K_centers, 0]
+
+            # tensorize
+            x_tensor = torch.tensor(x, requires_grad=False, dtype=torch.float32)
+
+            # evaluate target function at the training data
+            target = meta.sample.ansatz.control_cv(x)
 
             # tensorize target function evaluation
             target_tensor = torch.tensor(target, requires_grad=False, dtype=torch.float32)

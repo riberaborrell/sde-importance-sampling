@@ -154,6 +154,13 @@ def get_base_parser():
         help='Set the diagonal of the covariance matrix of the ansatz functions. Default: 0.5',
     )
     parser.add_argument(
+        '--cv-type',
+        dest='cv_type',
+        choices=['identity', 'projection'],
+        default='identity',
+        help='type of metadynamics algorithm. Default: cumulative algorithm',
+    )
+    parser.add_argument(
         '--meta-type',
         dest='meta_type',
         choices=['independent', 'cumulative'],

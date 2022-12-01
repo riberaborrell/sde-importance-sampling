@@ -891,12 +891,14 @@ class LangevinSDE(object):
         if sample.load():
             return sample
 
-    def get_metadynamics_sampling(self, meta_type, weights_type, omega_0,
+    def get_metadynamics_sampling(self, cv_type, meta_type, weights_type, omega_0,
                                   sigma_i, dt, delta, K, seed=None):
         ''' load metadynamics sampling
 
         Parameters
         ----------
+        cv_type: str
+            name of the type of collective variable map
         meta_type: str
             name of the metadynamics adapted algorithm
         weights_type: str
@@ -924,6 +926,7 @@ class LangevinSDE(object):
         # initialize meta nd object
         meta = Metadynamics(
             sample=sample,
+            cv_type=cv_type,
             meta_type=meta_type,
             weights_type=weights_type,
             omega_0=omega_0,

@@ -104,9 +104,15 @@ def get_controlled_dir_path(parent_dir_path, dt, K, seed):
     )
     return dir_path
 
-def get_metadynamics_dir_path(meta_type, weights_type, omega_0, sigma_i, dt, delta, K, seed):
+def get_metadynamics_dir_path(cv_type, meta_type, weights_type, omega_0, sigma_i, dt, delta, K, seed):
     ''' returns relative path of the metadynamics algorithm
     '''
+    # set cv string
+    if cv_type is None or cv_type == 'identity':
+        cv_str = ''
+    else:
+        cv_str = 'cv_{}'.format(cv_type)
+
     # set seed string
     if seed is not None:
         seed_str = 'seed_{:d}'.format(seed)
@@ -116,6 +122,7 @@ def get_metadynamics_dir_path(meta_type, weights_type, omega_0, sigma_i, dt, del
     # get dir path
     dir_path = os.path.join(
         'metadynamics-{}'.format(meta_type),
+        cv_str,
         'weights-{}'.format(weights_type),
         'omega0_{}'.format(omega_0),
         'sigma-i_{}'.format(sigma_i),

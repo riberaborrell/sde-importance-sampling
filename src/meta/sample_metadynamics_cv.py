@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 
 from function_approximation.gaussian_ansatz import GaussianAnsatz
@@ -9,47 +11,53 @@ from utils.base_parser import get_base_parser
 
 def get_parser():
     parser = get_base_parser()
-    parser.description = 'Metadynamics for the d-dimensional overdamped Langevin SDE'
+    parser.description = 'Metadynamics for collective variables. Metadynamics for the ' \
+                         'effective dynamics cooresponding to the overdamped Langevin SDE.'
     return parser
 
 def main():
     args = get_parser().parse_args()
 
     # set alpha array
-    if args.potential_name == 'nd_2well':
-        alpha = np.full(args.d, args.alpha_i)
-    elif args.potential_name == 'nd_2well_asym':
-        alpha = np.empty(args.d)
-        alpha[0] = args.alpha_i
-        alpha[1:] = args.alpha_j
+    alpha = np.empty(args.d)
+    alpha[0] = args.alpha_i
+    alpha[1:] = args.alpha_j
 
     # set target set array
-    if args.potential_name == 'nd_2well':
-        target_set = np.full((args.d, 2), [1, 3])
-    elif args.potential_name == 'nd_2well_asym':
-        target_set = np.empty((args.d, 2))
-        target_set[0] = [1, 3]
-        target_set[1:] = [-3, 3]
+    target_set = np.empty((args.d, 2))
+    target_set[0] = [1, 3]
+    target_set[1:] = [-3, 3]
 
     # initialize sde object
     sde = LangevinSDE(
         problem_name='langevin_stop-t',
-        potential_name=args.potential_name,
+        potential_name='nd_2well_asym',
         d=args.d,
         alpha=alpha,
         beta=args.beta,
         target_set=target_set,
     )
 
+    # initialize efficient sde object
+    eff_sde = LangevinSDE(
+        problem_name='langevin_stop-t',
+        potential_name='nd_2well',
+        d=1,
+        alpha=alpha[0:1],
+        beta=args.beta,
+        target_set=target_set[0:1],
+    )
+
     # initialize sampling object
-    sample = Sampling(sde, is_controlled=False)
+    sample = Sampling(eff_sde, is_controlled=False)
 
     # initialize Gaussian Ansatz
-    sample.ansatz = GaussianAnsatz(sde, normalized=False)
+    sample.ansatz = GaussianAnsatz(eff_sde, normalized=False)
 
     # initialize meta nd object
     meta = Metadynamics(
         sample=sample,
+        cv_type='projection',
         meta_type=args.meta_type,
         weights_type=args.weights_type,
         omega_0=args.omega_0_meta,
@@ -63,11 +71,15 @@ def main():
     meta.set_sampling_parameters(
         k_lim=args.k_lim,
         dt=args.dt_meta,
-        xzero=np.full(args.d, args.xzero_i),
+        xzero=np.full(eff_sde.d, args.xzero_i),
     )
 
     # set path
     meta.set_dir_path()
+    meta.dir_path = os.path.join(
+        sde.settings_dir_path,
+        meta.meta_rel_path,
+    )
 
     if not args.load:
 
@@ -97,6 +109,17 @@ def main():
     else:
         if not meta.load():
             return
+
+    # set ansatz and theta
+    meta.sample.ansatz.set_given_ansatz_functions(
+            means=meta.means,
+            sigma_i=meta.sigma_i,
+    )
+    meta.sample.ansatz.theta = - meta.omegas / meta.sde.sigma
+    meta.sample.is_controlled = True
+
+    x = np.random.rand(10, 20)
+    y = meta.sample.ansatz.mvn_pdf_gradient_extended_basis(x)
 
 
     #meta.compute_means_distance()

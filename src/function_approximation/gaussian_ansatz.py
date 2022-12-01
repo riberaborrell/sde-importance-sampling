@@ -449,6 +449,7 @@ class GaussianAnsatz(object):
 
         return torch.exp(log_mvn_pdf_basis).numpy()
 
+
     def mvn_pdf_gradient_basis_numpy(self, x):
         ''' Multivariate normal pdf gradient (nd Gaussian gradients) basis \nabla V(x; means, cov)
         with different means but same covaianc matrix evaluated at x. Computations with numpy
@@ -522,6 +523,27 @@ class GaussianAnsatz(object):
 
         # compute gaussian gradients basis
         return (- grad_exp_term * mvn_pdf_basis[:, :, np.newaxis]).numpy()
+
+    def mvn_pdf_cv_gradient_basis(self, x):
+        '''
+        '''
+        # assume shape of x array to be (K, d)
+        assert x.ndim == 2, ''
+        d = x.shape[1]
+        K = x.shape[0]
+
+        # collective variable projection
+        s = 1
+        y = np.empty((K, s))
+        y[:, 0] = x[:, 0]
+
+        # get gradient gaussian basis in the reduced space
+        mvn_pdf_gradient_basis = self.mvn_pdf_gradient_basis(y)
+        m = mvn_pdf_gradient_basis.shape[1]
+
+        mvn_pdf_cv_gradient_basis = np.zeros((K, m, d))
+        mvn_pdf_cv_gradient_basis[:, :, 0] = mvn_pdf_gradient_basis[:, :, 0]
+        return mvn_pdf_cv_gradient_basis
 
     def set_value_function_constant_to_zero(self):
         ''' sets the value function constant to zero
@@ -606,6 +628,32 @@ class GaussianAnsatz(object):
 
         control = np.tensordot(
             self.mvn_pdf_gradient_basis(x),
+            theta,
+            axes=([1], [0]),
+        )
+        return control
+
+    def control_cv(self, x, theta=None):
+        '''This method computes the control evaluated at x
+
+        Parameters
+        ----------
+        x: (K, d)-array
+            position
+        theta: (m,)-array
+            parameters
+
+        Returns
+        -------
+        array
+            control evaluated at the given points
+        '''
+        assert x.ndim == 2, ''
+        if theta is None:
+            theta = self.theta
+
+        control = np.tensordot(
+            self.mvn_pdf_cv_gradient_basis(x),
             theta,
             axes=([1], [0]),
         )
