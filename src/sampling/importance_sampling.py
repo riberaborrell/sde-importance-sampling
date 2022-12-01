@@ -1456,7 +1456,7 @@ class Sampling(object):
             if self.sde.potential_name == 'nd_2well':
                 self.ansatz.set_value_function_constant_corner()
             elif self.sde.potential_name == 'nd_2well_asym':
-                self.ansatz.set_value_function_target_set()
+                self.ansatz.set_value_function_constant_target_set()
 
             # evaluate value function
             self.grid_value_function = self.ansatz.value_function(x).reshape(self.sde.Nx)
@@ -1515,20 +1515,28 @@ class Sampling(object):
         # potential
         self.grid_potential_i = self.sde.potential(x)
 
-        # bias potential
+        # value function
+
+        # not controlled, i.e. zero
         if not self.is_controlled:
-            # bias potential and value function
-            self.grid_bias_potential_i = np.zeros(self.sde.Nh)
             self.grid_value_function_i = np.zeros(self.sde.Nh)
 
-        # gaussian ansatz
+        # controlled with gaussian ansatz representation
         elif self.is_controlled and hasattr(self, 'ansatz'):
 
-            # bias potential and value function
-            self.grid_bias_potential_i = self.bias_potential(x)
+            # set value function constant
+            if self.sde.potential_name == 'nd_2well':
+                self.ansatz.set_value_function_constant_corner()
+            elif self.sde.potential_name == 'nd_2well_asym':
+                self.ansatz.set_value_function_constant_to_zero()
+
+            # evaluate value function
             self.grid_value_function_i = self.ansatz.value_function(x)
 
-        # controlled potential
+        # bias potential
+        self.grid_bias_potential_i = self.grid_value_function_i * self.sde.sigma**2
+
+        # perturbed potential
         if hasattr(self, 'grid_bias_potential_i'):
 
             # controlled potential

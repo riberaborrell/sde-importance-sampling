@@ -1408,7 +1408,7 @@ class StochasticOptimizationMethod(object):
         self.sample.sde.discretize_domain_ith_coordinate(h=0.01)
         self.sample.get_grid_control_i(i=i, x_j=x_j)
 
-        x = self.sample.domain_i_h
+        x = self.sample.sde.domain_i_h
         y = self.sample.grid_control_i
 
         fig = plt.figure(
@@ -1464,7 +1464,7 @@ class StochasticOptimizationMethod(object):
                 r'$x_i = x_2, \, x_j = {:.1f}$'.format(1),
         ]
 
-        x = self.sample.domain_i_h
+        x = self.sample.sde.domain_i_h
         y = np.vstack((
                 control_1,
                 control_2,
@@ -1509,7 +1509,7 @@ class StochasticOptimizationMethod(object):
         sol_hjb = self.sample.get_hjb_solver_det(h=0.01, dt=0.005)
         u_opt_i = sol_hjb.u_opt_i[k, :]
 
-        x = self.sample.domain_i_h
+        x = self.sample.sde.domain_i_h
         y = np.vstack((
             self.sample.grid_control_i,
             u_opt_i,
