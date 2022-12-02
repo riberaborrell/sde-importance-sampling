@@ -1003,7 +1003,7 @@ class StochasticOptimizationMethod(object):
         '''
         '''
 
-        if self.sol_hjb is None:
+        if not hasattr(self, 'sol_hjb'):
             self.colors = [
                 COLORS_FIG['nn'],
                 COLORS_FIG['mc-sampling'],
@@ -1138,18 +1138,26 @@ class StochasticOptimizationMethod(object):
         # iterations
         x = np.arange(self.n_iter_run_avg)
 
-        # re I^u, mc sampling, hjb sampling and hjb solution
+        # without reference solution
         if not hasattr(self, 'sol_hjb'):
             y = np.vstack((
                 self.run_avg_vars_I_u,
                 self.var_I_mc,
             ))
+            labels = self.labels[:2]
+            colors = self.colors[:2]
+            linestyles = self.linestyles[:2]
+
+        # with reference solution
         else:
             y = np.vstack((
                 self.run_avg_vars_I_u,
                 self.var_I_mc,
                 self.var_I_u_hjb,
             ))
+            labels = self.labels[:3]
+            colors = self.colors[:3]
+            linestyles = self.linestyles[:3]
 
         # relative error figure
         fig = plt.figure(
@@ -1160,10 +1168,7 @@ class StochasticOptimizationMethod(object):
         fig.set_title(TITLES_FIG['var-i-u'])
         fig.set_xlabel(LABELS_FIG['grad-steps'])
         fig.set_plot_scale('semilogy')
-        if self.sol_hjb is None:
-            fig.plot(x, y, self.labels, self.colors, self.linestyles)
-        else:
-            fig.plot(x, y, self.labels[:3], self.colors[:3], self.linestyles[:3])
+        fig.plot(x, y, labels, colors, linestyles)
 
 
     def plot_re_I_u(self):
@@ -1421,7 +1426,8 @@ class StochasticOptimizationMethod(object):
         fig.set_xlim(-2, 2)
         fig.plot(x, y)
 
-    def plot_control_slices_ith_coordinate(self, it=-1, dir_path=None, file_name='control'):
+    def plot_control_slices_ith_coordinate(self, it=-1, dir_path=None, file_name='control',
+                                           ylim=None, title=None):
         from figures.myfigure import MyFigure
 
         # set dir path
@@ -1474,11 +1480,14 @@ class StochasticOptimizationMethod(object):
                 control_6,
         ))
 
-        #fig.set_title(r'$u_i(x; \theta_{2999})$, $\theta_0$ = meta')
-        fig.set_title(r'Control $u_{i}(\theta)$ (initial)')
+        if title is not None:
+            fig.set_title(title)
+        else:
+            fig.set_title(r'Control $u_{i}(\theta)$')
         fig.set_xlabel(r'$x_i$')
         fig.set_xlim(-1.5, 1.5)
-        fig.set_ylim(-1.5, 1.5)
+        if ylim is not None:
+            fig.set_ylim(ylim[0], ylim[1])
         #fig.turn_legend_off()
         plt.subplots_adjust(left=0.12, right=0.96, bottom=0.12)
         fig.plot(x, y, labels)
