@@ -495,21 +495,8 @@ class FunctionApproximation(object):
             # preallocate training points
             y = np.empty((self.K_train, eff_sde.d))
 
-            # sample normal distributed for each gaussian
-            for l in range(m):
-
-                y[K_gauss*l:K_gauss*(l+1), :] = eff_sde.sample_multivariate_normal(
-                    mean=meta.means[l],
-                    cov=0.1 * np.eye(eff_sde.d),
-                    K=K_gauss,
-                )
-
-            # extend points in the whole state space
-            x = sde.sample_domain_uniformly(
-                K=self.K_train,
-                subset=np.full((sde.d, 2), [-2, 2]),
-            )
-            x[:K_centers, 0] = y[:K_centers, 0]
+            # sample uniform distributed in the domain
+            x = sde.sample_domain_uniformly(K=self.K_train)
 
             # tensorize
             x_tensor = torch.tensor(x, requires_grad=False, dtype=torch.float32)
