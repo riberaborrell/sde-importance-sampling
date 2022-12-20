@@ -19,6 +19,7 @@ COLORS_FIG = {
     'gaussian-init': COLORS_TAB20[2],   # orange
     'nn': COLORS_TAB20[8],              # lila
     'nn-init': COLORS_TAB20[12],        # pink 
+    'nn-init-cv': COLORS_TAB20[10],     # brown
 }
 
 TITLES_FIG = {
