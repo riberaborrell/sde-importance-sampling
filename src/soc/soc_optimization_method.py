@@ -1469,6 +1469,7 @@ class StochasticOptimizationMethod(object):
                 r'$x_i = x_1, \, x_j = {:.1f}$'.format(1),
                 r'$x_i = x_2, \, x_j = {:.1f}$'.format(1),
         ]
+        linestyles = ['-', '-', 'dashed', 'dashed', 'dotted', 'dotted']
 
         x = self.sample.sde.domain_i_h
         y = np.vstack((
@@ -1490,7 +1491,7 @@ class StochasticOptimizationMethod(object):
             fig.set_ylim(ylim[0], ylim[1])
         #fig.turn_legend_off()
         plt.subplots_adjust(left=0.12, right=0.96, bottom=0.12)
-        fig.plot(x, y, labels)
+        fig.plot(x, y, labels=labels, linestyles=linestyles)
 
 
     def plot_control_i_det(self, it=-1, i=0, t=None):
