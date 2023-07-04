@@ -77,9 +77,10 @@ def main():
 
     for i in np.arange(n_batch_samples):
 
-        # set same dir path
+        # set sample parameters
         batch_sample.dt = args.dt
         batch_sample.K = args.K_batch
+
         batch_sample.seed = i + 1
 
         # load files

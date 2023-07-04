@@ -84,6 +84,7 @@ def main():
 
         # get metadynamics
         meta = sde.get_metadynamics_sampling(
+            cv_type=args.cv_type,
             meta_type=args.meta_type,
             weights_type=args.weights_type,
             omega_0=args.omega_0_meta,
@@ -156,7 +157,8 @@ def main():
     batch_sample.load()
 
     # add fht
-    idx_i_reduced_batch = slice(0, sample.K)
+    #idx_i_reduced_batch = slice(0, sample.K)
+    idx_i_reduced_batch = slice(batch_sample.K - sample.K, batch_sample.K)
     sample.been_in_target_set[:, 0] = batch_sample.been_in_target_set[(idx_i_reduced_batch, 0)]
     sample.fht = batch_sample.fht[idx_i_reduced_batch]
 
