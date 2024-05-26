@@ -67,6 +67,66 @@ def quadratic_one_well(x, nu, tensor=False):
             nu_tensor = torch.tensor(nu, requires_grad=False)
             return torch.sum(nu_tensor * torch.pow((x -1), 2), axis=1)
 
+def skew_double_well(x, tensor=False):
+    ''' skew double well.
+    '''
+    d = 1
+
+    # 1-dimensional function
+    if type(x) in FLOAT_TYPES:
+        pass
+
+    # check alpha and x
+    assert type(x) == np.ndarray or type(x) == torch.Tensor, ''
+
+    # n-dimensional scalar function
+    if x.ndim == 1:
+        assert x.shape[0] == d, ''
+        if not tensor:
+            pass
+        else:
+            pass
+
+    # n-dimensional vector funcion
+    elif x.ndim == 2:
+        assert x.shape[1] == d, ''
+        K = x.shape[0]
+
+        if not tensor:
+            return (x**2 -1)**2 - 0.2*x + 0.3
+        else:
+            pass
+
+def skew_double_well_gradient(x, tensor=False):
+    '''
+    '''
+    d = 1
+
+    # 1-dimensional function
+    if type(x) in FLOAT_TYPES:
+        pass
+
+    # check alpha and x
+    assert type(x) == np.ndarray or type(x) == torch.Tensor, ''
+
+    # n-dimensional vector function
+    if x.ndim == 1:
+        assert x.shape[0] == d, ''
+        if not tensor:
+            pass
+        else:
+            pass
+
+    # n-dimensional vector funcion
+    elif x.ndim == 2:
+        assert x.shape[1] == d, ''
+        K = x.shape[0]
+
+        if not tensor:
+            return 4 * x * (x**2 - 1) - 0.2
+        else:
+            pass
+
 
 def double_well(x, alpha, tensor=False):
     ''' double well with minimus at +- 1 and maximum at 0.

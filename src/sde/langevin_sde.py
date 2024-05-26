@@ -6,16 +6,22 @@ import numpy as np
 import torch
 from torch.distributions.multivariate_normal import MultivariateNormal
 
+from sde_hjb_solver.hjb_solver_1d_st import SolverHJB1D
+from sde_hjb_solver.hjb_solver_2d_st import SolverHJB2D
+
 from sde.functions import constant, \
                           quadratic_one_well, \
                           double_well, \
-                          double_well_gradient
+                          double_well_gradient, \
+                          skew_double_well, \
+                          skew_double_well_gradient
 from utils.paths import get_data_dir
 
 
 POTENTIAL_NAMES = [
     'nd_2well',
     'nd_2well_asym',
+    '1d_skew_2well',
 ]
 
 class LangevinSDE(object):
@@ -213,15 +219,21 @@ class LangevinSDE(object):
             parameters of the potential
         '''
 
-        # set alpha
-        type(alpha) == np.ndarray, ''
-        assert alpha.ndim == 1, ''
-        assert alpha.shape[0] == self.d, ''
-        self.alpha = alpha
+        if self.potential_name in ['nd_2well', 'nd_2well_asym']:
 
-        # set potential and gradient
-        self.potential = functools.partial(double_well, alpha=self.alpha)
-        self.gradient = functools.partial(double_well_gradient, alpha=self.alpha)
+            # set alpha
+            type(alpha) == np.ndarray, ''
+            assert alpha.ndim == 1, ''
+            assert alpha.shape[0] == self.d, ''
+            self.alpha = alpha
+
+            # set potential and gradient
+            self.potential = functools.partial(double_well, alpha=self.alpha)
+            self.gradient = functools.partial(double_well_gradient, alpha=self.alpha)
+
+        elif self.potential_name == '1d_skew_2well':
+            self.potential = skew_double_well
+            self.gradient = skew_double_well_gradient
 
     def set_work_path_functional(self, nu=None):
         ''' set work path functional
@@ -266,6 +278,9 @@ class LangevinSDE(object):
             assert self.d > 1, ''
             assert self.alpha[0] != self.alpha[1], ''
             alpha_str = 'alpha_i_{}_j_{}'.format(float(self.alpha[0]), float(self.alpha[1]))
+
+        elif self.potential_name == '1d_skew_2well':
+            alpha_str = ''
 
         # get absolute path of the directory for the chosen settings
         self.settings_dir_path = os.path.join(
@@ -388,9 +403,9 @@ class LangevinSDE(object):
         '''
         # set default domain
         if domain is None:
-            self.domain = np.full((self.d, 2), [-3, 3])
-            self.domain_lb = -3.
-            self.domain_ub = 3.
+            self.domain = np.full((self.d, 2), [-2, 2])
+            self.domain_lb = -2.
+            self.domain_ub = 2.
             self.is_domain_hypercube = True
             return
 
@@ -784,31 +799,55 @@ class LangevinSDE(object):
         # get index
         return np.where(is_in_target_set == True)[0]
 
-    def get_hjb_solver(self, h=None) -> None:
-        ''' load hjb solver object
+    def get_hjb_solver(self, h_hjb=None):
 
-        Parameters
-        ----------
-        h: float
-            space discretization step
-        '''
-        from hjb.hjb_solver import SolverHJB
+        # discretization step
+        if h_hjb is None and self.d == 1:
+            h_hjb = 1e-3
+        elif h_hjb is None and self.d == 2:
+            h_hjb = 5e-2
+        self.h = h_hjb
 
-        if h is None and self.d == 1:
-            h = 0.001
-        elif h is None and self.d == 2:
-            h = 0.005
-        elif h is None and self.d == 3:
-            h = 0.1
-        elif h is None:
-            return
+        if self.d == 1:
+            from sde_hjb_solver.controlled_sde_1d import DoubleWellMGF1D as SDE1D
 
-        # initialize hjb solver
-        sol_hjb = SolverHJB(self, h=h)
+            # initialize controlled sde object
+            sde = SDE1D(
+                beta=self.beta,
+                alpha=self.alpha[0],
+                domain=self.domain[0],
+                target_set=self.target_set[0],
+            )
 
-        # load already computed solution
-        if sol_hjb.load():
-            return sol_hjb
+
+            # initialize hjb solver object
+            sol_hjb = SolverHJB1D(sde, h=h_hjb)
+
+            # load  hjb solver
+            sol_hjb.load()
+
+            sol_hjb.unflatten_solution()
+
+        elif self.d == 2:
+            from sde_hjb_solver.controlled_sde_2d import DoubleWellMGF2D as SDE2D
+
+            # initialize controlled sde object
+            sde = SDE2D(
+                beta=self.beta,
+                alpha=self.alpha,
+                domain=self.domain,
+                target_set=self.target_set,
+            )
+
+            # initialize hjb solver object
+            sol_hjb = SolverHJB2D(sde, h=h_hjb)
+
+            # load  hjb solver
+            sol_hjb.load()
+
+
+        return sol_hjb
+
 
     #TODO! revise method
     def get_hjb_solver_det(self, h=0.01, dt=0.005) -> None:
